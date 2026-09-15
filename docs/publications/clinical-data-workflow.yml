@@ -1,0 +1,507 @@
+document_type: infrastructure_manuscript
+language: en
+status: draft_for_author_review
+title: From clinical endoscopy data to publication-ready research resources
+date: '2026-09-10'
+agent_id: codex-infrastructure-manuscript-20260910
+source_revision: b5ebf16da55a203cf3014291a1dd687b6de79171
+source_state: Working tree contained existing modifications; no production or patient data accessed.
+manuscript_markdown: '# From clinical endoscopy data to publication-ready research resources
+
+
+  ## A governed data workflow for LX-Annotate, endoreg_db and LuxNix
+
+
+  **Infrastructure manuscript | 10 September 2026**
+
+
+  ### Abstract
+
+
+  **Background:** Clinical endoscopy produces video, reports and contextual information with substantial
+  research value, but these materials contain identifiers and require both privacy review and scientific
+  curation before reuse. **Objective:** To describe an infrastructure workflow that connects clinical
+  acquisition to reviewed, traceable research resources while preserving a distinct decision boundary
+  for public dataset release. **Methods:** We examined the LX-Annotate working-tree documentation and
+  selected implementation paths for ingestion, encrypted storage, anonymization review, annotation, dataset
+  export and site-to-hub transfer. The workflow is interpreted alongside established literature on anonymization,
+  FAIR data stewardship, dataset documentation and machine-learning leakage. **Architecture:** Clinical
+  source material enters a protected site node, is transformed into processed derivatives, undergoes human
+  anonymization and annotation review, and becomes transfer eligible only after integrity verification
+  and attributable approval. Encrypted transfer and matching hub acknowledgement establish delivery of
+  the approved artifact. A further proposed publication workflow minimizes metadata, assesses disclosure
+  risk, documents scientific provenance and authorizes a versioned release. **Conclusion:** The infrastructure
+  provides explicit technical gates between clinical data and research reuse. Public release requires
+  additional dataset-level evidence; neither successful processing nor successful transfer independently
+  establishes anonymity or publication approval. This manuscript reports an architecture, not measured
+  anonymization accuracy, deployment certification or a completed dataset release.
+
+
+  **Keywords:** endoscopy; clinical data infrastructure; anonymization; annotation; encrypted storage;
+  research data management; dataset publication
+
+
+  ### 1. Introduction
+
+
+  Endoscopic video and associated reports capture anatomy, findings, procedures and longitudinal clinical
+  context. Turning these records into reusable research data requires more than extracting frames or removing
+  a patient name. Identifying information can occur in visible overlays, report text, metadata and contextual
+  combinations. Dataset preparation must also preserve label meaning, distinguish automated predictions
+  from human annotations, and establish which transformations produced each released object.
+
+
+  Published resources such as HyperKvasir demonstrate the scientific relevance of curated gastrointestinal
+  image and video collections [1]. FAIR principles emphasize findability, accessibility, interoperability
+  and reusability [2], while Datasheets for Datasets motivates documentation of collection, composition,
+  intended use and limitations [3]. These contributions support treating publication as an accountable
+  process with inspectable outputs.
+
+
+  This paper describes that process for LX-Annotate, its endoreg_db domain layer and the LuxNix operating
+  environment. The central architectural contribution is a sequence of distinct decisions: acquisition,
+  protected processing, privacy review, annotation validation, integrity approval, controlled transfer
+  and dataset release. Keeping these decisions separate prevents a successful technical operation from
+  being mistaken for permission to disclose clinical information.
+
+
+  ### 2. Scope and evidence basis
+
+
+  The manuscript is grounded in repository guides and selected source files inspected on 10 September
+  2026. Appendix A lists the internal evidence. The inspected checkout had existing modifications; the
+  recorded Git revision is a baseline identifier rather than a complete description of the working tree.
+  No patient records, production systems or clinical datasets were accessed for manuscript preparation.
+
+
+  Statements identified as the documented workflow describe repository contracts and the inspected implementation
+  structure. Recommendations for public-release packaging and evaluation are proposed extensions to that
+  workflow. They are not presented as features already enforced by a publication service. No throughput,
+  privacy-performance, inter-rater agreement, cohort size or clinical outcome measurement is asserted.
+
+
+  The term “anonymization validation” denotes the application''s operational review gate. It does not
+  independently establish legal anonymity. The GDPR distinguishes identifiable personal data from information
+  rendered anonymous in light of means reasonably likely to be used for identification; pseudonymization
+  is separately defined in Article 4(5) [4]. A linked or coded research record therefore needs an explicit
+  disclosure assessment rather than a change of filename or status alone. The Article 29 Working Party''s
+  historical guidance examines singling out, linkability and inference as relevant dimensions of anonymization
+  risk [5].
+
+
+  ### 3. Infrastructure and trust boundaries
+
+
+  The site node is the primary clinical processing boundary. LX-Annotate provides the operator interface
+  and application orchestration; endoreg_db supplies domain objects and processing services for videos,
+  reports, examinations, annotations and transfer contracts. LuxNix provides the host environment and
+  provisioning boundary. The inspected application combines Django backend components with a Vue frontend,
+  file-watcher intake and asynchronous processing workers.
+
+
+  Three information boundaries organize the design. First, identifiable acquisition material remains within
+  a protected clinical site. Second, reviewed processed material may move to an approved hub through an
+  authenticated, encrypted transfer path. Third, a dataset assembled for external publication requires
+  its own disclosure review and release authorization. The hub remains a controlled research environment;
+  arrival at the hub is not public dissemination.
+
+
+  Managed file storage uses authenticated encryption with a fresh per-file data-encryption key. The long-lived
+  local master key wraps these file keys and must remain local. Consumers obtain decrypted content through
+  the storage interface or a scoped materialization helper, rather than passing ciphertext paths directly
+  to video, PDF or model parsers. Host disk protection, database access controls and backup protection
+  remain separate responsibilities: encryption of managed media does not establish protection of every
+  database, log or temporary file.
+
+
+  The current hub guide and envelope module describe a Phase 2 transfer boundary: mutual TLS protects
+  and authenticates the channel, while a per-transfer key encrypts standalone processed media and is wrapped
+  for the receiving hub. Shared secrets authenticate requests and are not payload-encryption keys. KMS
+  integration belongs to the architectural roadmap and is not claimed here as deployed functionality.
+
+
+  ### 4. End-to-end data workflow
+
+
+  **Workflow overview.** Clinical video and reports → protected intake → processed derivatives → human
+  anonymization review ↔ correction → annotation and segment validation → final artifact integrity approval
+  → explicit hub transfer → verified hub receipt → dataset curation and disclosure review → authorized,
+  versioned publication.
+
+
+  The correction loop returns material to review. Changes to the approved processed video or its segments
+  invalidate its previous export-readiness proof. The final publication steps below are a proposed governance
+  process layered on the documented technical workflow.
+
+
+  | Stage | Output | Decision required to proceed |
+
+  |:--|:--|:--|
+
+  | Clinical acquisition and intake | Managed source record with clinical context | Authorized intake;
+  source assignment and usable input |
+
+  | Protected processing | Candidate processed video or report | Processing completes with usable derivative
+  |
+
+  | Anonymization review | Reviewed processed content | Human acceptance after necessary correction |
+
+  | Annotation validation | Reviewed segments and derived labels | Annotation approval and required outside-segment
+  cleanup |
+
+  | Export-readiness promotion | Final artifact with integrity proof | Attributable approval and matching
+  processed-content digests |
+
+  | Controlled hub transfer | Registered and delivered processed resource | Explicit marking, queueing
+  and matching terminal acknowledgement |
+
+  | Publication preparation — proposed | Minimized, documented dataset release candidate | Scientific
+  review and dataset-level disclosure assessment |
+
+  | Public release — proposed | Versioned dataset or public metadata record | Institutional authorization
+  and suitable access conditions |
+
+
+  #### 4.1. Clinical acquisition and protected intake
+
+
+  Video and PDF reports enter through the supported watcher or API intake pathways. Intake creates managed
+  resources and workflow state; it does not by itself demonstrate that prediction, anonymization or validation
+  has completed. In particular, removal of a watched source after successful ingestion cannot be used
+  as evidence that prediction segments exist.
+
+
+  Source-center and examination assignment preserve the context required for correct processing and authorized
+  local linkage. Within the clinical boundary, this context may remain identifying. The publication workflow
+  should retain only the relationships needed for its scientific purpose and keep identity linkage outside
+  the release package. Collection purpose, lawful processing basis, ethics requirements and any consent
+  conditions must be established by the responsible institution before research use [4].
+
+
+  #### 4.2. Transformation into processed derivatives
+
+
+  Processing generates managed derivatives for review. For videos, correction capabilities include masking
+  persistent sensitive regions and removing isolated sensitive frames. For PDF reports, the documented
+  correction interface supports redaction boxes, preview generation and submission of the corrected document
+  for reprocessing. These are transformation mechanisms; their presence alone does not demonstrate complete
+  identifier removal.
+
+
+  A proposed release inspection should include visible content and nonvisual channels: PDF text layers,
+  embedded metadata, filenames, video metadata, thumbnails and audio if present. A black region in a viewer
+  is insufficient evidence that the underlying PDF content has been removed. The release reviewer should
+  inspect the actual exported object and confirm that redaction has not left recoverable sensitive content.
+  No automatic coverage guarantee for these channels was established in this repository review.
+
+
+  #### 4.3. Human anonymization review and correction
+
+
+  The review interface presents original and anonymized media side by side and exposes patient and examination
+  fields for consistency checking. Reviewers assess the processed result, resolve incorrect metadata and
+  request corrections when needed. PDF validation includes an explicit document-type choice and supports
+  examination assignment.
+
+
+  For video, processing completion is represented separately from accepted anonymization. The state `done_processing_anonymization`
+  indicates that processed material exists but still requires review; `validated` records accepted anonymization.
+  The documented interface also requires applicable outside-segment review before approval. This preliminary
+  privacy-related segment review should not be conflated with the subsequent full segment annotation gate.
+
+
+  The acceptance decision concerns the exact reviewed content. After correction, the reviewer compares
+  the new result rather than inheriting approval from the earlier object. At dataset-release time, a separate
+  review examines combinations of records and metadata that are not visible in a single-media review.
+
+
+  #### 4.4. Clinical annotation and scientific curation
+
+
+  After anonymization acceptance, segment annotation identifies relevant intervals and clinical labels.
+  Prediction segments are represented separately from human annotations and carry prediction provenance
+  or a prediction source. A completed inference flag is insufficient if the expected segment rows were
+  never materialized. This distinction allows reviewers to inspect the actual machine-generated intervals
+  rather than infer their existence from task completion.
+
+
+  Segment validation can create frame-level `ImageClassificationAnnotation` records. Annotator identity
+  must be propagated through the relevant task and validation actions, including an explicit alternative
+  annotator when that workflow is used. Anonymization validation and segment validation remain separate
+  states. Already segment-validated videos remain available for viewing while editing is constrained unless
+  an explicit override is active.
+
+
+  For a publishable dataset, the proposed curation protocol should define label meanings, inclusion criteria,
+  how missing labels differ from negative findings, and how disagreements are adjudicated. Machine proposals
+  should remain distinguishable from accepted human labels. Exported frames need traceability to the processed
+  video and the frame or time interval from which they were derived.
+
+
+  #### 4.5. Final processed artifact and integrity approval
+
+
+  For video hub eligibility, the documented contract requires a nonempty managed processed artifact, accepted
+  anonymization, accepted segment annotation including successful outside-segment cleanup, and an attributable
+  ready-for-export decision. Two persisted digest fields must agree on the final processed artifact. At
+  marking and transfer boundaries, the actual managed content is hashed again and mismatches block progress.
+
+
+  This establishes byte-level continuity between approval and transfer. It does not prove clinical label
+  accuracy or anonymity. Processed-artifact replacement or segment changes clear the readiness proof,
+  requiring renewed promotion. Report transfer has its own validated anonymized text and processed-PDF
+  checks; video-specific segment gates should not be generalized to reports.
+
+
+  #### 4.6. Controlled transfer and hub receipt
+
+
+  Eligibility and transfer intent are separate. An authenticated operator marks an eligible resource for
+  upload; queueing then initiates registration and processed-media delivery. The sender ledger records
+  progress through marking, queueing, registration, upload and completion or failure. Retries reuse a
+  deterministic logical transfer identity rather than creating a new resource because a request timed
+  out.
+
+
+  The permitted transfer mode carries metadata and processed media; raw-media export is prohibited. Typed
+  payload checks establish the source, target, center, resource identity and processing contract before
+  registration. The receiver''s acknowledgement must match the expected transfer identity and processed-media
+  digest. Completion requires a matching terminal `applied` result, not simply an HTTP response or accepted
+  registration.
+
+
+  Local cleanup remains a distinct decision after verified receipt, with retention of processed media
+  documented as the conservative default. A failed or inconsistent acknowledgement cannot authorize deletion.
+  Because transfer metadata can contain linkable research context, all hub-bound metadata still requires
+  authorized handling even when the media has passed anonymization review.
+
+
+  #### 4.7. Research export and publication packaging
+
+
+  The documented training-data export supports CSV or JSON annotations and optional processed videos or
+  frames. A standardized AI dataset JSON includes schema information, dataset identifiers, summaries,
+  patient-video structures and frame annotations. These structures support research interoperability but
+  are not inherently public-release schemas.
+
+
+  Existing annotation exports can include internal video and frame identifiers, annotators, source information,
+  model metadata and timestamps. The proposed publication packager should explicitly select allowed fields,
+  replace internal identifiers with release-scoped identifiers when appropriate, remove unnecessary staff
+  and operational metadata, and inspect any patient-video structures for linkable information. A content
+  hash supports integrity; it should not be described as an anonymization method.
+
+
+  A release package should contain the approved media or derived frames, an annotation table, a versioned
+  schema, a label dictionary, a machine-readable manifest and a human-readable dataset description. The
+  manifest should connect release identifiers to checksums and transformation versions without exposing
+  the clinical linkage table. Dataset documentation should explain collection, exclusions, intended uses,
+  access conditions and limitations [3].
+
+
+  For machine-learning use, partitioning should occur at the patient level where authorized linkage permits,
+  keeping related examinations and adjacent frames together. Preprocessing or selection based on the full
+  dataset can also introduce leakage. These recommendations address known reproducibility concerns in
+  machine-learning research [6]; their enforcement by the current export endpoints was not established.
+
+
+  ### 5. Publication decision and access model
+
+
+  The proposed release decision has two independent dimensions: scientific adequacy and acceptable disclosure
+  risk. Scientific review considers cohort definition, representativeness, label quality and traceability.
+  Disclosure review considers the combined media, text and metadata, including rare combinations and potential
+  external linkages. The singling-out, linkability and inference framework offers useful questions for
+  this assessment [5].
+
+
+  If public disclosure cannot be justified, the appropriate outcome is further minimization, exclusion
+  of affected records, or an authorized controlled-access arrangement. Controlled access does not convert
+  personal data into anonymous data. Conversely, FAIR accessibility can be implemented through stated
+  access procedures and authentication; FAIR principles do not require unrestricted public download [2].
+
+
+  | Proposed release evidence | Responsible role | Required record |
+
+  |:--|:--|:--|
+
+  | Permitted research use and disclosure | Institutional data controller and research lead | Applicable
+  approvals and use conditions |
+
+  | Media and metadata disclosure review | Designated privacy reviewer | Review scope, findings, corrections
+  and decision |
+
+  | Label and cohort review | Clinical and scientific curators | Definitions, exclusions, adjudication
+  and limitations |
+
+  | Artifact and provenance verification | Data steward | Manifest, checksums, schema and transformation
+  versions |
+
+  | Access and release authorization | Authorized release owner | Dataset version, access conditions,
+  license where appropriate and approval date |
+
+
+  A published version should be immutable. Corrections should produce a new version with a documented
+  relationship to the prior release and a procedure for handling discovered privacy defects. The public
+  record should include a persistent identifier, a citation, access conditions and a contact route, while
+  internal audit material remains appropriately restricted.
+
+
+  ### 6. Evaluation framework
+
+
+  The architecture requires prospective evaluation before quantitative infrastructure or privacy claims
+  can be made. The following measures are proposed; no observations were generated for this manuscript.
+
+
+  | Evaluation domain | Suggested measurement | Interpretation constraint |
+
+  |:--|:--|:--|
+
+  | Residual identifiers | Reviewed items with residual identifiers divided by items inspected; report
+  modality and identifier class | Zero observed events does not establish zero risk; report sampling and
+  uncertainty |
+
+  | Review burden | Active review time, correction frequency and reprocessing time | Separate human time
+  from queue and compute latency |
+
+  | Annotation reliability | Per-label agreement and adjudication rate on independently reviewed cases
+  | Account for class prevalence and correlated frames |
+
+  | Workflow integrity | Attempts correctly blocked after artifact changes, missing approval or digest
+  mismatch | Exercise normal transitions and explicit failure cases |
+
+  | Transfer recovery | Duplicate-free completion after interruption; rejection of mismatched acknowledgements
+  | Distinguish registration, delivery and verified apply |
+
+  | Dataset reproducibility | Manifest verification, resolvable frame paths and reproducible label reconstruction
+  | Preserve transformation and schema versions |
+
+  | Research validity | Patient overlap checks, cohort exclusions and distribution summaries | State how
+  linkage was performed without disclosing it |
+
+
+  A meaningful verification program should also test encrypted input consumption, wrong-key and tamper
+  rejection, cleanup after parser exceptions, and absence of persistent plaintext after scoped processing.
+  Such testing is particularly relevant when model weights or media are stored as encrypted application-managed
+  files. Operational readiness must additionally be established in the intended environment; repository
+  inspection cannot substitute for that evidence.
+
+
+  ### 7. Discussion and limitations
+
+
+  The workflow''s main strength is the separation of privacy, annotation, integrity and transfer decisions.
+  It provides a way to reason about exactly which artifact was reviewed, which clinical labels were accepted
+  and whether the hub acknowledged the expected resource. This structure is useful for asynchronous processing
+  because a completed task cannot silently stand in for a human approval.
+
+
+  Encryption and integrity checks protect different properties from anonymization. Encryption limits access
+  to protected content; hashing detects content changes; anonymization addresses identification risk.
+  None supplies evidence for the others. Similarly, a technically valid training export can retain fields
+  unsuitable for public release, making dataset-level minimization a necessary additional activity.
+
+
+  Human review introduces time costs and can miss identifiers, especially in long videos or complex reports.
+  Automatic processing may vary by device layout, language and document structure. Annotation quality
+  depends on clinical expertise, operational definitions and disagreement handling. The review did not
+  establish measured performance for these factors or demonstrate successful operation across a clinical
+  fleet.
+
+
+  The manuscript is limited to a documentation and selected-source assessment of one working tree. It
+  is not a full implementation audit, legal determination, production acceptance report or empirical dataset
+  paper. The proposed publication process requires institutional ownership and implementation evidence
+  before it can be described as an enforced release pathway.
+
+
+  ### 8. Conclusion
+
+
+  LX-Annotate and endoreg_db document a staged route from protected clinical intake to reviewed processed
+  media, validated annotations and verified encrypted hub delivery. Extending that route to publication
+  requires explicit dataset curation, metadata minimization, disclosure assessment and an authorized versioned
+  release. This distinction makes the workflow scientifically interpretable while keeping clinical processing
+  approval separate from public dissemination.
+
+
+  ### Declarations and submission status
+
+
+  This draft describes infrastructure and did not process patient data during its preparation. Study-specific
+  ethics review, consent conditions and permission to publish clinical material cannot be inferred from
+  that fact and must be reported by the study team for any subsequent dataset study. No patient dataset
+  accompanies this manuscript. Authorship, affiliations, funding and competing-interest declarations were
+  not supplied and require completion by the responsible authors before journal submission. No clinical
+  or operational performance results are claimed.
+
+
+  ### References
+
+
+  1. Borgli H, Thambawita V, Smedsrud PH, et al. HyperKvasir, a comprehensive multi-class image and video
+  dataset for gastrointestinal endoscopy. *Scientific Data*. 2020;7:283. [https://doi.org/10.1038/s41597-020-00622-y](https://doi.org/10.1038/s41597-020-00622-y).
+
+
+  2. Wilkinson MD, Dumontier M, Aalbersberg IJJ, et al. The FAIR Guiding Principles for scientific data
+  management and stewardship. *Scientific Data*. 2016;3:160018. [https://doi.org/10.1038/sdata.2016.18](https://doi.org/10.1038/sdata.2016.18).
+
+
+  3. Gebru T, Morgenstern J, Vecchione B, Vaughan JW, Wallach H, Daumé H III, Crawford K. Datasheets for
+  datasets. *Communications of the ACM*. 2021;64(12):86–92. [https://doi.org/10.1145/3458723](https://doi.org/10.1145/3458723).
+  Author manuscript: [https://arxiv.org/abs/1803.09010](https://arxiv.org/abs/1803.09010).
+
+
+  4. European Parliament and Council of the European Union. Regulation (EU) 2016/679 of 27 April 2016
+  (General Data Protection Regulation). *Official Journal of the European Union*. 2016;L119:1–88. Recital
+  26 and Articles 4, 5, 6 and 9. [Official text](https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng).
+
+
+  5. Article 29 Data Protection Working Party. Opinion 05/2014 on Anonymisation Techniques. WP216. Adopted
+  10 April 2014. Historical interpretive guidance predating the GDPR. [Document hosted by CNIL](https://www.cnil.fr/sites/default/files/atoms/files/88197.pdf).
+
+
+  6. Kapoor S, Narayanan A. Leakage and the reproducibility crisis in machine-learning-based science.
+  *Patterns*. 2023;4(9):100804. [https://doi.org/10.1016/j.patter.2023.100804](https://doi.org/10.1016/j.patter.2023.100804).
+
+
+  ### Appendix A. Internal architecture evidence
+
+
+  These project sources support system-specific descriptions; the external literature does not validate
+  this implementation. Paths are relative to the LX-Annotate repository. Source baseline: `b5ebf16da55a203cf3014291a1dd687b6de79171`;
+  inspected with existing working-tree changes on 10 September 2026.
+
+
+  | Repository evidence | Manuscript coverage |
+
+  |:--|:--|
+
+  | `docs/guides/anonymization-validation-correction-workflow.md` | Human review, correction and video/PDF
+  distinctions |
+
+  | `docs/guides/segment-annotation-workflow.md`; `AGENTS.md` | Segment workflow, annotation identity
+  and separate validation gates |
+
+  | `docs/guides/encrypted-storage-process.md` | Managed-file encryption and storage-mediated reads |
+
+  | `docs/guides/hub-export-workflow.md` | Eligibility, operator intent, integrity proof, envelope transfer
+  and acknowledgement |
+
+  | `docs/guides/ai-training-data-export.md` | CSV/JSON exports, frame materialization and identifying
+  metadata considerations |
+
+  | `lx_annotate/file_watcher.py` | Watcher intake and delegation to domain ingestion services |
+
+  | `lx_annotate/hub/hub_export_payloads.py` | Typed outbound records and processed-artifact validation
+  paths |
+
+  | `lx_annotate/hub/hub_export_envelope.py` | Per-transfer envelope encryption and recipient public-key
+  handling |
+
+
+  Public-release governance in Sections 4.7 and 5 and the evaluation framework in Section 6 are proposed
+  manuscript methods, not claims that these controls have been deployed or measured.
+
+  '

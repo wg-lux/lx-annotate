@@ -1,93 +1,103 @@
-import axiosInstance from '@/api/axiosInstance'
+import axiosInstance, { dtypesApi } from '@/api/axiosInstance'
 import type {
   CitationCore,
-  CitationCoreDto,
   ClassificationChoiceCore,
-  ClassificationChoiceCoreDto,
   ClassificationChoiceDescriptorCore,
-  ClassificationChoiceDescriptorCoreDto,
   ClassificationCore,
-  ClassificationCoreDto,
+  ClassificationTypeCore,
   CoreConceptBase,
   CoreConceptCollection,
-  CoreConceptTransportCollection,
   ExaminationCore,
-  ExaminationCoreDto,
+  ExaminationTypeCore,
   FindingCore,
-  FindingCoreDto,
   FindingTypeCore,
   IndicationCore,
-  IndicationCoreDto,
   IndicationTypeCore,
   InformationSourceCore,
-  InformationSourceCoreDto,
   InformationSourceTypeCore,
   InterventionCore,
-  InterventionCoreDto,
   InterventionTypeCore,
   UnitCore,
-  UnitCoreDto,
   UnitTypeCore
 } from '@/types/coreConcepts'
 
-const readKey = <T = unknown>(input: Record<string, unknown>, camel: string, snake: string): T | undefined => {
+const readKey = (input: Record<string, unknown>, camel: string, snake: string): unknown => {
   const value = input[camel]
-  if (value !== undefined) return value as T
-  return input[snake] as T | undefined
+  return value !== undefined ? value : input[snake]
 }
 
-const asRecord = (input: unknown): Record<string, unknown> =>
-  input && typeof input === 'object' ? (input as Record<string, unknown>) : {}
+const isRecord = (input: unknown): input is Record<string, unknown> =>
+  input !== null && typeof input === 'object' && !Array.isArray(input)
 
-const asString = (value: unknown): string | undefined => (typeof value === 'string' ? value : undefined)
+const asRecord = (input: unknown): Record<string, unknown> => (isRecord(input) ? input : {})
+
+const asString = (value: unknown): string | undefined =>
+  typeof value === 'string' ? value : undefined
 
 const asNumber = (value: unknown): number | undefined => {
-  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
   if (typeof value === 'string') {
     const parsed = Number(value)
-    if (Number.isFinite(parsed)) return parsed
+    if (Number.isFinite(parsed)) {
+      return parsed
+    }
   }
   return undefined
 }
 
-const asBoolean = (value: unknown): boolean | undefined => (typeof value === 'boolean' ? value : undefined)
+const asBoolean = (value: unknown): boolean | undefined =>
+  typeof value === 'boolean' ? value : undefined
 
 const asStringArray = (value: unknown): string[] => {
   if (Array.isArray(value)) {
-    return value.filter((entry): entry is string => typeof entry === 'string').map((entry) => entry.trim()).filter(Boolean)
+    return value
+      .filter((entry): entry is string => typeof entry === 'string')
+      .map((entry) => entry.trim())
+      .filter(Boolean)
   }
   if (typeof value === 'string') {
-    return value.split(',').map((entry) => entry.trim()).filter(Boolean)
+    return value
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean)
   }
   return []
 }
 
 const asStringRecord = (value: unknown): Record<string, string> => {
-  const rec = asRecord(value)
-  const out: Record<string, string> = {}
-  for (const [key, entry] of Object.entries(rec)) {
-    if (typeof entry === 'string') out[key] = entry
+  const sourceRecord = asRecord(value)
+  const normalizedRecord: Record<string, string> = {}
+  for (const [key, entry] of Object.entries(sourceRecord)) {
+    if (typeof entry === 'string') {
+      normalizedRecord[key] = entry
+    }
   }
-  return out
+  return normalizedRecord
 }
 
 const asStringNumberRecord = (value: unknown): Record<string, string | number> => {
-  const rec = asRecord(value)
-  const out: Record<string, string | number> = {}
-  for (const [key, entry] of Object.entries(rec)) {
-    if (typeof entry === 'string' || typeof entry === 'number') out[key] = entry
+  const sourceRecord = asRecord(value)
+  const normalizedRecord: Record<string, string | number> = {}
+  for (const [key, entry] of Object.entries(sourceRecord)) {
+    if (typeof entry === 'string' || typeof entry === 'number') {
+      normalizedRecord[key] = entry
+    }
   }
-  return out
+  return normalizedRecord
 }
 
 const asNumberRecord = (value: unknown): Record<string, number> => {
-  const rec = asRecord(value)
-  const out: Record<string, number> = {}
-  for (const [key, entry] of Object.entries(rec)) {
-    const n = asNumber(entry)
-    if (n !== undefined) out[key] = n
+  const sourceRecord = asRecord(value)
+  const normalizedRecord: Record<string, number> = {}
+  for (const [key, entry] of Object.entries(sourceRecord)) {
+    const numericValue = asNumber(entry)
+    if (numericValue !== undefined) {
+      normalizedRecord[key] = numericValue
+    }
   }
-  return out
+  return normalizedRecord
 }
 
 const normalizeBase = (raw: unknown): CoreConceptBase => {
@@ -108,20 +118,24 @@ const normalizeBase = (raw: unknown): CoreConceptBase => {
   }
 }
 
-const normalizeClassification = (raw: ClassificationCoreDto | unknown): ClassificationCore => {
+const normalizeClassification = (raw: unknown): ClassificationCore => {
   const source = asRecord(raw)
   return {
     ...normalizeBase(source),
     classificationChoices: asStringArray(
       readKey(source, 'classificationChoices', 'classification_choices')
     ),
-    classificationTypes: asStringArray(readKey(source, 'classificationTypes', 'classification_types'))
+    classificationTypes: asStringArray(
+      readKey(source, 'classificationTypes', 'classification_types')
+    )
   }
 }
 
-const normalizeClassificationChoice = (
-  raw: ClassificationChoiceCoreDto | unknown
-): ClassificationChoiceCore => {
+const normalizeClassificationType = (raw: unknown): ClassificationTypeCore => ({
+  ...normalizeBase(raw)
+})
+
+const normalizeClassificationChoice = (raw: unknown): ClassificationChoiceCore => {
   const source = asRecord(raw)
   return {
     ...normalizeBase(source),
@@ -132,7 +146,7 @@ const normalizeClassificationChoice = (
 }
 
 const normalizeClassificationChoiceDescriptor = (
-  raw: ClassificationChoiceDescriptorCoreDto | unknown
+  raw: unknown
 ): ClassificationChoiceDescriptorCore => {
   const source = asRecord(raw)
   return {
@@ -165,7 +179,7 @@ const normalizeClassificationChoiceDescriptor = (
   }
 }
 
-const normalizeExamination = (raw: ExaminationCoreDto | unknown): ExaminationCore => {
+const normalizeExamination = (raw: unknown): ExaminationCore => {
   const source = asRecord(raw)
   return {
     ...normalizeBase(source),
@@ -175,30 +189,38 @@ const normalizeExamination = (raw: ExaminationCoreDto | unknown): ExaminationCor
   }
 }
 
-const normalizeFinding = (raw: FindingCoreDto | unknown): FindingCore => {
+const normalizeExaminationType = (raw: unknown): ExaminationTypeCore => ({
+  ...normalizeBase(raw)
+})
+
+const normalizeFinding = (raw: unknown): FindingCore => {
   const source = asRecord(raw)
   return {
     ...normalizeBase(source),
     findingTypes: asStringArray(readKey(source, 'findingTypes', 'finding_types')),
     classifications: asStringArray(readKey(source, 'classifications', 'classifications')),
-    interventions: asStringArray(readKey(source, 'interventions', 'interventions'))
+    interventions: asStringArray(readKey(source, 'interventions', 'interventions')),
+    causedByInterventions: asStringArray(
+      readKey(source, 'causedByInterventions', 'caused_by_interventions')
+    )
   }
 }
 
 const normalizeFindingType = (raw: unknown): FindingTypeCore => ({ ...normalizeBase(raw) })
 
-const normalizeIndication = (raw: IndicationCoreDto | unknown): IndicationCore => {
+const normalizeIndication = (raw: unknown): IndicationCore => {
   const source = asRecord(raw)
   return {
     ...normalizeBase(source),
     indicationTypes: asStringArray(readKey(source, 'indicationTypes', 'indication_types')),
+    classifications: asStringArray(readKey(source, 'classifications', 'classifications')),
     interventions: asStringArray(readKey(source, 'interventions', 'interventions'))
   }
 }
 
 const normalizeIndicationType = (raw: unknown): IndicationTypeCore => ({ ...normalizeBase(raw) })
 
-const normalizeIntervention = (raw: InterventionCoreDto | unknown): InterventionCore => {
+const normalizeIntervention = (raw: unknown): InterventionCore => {
   const source = asRecord(raw)
   return {
     ...normalizeBase(source),
@@ -206,9 +228,11 @@ const normalizeIntervention = (raw: InterventionCoreDto | unknown): Intervention
   }
 }
 
-const normalizeInterventionType = (raw: unknown): InterventionTypeCore => ({ ...normalizeBase(raw) })
+const normalizeInterventionType = (raw: unknown): InterventionTypeCore => ({
+  ...normalizeBase(raw)
+})
 
-const normalizeUnit = (raw: UnitCoreDto | unknown): UnitCore => {
+const normalizeUnit = (raw: unknown): UnitCore => {
   const source = asRecord(raw)
   return {
     ...normalizeBase(source),
@@ -219,9 +243,7 @@ const normalizeUnit = (raw: UnitCoreDto | unknown): UnitCore => {
 
 const normalizeUnitType = (raw: unknown): UnitTypeCore => ({ ...normalizeBase(raw) })
 
-const normalizeInformationSource = (
-  raw: InformationSourceCoreDto | unknown
-): InformationSourceCore => {
+const normalizeInformationSource = (raw: unknown): InformationSourceCore => {
   const source = asRecord(raw)
   return {
     ...normalizeBase(source),
@@ -235,7 +257,7 @@ const normalizeInformationSourceType = (raw: unknown): InformationSourceTypeCore
   ...normalizeBase(raw)
 })
 
-const normalizeCitation = (raw: CitationCoreDto | unknown): CitationCore => {
+const normalizeCitation = (raw: unknown): CitationCore => {
   const source = asRecord(raw)
   return {
     ...normalizeBase(source),
@@ -262,14 +284,22 @@ const normalizeCitation = (raw: CitationCoreDto | unknown): CitationCore => {
 const asArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : [])
 
 export const normalizeCoreConceptCollection = (raw: unknown): CoreConceptCollection => {
-  const source = asRecord(raw) as CoreConceptTransportCollection & Record<string, unknown>
+  const source = asRecord(raw)
+  const moduleName =
+    asString(readKey(source, 'moduleName', 'module_name')) ||
+    asString(readKey(source, 'module', 'module')) ||
+    'unknown'
   return {
-    moduleName:
-      asString(readKey(source, 'moduleName', 'module_name')) ||
-      asString(readKey(source, 'module', 'module')) ||
-      'unknown',
+    moduleName,
+    knowledgeBaseModule:
+      asString(readKey(source, 'knowledgeBaseModule', 'knowledge_base_module')) || moduleName,
+    knowledgeBaseVersion:
+      asString(readKey(source, 'knowledgeBaseVersion', 'knowledge_base_version')) ?? null,
     classification: asArray(readKey(source, 'classification', 'classification')).map(
       normalizeClassification
+    ),
+    classificationType: asArray(readKey(source, 'classificationType', 'classification_type')).map(
+      normalizeClassificationType
     ),
     classificationChoice: asArray(
       readKey(source, 'classificationChoice', 'classification_choice')
@@ -277,13 +307,12 @@ export const normalizeCoreConceptCollection = (raw: unknown): CoreConceptCollect
     classificationChoiceDescriptor: asArray(
       readKey(source, 'classificationChoiceDescriptor', 'classification_choice_descriptor')
     ).map(normalizeClassificationChoiceDescriptor),
-    examination: asArray(readKey(source, 'examination', 'examination')).map(
-      normalizeExamination
+    examination: asArray(readKey(source, 'examination', 'examination')).map(normalizeExamination),
+    examinationType: asArray(readKey(source, 'examinationType', 'examination_type')).map(
+      normalizeExaminationType
     ),
     finding: asArray(readKey(source, 'finding', 'finding')).map(normalizeFinding),
-    findingType: asArray(readKey(source, 'findingType', 'finding_type')).map(
-      normalizeFindingType
-    ),
+    findingType: asArray(readKey(source, 'findingType', 'finding_type')).map(normalizeFindingType),
     indication: asArray(readKey(source, 'indication', 'indication')).map(normalizeIndication),
     indicationType: asArray(readKey(source, 'indicationType', 'indication_type')).map(
       normalizeIndicationType
@@ -296,9 +325,9 @@ export const normalizeCoreConceptCollection = (raw: unknown): CoreConceptCollect
     ),
     unit: asArray(readKey(source, 'unit', 'unit')).map(normalizeUnit),
     unitType: asArray(readKey(source, 'unitType', 'unit_type')).map(normalizeUnitType),
-    informationSource: asArray(
-      readKey(source, 'informationSource', 'information_source')
-    ).map(normalizeInformationSource),
+    informationSource: asArray(readKey(source, 'informationSource', 'information_source')).map(
+      normalizeInformationSource
+    ),
     informationSourceType: asArray(
       readKey(source, 'informationSourceType', 'information_source_type')
     ).map(normalizeInformationSourceType),
@@ -307,6 +336,6 @@ export const normalizeCoreConceptCollection = (raw: unknown): CoreConceptCollect
 }
 
 export const fetchCoreConcepts = async (moduleName: string): Promise<CoreConceptCollection> => {
-  const response = await axiosInstance.get(`/base_api/core-concepts/${moduleName}`)
+  const response = await axiosInstance.get(dtypesApi(`core-concepts/${moduleName}`))
   return normalizeCoreConceptCollection(response.data)
 }

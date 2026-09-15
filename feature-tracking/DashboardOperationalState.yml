@@ -1,0 +1,189 @@
+schema_version: '1.0'
+id: dashboard_operational_state
+name: Dashboard operational state
+description: Display current dataset collections, the pseudonymous study cohort summary, and hub readiness
+  on the dashboard.
+owners:
+- lx-annotate frontend maintainers
+production_critical: false
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-dashboard-state
+    changed_at: '2026-08-28T11:06:36.504609Z'
+    note: Dashboard now displays live dataset collections, aggregate pseudonymous study cohort counts,
+      and hub readiness. Focused tests passed 3/3, component-test type checking and full frontend type-check
+      passed, scoped ESLint passed, and the production build completed with only the existing chunk-size
+      advisory.
+source_documents:
+- path: AGENTS.md
+  disposition: reference
+  note: Repository security, cohort terminology, and implementation boundaries.
+definition_of_done:
+- id: live_state
+  category: functionality
+  title: Dashboard displays live operational state
+  acceptance:
+  - Dataset collections are loaded from the existing typed AI dataset endpoint.
+  - Study cohort counts are loaded from the existing pseudonymous cohort endpoint.
+  - Hub readiness and configured nodes are loaded from the existing authenticated administration endpoint.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - test:unit
+    - --
+    - run
+    - src/components/Dashboard/__tests__/AnnotationDashboard.test.ts
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'AnnotationDashboard.test.ts: 3 passed'
+    note: Focused dashboard suite passed 3/3; typed existing API modules provide dataset options, aggregate
+      cohort summary, and hub health.
+    assessed_by: codex-dashboard-state
+    assessed_at: '2026-08-28T11:05:25.292649Z'
+- id: explicit_failures
+  category: security
+  title: Unavailable state is explicit
+  acceptance:
+  - A failed source is shown as unavailable and is not replaced by fabricated values.
+  - Existing endpoint authorization and hub security rules remain unchanged.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the independent dashboard loading and error states and confirm that no backend
+      security behavior changed.
+    timeout_seconds: 120
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: AnnotationDashboard.vue independent dataset/cohort/hub error states
+    note: 'Reviewed independent catch paths: each source renders an unavailable state, retains no fabricated
+      values, and makes no backend or permission changes.'
+    assessed_by: codex-dashboard-state
+    assessed_at: '2026-08-28T11:05:28.293293Z'
+- id: frontend_contract
+  category: testing
+  title: Frontend contracts remain valid
+  acceptance:
+  - Dashboard component tests pass.
+  - Frontend type checking passes.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - type-check
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'npm --prefix frontend run type-check: exit 0'
+    note: Focused tests, component-test type checking, generated API freshness, vue-tsc, scoped ESLint,
+      and the full frontend type-check completed without errors.
+    assessed_by: codex-dashboard-state
+    assessed_at: '2026-08-28T11:05:31.245653Z'
+- id: detail_navigation
+  category: requirements
+  title: Dashboard state links to existing detail views
+  acceptance:
+  - Each state card links to its existing dataset, study cohort, or administration destination.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - test:unit
+    - --
+    - run
+    - src/components/Dashboard/__tests__/AnnotationDashboard.test.ts
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'AnnotationDashboard.test.ts navigation assertions: passed'
+    note: Focused test verifies links to /ai-dataset-settings, /studies, and /administration.
+    assessed_by: codex-dashboard-state
+    assessed_at: '2026-08-28T11:05:34.272528Z'
+- id: pseudonymous_summary
+  category: security
+  title: Cohort summary remains pseudonymous
+  acceptance:
+  - The dashboard renders only aggregate cohort counts and no patient or case identifiers.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the dashboard cohort card and confirm that it renders only summary counts.
+    timeout_seconds: 120
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: AnnotationDashboard.vue cohort state card
+    note: 'Reviewed cohort rendering: only case, patient, report, and video aggregate counts are rendered;
+      no case rows or identifiers are exposed.'
+    assessed_by: codex-dashboard-state
+    assessed_at: '2026-08-28T11:05:37.367527Z'
+- id: refresh_behavior
+  category: operations
+  title: Dashboard state can be refreshed safely
+  acceptance:
+  - Refreshing reloads all three read-only sources without mutating operational state.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - test:unit
+    - --
+    - run
+    - src/components/Dashboard/__tests__/AnnotationDashboard.test.ts
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'AnnotationDashboard.test.ts refresh assertion: passed'
+    note: Focused test verifies refresh invokes all three read-only API functions a second time.
+    assessed_by: codex-dashboard-state
+    assessed_at: '2026-08-28T11:05:40.153869Z'
+- id: documented_sources
+  category: documentation
+  title: Dashboard data ownership remains explicit
+  acceptance:
+  - The feature record identifies the existing dataset, cohort, and administration contracts as the dashboard
+    sources.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the feature record and component imports against the existing API modules.
+    timeout_seconds: 120
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: DashboardOperationalState.yml and AnnotationDashboard.vue imports
+    note: Feature YAML and component imports explicitly identify aiDatasetApi, studyApi, and administrationApi
+      as existing owners.
+    assessed_by: codex-dashboard-state
+    assessed_at: '2026-08-28T11:05:43.045168Z'

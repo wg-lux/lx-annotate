@@ -1,21 +1,121 @@
+export type ReportTemplateClassificationDescriptorInput = {
+  name: string
+  nameDe?: string
+  nameEn?: string
+  type: string
+  unit: string | null
+  unitAbbreviation: string | null
+  numericMin: number | null
+  numericMax: number | null
+}
+
+export type ReportTemplateClassificationChoiceInput = {
+  name: string
+  descriptors: ReportTemplateClassificationDescriptorInput[]
+}
+
 export type ReportTemplateClassification = {
   classification: string
   required: boolean
+  input?: {
+    choices: ReportTemplateClassificationChoiceInput[]
+  } | null
 }
 
 export type ReportTemplateFinding = {
   finding: string
   required: boolean
   multipleAllowed: boolean
+  applicability?: 'required' | 'optional' | 'conditional' | 'not_applicable'
+  applicabilityRule?: string | null
   classifications: ReportTemplateClassification[]
 }
 
 export type ReportTemplateSection = {
   name: string
+  titleDe: string
+  titleEn: string
   position: number
+  sectionKind: 'findings' | 'patient_data' | 'history'
+  fields: ReportTemplateSectionField[]
   types: string[]
   findings: ReportTemplateFinding[]
 }
+
+export type ReportTemplateSectionField = {
+  key: string
+  required: boolean
+  label: string | null
+  source: 'patient' | 'patient_examination' | 'history' | null
+}
+
+export type ReportTemplateLifecycleStatus = 'draft' | 'published'
+
+export type ReportTemplateReadiness = {
+  canPublish: boolean | null
+  blockingIssues: string[]
+  warnings: string[]
+  raw: Record<string, unknown>
+}
+
+export type ReportTemplateIdentity = {
+  moduleName: string | null
+  knowledgeBaseVersion: string | null
+  templateVersion: string | null
+  templateHash: string | null
+  lifecycleStatus: ReportTemplateLifecycleStatus | null
+  readiness: ReportTemplateReadiness | null
+}
+
+export type ReportConceptCoverageContractVersion = 'report_concept_coverage_v1'
+export type ReportConceptApplicabilityStatus =
+  | 'required'
+  | 'conditional'
+  | 'not_applicable'
+  | 'unknown'
+export type ReportConceptValidationStatus =
+  | 'present'
+  | 'missing'
+  | 'invalid'
+  | 'unknown'
+  | 'undetermined'
+
+export type ReportConceptCoverageIdentity = {
+  moduleName: string
+  moduleVersion: string
+  moduleDigest: string
+  templateName: string
+  templateVersion: string
+  templateDigest: string
+}
+
+export type ReportConceptCoverageProvenance = {
+  resolver: string
+  resolverVersion: string
+  evidenceDigest: string
+}
+
+export type ReportConceptApplicability = {
+  status: ReportConceptApplicabilityStatus
+  rule: string | null
+  reason: string | null
+}
+
+export type ReportConceptCoverageItem = {
+  conceptId: string
+  label: string
+  applicability: ReportConceptApplicability
+  validationStatus: ReportConceptValidationStatus
+  evidencePath: string[]
+}
+
+export type ReportConceptCoverage = {
+  contractVersion: ReportConceptCoverageContractVersion
+  identity: ReportConceptCoverageIdentity
+  provenance: ReportConceptCoverageProvenance
+  concepts: ReportConceptCoverageItem[]
+}
+
 
 export type FindingsValidatorOperator = 'exists' | 'missing' | 'condition'
 
@@ -80,11 +180,28 @@ export type ReportTemplateValidators = {
   findingsValidators: ReportTemplateFindingValidator[]
 }
 
+export type ReportVerbosity = 'short' | 'standard' | 'detailed'
+
+export function isReportVerbosity(value: unknown): value is ReportVerbosity {
+  return value === 'short' || value === 'standard' || value === 'detailed'
+}
+
+export const reportVerbosityLabels: Record<ReportVerbosity, string> = {
+  short: 'Kurz',
+  standard: 'Standard',
+  detailed: 'Ausführlich'
+}
+
 export type ReportTemplatePayload = {
   name: string
+  nameDe?: string
+  nameEn?: string
+  verbosityOptions?: ReportVerbosity[]
   examination: string
+  identity: ReportTemplateIdentity
   reportSections: ReportTemplateSection[]
   validators: ReportTemplateValidators
+  conceptCoverage: ReportConceptCoverage | null
 }
 
 export type ReportTemplateSectionBlock = {
@@ -109,7 +226,13 @@ export type RuntimeValidationIssue = {
   level: 'error' | 'warning'
   message: string
   validatorName?: string
-  validatorKind?: 'findings_validator' | 'examination_validator' | 'template'
+  validatorKind?:
+    | 'classification_validator'
+    | 'intervention_validator'
+    | 'findings_validator'
+    | 'examination_validator'
+    | 'template'
+    | 'unit_validator'
   details?: Record<string, unknown>
 }
 
@@ -188,12 +311,55 @@ export type ExaminationValidatorExecution = {
   issues: RuntimeValidationIssue[]
 }
 
+export type ClassificationValidatorExecution = {
+  name: string
+  ok: boolean
+  operator: string
+  finding: string
+  classification: string
+  precedence: 'required' | 'optional'
+  matchedOccurrences: number
+  triggeredOccurrences: number
+  hint: Record<string, unknown>
+  issues: RuntimeValidationIssue[]
+}
+
+export type InterventionValidatorExecution = {
+  name: string
+  ok: boolean
+  operator: string
+  finding: string
+  intervention: string
+  precedence: 'required' | 'optional'
+  matchedOccurrences: number
+  triggeredOccurrences: number
+  hint: Record<string, unknown>
+  issues: RuntimeValidationIssue[]
+}
+
+export type UnitValidatorExecution = {
+  name: string
+  ok: boolean
+  operator: string
+  finding: string
+  classification: string
+  unit: string
+  precedence: 'required' | 'optional'
+  matchedOccurrences: number
+  triggeredOccurrences: number
+  hint: Record<string, unknown>
+  issues: RuntimeValidationIssue[]
+}
+
 export type ReportTemplateRuntimeValidationResult = {
   templateName: string
   ok: boolean
   evaluatedFindingsCount: number
+  classificationValidators: ClassificationValidatorExecution[]
+  interventionValidators: InterventionValidatorExecution[]
   findingsValidators: FindingsValidatorExecution[]
   examinationValidators: ExaminationValidatorExecution[]
+  unitValidators: UnitValidatorExecution[]
   issues: RuntimeValidationIssue[]
 }
 

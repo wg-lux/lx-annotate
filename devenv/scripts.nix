@@ -44,7 +44,6 @@ in
   gpu-check.exec = "${pkgs.uv}/bin/uv run python scripts/utilities/gpu-check.py";
 
   # Core utility scripts
-  ensure-psql.exec = "${pkgs.uv}/bin/uv run python scripts/database/ensure_psql.py";
 
   deploy-migrate.exec = "${pkgs.uv}/bin/uv run python manage.py migrate";
   deploy-load-base-db-data.exec = "${pkgs.uv}/bin/uv run python manage.py load_base_db_data";

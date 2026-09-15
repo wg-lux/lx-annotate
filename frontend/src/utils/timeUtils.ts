@@ -1,18 +1,4 @@
-/**
- * Formatiert Sekunden in MM:SS Format
- * @param seconds - Die zu formatierenden Sekunden
- * @returns Formatierter String im MM:SS Format
- */
-export function formatTime(seconds: number): string {
-  // Handle edge cases
-  if (Number.isNaN(seconds) || !Number.isFinite(seconds) || seconds < 0) {
-    return '00:00'
-  }
-
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-}
+export { formatTime } from './timeHelpers'
 
 /**
  * Parst einen MM:SS String zu Sekunden
@@ -95,13 +81,13 @@ export function formatDuration(seconds: number): string {
   const parts: string[] = []
 
   if (hours > 0) {
-    parts.push(`${hours}h`)
+    parts.push(`${String(hours)}h`)
   }
   if (minutes > 0) {
-    parts.push(`${minutes}m`)
+    parts.push(`${String(minutes)}m`)
   }
   if (secs > 0 || parts.length === 0) {
-    parts.push(`${secs}s`)
+    parts.push(`${String(secs)}s`)
   }
 
   return parts.join(' ')

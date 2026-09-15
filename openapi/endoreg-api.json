@@ -1,0 +1,6348 @@
+{
+  "components": {
+    "schemas": {
+      "Case": {
+        "properties": {
+          "admission_date": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "case_id": {
+            "description": "Stable public identifier for the clinical case.",
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "created_at": {
+            "description": "The date and time the case was created.",
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          },
+          "documents": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "hash": {
+            "description": "A hash value associated with the case when configured.",
+            "maxLength": 255,
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "is_active": {
+            "description": "Flag indicating if the case is currently active.",
+            "type": "boolean"
+          },
+          "is_closed": {
+            "description": "Flag indicating if the case has been closed.",
+            "type": "boolean"
+          },
+          "is_deleted": {
+            "description": "Flag indicating if the case is marked as deleted.",
+            "type": "boolean"
+          },
+          "leave_date": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "patient": {
+            "description": "The patient associated with this case.",
+            "type": "integer"
+          },
+          "patient_examination_ids": {
+            "items": {
+              "type": "integer",
+              "writeOnly": true
+            },
+            "type": "array",
+            "writeOnly": true
+          },
+          "patient_examinations": {
+            "items": {
+              "$ref": "#/components/schemas/PatientExamination"
+            },
+            "readOnly": true,
+            "type": "array"
+          },
+          "patient_lab_sample_ids": {
+            "items": {
+              "type": "integer",
+              "writeOnly": true
+            },
+            "type": "array",
+            "writeOnly": true
+          },
+          "patient_lab_samples": {
+            "items": {
+              "type": "integer"
+            },
+            "readOnly": true,
+            "type": "array"
+          },
+          "patient_lab_value_ids": {
+            "items": {
+              "type": "integer",
+              "writeOnly": true
+            },
+            "type": "array",
+            "writeOnly": true
+          },
+          "patient_lab_values": {
+            "items": {
+              "type": "integer"
+            },
+            "readOnly": true,
+            "type": "array"
+          },
+          "patient_medication_ids": {
+            "items": {
+              "type": "integer",
+              "writeOnly": true
+            },
+            "type": "array",
+            "writeOnly": true
+          },
+          "patient_medication_schedule_ids": {
+            "items": {
+              "type": "integer",
+              "writeOnly": true
+            },
+            "type": "array",
+            "writeOnly": true
+          },
+          "patient_medication_schedules": {
+            "items": {
+              "type": "integer"
+            },
+            "readOnly": true,
+            "type": "array"
+          },
+          "patient_medications": {
+            "items": {
+              "type": "integer"
+            },
+            "readOnly": true,
+            "type": "array"
+          },
+          "updated_at": {
+            "description": "The date and time the case was last updated.",
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "admission_date",
+          "case_id",
+          "created_at",
+          "documents",
+          "id",
+          "patient",
+          "patient_examinations",
+          "patient_lab_samples",
+          "patient_lab_values",
+          "patient_medication_schedules",
+          "patient_medications",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "Center": {
+        "description": "Serializer für Center-Modell",
+        "properties": {
+          "center_key": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "display_name": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "id": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "name": {
+            "readOnly": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "center_key",
+          "display_name",
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "Gender": {
+        "description": "Serializer für Gender-Modell",
+        "properties": {
+          "abbreviation": {
+            "maxLength": 255,
+            "nullable": true,
+            "type": "string"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 255,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "JsonNull": {
+        "type": "null"
+      },
+      "JsonScalar": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      },
+      "JsonValue": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/JsonNull"
+          },
+          {
+            "$ref": "#/components/schemas/JsonScalar"
+          },
+          {
+            "items": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "array"
+          },
+          {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object"
+          }
+        ]
+      },
+      "PatchedCase": {
+        "properties": {
+          "admission_date": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "case_id": {
+            "description": "Stable public identifier for the clinical case.",
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "created_at": {
+            "description": "The date and time the case was created.",
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          },
+          "documents": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "hash": {
+            "description": "A hash value associated with the case when configured.",
+            "maxLength": 255,
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "is_active": {
+            "description": "Flag indicating if the case is currently active.",
+            "type": "boolean"
+          },
+          "is_closed": {
+            "description": "Flag indicating if the case has been closed.",
+            "type": "boolean"
+          },
+          "is_deleted": {
+            "description": "Flag indicating if the case is marked as deleted.",
+            "type": "boolean"
+          },
+          "leave_date": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "patient": {
+            "description": "The patient associated with this case.",
+            "type": "integer"
+          },
+          "patient_examination_ids": {
+            "items": {
+              "type": "integer",
+              "writeOnly": true
+            },
+            "type": "array",
+            "writeOnly": true
+          },
+          "patient_examinations": {
+            "items": {
+              "$ref": "#/components/schemas/PatientExamination"
+            },
+            "readOnly": true,
+            "type": "array"
+          },
+          "patient_lab_sample_ids": {
+            "items": {
+              "type": "integer",
+              "writeOnly": true
+            },
+            "type": "array",
+            "writeOnly": true
+          },
+          "patient_lab_samples": {
+            "items": {
+              "type": "integer"
+            },
+            "readOnly": true,
+            "type": "array"
+          },
+          "patient_lab_value_ids": {
+            "items": {
+              "type": "integer",
+              "writeOnly": true
+            },
+            "type": "array",
+            "writeOnly": true
+          },
+          "patient_lab_values": {
+            "items": {
+              "type": "integer"
+            },
+            "readOnly": true,
+            "type": "array"
+          },
+          "patient_medication_ids": {
+            "items": {
+              "type": "integer",
+              "writeOnly": true
+            },
+            "type": "array",
+            "writeOnly": true
+          },
+          "patient_medication_schedule_ids": {
+            "items": {
+              "type": "integer",
+              "writeOnly": true
+            },
+            "type": "array",
+            "writeOnly": true
+          },
+          "patient_medication_schedules": {
+            "items": {
+              "type": "integer"
+            },
+            "readOnly": true,
+            "type": "array"
+          },
+          "patient_medications": {
+            "items": {
+              "type": "integer"
+            },
+            "readOnly": true,
+            "type": "array"
+          },
+          "updated_at": {
+            "description": "The date and time the case was last updated.",
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PatchedPatient": {
+        "properties": {
+          "age": {
+            "description": "Berechnet das Alter des Patienten",
+            "nullable": true,
+            "readOnly": true,
+            "type": "integer"
+          },
+          "center": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "center_key": {
+            "nullable": true,
+            "type": "string"
+          },
+          "dob": {
+            "format": "date",
+            "nullable": true,
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "maxLength": 255,
+            "nullable": true,
+            "type": "string"
+          },
+          "first_name": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "gender": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "is_real_person": {
+            "type": "boolean"
+          },
+          "last_name": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "patient_hash": {
+            "maxLength": 255,
+            "nullable": true,
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 255,
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PatchedPatientExamination": {
+        "properties": {
+          "date_end": {
+            "format": "date",
+            "nullable": true,
+            "type": "string"
+          },
+          "date_start": {
+            "format": "date",
+            "nullable": true,
+            "type": "string"
+          },
+          "examination": {
+            "nullable": true,
+            "type": "string"
+          },
+          "examination_name": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "hash": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "id": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "knowledge_base_module": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "knowledge_base_version": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "patient": {
+            "description": "Patient Hash (z.B. 'patient_2')",
+            "type": "string",
+            "writeOnly": true
+          },
+          "patient_data": {
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "readOnly": true,
+            "type": "object"
+          },
+          "patient_name": {
+            "readOnly": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Patient": {
+        "properties": {
+          "age": {
+            "description": "Berechnet das Alter des Patienten",
+            "nullable": true,
+            "readOnly": true,
+            "type": "integer"
+          },
+          "center": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "center_key": {
+            "nullable": true,
+            "type": "string"
+          },
+          "dob": {
+            "format": "date",
+            "nullable": true,
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "maxLength": 255,
+            "nullable": true,
+            "type": "string"
+          },
+          "first_name": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "gender": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "is_real_person": {
+            "type": "boolean"
+          },
+          "last_name": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "patient_hash": {
+            "maxLength": 255,
+            "nullable": true,
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 255,
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "age",
+          "center",
+          "first_name",
+          "id",
+          "last_name"
+        ],
+        "type": "object"
+      },
+      "PatientExamination": {
+        "properties": {
+          "date_end": {
+            "format": "date",
+            "nullable": true,
+            "type": "string"
+          },
+          "date_start": {
+            "format": "date",
+            "nullable": true,
+            "type": "string"
+          },
+          "examination": {
+            "nullable": true,
+            "type": "string"
+          },
+          "examination_name": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "hash": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "id": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "knowledge_base_module": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "knowledge_base_version": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "patient": {
+            "description": "Patient Hash (z.B. 'patient_2')",
+            "type": "string",
+            "writeOnly": true
+          },
+          "patient_data": {
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "readOnly": true,
+            "type": "object"
+          },
+          "patient_name": {
+            "readOnly": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "examination_name",
+          "hash",
+          "id",
+          "patient",
+          "patient_data",
+          "patient_name"
+        ],
+        "type": "object"
+      },
+      "PatientExaminationReportSchema": {
+        "description": "Response schema for PatientExaminationReport.\n\nThis replaces the old DRF ModelSerializer and exposes the previously sourced\npatient_examination.dtypes_record fields through Ninja resolvers.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Id"
+          },
+          "dtypes_record": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportJsonObject"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dtypes_record_updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dtypes Record Updated At"
+          },
+          "editor_payload": {
+            "$ref": "#/components/schemas/ReportJsonObject"
+          },
+          "finalized_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalized At"
+          },
+          "finalized_by_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalized By Id"
+          },
+          "history_context_snapshot": {
+            "$ref": "#/components/schemas/ReportJsonObject"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "knowledge_base_module": {
+            "title": "Knowledge Base Module",
+            "type": "string"
+          },
+          "knowledge_base_version": {
+            "title": "Knowledge Base Version",
+            "type": "string"
+          },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "patient_context_snapshot": {
+            "$ref": "#/components/schemas/ReportJsonObject"
+          },
+          "patient_examination_id": {
+            "title": "Patient Examination Id",
+            "type": "integer"
+          },
+          "rendered_text": {
+            "title": "Rendered Text",
+            "type": "string"
+          },
+          "runtime_validation_snapshot": {
+            "$ref": "#/components/schemas/ReportJsonObject"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "template_hash": {
+            "title": "Template Hash",
+            "type": "string"
+          },
+          "template_name": {
+            "title": "Template Name",
+            "type": "string"
+          },
+          "template_version": {
+            "title": "Template Version",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "updated_by_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By Id"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "patient_examination_id",
+          "template_name",
+          "template_version",
+          "template_hash",
+          "knowledge_base_module",
+          "knowledge_base_version",
+          "language",
+          "title",
+          "status",
+          "editor_payload",
+          "patient_context_snapshot",
+          "history_context_snapshot",
+          "runtime_validation_snapshot",
+          "rendered_text",
+          "version",
+          "is_active",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "PatientExaminationReportSchema",
+        "type": "object"
+      },
+      "ReportFrameCandidate": {
+        "additionalProperties": false,
+        "properties": {
+          "frame_number": {
+            "minimum": 0,
+            "title": "Frame Number",
+            "type": "integer"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "array"
+          },
+          "timestamp": {
+            "minimum": 0,
+            "title": "Timestamp",
+            "type": "number"
+          },
+          "video_id": {
+            "minimum": 1,
+            "title": "Video Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "video_id",
+          "frame_number",
+          "timestamp",
+          "labels"
+        ],
+        "title": "ReportFrameCandidate",
+        "type": "object"
+      },
+      "ReportFrameCandidatesQuery": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "limit": {
+            "default": 24,
+            "maximum": 100,
+            "minimum": 1,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "patient_examination_id": {
+            "minimum": 1,
+            "title": "Patient Examination Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "patient_examination_id"
+        ],
+        "title": "ReportFrameCandidatesQuery",
+        "type": "object"
+      },
+      "ReportFrameCandidatesResponse": {
+        "properties": {
+          "frames": {
+            "items": {
+              "$ref": "#/components/schemas/ReportFrameCandidate"
+            },
+            "title": "Frames",
+            "type": "array"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "array"
+          },
+          "next_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Offset"
+          }
+        },
+        "required": [
+          "frames",
+          "labels",
+          "next_offset"
+        ],
+        "title": "ReportFrameCandidatesResponse",
+        "type": "object"
+      },
+      "ReportJsonObject": {
+        "additionalProperties": {
+          "$ref": "#/components/schemas/ReportJsonValue"
+        },
+        "type": "object"
+      },
+      "ReportJsonValue": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/JsonValue"
+          },
+          {
+            "$ref": "#/components/schemas/JsonNull"
+          }
+        ]
+      },
+      "SegmentAttachedFindingSchema": {
+        "properties": {
+          "finding_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding Id"
+          },
+          "finding_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding Name"
+          },
+          "patient_finding_id": {
+            "title": "Patient Finding Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "patient_finding_id",
+          "finding_id",
+          "finding_name"
+        ],
+        "title": "SegmentAttachedFindingSchema",
+        "type": "object"
+      },
+      "SegmentFrameControlsSchema": {
+        "properties": {
+          "random_frame_number": {
+            "title": "Random Frame Number",
+            "type": "integer"
+          },
+          "step_backward_5_frame_number": {
+            "title": "Step Backward 5 Frame Number",
+            "type": "integer"
+          },
+          "step_forward_5_frame_number": {
+            "title": "Step Forward 5 Frame Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "random_frame_number",
+          "step_backward_5_frame_number",
+          "step_forward_5_frame_number"
+        ],
+        "title": "SegmentFrameControlsSchema",
+        "type": "object"
+      },
+      "SegmentFramePreviewSchema": {
+        "properties": {
+          "file_exists": {
+            "title": "File Exists",
+            "type": "boolean"
+          },
+          "frame_id": {
+            "title": "Frame Id",
+            "type": "integer"
+          },
+          "frame_number": {
+            "title": "Frame Number",
+            "type": "integer"
+          },
+          "relative_path": {
+            "title": "Relative Path",
+            "type": "string"
+          },
+          "stream_url": {
+            "title": "Stream Url",
+            "type": "string"
+          },
+          "timestamp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timestamp"
+          }
+        },
+        "required": [
+          "frame_id",
+          "frame_number",
+          "timestamp",
+          "relative_path",
+          "file_exists",
+          "stream_url"
+        ],
+        "title": "SegmentFramePreviewSchema",
+        "type": "object"
+      },
+      "SegmentFrameSelectorItemSchema": {
+        "properties": {
+          "attached_finding": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SegmentAttachedFindingSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "controls": {
+            "$ref": "#/components/schemas/SegmentFrameControlsSchema"
+          },
+          "end_frame_number": {
+            "title": "End Frame Number",
+            "type": "integer"
+          },
+          "label_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Id"
+          },
+          "label_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Name"
+          },
+          "segment_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Segment Duration Seconds"
+          },
+          "segment_id": {
+            "title": "Segment Id",
+            "type": "integer"
+          },
+          "selected_frame": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SegmentFramePreviewSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "selected_frame_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Frame Number"
+          },
+          "selection_meta": {
+            "$ref": "#/components/schemas/SegmentSelectionMetaSchema"
+          },
+          "start_frame_number": {
+            "title": "Start Frame Number",
+            "type": "integer"
+          },
+          "video_id": {
+            "title": "Video Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "segment_id",
+          "video_id",
+          "label_id",
+          "label_name",
+          "start_frame_number",
+          "end_frame_number",
+          "segment_duration_seconds",
+          "selected_frame_number",
+          "selected_frame",
+          "controls",
+          "attached_finding",
+          "selection_meta"
+        ],
+        "title": "SegmentFrameSelectorItemSchema",
+        "type": "object"
+      },
+      "SegmentFrameSelectorResponseSchema": {
+        "properties": {
+          "auto_created_report": {
+            "title": "Auto Created Report",
+            "type": "boolean"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "patient_examination_id": {
+            "title": "Patient Examination Id",
+            "type": "integer"
+          },
+          "report_id": {
+            "title": "Report Id",
+            "type": "integer"
+          },
+          "report_status": {
+            "title": "Report Status",
+            "type": "string"
+          },
+          "report_template_name": {
+            "title": "Report Template Name",
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/SegmentFrameSelectorItemSchema"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "storage_key": {
+            "title": "Storage Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "patient_examination_id",
+          "report_id",
+          "report_status",
+          "report_template_name",
+          "auto_created_report",
+          "storage_key",
+          "count",
+          "results"
+        ],
+        "title": "SegmentFrameSelectorResponseSchema",
+        "type": "object"
+      },
+      "SegmentSelectionMetaSchema": {
+        "properties": {
+          "selection_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selection Source"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "updated_at",
+          "selection_source"
+        ],
+        "title": "SegmentSelectionMetaSchema",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "",
+    "title": "Endoreg DB API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/endoreg-api/anonymization/clear-locks/": {
+      "delete": {
+        "description": "DELETE /api/anonymization/clear-locks/\nEmergency endpoint to clear all processing locks",
+        "operationId": "anonymization_clear_locks_destroy",
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "anonymization"
+        ]
+      }
+    },
+    "/endoreg-api/anonymization/document-types/dropdown/": {
+      "get": {
+        "operationId": "anonymization_document_types_dropdown_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "anonymization"
+        ]
+      }
+    },
+    "/endoreg-api/anonymization/items/overview/": {
+      "get": {
+        "description": "GET /api/anonymization/items/overview/\n--------------------------------------\nReturns a flat list (Video + PDF) ordered by newest upload first.",
+        "operationId": "anonymization_items_overview_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "anonymization"
+        ]
+      }
+    },
+    "/endoreg-api/anonymization/polling-info/": {
+      "get": {
+        "description": "GET /api/anonymization/polling-info/\nGet information about polling coordinator status",
+        "operationId": "anonymization_polling_info_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "anonymization"
+        ]
+      }
+    },
+    "/endoreg-api/anonymization/upload-jobs/{job_id}/cancel/": {
+      "post": {
+        "description": "Request interruption without deleting encrypted sources or valid media.",
+        "operationId": "anonymization_upload_jobs_cancel_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "anonymization"
+        ]
+      }
+    },
+    "/endoreg-api/anonymization/upload-jobs/{job_id}/dismiss/": {
+      "post": {
+        "description": "Hide a terminal attempt without deleting its source or audit history.",
+        "operationId": "anonymization_upload_jobs_dismiss_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "anonymization"
+        ]
+      }
+    },
+    "/endoreg-api/anonymization/upload-jobs/{job_id}/retry/": {
+      "post": {
+        "description": "Make a retained, storage-blocked upload job due for import again.",
+        "operationId": "anonymization_upload_jobs_retry_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "anonymization"
+        ]
+      }
+    },
+    "/endoreg-api/anonymization/{file_id}/current/": {
+      "get": {
+        "description": "Set current file for validation and return patient data",
+        "operationId": "anonymization_current_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "anonymization"
+        ]
+      },
+      "post": {
+        "description": "Set current file for validation and return patient data",
+        "operationId": "anonymization_current_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "anonymization"
+        ]
+      },
+      "put": {
+        "description": "Set current file for validation and return patient data",
+        "operationId": "anonymization_current_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "anonymization"
+        ]
+      }
+    },
+    "/endoreg-api/anonymization/{file_id}/has-raw/": {
+      "get": {
+        "description": "Return whether the video still has a raw video file.",
+        "operationId": "anonymization_has_raw_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "anonymization"
+        ]
+      }
+    },
+    "/endoreg-api/anonymization/{file_id}/start/": {
+      "post": {
+        "description": "Start anonymization with processing lock to prevent duplicates.",
+        "operationId": "anonymization_start_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "anonymization"
+        ]
+      }
+    },
+    "/endoreg-api/anonymization/{file_id}/status/": {
+      "get": {
+        "description": "Get anonymization status with polling rate limiting.",
+        "operationId": "anonymization_status_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "anonymization"
+        ]
+      }
+    },
+    "/endoreg-api/anonymization/{file_id}/validate/": {
+      "post": {
+        "description": "POST /api/anonymization/<int:file_id>/validate/\n\nValidiert und aktualisiert SensitiveMeta-Felder für Videos oder reports.\n\nDATA HERE IS COMING FROM THE ANONYIZATION VALIDATION COMPONENT\n\nBody (Datumsfelder bevorzugt in deutschem Format DD.MM.YYYY; ISO YYYY-MM-DD ebenfalls akzeptiert):\n{\n  \"patient_first_name\": \"Max\",\n  \"patient_last_name\":  \"Mustermann\",\n  \"patient_dob\":        \"21.03.1994\",      // DD.MM.YYYY bevorzugt\n  \"patient_gender\":     \"male\"\n  \"examination_date\":   \"15.02.2024\",      // DD.MM.YYYY bevorzugt\n\n  \"casenumber\":         \"12345\",\n  \"anonymized_text\":    \"...\",             // nur für reports; Videos ignorieren\n  \"is_verified\":        true               // optional; default true\n  \"file_type\":        \"video\"            // optional; \"video\" oder \"pdf\"; wenn nicht angegeben, wird zuerst Video, dann report versucht\n  \"center_name\":       edited_patient.value.center_name || '',\n  \"external_id\":       editedPatient.value.externalId || '',\n  \"external_id_origin\":editedPatient.value.externalIdOrigin || '',\n}\n\nRückwärtskompatibilität: ISO-Format (YYYY-MM-DD) wird ebenfalls akzeptiert.",
+        "operationId": "anonymization_validate_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "anonymization"
+        ]
+      }
+    },
+    "/endoreg-api/audit-ledger/integrity/": {
+      "get": {
+        "description": "Cheap frontend status endpoint for the audit-ledger green tick.\n\nThis endpoint deliberately returns only the cached result of the last\nbackground verification. It must not call AuditLedger.verify_chain().",
+        "operationId": "audit_ledger_integrity_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "audit-ledger"
+        ]
+      }
+    },
+    "/endoreg-api/auth/bootstrap": {
+      "get": {
+        "description": "Return auth context for the frontend:\n  - current user (username, basic info)\n  - roles (Django groups, synced from Keycloak)\n  - capabilities (what parts of UI the user may access)",
+        "operationId": "auth_bootstrap_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/endoreg-api/cases/": {
+      "get": {
+        "operationId": "cases_list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Case"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "cases"
+        ]
+      },
+      "post": {
+        "operationId": "cases_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Case"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Case"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Case"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/endoreg-api/cases/create-with-examination/": {
+      "post": {
+        "description": "Atomically create a patient examination and its owning case.",
+        "operationId": "cases_create_with_examination_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Case"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Case"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Case"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/endoreg-api/cases/{case_id}/": {
+      "delete": {
+        "operationId": "cases_destroy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "description": "Stable public identifier for the clinical case.",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "cases"
+        ]
+      },
+      "get": {
+        "operationId": "cases_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "description": "Stable public identifier for the clinical case.",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "cases"
+        ]
+      },
+      "patch": {
+        "operationId": "cases_partial_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "description": "Stable public identifier for the clinical case.",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedCase"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedCase"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedCase"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "cases"
+        ]
+      },
+      "put": {
+        "operationId": "cases_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "description": "Stable public identifier for the clinical case.",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Case"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Case"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Case"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/endoreg-api/cases/{case_id}/close/": {
+      "post": {
+        "description": "Close a case with an optional explicit leave date.",
+        "operationId": "cases_close_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "description": "Stable public identifier for the clinical case.",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Case"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Case"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Case"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/endoreg-api/cases/{case_id}/documents/": {
+      "post": {
+        "description": "Attach an existing PDF or video to an examination in this case.",
+        "operationId": "cases_documents_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "description": "Stable public identifier for the clinical case.",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Case"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Case"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Case"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/endoreg-api/cases/{case_id}/reopen/": {
+      "post": {
+        "description": "Reopen a closed case.",
+        "operationId": "cases_reopen_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "description": "Stable public identifier for the clinical case.",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Case"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Case"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Case"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/endoreg-api/centers/": {
+      "get": {
+        "description": "API endpoint für Center-Optionen (nur lesend)",
+        "operationId": "centers_list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Center"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "centers"
+        ]
+      }
+    },
+    "/endoreg-api/centers/{id}/": {
+      "get": {
+        "description": "API endpoint für Center-Optionen (nur lesend)",
+        "operationId": "centers_retrieve",
+        "parameters": [
+          {
+            "description": "A unique integer value identifying this center.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Center"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "centers"
+        ]
+      }
+    },
+    "/endoreg-api/check_pe_exist/{id}/": {
+      "get": {
+        "description": "Check if a patient examination exists.",
+        "operationId": "check_pe_exist_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Patient"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "check_pe_exist"
+        ]
+      }
+    },
+    "/endoreg-api/examinations/stats/": {
+      "get": {
+        "description": "API-Endpoint für Examination-Statistiken\nGET /api/examinations/stats/",
+        "operationId": "examinations_stats_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "examinations"
+        ]
+      }
+    },
+    "/endoreg-api/examinations/{exam_id}/findings/{finding_id}/interventions/": {
+      "get": {
+        "operationId": "examinations_findings_interventions_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "finding_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "examinations"
+        ]
+      }
+    },
+    "/endoreg-api/examinations/{exam_id}/indications/": {
+      "get": {
+        "description": "Retrieve indication options for a given examination.\n\nReturns:\n    list[dict]: Canonical localized indication catalog items.",
+        "operationId": "examinations_indications_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "examinations"
+        ]
+      }
+    },
+    "/endoreg-api/examinations/{exam_id}/interventions/": {
+      "get": {
+        "operationId": "examinations_interventions_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "examinations"
+        ]
+      }
+    },
+    "/endoreg-api/genders/": {
+      "get": {
+        "description": "API endpoint for Gender options.\nProvides read-only access to gender choices for patient forms.",
+        "operationId": "genders_list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Gender"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "genders"
+        ]
+      }
+    },
+    "/endoreg-api/genders/{id}/": {
+      "get": {
+        "description": "API endpoint for Gender options.\nProvides read-only access to gender choices for patient forms.",
+        "operationId": "genders_retrieve",
+        "parameters": [
+          {
+            "description": "A unique integer value identifying this gender.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Gender"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "genders"
+        ]
+      }
+    },
+    "/endoreg-api/indications/{indication_id}/choices/": {
+      "get": {
+        "description": "Retrieve all possible classification choices for a specific indication.\n\nThe response is de-duplicated by choice id and includes all owning\nclassification ids so clients can keep dependent dropdown logic deterministic.\n\nReturns:\n    list[dict]: [{\"id\": int, \"name\": str, \"classification_ids\": list[int]}, ...]",
+        "operationId": "indications_choices_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "indication_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "indications"
+        ]
+      }
+    },
+    "/endoreg-api/media-management/cleanup/": {
+      "delete": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_management_cleanup_destroy",
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "media-management"
+        ]
+      },
+      "get": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_management_cleanup_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "media-management"
+        ]
+      }
+    },
+    "/endoreg-api/media-management/force-remove/{file_id}/": {
+      "delete": {
+        "operationId": "media_management_force_remove_destroy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "media-management"
+        ]
+      }
+    },
+    "/endoreg-api/media-management/reset-status/{file_id}/": {
+      "post": {
+        "operationId": "media_management_reset_status_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "media-management"
+        ]
+      }
+    },
+    "/endoreg-api/media-management/status/": {
+      "delete": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_management_status_destroy",
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "media-management"
+        ]
+      },
+      "get": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_management_status_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "media-management"
+        ]
+      }
+    },
+    "/endoreg-api/media/annotations/frames/boxes/": {
+      "get": {
+        "description": "Persist and list general box-based frame annotations.\n\nGET requires frame_id. POST accepts either a list of box annotations or an\nobject with {frame_id, video_id, replace, annotations}.",
+        "operationId": "media_annotations_frames_boxes_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      },
+      "post": {
+        "description": "Persist and list general box-based frame annotations.\n\nGET requires frame_id. POST accepts either a list of box annotations or an\nobject with {frame_id, video_id, replace, annotations}.",
+        "operationId": "media_annotations_frames_boxes_create",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/annotations/frames/bulk-upsert/": {
+      "post": {
+        "description": "Bulk upsert endpoint for frame-level annotations.\n\nAccepted payload formats:\n1) List payload:\n   [\n     {frame_id, label_id, information_source_name, ...},\n     ...\n   ]\n2) Object payload:\n   {\n     \"video_id\": 123,  # optional safety check\n     \"annotations\": [{...}, {...}]\n   }",
+        "operationId": "media_annotations_frames_bulk_upsert_create",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/annotations/frames/random-task/": {
+      "get": {
+        "description": "Return one random frame task for annotation.",
+        "operationId": "media_annotations_frames_random_task_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/annotations/frames/skip/": {
+      "post": {
+        "description": "Acknowledge skipped frame tasks without creating annotations.",
+        "operationId": "media_annotations_frames_skip_create",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/anonymization/metrics/": {
+      "get": {
+        "description": "Derived-only anonymization quality and workflow metrics.\n\nGET /api/media/anonymization/metrics/",
+        "operationId": "media_anonymization_metrics_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/hub/transfers/": {
+      "post": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_hub_transfers_create",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/hub/transfers/{transfer_key}/media/": {
+      "post": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_hub_transfers_media_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transfer_key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/hub/transfers/{transfer_key}/status/": {
+      "get": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_hub_transfers_status_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transfer_key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/patients/{patient_id}/timeline/": {
+      "get": {
+        "description": "Combined media timeline for a patient.\n\nEndpoint:\n    GET /api/media/patients/<patient_id>/timeline/",
+        "operationId": "media_patients_timeline_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/pdfs/": {
+      "delete": {
+        "description": "PDF media management API for listing and detail retrieval.",
+        "operationId": "media_pdfs_destroy",
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      },
+      "get": {
+        "description": "PDF media management API for listing and detail retrieval.",
+        "operationId": "media_pdfs_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      },
+      "patch": {
+        "description": "PDF media management API for listing and detail retrieval.",
+        "operationId": "media_pdfs_partial_update",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/pdfs/sensitive-metadata/": {
+      "get": {
+        "description": "GET /api/media/pdfs/sensitive-metadata/\n\nList sensitive metadata for reports only.\nReplaces legacy /api/pdf/sensitivemeta/list/",
+        "operationId": "media_pdfs_sensitive_metadata_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/pdfs/{id}/": {
+      "delete": {
+        "description": "PDF media management API for listing and detail retrieval.",
+        "operationId": "media_pdfs_destroy_2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      },
+      "get": {
+        "description": "PDF media management API for listing and detail retrieval.",
+        "operationId": "media_pdfs_retrieve_2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      },
+      "patch": {
+        "description": "PDF media management API for listing and detail retrieval.",
+        "operationId": "media_pdfs_partial_update_2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/pdfs/{id}/apply-redactions/": {
+      "post": {
+        "description": "POST /api/media/pdfs/<pk>/apply-redactions/",
+        "operationId": "media_pdfs_apply_redactions_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/pdfs/{id}/case-resolution/": {
+      "get": {
+        "description": "GET /api/media/pdfs/<pk>/case-resolution/\n\nReturn read-only case resolution hints for a validated or pending PDF.",
+        "operationId": "media_pdfs_case_resolution_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      },
+      "post": {
+        "description": "GET /api/media/pdfs/<pk>/case-resolution/\n\nReturn read-only case resolution hints for a validated or pending PDF.",
+        "operationId": "media_pdfs_case_resolution_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/pdfs/{id}/llm-jobs/{job_id}/": {
+      "get": {
+        "description": "Poll status for report LLM import/reimport jobs.",
+        "operationId": "media_pdfs_llm_jobs_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/pdfs/{id}/processing-history/": {
+      "get": {
+        "description": "GET /api/media/pdfs/<pk>/processing-history/",
+        "operationId": "media_pdfs_processing_history_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/pdfs/{id}/reimport/": {
+      "post": {
+        "description": "Queue report re-import work outside the Daphne request process.",
+        "operationId": "media_pdfs_reimport_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/pdfs/{id}/sensitive-metadata/": {
+      "get": {
+        "description": "GET /api/media/pdfs/<pk>/sensitive-metadata/\nPATCH /api/media/pdfs/<pk>/sensitive-metadata/\n\nGet or update sensitive metadata for a report.\nreport-scoped: Uses report ID to locate related sensitive metadata.",
+        "operationId": "media_pdfs_sensitive_metadata_retrieve_2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      },
+      "patch": {
+        "description": "GET /api/media/pdfs/<pk>/sensitive-metadata/\nPATCH /api/media/pdfs/<pk>/sensitive-metadata/\n\nGet or update sensitive metadata for a report.\nreport-scoped: Uses report ID to locate related sensitive metadata.",
+        "operationId": "media_pdfs_sensitive_metadata_partial_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/pdfs/{id}/sensitive-metadata/verify/": {
+      "post": {
+        "description": "POST /api/media/pdfs/<pk>/sensitive-metadata/verify/\n\nUpdate verification state for report sensitive metadata.\n\nExpected payload:\n{\n    \"dob_verified\": true,\n    \"names_verified\": true\n}",
+        "operationId": "media_pdfs_sensitive_metadata_verify_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/pdfs/{id}/stream/": {
+      "get": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_pdfs_stream_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/quarantine/": {
+      "get": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_quarantine_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/quarantine/reap-approved/": {
+      "post": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_quarantine_reap_approved_create",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/quarantine/sync/": {
+      "post": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_quarantine_sync_create",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/quarantine/{item_id}/approve-deletion/": {
+      "post": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_quarantine_approve_deletion_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/quarantine/{item_id}/retain/": {
+      "post": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_quarantine_retain_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/sensitive-media-id/{id}/{media_type}/": {
+      "get": {
+        "description": "A route to get the sensitive meta pk for a media type quickly.\n\nGET api/media/sensitive-media-id/<pk>/<str:media_type>\n\nArgs:\n    request (_type_): _description_\n    id (_type_): _description_\n\nReturns:\n    Response | None: _description_",
+        "operationId": "media_sensitive_media_id_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "media_type",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/sensitive-metadata/": {
+      "get": {
+        "description": "GET /api/media/sensitive-metadata/\n\nList all sensitive metadata (combined reports and Videos).\nSupports filtering by content_type, status, etc.\n\nQuery parameters:\n- content_type: 'pdf' | 'video' (optional)\n- verified: Filter by verification status\n- ordering: Sort field\n- search: Search in patient names",
+        "operationId": "media_sensitive_metadata_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/studies/cohort-preview/": {
+      "get": {
+        "description": "Read-only, pseudonymous report/video cohort preview for register studies.",
+        "operationId": "media_studies_cohort_preview_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/": {
+      "get": {
+        "description": "Video media management API for listing and detail operations.",
+        "operationId": "media_videos_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      },
+      "patch": {
+        "description": "Video media management API for listing and detail operations.",
+        "operationId": "media_videos_partial_update",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/ensure-prediction-segment-annotations/": {
+      "post": {
+        "description": "Trigger annotation generation for AI/prediction-based segments for multiple\nvideos/segments, using a dedicated information source.\n\nBody:\n{\n  \"video_ids\": [1,2],\n  \"segment_ids\": [10,11],\n  \"information_source_name\": \"prediction_annotation\"\n}",
+        "operationId": "media_videos_ensure_prediction_segment_annotations_create",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/ensure-segment-annotations/": {
+      "post": {
+        "description": "Trigger annotation regeneration for multiple videos/segments.\n\nBody:\n{\n  \"video_ids\": [1,2],\n  \"segment_ids\": [10,11],\n  \"information_source_name\": \"manual_annotation\"\n}",
+        "operationId": "media_videos_ensure_segment_annotations_create",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/export-annotated/": {
+      "post": {
+        "operationId": "media_videos_export_annotated_create",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/label-sets/list/": {
+      "get": {
+        "description": "List annotation label groups as LabelSet records.",
+        "operationId": "media_videos_label_sets_list_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/labels/list/": {
+      "get": {
+        "description": "List all annotation labels used for video segments.",
+        "operationId": "media_videos_labels_list_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/prediction-models/list/": {
+      "get": {
+        "description": "List locally registered video prediction ModelMeta records and known\nHugging Face defaults that can be materialized on demand.",
+        "operationId": "media_videos_prediction_models_list_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/segments/stats/": {
+      "get": {
+        "description": "Statistics endpoint for video segments.\n\nGET /api/media/videos/segments/stats/\nReturns aggregated statistics about video segments.",
+        "operationId": "media_videos_segments_stats_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/video-correction/{id}": {
+      "get": {
+        "description": "GET /api/video/media/video-correction/{id}/ - Get video details for correction",
+        "operationId": "media_videos_video_correction_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/video-correction/{id}/anonymization/": {
+      "get": {
+        "description": "Select, apply, and audit a correction-time anonymization strategy.",
+        "operationId": "media_videos_video_correction_anonymization_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      },
+      "post": {
+        "description": "Select, apply, and audit a correction-time anonymization strategy.",
+        "operationId": "media_videos_video_correction_anonymization_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/": {
+      "get": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_videos_retrieve_2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/apply-mask/": {
+      "post": {
+        "description": "Apply masking to video.",
+        "operationId": "media_videos_apply_mask_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/case-resolution/": {
+      "get": {
+        "description": "GET /api/media/videos/<pk>/case-resolution/\n\nReturn read-only case resolution hints for a validated or pending video.",
+        "operationId": "media_videos_case_resolution_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      },
+      "post": {
+        "description": "GET /api/media/videos/<pk>/case-resolution/\n\nReturn read-only case resolution hints for a validated or pending video.",
+        "operationId": "media_videos_case_resolution_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/details/": {
+      "get": {
+        "description": "Video media management API for listing and detail operations.",
+        "operationId": "media_videos_details_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      },
+      "patch": {
+        "description": "Video media management API for listing and detail operations.",
+        "operationId": "media_videos_details_partial_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/ensure-prediction-segment-annotations/": {
+      "post": {
+        "description": "Trigger idempotent annotation generation for AI/prediction-based segments\nattached to a single video, writing to a dedicated information source.\n\nBody (optional):\n{\n  \"segment_ids\": [1,2,3],\n  \"information_source_name\": \"prediction_annotation\"\n}",
+        "operationId": "media_videos_ensure_prediction_segment_annotations_create_2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/ensure-segment-annotations/": {
+      "post": {
+        "description": "Trigger idempotent annotation regeneration for segments attached to a single video.\n\nBody (optional):\n{\n  \"segment_ids\": [1,2,3],\n  \"information_source_name\": \"manual_annotation\"\n}",
+        "operationId": "media_videos_ensure_segment_annotations_create_2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/fps/": {
+      "get": {
+        "description": "GET media/videos/{pk}/fps/ - Return fps for a single video.",
+        "operationId": "media_videos_fps_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/hls/key/{key_id}/": {
+      "get": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_videos_hls_key_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/hls/playlist.m3u8": {
+      "get": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_videos_hls_playlist.m3u8_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/hls/playlist/": {
+      "get": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_videos_hls_playlist_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/hls/segments/{key_id}/{segment_name}": {
+      "get": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_videos_hls_segments_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "segment_name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/mark-ready-for-export/": {
+      "post": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_videos_mark_ready_for_export_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/metadata/": {
+      "get": {
+        "description": "GET media/videos/{pk}/metadata/ - Get comprehensive video metadata.\n\nMerges logic from:\n1. VideoFile model (duration, fps, resolution)\n2. VideoState model (status, anonymization flags)\n3. Related models (Center, Processor, SensitiveMeta)",
+        "operationId": "media_videos_metadata_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/processing-history/": {
+      "get": {
+        "description": "Get processing history for a video.",
+        "operationId": "media_videos_processing_history_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/reimport/": {
+      "post": {
+        "description": "Re-import a video file to regenerate SensitiveMeta and other metadata.\nInstead of creating a new video, this updates the existing one.\n\nArgs:\n    pk (int): Primary key of the VideoFile to reimport",
+        "operationId": "media_videos_reimport_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/remove-frames/": {
+      "post": {
+        "description": "Remove frames from video.",
+        "operationId": "media_videos_remove_frames_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/segments/": {
+      "get": {
+        "description": "Video-specific segments endpoint.\n\nGET /api/media/videos/<pk>/segments/\n- Lists all segments for a specific video\n- Query params: label (label name filter), include_annotation_payload, source_kind\n  (set include_annotation_payload=1 to include expensive frame-level data)\n- Note: This was already implemented in segments.py as video_segments_by_pk\n\nPOST /api/media/videos/<pk>/segments/\n- Creates a new segment for this video\n- Automatically sets video_id to pk\n- Requires: label_id, start_frame_number, end_frame_number\n\nModern replacement for: /api/video-segments/?video_id=<pk>",
+        "operationId": "media_videos_segments_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      },
+      "post": {
+        "description": "Video-specific segments endpoint.\n\nGET /api/media/videos/<pk>/segments/\n- Lists all segments for a specific video\n- Query params: label (label name filter), include_annotation_payload, source_kind\n  (set include_annotation_payload=1 to include expensive frame-level data)\n- Note: This was already implemented in segments.py as video_segments_by_pk\n\nPOST /api/media/videos/<pk>/segments/\n- Creates a new segment for this video\n- Automatically sets video_id to pk\n- Requires: label_id, start_frame_number, end_frame_number\n\nModern replacement for: /api/video-segments/?video_id=<pk>",
+        "operationId": "media_videos_segments_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/segments/blacken-outside/": {
+      "post": {
+        "description": "POST /api/media/videos/<pk>/segments/blacken-outside/\n\nExplicitly rebuild the processed video with frames from \"outside\" segments\nblackened. Body:\n    {\n        \"only_validated\": false\n    }",
+        "operationId": "media_videos_segments_blacken_outside_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/segments/bulk/": {
+      "post": {
+        "description": "Bulk mutate manual timeline segments for a video.\n\nPOST /api/media/videos/<pk>/segments/bulk/\n\nBody:\n{\n  \"defer_annotation_sync\": true,\n  \"creates\": [\n    {\n      \"client_id\": -1,\n      \"label_id\": 1,\n      \"start_time\": 1.2,\n      \"end_time\": 3.4,\n      \"export_segment\": false\n    }\n  ],\n  \"updates\": [\n    {\n      \"id\": 123,\n      \"start_time\": 1.2,\n      \"end_time\": 3.4,\n      \"export_segment\": true\n    }\n  ],\n  \"deletes\": [456]\n}",
+        "operationId": "media_videos_segments_bulk_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/segments/import-predictions/": {
+      "post": {
+        "description": "Replace or extend the prediction-correction segment layer for a video using\na caller-supplied segment list adjusted from pipe-1 predictions in the UI.\n\nPrediction and ordinary manual segment layers are always preserved.\n\nPOST /api/media/videos/<pk>/segments/import-predictions/\n\nBody:\n{\n  \"segments\": [\n    {\"label_name\": \"outside\", \"start_time\": 1.2, \"end_time\": 3.4},\n    ...\n  ],\n  \"replace_existing\": true\n}",
+        "operationId": "media_videos_segments_import_predictions_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/segments/normalize-fps/": {
+      "get": {
+        "description": "Start or inspect idempotent pre-annotation FPS normalization.",
+        "operationId": "media_videos_segments_normalize_fps_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      },
+      "post": {
+        "description": "Start or inspect idempotent pre-annotation FPS normalization.",
+        "operationId": "media_videos_segments_normalize_fps_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/segments/rerun-predictions/": {
+      "post": {
+        "description": "Rerun temporal prediction segment materialization for a single video.",
+        "operationId": "media_videos_segments_rerun_predictions_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/segments/validate-bulk/": {
+      "post": {
+        "description": "Validate multiple video segments at once.\n\nPOST /api/media/videos/<pk>/segments/validate-bulk/\n\nBody:\n{\n  \"segment_ids\": [1, 2, 3, ...],\n  \"segments\": [\n    {\"id\": 1, \"start_time\": 12.3, \"end_time\": 15.7},\n    ...\n  ],\n  \"is_validated\": true,\n  \"notes\": \"...\",\n  \"information_source_name\": \"manual_annotation\"\n}\n\nTHIS IS WHERE SEGMENTS ARE STORED IN THE DATABASE",
+        "operationId": "media_videos_segments_validate_bulk_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/segments/validation-status/": {
+      "get": {
+        "description": "Get or update validation status for all segments of a video.\n\nGET /api/media/videos/<pk>/segments/validation-status/\nReturns validation statistics for all segments.\n\nPOST /api/media/videos/<pk>/segments/validation-status/\nMarks all segments (or filtered by label) as validated.\n\nQuery Parameters (GET):\n- label_name: filter by label (optional)\n\nRequest Body (POST, optional):\n{\n  \"label_name\": \"...\",   // optional, only validate segments with this label\n  \"notes\": \"...\"         // optional\n}\n\nResponse (GET):\n{\n  \"video_id\": 123,\n  \"total_segments\": 10,\n  \"validated_count\": 7,\n  \"unvalidated_count\": 3,\n  \"validation_complete\": false,\n  \"by_label\": {...}\n}\n\nResponse (POST):\n{\n  \"message\": \"Video segment validation completed\",\n  \"video_id\": 123,\n  \"total_segments\": 10,\n  \"updated_count\": 10,\n  \"failed_count\": 0\n}",
+        "operationId": "media_videos_segments_validation_status_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      },
+      "post": {
+        "description": "Get or update validation status for all segments of a video.\n\nGET /api/media/videos/<pk>/segments/validation-status/\nReturns validation statistics for all segments.\n\nPOST /api/media/videos/<pk>/segments/validation-status/\nMarks all segments (or filtered by label) as validated.\n\nQuery Parameters (GET):\n- label_name: filter by label (optional)\n\nRequest Body (POST, optional):\n{\n  \"label_name\": \"...\",   // optional, only validate segments with this label\n  \"notes\": \"...\"         // optional\n}\n\nResponse (GET):\n{\n  \"video_id\": 123,\n  \"total_segments\": 10,\n  \"validated_count\": 7,\n  \"unvalidated_count\": 3,\n  \"validation_complete\": false,\n  \"by_label\": {...}\n}\n\nResponse (POST):\n{\n  \"message\": \"Video segment validation completed\",\n  \"video_id\": 123,\n  \"total_segments\": 10,\n  \"updated_count\": 10,\n  \"failed_count\": 0\n}",
+        "operationId": "media_videos_segments_validation_status_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/segments/{segment_id}/": {
+      "delete": {
+        "description": "Detail endpoint for a specific video segment.\n\nGET /api/media/videos/<pk>/segments/<segment_id>/\n- Returns segment details\n\nPATCH /api/media/videos/<pk>/segments/<segment_id>/\n- Updates segment (partial update)\n\nDELETE /api/media/videos/<pk>/segments/<segment_id>/\n- Deletes segment\n\nModern replacement for: /api/video-segments/<segment_id>/",
+        "operationId": "media_videos_segments_destroy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "segment_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      },
+      "get": {
+        "description": "Detail endpoint for a specific video segment.\n\nGET /api/media/videos/<pk>/segments/<segment_id>/\n- Returns segment details\n\nPATCH /api/media/videos/<pk>/segments/<segment_id>/\n- Updates segment (partial update)\n\nDELETE /api/media/videos/<pk>/segments/<segment_id>/\n- Deletes segment\n\nModern replacement for: /api/video-segments/<segment_id>/",
+        "operationId": "media_videos_segments_retrieve_2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "segment_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      },
+      "patch": {
+        "description": "Detail endpoint for a specific video segment.\n\nGET /api/media/videos/<pk>/segments/<segment_id>/\n- Returns segment details\n\nPATCH /api/media/videos/<pk>/segments/<segment_id>/\n- Updates segment (partial update)\n\nDELETE /api/media/videos/<pk>/segments/<segment_id>/\n- Deletes segment\n\nModern replacement for: /api/video-segments/<segment_id>/",
+        "operationId": "media_videos_segments_partial_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "segment_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/segments/{segment_id}/validate/": {
+      "post": {
+        "description": "Validate a single video segment.\n\nPOST /api/media/videos/<pk>/segments/<segment_id>/validate/\n\nValidates a single LabelVideoSegment and marks it as verified.\nUsed to confirm user-reviewed segment annotations.\n\nRequest Body (optional):\n{\n  \"is_validated\": true,  // optional, default true\n  \"notes\": \"...\"         // optional, validation notes\n}\n\nResponse:\n{\n  \"message\": \"Segment validated successfully\",\n  \"segment_id\": 123,\n  \"is_validated\": true,\n  \"label\": \"polyp\",\n  \"video_id\": 456,\n  \"start_frame\": 100,\n  \"end_frame\": 200\n}",
+        "operationId": "media_videos_segments_validate_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "segment_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/sensitive-metadata/": {
+      "get": {
+        "description": "GET /api/media/videos/<pk>/sensitive-metadata/\nPATCH /api/media/videos/<pk>/sensitive-metadata/\n\nGet or update sensitive metadata for a video.\nVideo-scoped: Uses video ID to locate related sensitive metadata.",
+        "operationId": "media_videos_sensitive_metadata_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      },
+      "patch": {
+        "description": "GET /api/media/videos/<pk>/sensitive-metadata/\nPATCH /api/media/videos/<pk>/sensitive-metadata/\n\nGet or update sensitive metadata for a video.\nVideo-scoped: Uses video ID to locate related sensitive metadata.",
+        "operationId": "media_videos_sensitive_metadata_partial_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/sensitive-metadata/verify/": {
+      "post": {
+        "description": "POST /api/media/videos/<pk>/sensitive-metadata/verify/\n\nUpdate verification state for video sensitive metadata.\n\nExpected payload:\n{\n    \"dob_verified\": true,\n    \"names_verified\": true\n}",
+        "operationId": "media_videos_sensitive_metadata_verify_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/stream/": {
+      "get": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_videos_stream_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/timeline/frame-neighborhood/": {
+      "get": {
+        "description": "Return the PTS-backed previous/current/next display-frame boundaries.",
+        "operationId": "media_videos_timeline_frame_neighborhood_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{video_id}/frames/{frame_number}/decoded-stream/": {
+      "get": {
+        "description": "Decode and return a single frame directly from a video artifact.\n\nEndpoint:\n- GET /api/media/videos/<video_id>/frames/<frame_number>/decoded-stream/?file_type=raw|processed",
+        "operationId": "media_videos_frames_decoded_stream_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "frame_number",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "video_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{video_id}/frames/{frame_number}/stream/": {
+      "get": {
+        "description": "Stream a single extracted frame image by video ID and frame number.\n\nEndpoint:\n- GET /api/media/videos/<video_id>/frames/<frame_number>/stream/ (Constructed from frame stream helper)",
+        "operationId": "media_videos_frames_stream_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "frame_number",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "video_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examination-reports/": {
+      "get": {
+        "operationId": "endoreg_db_views_report_patient_examination_report_list_reports",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "patient_examination_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Patient Examination Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "template_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Template Name"
+            }
+          },
+          {
+            "in": "query",
+            "name": "is_active",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Is Active"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PatientExaminationReportSchema"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List Reports",
+        "tags": [
+          "patient-examination-reports"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examination-reports/frame-candidates": {
+      "get": {
+        "operationId": "endoreg_db_views_report_patient_examination_report_get_report_frame_candidates",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "patient_examination_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Patient Examination Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "label",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportFrameCandidatesResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Report Frame Candidates",
+        "tags": [
+          "patient-examination-reports"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examination-reports/history-context": {
+      "get": {
+        "operationId": "endoreg_db_views_report_patient_examination_report_history_context",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "patient_examination_id",
+            "required": true,
+            "schema": {
+              "title": "Patient Examination Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "History Context",
+        "tags": [
+          "patient-examination-reports"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examination-reports/make-report": {
+      "post": {
+        "operationId": "endoreg_db_views_report_patient_examination_report_make_report",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Make Report",
+        "tags": [
+          "patient-examination-reports"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examination-reports/save-submission": {
+      "post": {
+        "operationId": "endoreg_db_views_report_patient_examination_report_save_submission",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "summary": "Save Submission",
+        "tags": [
+          "patient-examination-reports"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examination-reports/segment-frame-selector": {
+      "get": {
+        "operationId": "endoreg_db_views_report_patient_examination_report_get_segment_frame_selector",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SegmentFrameSelectorResponseSchema"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Segment Frame Selector",
+        "tags": [
+          "patient-examination-reports"
+        ]
+      },
+      "patch": {
+        "operationId": "endoreg_db_views_report_patient_examination_report_patch_segment_frame_selector",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SegmentFrameSelectorResponseSchema"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Patch Segment Frame Selector",
+        "tags": [
+          "patient-examination-reports"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examination-reports/{report_id}": {
+      "get": {
+        "operationId": "endoreg_db_views_report_patient_examination_report_get_report",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "title": "Report Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientExaminationReportSchema"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Report",
+        "tags": [
+          "patient-examination-reports"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examinations/": {
+      "get": {
+        "description": "ViewSet für PatientExamination mit vollständiger CRUD-Unterstützung",
+        "operationId": "patient_examinations_list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PatientExamination"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "patient-examinations"
+        ]
+      },
+      "post": {
+        "description": "Überschreibt die create-Methode für bessere Fehlerbehandlung",
+        "operationId": "patient_examinations_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientExamination"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientExamination"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientExamination"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientExamination"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "patient-examinations"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examinations/create/": {
+      "post": {
+        "description": "Create new PatientExamination instances.\nPOST /api/examinations/create/\n\nExpected payload:\n{\n    \"patient\": \"patient_hash_string\",  # or patient_id integer\n    \"examination\": \"examination_name\", # examination name string\n    \"date_start\": \"2024-01-15\",\n}",
+        "operationId": "patient_examinations_create_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientExamination"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientExamination"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientExamination"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientExamination"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "patient-examinations"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examinations/examinations_dropdown/": {
+      "get": {
+        "description": "Endpoint für Examination-Dropdown-Daten\nGET /api/patient-examinations/examinations_dropdown/",
+        "operationId": "patient_examinations_examinations_dropdown_retrieve",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientExamination"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "patient-examinations"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examinations/list/": {
+      "get": {
+        "description": "List PatientExamination instances with filtering.\nGET /api/examinations/list/\n\nQuery parameters:\n- patient_id: Filter by patient ID\n- examination_name: Filter by examination name\n- limit: Number of results (default 20)\n- offset: Pagination offset (default 0)",
+        "operationId": "patient_examinations_list_list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PatientExamination"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "patient-examinations"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examinations/patients_dropdown/": {
+      "get": {
+        "description": "Endpoint für Patient-Dropdown-Daten\nGET /api/patient-examinations/patients_dropdown/",
+        "operationId": "patient_examinations_patients_dropdown_retrieve",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientExamination"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "patient-examinations"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examinations/recent/": {
+      "get": {
+        "description": "Endpoint für die letzten PatientExaminations\nGET /api/patient-examinations/recent/",
+        "operationId": "patient_examinations_recent_retrieve",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientExamination"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "patient-examinations"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examinations/{id}/": {
+      "delete": {
+        "description": "ViewSet für PatientExamination mit vollständiger CRUD-Unterstützung",
+        "operationId": "patient_examinations_destroy",
+        "parameters": [
+          {
+            "description": "A unique integer value identifying this Patient Examination.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "patient-examinations"
+        ]
+      },
+      "get": {
+        "description": "Retrieve and update PatientExamination instances.\nGET /api/examinations/{id}/\nPATCH /api/examinations/{id}/",
+        "operationId": "patient_examinations_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientExamination"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "patient-examinations"
+        ]
+      },
+      "patch": {
+        "description": "Retrieve and update PatientExamination instances.\nGET /api/examinations/{id}/\nPATCH /api/examinations/{id}/",
+        "operationId": "patient_examinations_partial_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedPatientExamination"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedPatientExamination"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedPatientExamination"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientExamination"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "patient-examinations"
+        ]
+      },
+      "put": {
+        "description": "Retrieve and update PatientExamination instances.\nGET /api/examinations/{id}/\nPATCH /api/examinations/{id}/",
+        "operationId": "patient_examinations_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientExamination"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientExamination"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientExamination"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientExamination"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "patient-examinations"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examinations/{id}/details/": {
+      "get": {
+        "description": "Detaillierte Informationen über eine PatientExamination\nGET /api/patient-examinations/{id}/details/",
+        "operationId": "patient_examinations_details_retrieve",
+        "parameters": [
+          {
+            "description": "A unique integer value identifying this Patient Examination.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientExamination"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "patient-examinations"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examinations/{id}/draft/": {
+      "get": {
+        "description": "Draft endpoint for transient report editor state.\n\nGET /api/patient-examinations/{id}/draft/\nPUT /api/patient-examinations/{id}/draft/",
+        "operationId": "patient_examinations_draft_retrieve",
+        "parameters": [
+          {
+            "description": "A unique integer value identifying this Patient Examination.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientExamination"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "patient-examinations"
+        ]
+      },
+      "put": {
+        "description": "Draft endpoint for transient report editor state.\n\nGET /api/patient-examinations/{id}/draft/\nPUT /api/patient-examinations/{id}/draft/",
+        "operationId": "patient_examinations_draft_update",
+        "parameters": [
+          {
+            "description": "A unique integer value identifying this Patient Examination.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientExamination"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientExamination"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientExamination"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientExamination"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "patient-examinations"
+        ]
+      }
+    },
+    "/endoreg-api/patient-examinations/{id}/fhir/": {
+      "get": {
+        "description": "Export one patient examination as a validated FHIR R4 Bundle.",
+        "operationId": "patient_examinations_fhir_retrieve",
+        "parameters": [
+          {
+            "description": "A unique integer value identifying this Patient Examination.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientExamination"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "patient-examinations"
+        ]
+      }
+    },
+    "/endoreg-api/patients/": {
+      "get": {
+        "description": "API endpoint for managing patients.",
+        "operationId": "patients_list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Patient"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "patients"
+        ]
+      },
+      "post": {
+        "description": "API endpoint for managing patients.",
+        "operationId": "patients_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Patient"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Patient"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Patient"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Patient"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "patients"
+        ]
+      }
+    },
+    "/endoreg-api/patients/patient_count/": {
+      "get": {
+        "description": "Gibt die Anzahl der Patienten zurück",
+        "operationId": "patients_patient_count_retrieve",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Patient"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "patients"
+        ]
+      }
+    },
+    "/endoreg-api/patients/{id}/": {
+      "delete": {
+        "description": "Delete a patient with proper error handling and cascade protection.",
+        "operationId": "patients_destroy",
+        "parameters": [
+          {
+            "description": "A unique integer value identifying this patient.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "patients"
+        ]
+      },
+      "get": {
+        "description": "API endpoint for managing patients.",
+        "operationId": "patients_retrieve",
+        "parameters": [
+          {
+            "description": "A unique integer value identifying this patient.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Patient"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "patients"
+        ]
+      },
+      "patch": {
+        "description": "API endpoint for managing patients.",
+        "operationId": "patients_partial_update",
+        "parameters": [
+          {
+            "description": "A unique integer value identifying this patient.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedPatient"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedPatient"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedPatient"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Patient"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "patients"
+        ]
+      },
+      "put": {
+        "description": "Erweiterte Logik für das Aktualisieren von Patienten",
+        "operationId": "patients_update",
+        "parameters": [
+          {
+            "description": "A unique integer value identifying this patient.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Patient"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Patient"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Patient"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Patient"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "patients"
+        ]
+      }
+    },
+    "/endoreg-api/patients/{id}/check_deletion_safety/": {
+      "get": {
+        "description": "Check if a patient can be safely deleted.\nReturns information about related objects.",
+        "operationId": "patients_check_deletion_safety_retrieve",
+        "parameters": [
+          {
+            "description": "A unique integer value identifying this patient.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Patient"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "patients"
+        ]
+      }
+    },
+    "/endoreg-api/patients/{id}/medical-ledger/": {
+      "get": {
+        "description": "Read or atomically create this visible patient's medical ledger.",
+        "operationId": "patients_medical_ledger_retrieve",
+        "parameters": [
+          {
+            "description": "A unique integer value identifying this patient.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Patient"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "patients"
+        ]
+      },
+      "post": {
+        "description": "Read or atomically create this visible patient's medical ledger.",
+        "operationId": "patients_medical_ledger_create",
+        "parameters": [
+          {
+            "description": "A unique integer value identifying this patient.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Patient"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Patient"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Patient"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Patient"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "patients"
+        ]
+      }
+    },
+    "/endoreg-api/patients/{id}/medication-schedules/": {
+      "post": {
+        "description": "Create one schedule from medication records owned by this patient.",
+        "operationId": "patients_medication_schedules_create",
+        "parameters": [
+          {
+            "description": "A unique integer value identifying this patient.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Patient"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Patient"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Patient"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Patient"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "patients"
+        ]
+      }
+    },
+    "/endoreg-api/patients/{id}/medication-schedules/{schedule_id}/": {
+      "patch": {
+        "description": "Replace the medication membership of one patient-owned schedule.",
+        "operationId": "patients_medication_schedules_partial_update",
+        "parameters": [
+          {
+            "description": "A unique integer value identifying this patient.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "schedule_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedPatient"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedPatient"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedPatient"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Patient"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "patients"
+        ]
+      }
+    },
+    "/endoreg-api/patients/{id}/medications/": {
+      "post": {
+        "description": "Create one validated medication record for this visible patient.",
+        "operationId": "patients_medications_create",
+        "parameters": [
+          {
+            "description": "A unique integer value identifying this patient.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Patient"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Patient"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Patient"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Patient"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "patients"
+        ]
+      }
+    },
+    "/endoreg-api/patients/{id}/medications/{medication_id}/": {
+      "patch": {
+        "description": "Patch one medication owned by this visible patient.",
+        "operationId": "patients_medications_partial_update",
+        "parameters": [
+          {
+            "description": "A unique integer value identifying this patient.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "medication_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedPatient"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedPatient"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedPatient"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Patient"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "patients"
+        ]
+      }
+    },
+    "/endoreg-api/patients/{id}/pseudonym/": {
+      "post": {
+        "description": "Generate a pseudonym hash for an existing patient.\n\nThis endpoint generates a deterministic hash based on the patient's\npersonal data (name, dob, center) using server-side logic without\nexposing any secrets to the frontend.",
+        "operationId": "patients_pseudonym_create",
+        "parameters": [
+          {
+            "description": "A unique integer value identifying this patient.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Patient"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Patient"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Patient"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Patient"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "patients"
+        ]
+      }
+    },
+    "/endoreg-api/settings/application/": {
+      "get": {
+        "operationId": "settings_application_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      },
+      "patch": {
+        "operationId": "settings_application_partial_update",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/endoreg-api/settings/application/ai_dataset_export/": {
+      "post": {
+        "operationId": "settings_application_ai_dataset_export_create",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/endoreg-api/settings/application/ai_dataset_export/{artifact_id}/download/": {
+      "get": {
+        "operationId": "settings_application_ai_dataset_export_download_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/endoreg-api/settings/application/ai_datasets/{dataset_id}/attachments/": {
+      "post": {
+        "operationId": "settings_application_ai_datasets_attachments_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataset_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/endoreg-api/settings/application/ai_datasets/{param}/frame_bucket_distribution/": {
+      "get": {
+        "operationId": "settings_application_ai_datasets_frame_bucket_distribution_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "param",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/endoreg-api/settings/application/ai_datasets/{param}/training_manifest/": {
+      "post": {
+        "operationId": "settings_application_ai_datasets_training_manifest_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "param",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/endoreg-api/settings/application/backup/": {
+      "post": {
+        "operationId": "settings_application_backup_create",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/endoreg-api/settings/application/dropdowns/ai_datasets/": {
+      "get": {
+        "operationId": "settings_application_dropdowns_ai_datasets_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      },
+      "post": {
+        "operationId": "settings_application_dropdowns_ai_datasets_create",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/endoreg-api/settings/application/dropdowns/annotators/": {
+      "get": {
+        "operationId": "settings_application_dropdowns_annotators_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/endoreg-api/settings/application/dropdowns/centers/": {
+      "get": {
+        "operationId": "settings_application_dropdowns_centers_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/endoreg-api/settings/application/dropdowns/network_node_roles/": {
+      "get": {
+        "operationId": "settings_application_dropdowns_network_node_roles_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/endoreg-api/settings/application/dropdowns/processors/": {
+      "get": {
+        "operationId": "settings_application_dropdowns_processors_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/endoreg-api/settings/application/dropdowns/report_templates/": {
+      "get": {
+        "operationId": "settings_application_dropdowns_report_templates_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/endoreg-api/settings/application/model_training/options/": {
+      "get": {
+        "operationId": "settings_application_model_training_options_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/endoreg-api/settings/application/model_training/runs/": {
+      "get": {
+        "operationId": "settings_application_model_training_runs_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      },
+      "post": {
+        "operationId": "settings_application_model_training_runs_create",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/endoreg-api/settings/application/model_training/runs/{run_id}/": {
+      "get": {
+        "operationId": "settings_application_model_training_runs_retrieve_2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/endoreg-api/settings/application/network_nodes/": {
+      "get": {
+        "operationId": "settings_application_network_nodes_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      },
+      "post": {
+        "operationId": "settings_application_network_nodes_create",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/endoreg-api/settings/application/network_nodes/{id}/": {
+      "delete": {
+        "operationId": "settings_application_network_nodes_destroy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      },
+      "get": {
+        "operationId": "settings_application_network_nodes_retrieve_2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      },
+      "patch": {
+        "operationId": "settings_application_network_nodes_partial_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/endoreg-api/settings/application/video_dimension_backfill/runs/": {
+      "post": {
+        "operationId": "settings_application_video_dimension_backfill_runs_create",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/endoreg-api/settings/application/video_dimension_backfill/runs/{run_id}/": {
+      "get": {
+        "operationId": "settings_application_video_dimension_backfill_runs_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/endoreg-api/stats/": {
+      "get": {
+        "description": "API-Endpoint für allgemeine Dashboard-Statistiken\nGET /api/stats/",
+        "operationId": "stats_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "stats"
+        ]
+      }
+    },
+    "/endoreg-api/upload/": {
+      "post": {
+        "description": "Handle file upload and create processing job.",
+        "operationId": "upload_create",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "upload"
+        ]
+      }
+    },
+    "/endoreg-api/upload/{id}/status/": {
+      "get": {
+        "description": "Return the current status of an upload job.",
+        "operationId": "upload_status_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "upload"
+        ]
+      }
+    },
+    "/endoreg-api/video-segment/stats/": {
+      "get": {
+        "description": "API-Endpoint für Video-Segment-Statistiken\nGET /api/video-segments/stats/",
+        "operationId": "video_segment_stats_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "video-segment"
+        ]
+      }
+    },
+    "/endoreg-api/video-segments/stats/": {
+      "get": {
+        "description": "API-Endpoint für Video-Segment-Statistiken\nGET /api/video-segments/stats/",
+        "operationId": "video_segments_stats_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "video-segments"
+        ]
+      }
+    },
+    "/endoreg-api/video/sensitivemeta/stats/": {
+      "get": {
+        "description": "API-Endpoint für SensitiveMeta-Statistiken\nGET /api/video/sensitivemeta/stats/",
+        "operationId": "video_sensitivemeta_stats_retrieve",
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "video"
+        ]
+      }
+    }
+  },
+  "servers": []
+}

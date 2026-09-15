@@ -1,0 +1,267 @@
+schema_version: '1.0'
+id: frame_annotation_availability
+name: Frame Annotation Availability
+description: Keep label-driven frame annotation continuously usable while bounding decode work and avoiding
+  persistent per-frame storage growth.
+owners:
+- lx-annotate maintainers
+- endoreg_db maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: AGENTS.md
+  disposition: reference
+  note: Security, storage, annotator-scope, and frame-annotation invariants.
+- path: docs/api/index.md
+  disposition: reference
+  note: Current frame-annotation request contract.
+- path: docs/guides/deployment-strategy.md
+  disposition: reference
+  note: Deployment and storage boundary for durable video artifacts.
+- path: docs/guides/frame-annotation-availability.md
+  disposition: reference
+  note: Label-primary dataset, on-demand decode, back-pressure, and recovery contract.
+definition_of_done:
+- id: label_primary_dataset_setting
+  category: requirements
+  title: Application settings select a label-primary annotation dataset
+  acceptance:
+  - The settings UI and API describe the selected image AIDataSet as the primary annotation dataset, with
+    its stable database ID as the identity; duplicate names never determine selection.
+  - The primary dataset supplies the label set, balancing distribution, and annotation membership for
+    frame tasks. Frame image files are derived presentation artifacts and are not the source of dataset
+    membership or label truth.
+  - Frame annotation hydrates the primary dataset by ID from application settings before requesting a
+    queue, and a user-selected queue override remains explicit, scoped, and reversible.
+  - A configured primary frame-annotation dataset must be active and use the image dataset type with an
+    image-compatible model type. Invalid or deleted selections fail with an actionable settings error
+    rather than falling back to the first dataset.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the settings API, settings page, annotation queue hydration, and focused frontend
+      and backend tests for stable-ID selection and fail-closed validation.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: lx_annotate/views/application_settings.py; frontend/src/views/ApplicationSettingsPage.vue;
+        frontend/src/stores/annotationQueue.ts
+    - kind: test
+      reference: tests/api/test_frame_annotation_availability.py; frontend/src/stores/__tests__/annotationQueue.test.ts;
+        frontend/src/views/__tests__/ApplicationSettingsPage.test.ts
+    note: Stable-ID settings guard, active image/model validation, explicit status, and queue hydration
+      are implemented and tested.
+    assessed_by: codex-frame-labels
+    assessed_at: '2026-08-12T06:51:44.113354Z'
+- id: regenerable_frame_contract
+  category: functionality
+  title: Every eligible annotation task has a regenerable frame source
+  acceptance:
+  - Normal frame annotation uses the anonymized processed video as the preferred durable source and decodes
+    only the requested frame. The endpoint does not persist a second full frame corpus by default.
+  - Raw-video decoding is limited to workflows that explicitly require raw pixels, including PHI-region
+    annotation, and raw media never leaves the local encrypted storage boundary.
+  - Queue selection excludes videos without an accessible permitted source artifact. A source that becomes
+    unavailable after selection produces a typed unavailable or warming response and never a broken image
+    presented as an annotatable task.
+  - Source video retention is pinned while positive dataset membership or frame annotations depend on
+    it; retention may move an eligible processed artifact through approved storage placement but must
+    preserve its integrity digest and regeneration capability.
+  - Annotated frame records remain valid after an ephemeral decoded image is discarded because label truth
+    is stored against the typed frame and video identity, not inferred from a cached pathname.
+  required: true
+  verification:
+    kind: manual
+    instructions: Exercise processed and raw task selection, remove any ephemeral decoded response, reload
+      an annotated frame from its durable video source, and verify missing-source failure behavior.
+    timeout_seconds: 900
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: lx_annotate/views/frame_annotation.py
+    - kind: code
+      reference: frontend/src/views/FrameAnnotation.vue
+    - kind: code
+      reference: frontend/src/stores/annotationQueue.ts
+    - kind: document
+      reference: docs/guides/frame-annotation-availability.md
+    - kind: test
+      reference: tests/api/test_frame_annotation_availability.py (9 passed)
+    - kind: test
+      reference: frontend/src/views/__tests__/FrameAnnotationPage.test.ts; frontend/src/stores/__tests__/annotationQueue.test.ts;
+        frontend/tests/stores/annotationQueue.frameTask.test.ts (39 passed)
+    note: 'Focused review confirms processed-video preference, requested-frame-only delivery, no persistent
+      decoded-frame corpus, bounded browser object URLs, and documented retention intent. Remaining acceptance
+      gaps: no complete owning endoreg_db test evidence was found for excluding tasks without an accessible
+      permitted source, typed warming/unavailable behavior after source disappearance, and retention pinning
+      while dataset membership or annotations depend on the processed artifact; these prevent verification.'
+    assessed_by: codex-feature-advance-20260902
+    assessed_at: '2026-09-02T12:50:29.659947Z'
+- id: bounded_decode_backpressure
+  category: operations
+  title: Decode and prefetch work is bounded independently from durable storage
+  acceptance:
+  - The browser keeps only the current frame image plus a small configured prefetch window and revokes
+    object URLs as tasks advance; task metadata prefetch does not imply frame-byte prefetch.
+  - Each application node enforces configured limits for concurrent frame decodes and queued decode work.
+    Saturation returns an explicit retryable response with Retry-After instead of opening unbounded decoder
+    processes or materializing frames on shared storage.
+  - Duplicate requests for the same video, frame number, and artifact kind are coalesced while in flight.
+    A short-lived encrypted local cache is optional, byte-bounded, age-bounded, and safe to evict at any
+    time.
+  - Capacity thresholds and decode saturation emit structured metrics and logs that distinguish unavailable
+    source media, decode failure, throttling, and client cancellation.
+  - Load tests demonstrate that configured concurrency, queue depth, cache bytes, and storage write volume
+    remain within their declared bounds while annotation clients continue to make progress.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run concurrent annotation clients against representative videos, record decoder concurrency,
+      queue depth, response latency, retry behavior, cache occupancy, and durable storage writes, and
+      compare every value with the configured limits.
+    timeout_seconds: 1200
+  assessment:
+    status: not_assessed
+    evidence: []
+- id: storage_and_transport_safety
+  category: security
+  title: Frame availability preserves clinical storage and transport boundaries
+  acceptance:
+  - Decoded frame responses remain authenticated and center-scoped; processed artifacts additionally enforce
+    anonymized-center scope.
+  - No master key or NetworkNode shared secret is used for payload encryption, and no long-lived key is
+    sent over the network.
+  - Remote retrieval is permitted only for anonymized processed media over the deployment profile's required
+    mTLS transport. Missing required mTLS fails closed.
+  - Any optional frame-cache mutation uses typed endoreg_db filesystem wrappers, atomic publication, structured
+    JSON mutation logs, and an encrypted-at-rest local path.
+  - Storage and artifact selection use typed enums with exhaustive branching; persisted queue, provenance,
+    lease, and cache metadata are validated at the model boundary.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review authorization, transport policy, artifact routing, filesystem mutations, persisted
+      payload schemas, and negative tests against the security and storage directives in AGENTS.md.
+    timeout_seconds: 900
+  assessment:
+    status: not_assessed
+    evidence: []
+- id: annotation_client_continuity
+  category: testing
+  title: The annotation client advances through transient frame conditions safely
+  acceptance:
+  - The client requests frame bytes only for the current task, retries typed warming and throttling responses
+    according to Retry-After, and places a strict limit on automatic retries.
+  - Frame-byte requests are globally serialized in the annotation page. Duplicate requests for the same
+    frame reuse the in-flight promise, and at most the next task is prefetched into an ephemeral in-memory
+    Blob cache that is cleared on queue invalidation and page teardown.
+  - A failed or unavailable frame cannot be submitted accidentally; the operator can retry it or skip
+    it with the existing annotator and dataset scope preserved.
+  - Bulk label persistence and optional AI-dataset attachment use one backend transaction. An uncommitted
+    write returns typed retry semantics; the client retains the current task and retries only when the
+    response explicitly permits it.
+  - Queue metadata prefetch maintains a bounded reserve of distinct frame identities without reserving
+    or decoding an unbounded number of frames on the backend.
+  - Changing the primary dataset, label set, annotator, source artifact kind, or sampling policy invalidates
+    stale prefetched tasks before they can be displayed or submitted.
+  - Focused tests cover success, warming, throttling, decode failure, source disappearance, retry exhaustion,
+    queue invalidation, and continued progress after a skipped task.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the focused annotation queue and page tests with typed warming, throttling, unavailable,
+      and failure responses, then verify request counts and stale-task invalidation.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/views/FrameAnnotation.vue; frontend/src/stores/annotationQueue.ts
+    - kind: test
+      reference: frontend/src/views/__tests__/FrameAnnotationPage.test.ts; frontend/src/stores/__tests__/annotationQueue.test.ts;
+        frontend/tests/stores/annotationQueue.frameTask.test.ts
+    - kind: command
+      reference: devenv shell -- npm --prefix frontend run test:unit -- --run src/views/__tests__/FrameAnnotationPage.test.ts
+        src/stores/__tests__/annotationQueue.test.ts tests/stores/annotationQueue.frameTask.test.ts (36
+        passed)
+    - kind: command
+      reference: devenv shell -- npm --prefix frontend run type-check:component-tests (passed); scoped
+        ESLint (passed)
+    - kind: code
+      reference: frontend/src/api/frameAnnotationsApi.ts; frontend/src/views/FrameAnnotation.vue
+    - kind: test
+      reference: frontend/src/api/__tests__/frameAnnotationsApi.test.ts; frontend/src/views/__tests__/FrameAnnotationPage.test.ts
+    - kind: command
+      reference: npm run test:unit -- --run src/api/__tests__/frameAnnotationsApi.test.ts src/views/__tests__/FrameAnnotationPage.test.ts
+        (27 passed)
+    - kind: code
+      reference: /home/admin/endoreg-db/endoreg_db/views/video/ai/frame_annotations.py::_bulk_write_failure_response
+    - kind: test
+      reference: /home/admin/endoreg-db/tests/views/video/test_frame_annotation_bulk_upsert.py (12 passed,
+        2 subtests passed)
+    - kind: command
+      reference: /home/admin/endoreg-db/.devenv/state/venv/bin/pytest tests/views/video/test_frame_annotation_task_endpoints.py
+        tests/views/video/test_annotation_access_controls.py -q (31 passed)
+    note: Frame-byte requests remain serialized and bounded. Backend annotation persistence and optional
+      dataset attachment are atomic and expose explicit not-committed/retryable semantics; the client
+      never advances on failure and blocks retries when commit state is unknown or retry is denied. Backend
+      rollback/error-mapping tests, focused frontend API/page and queue tests, both frontend type-check
+      lanes, and scoped ESLint pass.
+    assessed_by: codex-contract-clinical-20260813
+    assessed_at: '2026-08-13T08:54:21.173921Z'
+- id: operator_acceptance
+  category: operations
+  title: Availability has observable service-level acceptance
+  acceptance:
+  - Operators can see the number of eligible tasks, locally decodable tasks, warming tasks, unavailable
+    tasks, active decodes, throttled requests, and cache occupancy for the primary annotation dataset.
+  - Alerts distinguish exhausted annotation work from a storage-placement, source-integrity, decoder-capacity,
+    or authorization incident.
+  - Restart and failure tests prove that in-flight work is idempotent, label submissions are not lost,
+    and a failed source is never silently replaced with raw or cross-center media.
+  - Production readiness includes repeated evidence under representative storage pressure and explicit
+    review by application, storage, security, and clinical workflow owners.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review dashboards and alerts, inject source and decoder failures, restart workers, and
+      record repeated representative-load evidence with the named owners.
+    timeout_seconds: 1200
+  assessment:
+    status: not_assessed
+    evidence: []
+- id: documented_availability_policy
+  category: documentation
+  title: Operators and annotators share one frame-availability policy
+  acceptance:
+  - English documentation explains that labels and dataset membership are primary data while decoded images
+    are regenerable views backed by retained source artifacts.
+  - The runbook records default and maximum decode concurrency, queue depth, retry delay, cache bytes,
+    cache age, source-retention behavior, and the capacity signals that operators must monitor.
+  - The user guide distinguishes no remaining annotation work from warming, throttled, unavailable, and
+    failed frames and gives an actionable recovery path for each state.
+  - Documentation states that raw media cannot be fetched from another node and that remote processed-media
+    retrieval requires the deployment profile's approved authenticated transport.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the English API, user, and operator documentation against settings defaults,
+      runtime behavior, monitoring, and security tests.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: docs/guides/frame-annotation-availability.md; docs/api/index.md
+    - kind: command
+      reference: sphinx-build read and rendered frame-annotation-availability.md; only pre-existing toctree
+        warnings blocked -W completion
+    note: English data ownership, source, back-pressure, monitoring, recovery, and transport policy is
+      documented.
+    assessed_by: codex-frame-labels
+    assessed_at: '2026-08-12T06:51:46.050303Z'

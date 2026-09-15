@@ -4,15 +4,8 @@
   </div>
 </template>
 
-<script>
-
-
-export default {
-  name: 'AboutUs',
-  components: {
-  },
-};
+<script setup lang="ts">
+defineOptions({ name: 'AboutUs' })
 </script>
 
-<style>
-</style>
+<style></style>

@@ -18,8 +18,10 @@ export const translationMap = {
 
 export type LabelKey = keyof typeof translationMap
 
+const translationsByLabel = new Map<string, string>(Object.entries(translationMap))
+
 export function getTranslationForLabel(label: string): string {
-  return translationMap[label as LabelKey] ?? label
+  return translationsByLabel.get(label) ?? label
 }
 
 const colourMap: Record<string, string> = {
@@ -43,15 +45,17 @@ export function getColorForLabel(label: string): string {
 }
 
 const TWO_DIGIT_STRINGS = Array.from({ length: 60 }, (_, index) =>
-  index < 10 ? `0${index}` : String(index)
+  index < 10 ? `0${String(index)}` : String(index)
 )
 
 export const formatTime = (seconds: number): string => {
-  if (!Number.isFinite(seconds) || seconds <= 0) return '00:00'
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return '00:00'
+  }
 
   const wholeSeconds = Math.floor(seconds)
   const mins = Math.floor(wholeSeconds / 60)
   const secs = wholeSeconds - mins * 60
-  const minsText = mins < 10 ? `0${mins}` : String(mins)
+  const minsText = mins < 10 ? `0${String(mins)}` : String(mins)
   return `${minsText}:${TWO_DIGIT_STRINGS[secs]}`
 }

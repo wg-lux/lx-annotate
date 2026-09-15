@@ -33,7 +33,6 @@ devenv.lock
 .env
 flake.json
 .make-cache/
-storage/
 .staticfiles/
 staticfiles
 ./frontend/public/video.mp4
@@ -61,6 +60,7 @@ share/python-wheels/
 MANIFEST
 EAST/
 .venv/
+.lx-annotate-static.*
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -137,10 +137,12 @@ static/img/frames_demo/*
 # -------------------------------
 # Frontend build and Vite-related files
 # -------------------------------
-# Although your Vite config outputs to ../static (which is versioned in STATICFILES_DIRS),
-# you don’t want to commit any other generated files.
-# (If you ever have a build folder inside the frontend directory, ignore it)
+# Vite and collectstatic output is rebuilt into the canonical top-level
+# staticfiles/ directory. Historical package-local output must not return.
 frontend/dist/
+/frontend/.vite/
+/lx_annotate/static/
+/lx_annotate/staticfiles/
 
 # -------------------------------
 # OS-specific files
@@ -170,3 +172,12 @@ secret.key
 
 ./lx-terminology-editor
 ./lx-report-generator
+study_data/*.csv
+dist/*
+# Sphinx output is rebuilt by `make docs-build` and packaged by `docs-publish`.
+docs/_build/
+# Feature-tracking coordination state is local and must not enter releases.
+feature-tracking/.locks/
+feature-tracking/.messages/
+# Local dependency artifacts and retired candidate evidence.
+/vendor/wheels/

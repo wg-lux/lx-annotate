@@ -2,34 +2,38 @@
 Development settings.
 """
 
-from typing import Any, cast
-from .settings_base import (
-    APP_DATA_DIR,
-    INSTALLED_APPS,
-    MIDDLEWARE,
-    LOGGING,
-    REST_FRAMEWORK,
-    MIGRATION_MODULES,
-    SECRET_KEY,
-    TEMPLATES,
-    ROOT_URLCONF,
-    STATIC_URL,
-    STATIC_ROOT,
-    STATICFILES_DIRS,
-    STATICFILES_STORAGE,
-    MEDIA_ROOT,
-    MEDIA_URL,
-    DATABASES,
-    BASE_DIR,
-)
-
-from pathlib import Path
+from __future__ import annotations
 
 import os
+from pathlib import Path
+from typing import Any, cast
+
+from lx_annotate.settings.oidc import oidc_scopes_with_center_groups
+
+from .settings_base import (
+    BASE_DIR,
+    DATABASES,
+    INSTALLED_APPS,
+    LOGGING,
+    LX_DTYPES_HOST_MODELS_MODULE,
+    MEDIA_ROOT,
+    MEDIA_URL,
+    MIDDLEWARE,
+    REST_FRAMEWORK,
+    ROOT_URLCONF,
+    SECRET_KEY,
+    STATIC_ROOT,
+    STATIC_URL,
+    STATICFILES_DIRS,
+    STATICFILES_STORAGE,
+    STORAGES,
+    TEMPLATES,
+)
+from .settings_base import REPORTING_LLM as REPORTING_LLM
 
 LOGGING = cast(dict[str, Any], LOGGING)
 REST_FRAMEWORK = cast(dict[str, Any], REST_FRAMEWORK)
-MIGRATION_MODULES = cast(dict[str, str], MIGRATION_MODULES)
+STORAGES = cast(dict[str, dict[str, str]], STORAGES)
 TEMPLATES = cast(list[dict[str, Any]], TEMPLATES)
 ROOT_URLCONF = cast(str, ROOT_URLCONF)
 STATIC_URL = cast(str, STATIC_URL)
@@ -41,6 +45,17 @@ MEDIA_URL = cast(str, MEDIA_URL)
 DATABASES = cast(dict[str, Any], DATABASES)
 BASE_DIR = cast(Path, BASE_DIR)
 SECRET_KEY = cast(str, SECRET_KEY)
+LX_DTYPES_HOST_MODELS_MODULE = cast(str, LX_DTYPES_HOST_MODELS_MODULE)
+
+# Keep development settings usable for packaged runtime tests and local service
+# deployments.  The base settings use a checkout-relative SQLite database by
+# default; honor explicit service-provided database settings when present.
+DATABASES = {name: config.copy() for name, config in DATABASES.items()}
+if database_engine := os.getenv("DJANGO_DB_ENGINE"):
+    DATABASES["default"]["ENGINE"] = database_engine
+if database_name := os.getenv("DJANGO_DB_NAME"):
+    DATABASES["default"]["NAME"] = database_name
+
 # -----------------------------------------------------------------------------
 # 1. CORE OVERRIDES
 DEBUG = True
@@ -51,8 +66,8 @@ DJANGO_VITE = {
     "default": {
         "dev_mode": False,
         "static_url_prefix": "",
-        "manifest_path": os.path.join(BASE_DIR, "static", ".vite", "manifest.json"),
-    }
+        "manifest_path": os.path.join(STATIC_ROOT, ".vite", "manifest.json"),
+    },
 }
 
 # 3. CORS & SECURITY (Relaxed)
@@ -66,20 +81,6 @@ ENFORCE_AUTH = os.getenv("ENFORCE_AUTH", "0") == "1"
 if ENFORCE_AUTH:
     print("🔒 AUTH: ENFORCED (Keycloak Mock/Real)")
     try:
-        # ✅ Make sure libs/endoreg-db is on sys.path so `config.settings` is importable
-        import sys
-        from pathlib import Path
-
-        # BASE_DIR comes from settings_base.py which you imported above
-        KEYCLOAK_CONFIG_ROOT = BASE_DIR / "libs" / "endoreg-db"
-        if KEYCLOAK_CONFIG_ROOT.exists() and str(KEYCLOAK_CONFIG_ROOT) not in sys.path:
-            sys.path.insert(0, str(KEYCLOAK_CONFIG_ROOT))
-            print(f"🔧 Added to sys.path for Keycloak: {KEYCLOAK_CONFIG_ROOT}")
-        else:
-            print(
-                f"⚠️ Keycloak config dir not found or already in sys.path: {KEYCLOAK_CONFIG_ROOT}"
-            )
-
         from endoreg_db.config.settings import keycloak as KEYCLOAK
 
         INSTALLED_APPS.extend(KEYCLOAK.EXTRA_INSTALLED_APPS)
@@ -99,6 +100,7 @@ if ENFORCE_AUTH:
         OIDC_OP_TOKEN_ENDPOINT = KEYCLOAK.OIDC_OP_TOKEN_ENDPOINT
         OIDC_OP_USER_ENDPOINT = KEYCLOAK.OIDC_OP_USER_ENDPOINT
         OIDC_OP_JWKS_ENDPOINT = KEYCLOAK.OIDC_OP_JWKS_ENDPOINT
+        OIDC_RP_SCOPES = oidc_scopes_with_center_groups(KEYCLOAK.OIDC_RP_SCOPES)
         OIDC_RP_SIGN_ALGO = KEYCLOAK.OIDC_RP_SIGN_ALGO
         OIDC_OP_LOGOUT_ENDPOINT = KEYCLOAK.OIDC_OP_LOGOUT_ENDPOINT
 
@@ -120,11 +122,14 @@ if ENFORCE_AUTH:
         print("OIDC_RP_CLIENT_SECRET set? =", bool(os.getenv("OIDC_RP_CLIENT_SECRET")))
 
     except ImportError:
-        print("⚠️  WARNING: endoreg_db not found, falling back to basic auth")
+        print(
+            "⚠️  WARNING: endoreg_db Keycloak integration is not installed in the "
+            "active environment, falling back to basic auth",
+        )
 else:
     print("🔓 AUTH: DISABLED (Open Access)")
     REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = [
-        "rest_framework.permissions.AllowAny"
+        "rest_framework.permissions.AllowAny",
     ]
 
-print(f"🚀 DEV SETTINGS LOADED. Data Dir: {APP_DATA_DIR}")
+print("🚀 DEV SETTINGS LOADED")

@@ -1,4 +1,4 @@
-"""Sphinx configuration for the lx-data-models documentation."""
+"""Sphinx configuration for the lx-annotate documentation."""
 
 from __future__ import annotations
 
@@ -7,9 +7,15 @@ import sys
 from importlib import metadata
 from pathlib import Path
 
+from django.conf import settings
+
 DOCS_PATH = Path(__file__).resolve().parent
 REPO_ROOT = DOCS_PATH.parent
 sys.path.insert(0, str(REPO_ROOT))
+
+# Autodoc imports the package's Celery application. Documentation needs Django's
+# defaults only; loading deployment settings would require runtime secret files.
+settings.configure(INSTALLED_APPS=[])
 
 project = "lx-annotate"
 author = "Thomas J. Lux"

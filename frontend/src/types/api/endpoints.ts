@@ -1,13 +1,16 @@
 /**
- * Typed API endpoint contract for endoreg_db routes.
+ * Typed API endpoint contract for endoreg_db and lx-annotate local routes.
  *
  * Important:
- * - Paths are relative to axios `r()` helper (which prefixes `api/`).
+ * - Paths are relative to axios `endoregApi()` or legacy `r()` helper.
+ * - lx_dtypes routes use the separate `dtypesApi()` helper.
  * - Keep trailing slashes exactly as defined in Django urls.
  */
 
 export type Id = number | string
 export type UUID = string
+
+const pathId = (id: Id): string => String(id)
 
 export const endpoints = {
   auth: {
@@ -18,64 +21,67 @@ export const endpoints = {
     conf: 'conf/'
   },
 
-  router: {
-    examinations: 'examinations/',
-    findings: 'findings/',
-    classifications: 'classifications/',
-    patientFindings: 'patient-findings/',
-    // Legacy placeholder kept for existing callers. Current endoreg_db exposes
-    // create/list/detail under `examination.patientExamination*`.
-    patientExaminations: 'patient-examinations/',
-    patientExaminationReports: 'patient-examination-reports/'
-  },
-
   patient: {
     patients: 'patients/',
-    patientById: (id: Id) => `patients/${id}/`,
-    patientPseudonym: (id: Id) => `patients/${id}/pseudonym/`,
+    patientById: (id: Id) => `patients/${pathId(id)}/`,
+    patientMedicalLedger: (id: Id) => `patients/${pathId(id)}/medical-ledger/`,
+    patientMedications: (id: Id) => `patients/${pathId(id)}/medications/`,
+    patientMedicationById: (id: Id, medicationId: Id) =>
+      `patients/${pathId(id)}/medications/${pathId(medicationId)}/`,
+    patientMedicationSchedules: (id: Id) => `patients/${pathId(id)}/medication-schedules/`,
+    patientMedicationScheduleById: (id: Id, scheduleId: Id) =>
+      `patients/${pathId(id)}/medication-schedules/${pathId(scheduleId)}/`,
+    patientPseudonym: (id: Id) => `patients/${pathId(id)}/pseudonym/`,
+    patientDeletionSafety: (id: Id) => `patients/${pathId(id)}/check_deletion_safety/`,
     centers: 'centers/',
     genders: 'genders/',
-    patientFindings: 'patient-findings/',
-    checkPatientExaminationExists: (id: Id) => `check_pe_exist/${id}/`
+    checkPatientExaminationExists: (id: Id) => `check_pe_exist/${pathId(id)}/`
+  },
+
+  case: {
+    cases: 'cases/',
+    createWithExamination: 'cases/create-with-examination/',
+    documents: (caseId: string) => `cases/${caseId}/documents/`,
+    caseById: (caseId: UUID) => `cases/${caseId}/`
   },
 
   examination: {
-    examinationFindings: (examinationId: Id) => `examinations/${examinationId}/findings/`,
-    findingClassifications: (findingId: Id) => `findings/${findingId}/classifications/`,
-    classificationChoices: (classificationId: Id) =>
-      `classifications/${classificationId}/choices/`,
-
+    examinationsDropdown: 'patient-examinations/examinations_dropdown/',
     patientExaminationCreate: 'patient-examinations/create/',
-    patientExaminationDetail: (id: Id) => `patient-examinations/${id}/`,
-    patientExaminationDraft: (id: Id) => `patient-examinations/${id}/draft/`,
-    patientExaminationList: 'patient-examinations/list/',
-    patientExaminationClassifications: (examId: Id) =>
-      `patient-examinations/${examId}/classifications/`,
-    patientExaminationFindings: (examinationId: Id) =>
-      `patient-examinations/${examinationId}/findings/`
+    patientExaminationDetail: (id: Id) => `patient-examinations/${pathId(id)}/`,
+    patientExaminationDraft: (id: Id) => `patient-examinations/${pathId(id)}/draft/`,
+    patientExaminationList: 'patient-examinations/list/'
   },
 
   report: {
     patientExaminationReports: 'patient-examination-reports/',
-    patientExaminationReportById: (id: Id) => `patient-examination-reports/${id}/`,
+    patientExaminationReportById: (id: Id) => `patient-examination-reports/${pathId(id)}`,
     patientExaminationReportsByPatientExamination: (patientExaminationId: Id) =>
-      `patient-examination-reports/?patient_examination_id=${patientExaminationId}`,
-    saveReportSubmission: 'patient-examination-reports/save-submission/',
-    segmentFrameSelectorBase: 'patient-examination-reports/segment-frame-selector/',
+      `patient-examination-reports/?patient_examination_id=${pathId(patientExaminationId)}`,
+    saveReportSubmission: 'patient-examination-reports/save-submission',
+    makeReport: 'patient-examination-reports/make-report',
+    segmentFrameSelectorBase: 'patient-examination-reports/segment-frame-selector',
     segmentFrameSelector: (patientExaminationId: Id, reportId?: Id) =>
       reportId == null
-        ? `patient-examination-reports/segment-frame-selector/?patient_examination_id=${patientExaminationId}`
-        : `patient-examination-reports/segment-frame-selector/?patient_examination_id=${patientExaminationId}&report_id=${reportId}`,
+        ? `patient-examination-reports/segment-frame-selector?patient_examination_id=${pathId(patientExaminationId)}`
+        : `patient-examination-reports/segment-frame-selector?patient_examination_id=${pathId(patientExaminationId)}&report_id=${pathId(reportId)}`,
     reportHistoryContext: (patientExaminationId: Id, limit?: number) =>
       limit == null
-        ? `patient-examination-reports/history-context/?patient_examination_id=${patientExaminationId}`
-        : `patient-examination-reports/history-context/?patient_examination_id=${patientExaminationId}&limit=${limit}`
+        ? `patient-examination-reports/history-context?patient_examination_id=${pathId(patientExaminationId)}`
+        : `patient-examination-reports/history-context?patient_examination_id=${pathId(patientExaminationId)}&limit=${pathId(limit)}`
   },
 
   annotation: {
     randomTask: 'media/annotations/frames/random-task/',
     bulkUpsert: 'media/annotations/frames/bulk-upsert/',
+    frameBoxes: 'media/annotations/frames/boxes/',
     skip: 'media/annotations/frames/skip/'
+  },
+
+  study: {
+    cohortPreview: 'media/studies/cohort-preview/',
+    caseExportOptions: 'media/studies/case-export/options/',
+    caseExportXlsx: 'media/studies/case-export.xlsx'
   },
 
   upload: {
@@ -83,90 +89,127 @@ export const endpoints = {
     uploadStatus: (id: UUID) => `upload/${id}/status/`
   },
 
-  requirements: {
-    lookupInit: 'lookup/init/',
-    lookupAll: (token: Id) => `lookup/${token}/all/`,
-    lookupParts: (token: Id, keys?: string[]) => {
-      if (!keys?.length) return `lookup/${token}/parts/`
-      return `lookup/${token}/parts/?keys=${encodeURIComponent(keys.join(','))}`
-    },
-    lookupRecompute: (token: Id) => `lookup/${token}/recompute/`,
-    evaluateRequirements: 'evaluate-requirements/'
-  },
-
   stats: {
     examinations: 'examinations/stats/',
-    videoSegment: 'video-segment/stats/',
-    videoSegments: 'video-segments/stats/',
-    sensitiveMeta: 'video/sensitivemeta/stats/',
+    videoSegment: 'media/videos/segments/stats/',
+    videoSegments: 'media/videos/segments/stats/',
+    sensitiveMeta: 'media/sensitive-metadata/',
     general: 'stats/'
+  },
+
+  hubExport: {
+    overview: 'hub-export/overview/',
+    mark: 'hub-export/mark/',
+    offloadEligibleVideos: 'hub-export/offload-eligible-videos/',
+    retry: (jobId: UUID) => `hub-export/jobs/${pathId(jobId)}/retry/`,
+    unmark: 'hub-export/unmark/'
+  },
+
+  administration: {
+    monitoring: 'administration/monitoring/',
+    overview: 'administration/overview/',
+    storageActions: 'administration/storage-balancing/actions/',
+    storagePlacementPreview: 'administration/storage-balancing/placement-preview/',
+    storageWorkCancellation: (workItemId: UUID) =>
+      `administration/storage-balancing/work-items/${pathId(workItemId)}/cancel/`,
+    storageOperatorControls: 'administration/storage-balancing/operator-controls/',
+    centerScopes: 'administration/center-scopes/',
+    centerScope: (userId: Id) => `administration/center-scopes/${pathId(userId)}/`
+  },
+
+  runtime: {
+    videoStateRepair: 'runtime/videos/repair/',
+    videoStateRepairOne: (pk: Id) => `runtime/videos/${pathId(pk)}/repair/`,
+    quarantine: 'runtime/quarantine/'
   },
 
   anonymization: {
     itemsOverview: 'anonymization/items/overview/',
+    storage: 'anonymization/storage/',
+    cancelUploadJob: (jobId: UUID) => `anonymization/upload-jobs/${pathId(jobId)}/cancel/`,
+    retryUploadJob: (jobId: UUID) => `anonymization/upload-jobs/${jobId}/retry/`,
+    dismissUploadJob: (jobId: UUID) => `anonymization/upload-jobs/${jobId}/dismiss/`,
     documentTypesDropdown: 'anonymization/document-types/dropdown/',
-    current: (fileId: Id) => `anonymization/${fileId}/current/`,
-    start: (fileId: Id) => `anonymization/${fileId}/start/`,
-    status: (fileId: Id) => `anonymization/${fileId}/status/`,
-    validate: (fileId: Id) => `anonymization/${fileId}/validate/`,
+    current: (fileId: Id) => `anonymization/${pathId(fileId)}/current/`,
+    start: (fileId: Id) => `anonymization/${pathId(fileId)}/start/`,
+    status: (fileId: Id) => `anonymization/${pathId(fileId)}/status/`,
+    validate: (fileId: Id) => `anonymization/${pathId(fileId)}/validate/`,
     pollingInfo: 'anonymization/polling-info/',
     clearLocks: 'anonymization/clear-locks/',
-    hasRaw: (fileId: Id) => `anonymization/${fileId}/has-raw/`
+    hasRaw: (fileId: Id) => `anonymization/${pathId(fileId)}/has-raw/`
   },
 
   mediaManagement: {
     status: 'media-management/status/',
     cleanup: 'media-management/cleanup/',
-    forceRemove: (fileId: Id) => `media-management/force-remove/${fileId}/`,
-    resetStatus: (fileId: Id) => `media-management/reset-status/${fileId}/`
+    forceRemove: (fileId: Id) => `media-management/force-remove/${pathId(fileId)}/`,
+    resetStatus: (fileId: Id) => `media-management/reset-status/${pathId(fileId)}/`
   },
 
   media: {
-    patientTimeline: (patientId: Id) => `media/patients/${patientId}/timeline/`,
-    sensitiveMediaId: (pk: Id, mediaType: string) => `media/sensitive-media-id/${pk}/${mediaType}/`,
+    patientTimeline: (patientId: Id) => `media/patients/${pathId(patientId)}/timeline/`,
+    sensitiveMediaId: (pk: Id, mediaType: string) =>
+      `media/sensitive-media-id/${pathId(pk)}/${mediaType}/`,
 
     videos: 'media/videos/',
-    videoDetailStream: (pk: Id) => `media/videos/${pk}/`,
-    videoDetail: (pk: Id) => `media/videos/${pk}/details/`,
-    videoStream: (pk: Id) => `media/videos/${pk}/stream/`,
-    videoReimport: (pk: Id) => `media/videos/${pk}/reimport/`,
+    videoTranscodeJobs: (pk: Id) => `media/videos/${pathId(pk)}/transcode-jobs/`,
+    videoTranscodeJobsOverview: 'media/videos/transcode-jobs/',
+    videoDetail: (pk: Id) => `media/videos/${pathId(pk)}/details/`,
+    videoStream: (pk: Id) => `media/videos/${pathId(pk)}/stream/`,
+    videoHlsPlaylist: (pk: Id) => `media/videos/${pathId(pk)}/hls/playlist/`,
+    videoMarkReadyForExport: (pk: Id) => `media/videos/${pathId(pk)}/mark-ready-for-export/`,
     exportAnnotated: 'media/videos/export-annotated/',
 
-    videoCorrection: (pk: Id) => `media/videos/video-correction/${pk}`,
-    videoMetadata: (pk: Id) => `media/videos/${pk}/metadata/`,
-    videoFps: (pk: Id) => `media/videos/${pk}/fps/`,
-    videoApplyMask: (pk: Id) => `media/videos/${pk}/apply-mask/`,
-    videoRemoveFrames: (pk: Id) => `media/videos/${pk}/remove-frames/`,
+    videoCorrection: (pk: Id) => `media/videos/video-correction/${pathId(pk)}`,
+    videoCorrectionAnonymization: (pk: Id) =>
+      `media/videos/video-correction/${pathId(pk)}/anonymization/`,
+    videoMetadata: (pk: Id) => `media/videos/${pathId(pk)}/metadata/`,
+    videoProcessingHistory: (pk: Id) => `media/videos/${pathId(pk)}/processing-history/`,
+    videoFps: (pk: Id) => `media/videos/${pathId(pk)}/fps/`,
+    videoFrameNeighborhood: (pk: Id) => `media/videos/${pathId(pk)}/timeline/frame-neighborhood/`,
+    videoSegmentsNormalizeFps: (pk: Id) => `media/videos/${pathId(pk)}/segments/normalize-fps/`,
+    videoApplyMask: (pk: Id) => `media/videos/${pathId(pk)}/apply-mask/`,
+    videoRemoveFrames: (pk: Id) => `media/videos/${pathId(pk)}/remove-frames/`,
     videoLabelsList: 'media/videos/labels/list/',
+    videoLabelSetsList: 'media/videos/label-sets/list/',
+    videoPredictionModelsList: 'media/videos/prediction-models/list/',
 
-    segmentsCollection: 'media/videos/segments/',
     segmentsStats: 'media/videos/segments/stats/',
-    videoSegments: (pk: Id) => `media/videos/${pk}/segments/`,
-    videoSegmentDetail: (pk: Id, segmentId: Id) => `media/videos/${pk}/segments/${segmentId}/`,
+    videoSegments: (pk: Id) => `media/videos/${pathId(pk)}/segments/`,
+    videoSegmentsBulkMutation: (pk: Id) => `media/videos/${pathId(pk)}/segments/bulk/`,
+    videoSegmentDetail: (pk: Id, segmentId: Id) =>
+      `media/videos/${pathId(pk)}/segments/${pathId(segmentId)}/`,
+    videoSegmentsImportPredictions: (pk: Id) =>
+      `media/videos/${pathId(pk)}/segments/import-predictions/`,
+    videoSegmentsRerunPredictions: (pk: Id) =>
+      `media/videos/${pathId(pk)}/segments/rerun-predictions/`,
     videoSegmentValidate: (pk: Id, segmentId: Id) =>
-      `media/videos/${pk}/segments/${segmentId}/validate/`,
-    videoSegmentsValidateBulk: (pk: Id) => `media/videos/${pk}/segments/validate-bulk/`,
+      `media/videos/${pathId(pk)}/segments/${pathId(segmentId)}/validate/`,
+    videoSegmentsValidateBulk: (pk: Id) => `media/videos/${pathId(pk)}/segments/validate-bulk/`,
     videoSegmentsValidationStatus: (pk: Id) =>
-      `media/videos/${pk}/segments/validation-status/`,
+      `media/videos/${pathId(pk)}/segments/validation-status/`,
+    videoSegmentsBlackenOutside: (pk: Id) => `media/videos/${pathId(pk)}/segments/blacken-outside/`,
 
     ensureSegmentAnnotationsForVideo: (pk: Id) =>
-      `media/videos/${pk}/ensure-segment-annotations/`,
+      `media/videos/${pathId(pk)}/ensure-segment-annotations/`,
     ensureSegmentAnnotationsBulk: 'media/videos/ensure-segment-annotations/',
 
-    videoSensitiveMetadata: (pk: Id) => `media/videos/${pk}/sensitive-metadata/`,
-    videoSensitiveMetadataVerify: (pk: Id) => `media/videos/${pk}/sensitive-metadata/verify/`,
-    videoCaseResolution: (pk: Id) => `media/videos/${pk}/case-resolution/`,
+    videoSensitiveMetadata: (pk: Id) => `media/videos/${pathId(pk)}/sensitive-metadata/`,
+    videoSensitiveMetadataVerify: (pk: Id) =>
+      `media/videos/${pathId(pk)}/sensitive-metadata/verify/`,
+    videoCaseResolution: (pk: Id) => `media/videos/${pathId(pk)}/case-resolution/`,
 
-    pdfSensitiveMetadata: (pk: Id) => `media/pdfs/${pk}/sensitive-metadata/`,
-    pdfSensitiveMetadataVerify: (pk: Id) => `media/pdfs/${pk}/sensitive-metadata/verify/`,
-    pdfCaseResolution: (pk: Id) => `media/pdfs/${pk}/case-resolution/`,
+    pdfSensitiveMetadata: (pk: Id) => `media/pdfs/${pathId(pk)}/sensitive-metadata/`,
+    pdfSensitiveMetadataVerify: (pk: Id) => `media/pdfs/${pathId(pk)}/sensitive-metadata/verify/`,
+    pdfCaseResolution: (pk: Id) => `media/pdfs/${pathId(pk)}/case-resolution/`,
     sensitiveMetadataList: 'media/sensitive-metadata/',
     pdfSensitiveMetadataList: 'media/pdfs/sensitive-metadata/',
+    anonymizationMetrics: 'media/anonymization/metrics/',
 
     pdfs: 'media/pdfs/',
-    pdfDetail: (pk: Id) => `media/pdfs/${pk}/`,
-    pdfStream: (pk: Id) => `media/pdfs/${pk}/stream/`,
-    pdfReimport: (pk: Id) => `media/pdfs/${pk}/reimport/`
+    pdfDetail: (pk: Id) => `media/pdfs/${pathId(pk)}/`,
+    pdfStream: (pk: Id) => `media/pdfs/${pathId(pk)}/stream/`,
+    pdfReimport: (pk: Id) => `media/pdfs/${pathId(pk)}/reimport/`
   }
 } as const
 

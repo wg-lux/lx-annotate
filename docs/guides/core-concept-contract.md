@@ -39,7 +39,7 @@ This guide defines the single canonical contract for core knowledge-base concept
 
 ## API Surface
 - Canonical payload endpoint:
-  - `GET /base_api/core-concepts/{module_name}`
+  - `GET /dtypes-api/core-concepts/{module_name}`
 
 ## Drift Audit
 - Matrix generator script:

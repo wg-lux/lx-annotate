@@ -4,19 +4,22 @@
       <div class="card-header pb-0 d-flex justify-content-between align-items-center">
         <h4 class="mb-0">Anonymisierungskorrektur</h4>
         <div class="d-flex gap-2">
-          <button 
+          <button
             class="btn btn-outline-secondary btn-sm"
             @click="goBack"
           >
-            <i class="fas fa-arrow-left me-1"></i>
+            <i class="ni ni-bold-right me-1 icon-reverse"></i>
             Zurück zur Übersicht
           </button>
-          <button 
+          <button
             class="btn btn-outline-primary btn-sm"
-            @click="refreshCurrentVideo"
             :disabled="isRefreshing"
+            @click="refreshCurrentVideo"
           >
-            <i class="fas fa-sync-alt" :class="{ 'fa-spin': isRefreshing }"></i>
+            <i
+              class="ni ni-bold-right"
+              :class="{ 'ni-spin': isRefreshing }"
+            ></i>
             Aktualisieren
           </button>
         </div>
@@ -24,27 +27,55 @@
 
       <div class="card-body">
         <!-- Loading State -->
-        <div v-if="loading" class="text-center py-5">
-          <div class="spinner-border text-primary" role="status">
+        <div
+          v-if="loading"
+          class="text-center py-5"
+        >
+          <div
+            class="spinner-border text-primary"
+            role="status"
+          >
             <span class="visually-hidden">Wird geladen...</span>
           </div>
           <p class="mt-2">Datei wird geladen...</p>
         </div>
 
         <!-- Error State -->
-        <div v-else-if="error" class="alert alert-danger" role="alert">
+        <div
+          v-else-if="error && !currentVideo"
+          class="alert alert-danger"
+          role="alert"
+        >
           <strong>Fehler:</strong> {{ error }}
         </div>
 
         <!-- No File Selected -->
-        <div v-else-if="!currentVideo" class="alert alert-info" role="alert">
-          <i class="fas fa-info-circle me-2"></i>
+        <div
+          v-else-if="!currentVideo"
+          class="alert alert-info"
+          role="alert"
+        >
+          <i class="ni ni-user-run me-2"></i>
           Keine Datei ausgewählt. Bitte wählen Sie eine Datei aus der Übersicht aus.
         </div>
 
         <!-- Main Content -->
         <template v-else>
+          <div
+            v-if="error"
+            class="alert alert-danger"
+            role="alert"
+          >
+            {{ error }}
+          </div>
           <template v-if="isPdfCorrection">
+            <div
+              v-if="processingStatus"
+              class="alert alert-info"
+              role="status"
+            >
+              {{ processingStatus }}
+            </div>
             <!-- PDF Information -->
             <div class="row mb-4">
               <div class="col-12">
@@ -53,47 +84,56 @@
                     <div class="row">
                       <div class="col-md-8">
                         <h5 class="card-title">{{ currentVideo.filename }}</h5>
-                        <p class="mb-1"><strong>Status:</strong>
-                          <span :class="getStatusBadgeClass(currentVideo.anonymizationStatus)" class="badge ms-1">
-                            {{ getStatusText(currentVideo.anonymizationStatus) }}
+                        <p class="mb-1">
+                          <strong>Status:</strong>
+                          <span
+                            :class="getStatusBadgeClass(currentVideo.anonymizationStatus)"
+                            class="badge ms-1"
+                          >
+                            {{ currentStatusLabel }}
                           </span>
                         </p>
-                        <p class="mb-1"><strong>Größe:</strong> {{ formatFileSize(currentVideo.fileSize ?? null) }}</p>
-                        <p class="mb-0"><strong>Erstellt:</strong> {{ formatDate(currentVideo.createdAt) }}</p>
+                        <p class="mb-1">
+                          <strong>Größe:</strong>
+                          {{ currentFileSizeLabel }}
+                        </p>
+                        <p class="mb-0">
+                          <strong>Erstellt:</strong> {{ formatDate(currentVideo.createdAt) }}
+                        </p>
                       </div>
                       <div class="col-md-4 text-end">
                         <div class="d-flex flex-column gap-2">
                           <button
                             class="btn btn-outline-primary btn-sm"
-                            @click="reloadPdfDocument"
                             :disabled="isRenderingPdf"
+                            @click="reloadPdfDocument"
                           >
-                            <i class="fas fa-file-pdf me-1"></i>
+                            <i class="ni ni-single-copy-04 me-1"></i>
                             PDF neu laden
                           </button>
                           <button
                             class="btn btn-success btn-sm"
+                            :disabled="isRenderingPdf || isProcessing || totalPdfBoxCount === 0"
                             @click="generateRedactedPdf"
-                            :disabled="isRenderingPdf || totalPdfBoxCount === 0"
                           >
-                            <i class="fas fa-shield-alt me-1"></i>
+                            <i class="ni ni-check-bold me-1"></i>
                             Anonymisierte PDF erzeugen
                           </button>
                           <button
                             class="btn btn-outline-success btn-sm"
-                            @click="downloadRedactedPdf"
                             :disabled="!redactedPdfUrl"
+                            @click="downloadRedactedPdf"
                           >
-                            <i class="fas fa-download me-1"></i>
+                            <i class="ni ni-cloud-upload-96 me-1"></i>
                             PDF herunterladen
                           </button>
                           <button
                             class="btn btn-outline-info btn-sm"
-                            @click="uploadRedactedPdf"
                             :disabled="!redactedPdfBytes || isProcessing"
+                            @click="uploadRedactedPdf"
                           >
-                            <i class="fas fa-upload me-1"></i>
-                            Als neue Datei hochladen
+                            <i class="ni ni-cloud-upload-96 me-1"></i>
+                            Korrektur am Bericht speichern
                           </button>
                         </div>
                       </div>
@@ -107,23 +147,27 @@
             <div class="row g-3">
               <div class="col-xl-9">
                 <div class="card h-100">
-                  <div class="card-header d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                  <div
+                    class="card-header d-flex flex-wrap gap-2 align-items-center justify-content-between"
+                  >
                     <h5 class="mb-0">PDF Redaktion</h5>
                     <div class="d-flex align-items-center gap-2">
                       <button
                         class="btn btn-outline-secondary btn-sm"
-                        @click="previousPdfPage"
                         :disabled="activePdfPage <= 1 || isRenderingPdf"
+                        @click="previousPdfPage"
                       >
-                        <i class="fas fa-chevron-left"></i>
+                        <i class="ni ni-bold-right icon-reverse"></i>
                       </button>
-                      <span class="small text-muted">Seite {{ activePdfPage }} / {{ pdfPageCount || 1 }}</span>
+                      <span class="small text-muted"
+                        >Seite {{ activePdfPage }} / {{ pdfPageCount || 1 }}</span
+                      >
                       <button
                         class="btn btn-outline-secondary btn-sm"
-                        @click="nextPdfPage"
                         :disabled="activePdfPage >= pdfPageCount || isRenderingPdf"
+                        @click="nextPdfPage"
                       >
-                        <i class="fas fa-chevron-right"></i>
+                        <i class="ni ni-bold-right"></i>
                       </button>
                     </div>
                   </div>
@@ -131,29 +175,45 @@
                     <div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
                       <label class="form-label mb-0">Zoom:</label>
                       <input
+                        v-model.number="pdfScale"
                         type="range"
                         min="0.75"
                         max="2.5"
                         step="0.25"
-                        v-model.number="pdfScale"
                         class="form-range pdf-zoom-range"
-                      >
+                      />
                       <span class="small text-muted">{{ Math.round(pdfScale * 100) }}%</span>
                     </div>
 
-                    <div v-if="isRenderingPdf" class="text-center py-5">
-                      <div class="spinner-border text-primary" role="status">
+                    <div
+                      v-if="isRenderingPdf"
+                      class="text-center py-5"
+                    >
+                      <div
+                        class="spinner-border text-primary"
+                        role="status"
+                      >
                         <span class="visually-hidden">Wird geladen...</span>
                       </div>
                       <p class="mt-2 mb-0">PDF-Seite wird gerendert...</p>
                     </div>
 
-                    <div v-else-if="pdfRenderError" class="alert alert-danger mb-0" role="alert">
+                    <div
+                      v-if="pdfRenderError"
+                      class="alert alert-danger mb-0"
+                      role="alert"
+                    >
                       {{ pdfRenderError }}
                     </div>
 
-                    <div v-else class="pdf-editor-stage">
-                      <canvas ref="pdfPageCanvas" class="pdf-page-canvas"></canvas>
+                    <div
+                      v-show="!pdfRenderError"
+                      class="pdf-editor-stage"
+                    >
+                      <canvas
+                        ref="pdfPageCanvas"
+                        class="pdf-page-canvas"
+                      ></canvas>
                       <canvas
                         ref="pdfOverlayCanvas"
                         class="pdf-overlay-canvas"
@@ -174,43 +234,49 @@
                   </div>
                   <div class="card-body d-flex flex-column gap-3">
                     <div>
-                      <p class="mb-1"><strong>Aktive Seite:</strong> {{ getCurrentPageBoxCount() }} Boxen</p>
+                      <p class="mb-1">
+                        <strong>Aktive Seite:</strong> {{ getCurrentPageBoxCount() }} Boxen
+                      </p>
                       <p class="mb-0"><strong>Gesamt:</strong> {{ totalPdfBoxCount }} Boxen</p>
                     </div>
                     <button
                       class="btn btn-outline-secondary btn-sm"
-                      @click="undoLastPdfBox"
                       :disabled="getCurrentPageBoxCount() === 0"
+                      @click="undoLastPdfBox"
                     >
-                      <i class="fas fa-undo me-1"></i>
+                      <i class="ni ni-bold-right me-1"></i>
                       Letzte Box entfernen
                     </button>
                     <button
                       class="btn btn-outline-warning btn-sm"
-                      @click="clearCurrentPdfPageBoxes"
                       :disabled="getCurrentPageBoxCount() === 0"
+                      @click="clearCurrentPdfPageBoxes"
                     >
-                      <i class="fas fa-eraser me-1"></i>
+                      <i class="ni ni-settings-gear-65 me-1"></i>
                       Seite leeren
                     </button>
                     <button
                       class="btn btn-outline-danger btn-sm"
-                      @click="clearAllPdfBoxes"
                       :disabled="totalPdfBoxCount === 0"
+                      @click="clearAllPdfBoxes"
                     >
-                      <i class="fas fa-trash me-1"></i>
+                      <i class="ni ni-settings-gear-65 me-1"></i>
                       Alle Boxen löschen
                     </button>
-                    <hr class="my-2">
+                    <hr class="my-2" />
                     <p class="small text-muted mb-0">
-                      Zeichnen Sie mit gedrückter Maustaste schwarze Rechtecke über sensible Inhalte.
+                      Zeichnen Sie mit gedrückter Maustaste schwarze Rechtecke über sensible
+                      Inhalte.
                     </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div v-if="redactedPdfUrl" class="row mt-4">
+            <div
+              v-if="redactedPdfUrl"
+              class="row mt-4"
+            >
               <div class="col-12">
                 <div class="card">
                   <div class="card-header">
@@ -230,425 +296,700 @@
 
           <template v-else>
             <!-- Video Information -->
-          <div class="row mb-4">
-            <div class="col-12">
-              <div class="card bg-light">
-                <div class="card-body">
-                  <div class="row">
-                    <div class="col-md-8">
-                      <h5 class="card-title">{{ currentVideo.filename }}</h5>
-                      <div class="row">
-                        <div class="col-sm-6">
-                          <p class="mb-1"><strong>Status:</strong> 
-                            <span :class="getStatusBadgeClass(currentVideo.anonymizationStatus)" class="badge ms-1">
-                              {{ getStatusText(currentVideo.anonymizationStatus) }}
-                            </span>
-                          </p>
-                          <p class="mb-1"><strong>Größe:</strong> {{ formatFileSize(currentVideo.fileSize ?? null) }}</p>
-                          <p class="mb-1"><strong>Erstellt:</strong> {{ formatDate(currentVideo.createdAt) }}</p>
-                        </div>
-                        <div class="col-sm-6">
-                          <p class="mb-1"><strong>Sensitive Frames:</strong> {{ videoMetadata.sensitiveFrameCount || 'Unbekannt' }}</p>
-                          <p class="mb-1"><strong>Gesamte Frames:</strong> {{ videoMetadata.totalFrames || 'Unbekannt' }}</p>
-                          <p class="mb-1"><strong>Sensitive Ratio:</strong> 
-                            <span :class="getSensitivityBadgeClass(videoMetadata.sensitiveRatio)">
-                              {{ formatPercentage(videoMetadata.sensitiveRatio) }}
-                            </span>
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="col-md-4 text-end">
-                      <div class="d-flex flex-column gap-2">
-                        <button 
-                          class="btn btn-outline-info btn-sm"
-                          @click="analyzeVideo"
-                          :disabled="isProcessing"
-                        >
-                          <i class="fas fa-search me-1"></i>
-                          Video analysieren
-                        </button>
-                        <button 
-                          class="btn btn-outline-warning btn-sm"
-                          @click="reprocessVideo"
-                          :disabled="isProcessing"
-                        >
-                          <i class="fas fa-redo me-1"></i>
-                          Erneut verarbeiten
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Video Correction Options -->
-          <div class="row mb-4">
-            <div class="col-md-6">
-              <!-- Masking Section -->
-              <div class="card h-100">
-                <div class="card-header">
-                  <h5 class="mb-0">
-                    <i class="fas fa-mask me-2"></i>
-                    Video Maskierung
-                  </h5>
-                </div>
-                <div class="card-body">
-                  <p class="text-muted mb-3">
-                    Empfohlen bei hoher Sensitivität (>10%). Verdeckt sensible Bereiche dauerhaft.
-                  </p>
-                  
-                  <!-- Mask Configuration -->
-                  <div class="mb-3">
-                    <label class="form-label">Maskierungstyp:</label>
-                    <select v-model="maskConfig.type" class="form-select">
-                      <option value="device_default">Gerätespezifische Maske</option>
-                      <option value="roi_based">ROI-basierte Maske</option>
-                      <option value="custom">Benutzerdefiniert</option>
-                    </select>
-                  </div>
-
-                  <div v-if="maskConfig.type === 'device_default'" class="mb-3">
-                    <label class="form-label">Endoskop-Gerät:</label>
-                    <select v-model="maskConfig.deviceName" class="form-select">
-                      <option value="olympus_cv_1500">Olympus CV-1500</option>
-                      <option value="olympus_cv_190">Olympus CV-190</option>
-                      <option value="pentax_epk_i7010">Pentax EPK-i7010</option>
-                      <option value="fujifilm_vp_4450hd">Fujifilm VP-4450HD</option>
-                    </select>
-                  </div>
-
-                  <div v-if="maskConfig.type === 'custom'" class="mb-3">
+            <div class="row mb-4">
+              <div class="col-12">
+                <div class="card bg-light">
+                  <div class="card-body">
                     <div class="row">
-                      <div class="col-6">
-                        <label class="form-label">Endoskop X:</label>
-                        <input type="number" v-model.number="maskConfig.endoscopeX" class="form-control" min="0">
+                      <div class="col-md-8">
+                        <h5 class="card-title">{{ currentVideo.filename }}</h5>
+                        <div class="row">
+                          <div class="col-sm-6">
+                            <p class="mb-1">
+                              <strong>Status:</strong>
+                              <span
+                                :class="getStatusBadgeClass(currentVideo.anonymizationStatus)"
+                                class="badge ms-1"
+                              >
+                                {{ currentStatusLabel }}
+                              </span>
+                            </p>
+                            <p class="mb-1">
+                              <strong>Größe:</strong>
+                              {{ currentFileSizeLabel }}
+                            </p>
+                            <p class="mb-1">
+                              <strong>Erstellt:</strong> {{ formatDate(currentVideo.createdAt) }}
+                            </p>
+                          </div>
+                          <div class="col-sm-6">
+                            <p class="mb-1">
+                              <strong>Sensitive Frames:</strong>
+                              {{ sensitiveFrameCountLabel }}
+                            </p>
+                            <p class="mb-1">
+                              <strong>Gesamte Frames:</strong>
+                              {{ videoMetadata.totalFrames || 'Unbekannt' }}
+                            </p>
+                            <p class="mb-1">
+                              <strong>Sensitive Ratio:</strong>
+                              <span :class="getSensitivityBadgeClass(videoMetadata.sensitiveRatio)">
+                                {{ sensitiveRatioLabel }}
+                              </span>
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                      <div class="col-6">
-                        <label class="form-label">Endoskop Y:</label>
-                        <input type="number" v-model.number="maskConfig.endoscopeY" class="form-control" min="0">
+                      <div class="col-md-4 text-end">
+                        <div class="d-flex flex-column gap-2">
+                          <button
+                            class="btn btn-outline-warning btn-sm"
+                            :disabled="isProcessing"
+                            @click="reprocessVideo"
+                          >
+                            <i class="ni ni-bold-right me-1"></i>
+                            Importzustand prüfen und reparieren
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                    <div class="row mt-2">
-                      <div class="col-6">
-                        <label class="form-label">Breite:</label>
-                        <input type="number" v-model.number="maskConfig.endoscopeWidth" class="form-control" min="1">
-                      </div>
-                      <div class="col-6">
-                        <label class="form-label">Höhe:</label>
-                        <input type="number" v-model.number="maskConfig.endoscopeHeight" class="form-control" min="1">
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Processing Method -->
-                  <div class="mb-3">
-                    <label class="form-label">Verarbeitungsmethode:</label>
-                    <div class="form-check">
-                      <input 
-                        class="form-check-input" 
-                        type="radio" 
-                        v-model="maskConfig.processingMethod" 
-                        value="streaming"
-                        id="maskStreaming"
-                      >
-                      <label class="form-check-label" for="maskStreaming">
-                        <strong>Streaming (Empfohlen)</strong> - Schnelle Verarbeitung mit Named Pipes
-                      </label>
-                    </div>
-                    <div class="form-check">
-                      <input 
-                        class="form-check-input" 
-                        type="radio" 
-                        v-model="maskConfig.processingMethod" 
-                        value="direct"
-                        id="maskDirect"
-                      >
-                      <label class="form-check-label" for="maskDirect">
-                        Direkte Verarbeitung - Für spezielle Anforderungen
-                      </label>
-                    </div>
-                  </div>
-
-                  <button 
-                    class="btn btn-warning w-100"
-                    @click="applyMasking"
-                    :disabled="isProcessing || !canApplyMask"
-                  >
-                    <i class="fas fa-mask me-2"></i>
-                    <span v-if="isProcessing && currentOperation === 'masking'">
-                      <i class="fas fa-spinner fa-spin me-1"></i>
-                      Maskierung wird angewendet...
-                    </span>
-                    <span v-else>
-                      Maskierung anwenden
-                    </span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-md-6">
-              <!-- Frame Removal Section -->
-              <div class="card h-100">
-                <div class="card-header">
-                  <h5 class="mb-0">
-                    <i class="fas fa-cut me-2"></i>
-                    Frame-Entfernung
-                  </h5>
-                </div>
-                <div class="card-body">
-                  <p class="text-muted mb-3">
-                    Empfohlen bei niedriger Sensitivität (≤10%). Entfernt einzelne sensible Frames.
-                  </p>
-                  
-                  <!-- Frame Selection Method -->
-                  <div class="mb-3">
-                    <label class="form-label">Frame-Auswahl:</label>
-                    <div class="form-check">
-                      <input 
-                        class="form-check-input" 
-                        type="radio" 
-                        v-model="frameConfig.selectionMethod" 
-                        value="automatic"
-                        id="frameAutomatic"
-                      >
-                      <label class="form-check-label" for="frameAutomatic">
-                        <strong>Automatisch</strong> - KI-basierte Erkennung sensibler Frames
-                      </label>
-                    </div>
-                    <div class="form-check">
-                      <input 
-                        class="form-check-input" 
-                        type="radio" 
-                        v-model="frameConfig.selectionMethod" 
-                        value="manual"
-                        id="frameManual"
-                      >
-                      <label class="form-check-label" for="frameManual">
-                        Manuell - Eigene Frame-Liste eingeben
-                      </label>
-                    </div>
-                  </div>
-
-                  <div v-if="frameConfig.selectionMethod === 'manual'" class="mb-3">
-                    <label class="form-label">Frame-Nummern (kommagetrennt):</label>
-                    <textarea 
-                      v-model="frameConfig.manualFrames" 
-                      class="form-control" 
-                      rows="3"
-                      placeholder="z.B. 10,25,30-35,100"
-                    ></textarea>
-                    <small class="form-text text-muted">
-                      Unterstützt einzelne Frames (10) und Bereiche (30-35)
-                    </small>
-                  </div>
-
-                  <!-- Detection Settings for Automatic Mode -->
-                  <div v-if="frameConfig.selectionMethod === 'automatic'" class="mb-3">
-                    <label class="form-label">Erkennungs-Engine:</label>
-                    <select v-model="frameConfig.detectionEngine" class="form-select">
-                      <option value="minicpm">MiniCPM-o 2.6 (Empfohlen)</option>
-                      <option value="traditional">Traditionell (OCR + LLM)</option>
-                      <option value="hybrid">Hybrid (Beide kombiniert)</option>
-                    </select>
-                  </div>
-
-                  <!-- Processing Method -->
-                  <div class="mb-3">
-                    <label class="form-label">Verarbeitungsmethode:</label>
-                    <div class="form-check">
-                      <input 
-                        class="form-check-input" 
-                        type="radio" 
-                        v-model="frameConfig.processingMethod" 
-                        value="streaming"
-                        id="frameStreaming"
-                      >
-                      <label class="form-check-label" for="frameStreaming">
-                        <strong>Streaming (Empfohlen)</strong> - Bis zu 10x schneller
-                      </label>
-                    </div>
-                    <div class="form-check">
-                      <input 
-                        class="form-check-input" 
-                        type="radio" 
-                        v-model="frameConfig.processingMethod" 
-                        value="traditional"
-                        id="frameTraditional"
-                      >
-                      <label class="form-check-label" for="frameTraditional">
-                        Traditionell - Für Kompatibilität
-                      </label>
-                    </div>
-                  </div>
-
-                  <button 
-                    class="btn btn-danger w-100"
-                    @click="removeFrames"
-                    :disabled="isProcessing || !canRemoveFrames"
-                  >
-                    <i class="fas fa-cut me-2"></i>
-                    <span v-if="isProcessing && currentOperation === 'frame_removal'">
-                      <i class="fas fa-spinner fa-spin me-1"></i>
-                      Frames werden entfernt...
-                    </span>
-                    <span v-else>
-                      Frames entfernen
-                    </span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Processing Status -->
-          <div v-if="isProcessing" class="row mb-4">
-            <div class="col-12">
-              <div class="card border-warning">
-                <div class="card-body">
-                  <div class="d-flex align-items-center">
-                    <div class="spinner-border spinner-border-sm text-warning me-3" role="status">
-                      <span class="visually-hidden">Verarbeitung...</span>
-                    </div>
-                    <div class="flex-grow-1">
-                      <h6 class="mb-1">{{ getOperationText(currentOperation) }}</h6>
-                      <div class="progress" style="height: 8px;">
-                        <div 
-                          class="progress-bar progress-bar-striped progress-bar-animated" 
-                          :style="{ width: processingProgress + '%' }"
-                        ></div>
-                      </div>
-                      <small class="text-muted mt-1">{{ processingStatus }}</small>
-                    </div>
-                    <button 
-                      class="btn btn-outline-danger btn-sm"
-                      @click="cancelProcessing"
-                    >
-                      <i class="fas fa-times me-1"></i>
-                      Abbrechen
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Video Preview -->
-          <div class="row">
-            <div class="col-12">
-              <div class="card">
-                <div class="card-header">
-                  <h5 class="mb-0">Video-Vorschau</h5>
-                  <div class="d-flex gap-2 mt-2">
-                    <button 
-                      class="btn btn-sm"
-                      :class="previewMode === 'original' ? 'btn-primary' : 'btn-outline-primary'"
-                      @click="previewMode = 'original'"
-                    >
-                      Original
-                    </button>
-                    <button 
-                      class="btn btn-sm"
-                      :class="previewMode === 'processed' ? 'btn-primary' : 'btn-outline-primary'"
-                      @click="previewMode = 'processed'"
-                      :disabled="!hasProcessedVersion"
-                    >
-                      Verarbeitet
-                    </button>
-                  </div>
-                </div>
-                <div class="card-body">
-                  <div class="video-container">
-                    <video
-                      ref="videoElement"
-                      controls
-                      width="100%"
-                      height="600px"
-                      :src="getVideoUrl()"
-                      @error="onVideoError"
-                      @loadstart="onVideoLoadStart"
-                      @canplay="onVideoCanPlay"
-                    >
-                      Ihr Browser unterstützt dieses Video-Format nicht.
-                    </video>
-                  </div>
-                  
-                  <!-- Video Controls -->
-                  <div class="mt-3 d-flex justify-content-between align-items-center">
-                    <div class="d-flex gap-2">
-                      <button class="btn btn-outline-secondary btn-sm" @click="seekVideo(-10)">
-                        <i class="fas fa-backward me-1"></i>
-                        -10s
-                      </button>
-                      <button class="btn btn-outline-secondary btn-sm" @click="seekVideo(10)">
-                        <i class="fas fa-forward me-1"></i>
-                        +10s
-                      </button>
-                    </div>
-                    <div class="text-muted">
-                      <small>{{ previewMode === 'original' ? 'Original-Video' : 'Verarbeitetes Video' }}</small>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Processing History -->
-          <div class="row mt-4" v-if="processingHistory.length">
-            <div class="col-12">
-              <div class="card">
-                <div class="card-header">
-                  <h5 class="mb-0">Verarbeitungsverlauf</h5>
+            <div
+              v-if="isValidatedVideoCorrection"
+              class="row mb-4"
+            >
+              <div class="col-12">
+                <div
+                  class="card border-warning"
+                  data-test="validated-video-recovery"
+                >
+                  <div class="card-header">
+                    <h5 class="mb-0">Validierte Annotation korrigieren</h5>
+                  </div>
+                  <div class="card-body">
+                    <div
+                      v-if="recoveryError"
+                      class="alert alert-danger"
+                      role="alert"
+                    >
+                      {{ recoveryError }}
+                    </div>
+                    <div
+                      v-if="recoveryMessage"
+                      class="alert alert-info"
+                      role="status"
+                    >
+                      {{ recoveryMessage }}
+                    </div>
+                    <div class="row g-3">
+                      <div class="col-lg-6">
+                        <h6>Außerhalb-Segmente schwärzen</h6>
+                        <p class="small text-muted">
+                          Verwendet ausschließlich bereits validierte Outside-Segmente und startet
+                          die bestehende Nachverarbeitung erneut.
+                        </p>
+                        <button
+                          type="button"
+                          class="btn btn-outline-dark btn-sm"
+                          data-test="correction-blacken-outside"
+                          :disabled="!canBlackenOutsideSegments"
+                          :aria-busy="isBlackeningOutsideSegments ? 'true' : 'false'"
+                          @click="blackenOutsideSegments"
+                        >
+                          {{ blackeningButtonLabel }}
+                        </button>
+                        <p
+                          v-if="!segmentRecoveryStateLoaded"
+                          class="small text-muted mt-2 mb-0"
+                        >
+                          Segmentvalidierung wird geprüft.
+                        </p>
+                        <p
+                          v-else-if="!canBlackenOutsideSegments"
+                          class="small text-muted mt-2 mb-0"
+                        >
+                          Keine vollständig validierten Outside-Segmente verfügbar.
+                        </p>
+                      </div>
+                      <div class="col-lg-6">
+                        <label
+                          for="correction-annotator-override"
+                          class="form-label"
+                        >
+                          Annotator-Scope
+                        </label>
+                        <input
+                          id="correction-annotator-override"
+                          v-model.trim="annotatorOverrideInput"
+                          type="text"
+                          class="form-control form-control-sm"
+                          data-test="correction-annotator-override-input"
+                          :placeholder="baseAnnotatorPrincipal"
+                        />
+                        <div class="d-flex flex-wrap gap-2 mt-2">
+                          <button
+                            type="button"
+                            class="btn btn-outline-primary btn-sm"
+                            data-test="correction-annotator-override-apply"
+                            :disabled="!canRestartAnnotationAsOverride"
+                            @click="restartAnnotationAsOverride"
+                          >
+                            Annotation als anderer Nutzer neu starten
+                          </button>
+                          <button
+                            v-if="isAnnotatorOverrideActive"
+                            type="button"
+                            class="btn btn-outline-secondary btn-sm"
+                            data-test="correction-annotator-override-revert"
+                            @click="revertAnnotatorOverride"
+                          >
+                            Zurück zu meinem Nutzer
+                          </button>
+                        </div>
+                        <p class="small text-muted mt-2 mb-0">
+                          Der Neustart öffnet dieses Video in der Segmentannotation mit explizitem
+                          Bearbeitungsmodus.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div class="card-body">
-                  <div class="table-responsive">
-                    <table class="table table-sm">
-                      <thead>
-                        <tr>
-                          <th>Zeitstempel</th>
-                          <th>Operation</th>
-                          <th>Status</th>
-                          <th>Details</th>
-                          <th>Aktionen</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr v-for="entry in processingHistory" :key="entry.id">
-                          <td>{{ formatDate(entry.timestamp) }}</td>
-                          <td>
-                            <span class="badge" :class="getOperationBadgeClass(entry.operation)">
-                              {{ getOperationText(entry.operation) }}
+              </div>
+            </div>
+
+            <!-- Release anonymization strategy -->
+            <div class="row mb-4">
+              <div class="col-12">
+                <div class="card border-primary">
+                  <div class="card-header">
+                    <h5 class="mb-0">Anonymisierungsverfahren</h5>
+                  </div>
+                  <div class="card-body">
+                    <div class="row g-3">
+                      <div class="col-lg-7">
+                        <label
+                          class="form-label"
+                          for="anonymizationStrategy"
+                          >Verfahren:</label
+                        >
+                        <select
+                          id="anonymizationStrategy"
+                          v-model="selectedStrategy"
+                          class="form-select"
+                          :disabled="isProcessing"
+                        >
+                          <option
+                            v-for="strategy in availableStrategies"
+                            :key="strategy"
+                            :value="strategy"
+                          >
+                            {{ strategyLabel(strategy) }}
+                          </option>
+                        </select>
+                        <p class="small text-muted mt-2 mb-0">
+                          <template v-if="selectedStrategy === 'detector_assisted'">
+                            Das freigegebene PHI-Modell prüft jeden Frame und schwärzt erkannte
+                            Regionen.
+                          </template>
+                          <template v-else>
+                            Die bisherige statische Prozessor-/Geräteregion wird über das gesamte
+                            Video maskiert.
+                          </template>
+                        </p>
+                      </div>
+                      <div class="col-lg-5">
+                        <dl class="row small mb-0">
+                          <dt class="col-5">Modell</dt>
+                          <dd class="col-7">{{ modelDisplay }}</dd>
+                          <dt class="col-5">OCR verfügbar</dt>
+                          <dd class="col-7">
+                            {{ ocrEnginesLabel }}
+                            <span class="d-block text-muted">
+                              {{ ocrAbsenceDescription }}
                             </span>
-                          </td>
-                          <td>
-                            <span class="badge" :class="getStatusBadgeClass(entry.status)">
-                              {{ getStatusText(entry.status) }}
-                            </span>
-                          </td>
-                          <td>
-                            <small class="text-muted">{{ entry.details }}</small>
-                          </td>
-                          <td>
-                            <button 
-                              v-if="entry.status === 'success' && entry.outputPath"
-                              class="btn btn-outline-primary btn-sm"
-                              @click="downloadResult(entry.outputPath)"
+                          </dd>
+                          <dt class="col-5">Prüfung</dt>
+                          <dd class="col-7">
+                            <span
+                              class="badge"
+                              :class="
+                                anonymizationStatus?.reviewRequired
+                                  ? 'bg-warning text-dark'
+                                  : 'bg-danger'
+                              "
                             >
-                              <i class="fas fa-download"></i>
-                            </button>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
+                              {{ reviewRequirementLabel }}
+                            </span>
+                          </dd>
+                        </dl>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+
+            <!-- Video Correction Options -->
+            <div class="row mb-4">
+              <div class="col-md-6">
+                <!-- Masking Section -->
+                <div class="card h-100">
+                  <div class="card-header">
+                    <h5 class="mb-0">
+                      <i class="ni ni-check-bold me-2"></i>
+                      {{ selectedStrategyLabel }}
+                    </h5>
+                  </div>
+                  <div class="card-body">
+                    <p class="text-muted mb-3">
+                      {{ selectedStrategyDescription }}
+                    </p>
+
+                    <!-- Mask Configuration -->
+                    <div
+                      v-if="selectedStrategy === 'processor_region'"
+                      class="mb-3"
+                    >
+                      <label class="form-label">Maskierungstyp:</label>
+                      <select
+                        v-model="maskConfig.type"
+                        class="form-select"
+                      >
+                        <option value="device_default">Gerätespezifische Maske</option>
+                        <option value="custom">Benutzerdefiniert</option>
+                      </select>
+                    </div>
+
+                    <div
+                      v-if="
+                        selectedStrategy === 'processor_region' &&
+                        maskConfig.type === 'device_default'
+                      "
+                      class="mb-3"
+                    >
+                      <label class="form-label">Endoskop-Gerät:</label>
+                      <select
+                        v-model="maskConfig.deviceName"
+                        class="form-select"
+                      >
+                        <option value="olympus_cv_1500">Olympus CV-1500</option>
+                        <option value="olympus_cv_190">Olympus CV-190</option>
+                        <option value="pentax_epk_i7010">Pentax EPK-i7010</option>
+                        <option value="fujifilm_vp_4450hd">Fujifilm VP-4450HD</option>
+                      </select>
+                    </div>
+
+                    <div
+                      v-if="selectedStrategy === 'processor_region' && maskConfig.type === 'custom'"
+                      class="mb-3"
+                    >
+                      <div class="row">
+                        <div class="col-6">
+                          <label class="form-label">Endoskop X:</label>
+                          <input
+                            v-model.number="maskConfig.endoscopeX"
+                            type="number"
+                            class="form-control"
+                            min="0"
+                          />
+                        </div>
+                        <div class="col-6">
+                          <label class="form-label">Endoskop Y:</label>
+                          <input
+                            v-model.number="maskConfig.endoscopeY"
+                            type="number"
+                            class="form-control"
+                            min="0"
+                          />
+                        </div>
+                      </div>
+                      <div class="row mt-2">
+                        <div class="col-6">
+                          <label class="form-label">Breite:</label>
+                          <input
+                            v-model.number="maskConfig.endoscopeWidth"
+                            type="number"
+                            class="form-control"
+                            min="1"
+                          />
+                        </div>
+                        <div class="col-6">
+                          <label class="form-label">Höhe:</label>
+                          <input
+                            v-model.number="maskConfig.endoscopeHeight"
+                            type="number"
+                            class="form-control"
+                            min="1"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Processing Method -->
+                    <div class="mb-3">
+                      <label class="form-label">Verarbeitungsmethode:</label>
+                      <div class="form-check">
+                        <input
+                          id="maskStreaming"
+                          v-model="maskConfig.processingMethod"
+                          class="form-check-input"
+                          type="radio"
+                          value="streaming"
+                        />
+                        <label
+                          class="form-check-label"
+                          for="maskStreaming"
+                        >
+                          <strong>Streaming (Empfohlen)</strong> - Schnelle Verarbeitung mit Named
+                          Pipes
+                        </label>
+                      </div>
+                      <div class="form-check">
+                        <input
+                          id="maskDirect"
+                          v-model="maskConfig.processingMethod"
+                          class="form-check-input"
+                          type="radio"
+                          value="direct"
+                        />
+                        <label
+                          class="form-check-label"
+                          for="maskDirect"
+                        >
+                          Direkte Verarbeitung - Für spezielle Anforderungen
+                        </label>
+                      </div>
+                    </div>
+
+                    <button
+                      class="btn btn-warning w-100"
+                      :disabled="isProcessing || !canApplyMask"
+                      @click="applyMasking"
+                    >
+                      <i class="ni ni-check-bold me-2"></i>
+                      <span v-if="isProcessing && currentOperation === 'masking'">
+                        <i class="ni ni-settings-gear-65 ni-spin me-1"></i>
+                        Maskierung wird angewendet...
+                      </span>
+                      <span v-else> Anonymisierung anwenden </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <!-- Frame Removal Section -->
+                <div class="card h-100">
+                  <div class="card-header">
+                    <h5 class="mb-0">
+                      <i class="ni ni-single-copy-04 me-2"></i>
+                      Frame-Entfernung
+                    </h5>
+                  </div>
+                  <div class="card-body">
+                    <p class="text-muted mb-3">
+                      Empfohlen bei niedriger Sensitivität (≤10%). Entfernt einzelne sensible
+                      Frames.
+                    </p>
+
+                    <!-- Frame Selection Method -->
+                    <div class="mb-3">
+                      <label class="form-label">Frame-Auswahl:</label>
+                      <div class="form-check">
+                        <input
+                          id="frameAutomatic"
+                          v-model="frameConfig.selectionMethod"
+                          class="form-check-input"
+                          type="radio"
+                          value="automatic"
+                        />
+                        <label
+                          class="form-check-label"
+                          for="frameAutomatic"
+                        >
+                          <strong>Automatisch</strong> - KI-basierte Erkennung sensibler Frames
+                        </label>
+                      </div>
+                      <div class="form-check">
+                        <input
+                          id="frameManual"
+                          v-model="frameConfig.selectionMethod"
+                          class="form-check-input"
+                          type="radio"
+                          value="manual"
+                        />
+                        <label
+                          class="form-check-label"
+                          for="frameManual"
+                        >
+                          Manuell - Eigene Frame-Liste eingeben
+                        </label>
+                      </div>
+                    </div>
+
+                    <div
+                      v-if="frameConfig.selectionMethod === 'manual'"
+                      class="mb-3"
+                    >
+                      <label class="form-label">Frame-Nummern (kommagetrennt):</label>
+                      <textarea
+                        v-model="frameConfig.manualFrames"
+                        class="form-control"
+                        rows="3"
+                        placeholder="z.B. 10,25,30-35,100"
+                      ></textarea>
+                      <small class="form-text text-muted">
+                        Unterstützt einzelne Frames (10) und Bereiche (30-35)
+                      </small>
+                    </div>
+
+                    <!-- Detection Settings for Automatic Mode -->
+                    <div
+                      v-if="frameConfig.selectionMethod === 'automatic'"
+                      class="mb-3"
+                    >
+                      <label class="form-label">Erkennungs-Engine:</label>
+                      <select
+                        v-model="frameConfig.detectionEngine"
+                        class="form-select"
+                      >
+                        <option value="minicpm">MiniCPM-o 2.6 (Empfohlen)</option>
+                        <option value="traditional">Traditionell (OCR + LLM)</option>
+                        <option value="hybrid">Hybrid (Beide kombiniert)</option>
+                      </select>
+                    </div>
+
+                    <!-- Processing Method -->
+                    <div class="mb-3">
+                      <label class="form-label">Verarbeitungsmethode:</label>
+                      <div class="form-check">
+                        <input
+                          id="frameStreaming"
+                          v-model="frameConfig.processingMethod"
+                          class="form-check-input"
+                          type="radio"
+                          value="streaming"
+                        />
+                        <label
+                          class="form-check-label"
+                          for="frameStreaming"
+                        >
+                          <strong>Streaming (Empfohlen)</strong> - Bis zu 10x schneller
+                        </label>
+                      </div>
+                      <div class="form-check">
+                        <input
+                          id="frameTraditional"
+                          v-model="frameConfig.processingMethod"
+                          class="form-check-input"
+                          type="radio"
+                          value="traditional"
+                        />
+                        <label
+                          class="form-check-label"
+                          for="frameTraditional"
+                        >
+                          Traditionell - Für Kompatibilität
+                        </label>
+                      </div>
+                    </div>
+
+                    <button
+                      class="btn btn-danger w-100"
+                      :disabled="isProcessing || !canRemoveFrames"
+                      @click="removeFrames"
+                    >
+                      <i class="ni ni-single-copy-04 me-2"></i>
+                      <span v-if="isProcessing && currentOperation === 'frame_removal'">
+                        <i class="ni ni-settings-gear-65 ni-spin me-1"></i>
+                        Frames werden entfernt...
+                      </span>
+                      <span v-else> Frames entfernen </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Processing Status -->
+            <div
+              v-if="isProcessing"
+              class="row mb-4"
+            >
+              <div class="col-12">
+                <div class="card border-warning">
+                  <div class="card-body">
+                    <div class="d-flex align-items-center">
+                      <div
+                        class="spinner-border spinner-border-sm text-warning me-3"
+                        role="status"
+                      >
+                        <span class="visually-hidden">Verarbeitung...</span>
+                      </div>
+                      <div class="flex-grow-1">
+                        <h6 class="mb-1">{{ getOperationText(currentOperation) }}</h6>
+                        <div class="progress correction-progress">
+                          <div
+                            class="progress-bar progress-bar-striped progress-bar-animated"
+                            :style="{ width: processingProgress + '%' }"
+                          ></div>
+                        </div>
+                        <small class="text-muted mt-1">{{ processingStatus }}</small>
+                      </div>
+                      <button
+                        class="btn btn-outline-danger btn-sm"
+                        @click="cancelProcessing"
+                      >
+                        <i class="ni ni-settings-gear-65 me-1"></i>
+                        Beobachtung beenden
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Video Preview -->
+            <div class="row">
+              <div class="col-12">
+                <div class="card">
+                  <div class="card-header">
+                    <h5 class="mb-0">Video-Vorschau</h5>
+                    <div class="d-flex gap-2 mt-2">
+                      <button
+                        class="btn btn-sm"
+                        :class="previewMode === 'original' ? 'btn-primary' : 'btn-outline-primary'"
+                        @click="previewMode = 'original'"
+                      >
+                        Original
+                      </button>
+                      <button
+                        class="btn btn-sm"
+                        :class="previewMode === 'processed' ? 'btn-primary' : 'btn-outline-primary'"
+                        :disabled="!hasProcessedVersion"
+                        @click="previewMode = 'processed'"
+                      >
+                        Verarbeitet
+                      </button>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <div class="video-container">
+                      <video
+                        ref="videoElement"
+                        class="correction-video"
+                        controls
+                        width="100%"
+                        height="600px"
+                        @error="onVideoError"
+                        @loadstart="onVideoLoadStart"
+                        @canplay="onVideoCanPlay"
+                      >
+                        Ihr Browser unterstützt dieses Video-Format nicht.
+                      </video>
+                      <div
+                        v-if="videoPlaybackError"
+                        class="alert alert-warning py-2 mt-2 mb-0"
+                      >
+                        {{ videoPlaybackError.message }}
+                      </div>
+                    </div>
+
+                    <!-- Video Controls -->
+                    <div class="mt-3 d-flex justify-content-between align-items-center">
+                      <div class="d-flex gap-2">
+                        <button
+                          class="btn btn-outline-secondary btn-sm"
+                          @click="seekVideo(-10)"
+                        >
+                          <i class="ni ni-bold-right me-1 icon-reverse"></i>
+                          -10s
+                        </button>
+                        <button
+                          class="btn btn-outline-secondary btn-sm"
+                          @click="seekVideo(10)"
+                        >
+                          <i class="ni ni-bold-right me-1"></i>
+                          +10s
+                        </button>
+                      </div>
+                      <div class="text-muted">
+                        <small>{{ previewTitle }}</small>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Processing History -->
+            <div
+              v-if="processingHistory.length"
+              class="row mt-4"
+            >
+              <div class="col-12">
+                <div class="card">
+                  <div class="card-header">
+                    <h5 class="mb-0">Verarbeitungsverlauf</h5>
+                  </div>
+                  <div class="card-body">
+                    <div class="table-responsive">
+                      <table class="table table-sm">
+                        <thead>
+                          <tr>
+                            <th class="history-heading">Zeitstempel</th>
+                            <th class="history-heading">Operation</th>
+                            <th class="history-heading">Status</th>
+                            <th class="history-heading">Details</th>
+                            <th class="history-heading">Aktionen</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr
+                            v-for="entry in processingHistory"
+                            :key="entry.id"
+                          >
+                            <td class="history-cell">{{ formatDate(entry.timestamp) }}</td>
+                            <td class="history-cell">
+                              <span
+                                class="badge"
+                                :class="getOperationBadgeClass(entry.operation)"
+                              >
+                                {{ getOperationText(entry.operation) }}
+                              </span>
+                            </td>
+                            <td class="history-cell">
+                              <span
+                                class="badge"
+                                :class="getStatusBadgeClass(entry.status)"
+                              >
+                                {{ getStatusText(entry.status) }}
+                              </span>
+                            </td>
+                            <td class="history-cell">
+                              <small class="text-muted">{{ entry.details }}</small>
+                            </td>
+                            <td class="history-cell">
+                              <button
+                                v-if="entry.status === 'success' && entry.downloadUrl"
+                                class="btn btn-outline-primary btn-sm"
+                                @click="openProcessedResult(entry.downloadUrl)"
+                              >
+                                <i class="ni ni-cloud-upload-96"></i>
+                              </button>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </template>
         </template>
       </div>
@@ -657,1006 +998,1621 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import { useAnonymizationStore, type FileItem } from '@/stores/anonymizationStore';
-import { useMediaTypeStore } from '@/stores/mediaTypeStore';
-import axiosInstance, { r } from '@/api/axiosInstance';
+import { build_pdf_correction, type PdfCorrectionArtifact } from '@/utils/pdfCorrection'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useAnonymizationStore, type VideoStateRepairResponse } from '@/stores/anonymizationStore'
+import { useMediaTypeStore } from '@/stores/mediaTypeStore'
+import { useAuthKcStore } from '@/stores/auth_kc'
+import axiosInstance, { r } from '@/api/axiosInstance'
+import { isAxiosError } from 'axios'
+import { endpoints } from '@/types/api/endpoints'
+import { buildPdfStreamUrl, type StreamableVideoFileType } from '@/utils/mediaUrls'
+import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+import {
+  clearAnnotatorOverride,
+  getAnnotatorPrincipalFromAuthUser,
+  loadAnnotatorOverride,
+  saveAnnotatorOverride
+} from '@/utils/annotationPrincipal'
+import type {
+  VideoAnonymizationRequest,
+  VideoAnonymizationStatus,
+  VideoAnonymizationStrategy
+} from '@/types/anonymizationPipeline'
+import type { PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api'
+
+import { formatAnonymizationModel } from './anonymizationValidationPresentation'
 
 // Composables
-const router = useRouter();
-const route = useRoute();
-const anonymizationStore = useAnonymizationStore();
-const mediaStore = useMediaTypeStore();
+const router = useRouter()
+const route = useRoute()
+const anonymizationStore = useAnonymizationStore()
+const mediaStore = useMediaTypeStore()
+const authStore = useAuthKcStore()
+const logger = createRuntimeLogger('anonymization-correction')
 
 // Reactive state
-const loading = ref(false);
-const error = ref('');
-const isRefreshing = ref(false);
-const isProcessing = ref(false);
-const currentOperation = ref('');
-const processingProgress = ref(0);
-const processingStatus = ref('');
-const previewMode = ref<'original' | 'processed'>('original');
-const videoElement = ref<HTMLVideoElement | null>(null);
+const loading = ref(false)
+const error = ref('')
+const isRefreshing = ref(false)
+const isProcessing = ref(false)
+const currentOperation = ref('')
+const processingProgress = ref(0)
+const processingStatus = ref('')
+const previewMode = ref<'original' | 'processed'>('original')
+const videoElement = ref<HTMLVideoElement | null>(null)
+const segmentRecoveryStateLoaded = ref(false)
+const segmentValidationComplete = ref(false)
+const validatedOutsideSegmentCount = ref(0)
+const isBlackeningOutsideSegments = ref(false)
+const recoveryMessage = ref('')
+const recoveryError = ref('')
+const annotatorOverrideInput = ref('')
+const annotatorOverride = ref<string | null>(null)
 
 // Video data from anonymization store
-const currentVideo = ref<any | null>(null);
-const videoDetailData = ref<any | null>(null);
-const videoMetadata = ref({
-  sensitiveFrameCount: null as number | null,
-  totalFrames: null as number | null,
-  sensitiveRatio: null as number | null,
-  duration: null as number | null,
-  resolution: null as string | null
-});
+type CorrectionMedia = {
+  id: number
+  filename: string
+  mediaType: 'pdf' | 'video' | 'unknown'
+  anonymizationStatus: string
+  fileSize: number | null
+  createdAt: string | null
+}
+
+type ApiErrorPayload = { error?: string; detail?: string }
+
+const getApiErrorMessage = (error: unknown, fallback: string): string => {
+  if (isAxiosError<ApiErrorPayload>(error)) {
+    return error.response?.data.detail || error.response?.data.error || error.message || fallback
+  }
+  return error instanceof Error ? error.message : fallback
+}
+
+const stringFromUnknown = (value: unknown, fallback = ''): string => {
+  if (typeof value === 'string') {
+    return value
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value)
+  }
+  return fallback
+}
+
+const recordFromUnknown = (value: unknown): Record<string, unknown> =>
+  value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+
+const currentVideo = ref<CorrectionMedia | null>(null)
+interface VideoMetadata {
+  sensitiveFrameCount: number | null
+  totalFrames: number | null
+  sensitiveRatio: number | null
+  duration: number | null
+  resolution: string | null
+}
+
+interface PdfDetailsResponse {
+  filename?: string
+  isValidated?: boolean
+  fileSize?: number | null
+  uploadedAt?: string | null
+}
+
+interface PdfCorrectionResponse {
+  fileId: number
+  revisionId: number
+  status: string
+  anonymizationValidated: boolean
+}
+
+interface FrameRemovalResponse {
+  taskId?: string
+  task_id?: string
+  outputFile?: string
+  output_file?: string
+  message?: string
+}
+
+const videoMetadata = ref<VideoMetadata>({
+  sensitiveFrameCount: null,
+  totalFrames: null,
+  sensitiveRatio: null,
+  duration: null,
+  resolution: null
+})
+const anonymizationStatus = ref<VideoAnonymizationStatus | null>(null)
+const selectedStrategy = ref<VideoAnonymizationStrategy>('detector_assisted')
 
 // Patient data for correction
-const editedPatient = ref({
-  patientFirstName: '',
-  patientLastName: '',
-  patientGender: '',
-  patientDob: '',
-  casenumber: '',
-  examiner: '',
-  centerName: '',
-  endoscopeType: '',
-  endoscopeSn: ''
-});
-
-const examinationDate = ref('');
-const usesPseudonyms = ref(false);
-const pseudonymMapping = ref({
-  firstNamePseudonym: '',
-  lastNamePseudonym: '',
-  originalFirstName: '',
-  originalLastName: ''
-});
-
 // Configuration for masking
-const maskConfig = ref({
-  type: 'device_default' as 'device_default' | 'roi_based' | 'custom',
+const maskConfig = ref<{
+  type: 'device_default' | 'custom'
+  deviceName: string
+  processingMethod: 'streaming' | 'direct'
+  endoscopeX: number
+  endoscopeY: number
+  endoscopeWidth: number
+  endoscopeHeight: number
+}>({
+  type: 'device_default',
   deviceName: 'olympus_cv_1500',
-  processingMethod: 'streaming' as 'streaming' | 'direct',
+  processingMethod: 'streaming',
   endoscopeX: 550,
   endoscopeY: 0,
   endoscopeWidth: 1350,
   endoscopeHeight: 1080
-});
+})
 
 // Configuration for frame removal
-const frameConfig = ref({
-  selectionMethod: 'automatic' as 'automatic' | 'manual',
-  detectionEngine: 'minicpm' as 'minicpm' | 'traditional' | 'hybrid',
-  processingMethod: 'streaming' as 'streaming' | 'traditional',
+const frameConfig = ref<{
+  selectionMethod: 'automatic' | 'manual'
+  detectionEngine: 'minicpm' | 'traditional' | 'hybrid'
+  processingMethod: 'streaming' | 'traditional'
+  manualFrames: string
+}>({
+  selectionMethod: 'automatic',
+  detectionEngine: 'minicpm',
+  processingMethod: 'streaming',
   manualFrames: ''
-});
+})
 
 // Processing history
-const processingHistory = ref<Array<{
-  id: number;
-  timestamp: string;
-  operation: string;
-  status: string;
-  details: string;
-  outputPath?: string;
-}>>([]);
+const processingHistory = ref<
+  Array<{
+    id: number
+    timestamp: string
+    operation: string
+    status: string
+    details: string
+    outputPath?: string
+    downloadUrl?: string
+  }>
+>([])
 
-type CorrectionMediaType = 'video' | 'pdf';
+const normalizeProcessingHistory = (raw: unknown) => {
+  if (!Array.isArray(raw)) {
+    return []
+  }
+  return raw
+    .filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === 'object')
+    .map((entry) => ({
+      id: Number(entry.id),
+      timestamp: stringFromUnknown(entry.timestamp ?? entry.created_at ?? entry.completed_at),
+      operation: stringFromUnknown(entry.operation, 'anonymization'),
+      status: stringFromUnknown(entry.status),
+      details: stringFromUnknown(entry.details ?? entry.message),
+      outputPath:
+        stringFromUnknown(entry.outputPath ?? entry.output_path ?? entry.output_file) || undefined,
+      downloadUrl: stringFromUnknown(entry.downloadUrl ?? entry.download_url) || undefined
+    }))
+}
+
+type CorrectionMediaType = 'video' | 'pdf'
+type RecoveryFeedback = { message: string; error: string }
 type PdfRedactionBox = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
+  x: number
+  y: number
+  width: number
+  height: number
+}
 
-const pdfPageCanvas = ref<HTMLCanvasElement | null>(null);
-const pdfOverlayCanvas = ref<HTMLCanvasElement | null>(null);
-const pdfRenderError = ref('');
-const isRenderingPdf = ref(false);
-const pdfPageCount = ref(0);
-const activePdfPage = ref(1);
-const pdfScale = ref(1.25);
-const pdfPageBoxes = ref<Record<number, PdfRedactionBox[]>>({});
-const pdfSourceBytes = ref<Uint8Array | null>(null);
-const redactedPdfBytes = ref<Uint8Array | null>(null);
-const redactedPdfUrl = ref('');
-const isDrawingPdfBox = ref(false);
-const drawStart = ref<{ x: number; y: number } | null>(null);
-const drawCurrent = ref<{ x: number; y: number } | null>(null);
+const pdfPageCanvas = ref<HTMLCanvasElement | null>(null)
+const pdfOverlayCanvas = ref<HTMLCanvasElement | null>(null)
+const pdfRenderError = ref('')
+const isRenderingPdf = ref(false)
+const pdfPageCount = ref(0)
+const activePdfPage = ref(1)
+const pdfScale = ref(1.25)
+const pdfPageBoxes = ref<Partial<Record<number, PdfRedactionBox[]>>>({})
+const pdfSourceBytes = ref<Uint8Array | null>(null)
+const redactedPdfBytes = ref<Uint8Array | null>(null)
+const redactedPdfUrl = ref('')
+let pdf_correction: PdfCorrectionArtifact | null = null
+let selection_generation = 0
+let operation_generation = 0
+const isDrawingPdfBox = ref(false)
+const drawStart = ref<{ x: number; y: number } | null>(null)
+const drawCurrent = ref<{ x: number; y: number } | null>(null)
 
-let pdfJsLib: any = null;
-let pdfDocument: any = null;
+let pdfJsLib: typeof import('pdfjs-dist/legacy/build/pdf.mjs') | null = null
+let pdfDocument: PDFDocumentProxy | null = null
+
+const correctionMediaTypeFromValue = (value: unknown): CorrectionMediaType | null => {
+  const normalized = Array.isArray(value)
+    ? value.map((part) => (typeof part === 'string' ? part : '')).join(',')
+    : typeof value === 'string'
+      ? value
+      : ''
+  const lowercaseValue = normalized.toLowerCase()
+  return lowercaseValue === 'pdf' || lowercaseValue === 'video' ? lowercaseValue : null
+}
+
+const correctionMediaTypeFromOverview = (fileId: number): CorrectionMediaType | null => {
+  const overviewItem = anonymizationStore.overview.find((item) => item.id === fileId)
+  return correctionMediaTypeFromValue(overviewItem?.mediaType)
+}
+
+const correctionMediaTypeFromFilename = (filename: string | undefined): CorrectionMediaType =>
+  filename?.toLowerCase().endsWith('.pdf') === true ? 'pdf' : 'video'
 
 // Computed properties
 const canApplyMask = computed(() => {
-  return currentVideo.value && !isProcessing.value && 
-    (maskConfig.value.type !== 'custom' || 
-     (maskConfig.value.endoscopeX >= 0 && maskConfig.value.endoscopeY >= 0 &&
-      maskConfig.value.endoscopeWidth > 0 && maskConfig.value.endoscopeHeight > 0));
-});
+  return (
+    currentVideo.value &&
+    !isProcessing.value &&
+    anonymizationStatus.value?.reviewRequired === true &&
+    (selectedStrategy.value !== 'processor_region' ||
+      maskConfig.value.type !== 'custom' ||
+      (maskConfig.value.endoscopeX >= 0 &&
+        maskConfig.value.endoscopeY >= 0 &&
+        maskConfig.value.endoscopeWidth > 0 &&
+        maskConfig.value.endoscopeHeight > 0))
+  )
+})
+
+const availableStrategies = computed<VideoAnonymizationStrategy[]>(() => {
+  const configured = (anonymizationStatus.value?.strategies || []).map((strategy) =>
+    typeof strategy === 'string' ? strategy : strategy.id
+  )
+  return configured.length > 0 ? configured : ['detector_assisted', 'processor_region']
+})
+
+const modelDisplay = computed(() => formatAnonymizationModel(anonymizationStatus.value?.model))
+
+const strategyLabel = (strategy: VideoAnonymizationStrategy) =>
+  strategy === 'detector_assisted' ? 'Patienten-Detektor, alle Frames' : 'Prozessorregion'
 
 const canRemoveFrames = computed(() => {
-  return currentVideo.value && !isProcessing.value &&
-    (frameConfig.value.selectionMethod !== 'manual' || 
-     frameConfig.value.manualFrames.trim().length > 0);
-});
+  return (
+    currentVideo.value &&
+    !isProcessing.value &&
+    (frameConfig.value.selectionMethod !== 'manual' ||
+      frameConfig.value.manualFrames.trim().length > 0)
+  )
+})
 
 const hasProcessedVersion = computed(() => {
-  return processingHistory.value.some(entry => 
-    entry.status === 'success' && entry.outputPath
-  );
-});
+  return (
+    anonymizationStatus.value?.processedArtifact.available === true ||
+    processingHistory.value.some((entry) => entry.status === 'success' && entry.outputPath)
+  )
+})
+
+const correctionVideoId = computed<number | null>(() =>
+  currentVideo.value?.mediaType === 'video' ? currentVideo.value.id : null
+)
+const correctionArtifactKind = computed<StreamableVideoFileType>(() =>
+  previewMode.value === 'processed' && hasProcessedVersion.value ? 'processed' : 'raw'
+)
+const { playbackError: videoPlaybackError } = useAuthenticatedVideoStream({
+  videoElement,
+  videoId: correctionVideoId,
+  artifactKind: correctionArtifactKind,
+  enabled: computed(() => correctionVideoId.value !== null)
+})
 
 // Props interface for route params
 interface Props {
-  fileId: number;
-  mediaType?: string;
+  fileId: number
+  mediaType?: string
 }
 
-const props = defineProps<Props>();
+const props = defineProps<Props>()
 
 const resolvedMediaType = computed<CorrectionMediaType>(() => {
-  const routeMediaType = String(route.query.mediaType || '').toLowerCase();
-  const propsMediaType = String(props.mediaType || '').toLowerCase();
-  const explicit = propsMediaType || routeMediaType;
-  if (explicit === 'pdf') return 'pdf';
-  if (explicit === 'video') return 'video';
+  const explicitMediaType = props.mediaType || route.query.mediaType
+  return (
+    correctionMediaTypeFromValue(explicitMediaType) ??
+    correctionMediaTypeFromOverview(props.fileId) ??
+    correctionMediaTypeFromFilename(currentVideo.value?.filename)
+  )
+})
 
-  const fromOverview = anonymizationStore.overview.find((item) => item.id === props.fileId);
-  if (fromOverview?.mediaType === 'pdf') return 'pdf';
-  if (fromOverview?.mediaType === 'video') return 'video';
-
-  const currentFilename = String(currentVideo.value?.filename || '').toLowerCase();
-  if (currentFilename.endsWith('.pdf')) return 'pdf';
-  return 'video';
-});
-
-const isPdfCorrection = computed(() => resolvedMediaType.value === 'pdf');
+const isPdfCorrection = computed(() => resolvedMediaType.value === 'pdf')
+const isValidatedVideoCorrection = computed(
+  () => !isPdfCorrection.value && currentVideo.value?.anonymizationStatus === 'validated'
+)
+const baseAnnotatorPrincipal = computed(() =>
+  getAnnotatorPrincipalFromAuthUser(authStore.user as Record<string, unknown> | null)
+)
+const annotatorOverrideScope = computed(() => `video:${String(props.fileId)}`)
+const isAnnotatorOverrideActive = computed(() => annotatorOverride.value !== null)
+const canRestartAnnotationAsOverride = computed(() => {
+  const normalized = annotatorOverrideInput.value.trim()
+  return (
+    normalized.length > 0 &&
+    normalized !== baseAnnotatorPrincipal.value &&
+    normalized !== annotatorOverride.value
+  )
+})
+const canBlackenOutsideSegments = computed(
+  () =>
+    isValidatedVideoCorrection.value &&
+    segmentRecoveryStateLoaded.value &&
+    segmentValidationComplete.value &&
+    validatedOutsideSegmentCount.value > 0 &&
+    !isBlackeningOutsideSegments.value
+)
 
 const totalPdfBoxCount = computed(() => {
-  return Object.values(pdfPageBoxes.value).reduce((acc, boxes) => acc + boxes.length, 0);
-});
+  return Object.values(pdfPageBoxes.value).reduce((acc, boxes) => acc + (boxes?.length ?? 0), 0)
+})
 
 // Methods
+const syncAnnotatorOverride = () => {
+  annotatorOverride.value = loadAnnotatorOverride(
+    annotatorOverrideScope.value,
+    baseAnnotatorPrincipal.value
+  )
+  annotatorOverrideInput.value = annotatorOverride.value ?? ''
+}
+
+const loadSegmentRecoveryState = async (videoId: number) => {
+  segmentRecoveryStateLoaded.value = false
+  segmentValidationComplete.value = false
+  validatedOutsideSegmentCount.value = 0
+  try {
+    const response = await axiosInstance.get(
+      r(endpoints.media.videoSegmentsValidationStatus(videoId))
+    )
+    const responseData = recordFromUnknown(response.data)
+    const byLabel = recordFromUnknown(responseData.byLabel ?? responseData.by_label)
+    const outside = recordFromUnknown(byLabel.outside)
+    segmentValidationComplete.value = Boolean(
+      responseData.validationComplete ?? responseData.validation_complete
+    )
+    validatedOutsideSegmentCount.value = Number(outside.validated ?? 0)
+  } catch (err: unknown) {
+    recoveryError.value = 'Segmentvalidierung konnte nicht geladen werden.'
+    logger.error('segment-recovery-state-load-failed', err)
+  } finally {
+    segmentRecoveryStateLoaded.value = true
+  }
+}
+
+const restartAnnotationAsOverride = () => {
+  const normalized = annotatorOverrideInput.value.trim()
+  if (!canRestartAnnotationAsOverride.value) {
+    return
+  }
+  saveAnnotatorOverride(annotatorOverrideScope.value, baseAnnotatorPrincipal.value, normalized)
+  annotatorOverride.value = normalized
+  void router.push({
+    name: 'Video-Untersuchung',
+    query: { video: String(props.fileId), editSegments: '1' }
+  })
+}
+
+const revertAnnotatorOverride = () => {
+  clearAnnotatorOverride(annotatorOverrideScope.value, baseAnnotatorPrincipal.value)
+  annotatorOverride.value = null
+  annotatorOverrideInput.value = ''
+}
+
+const feedbackForBlackeningStatus = (
+  status: string,
+  outsideCount: number,
+  responseData: Record<string, unknown>
+): RecoveryFeedback => {
+  switch (status) {
+    case 'completed':
+      return {
+        message: `Außerhalb-Segmente geschwärzt (${String(outsideCount)} Segmente).`,
+        error: ''
+      }
+    case 'queued':
+      return {
+        message: `Schwärzung der Außerhalb-Segmente gestartet (${String(outsideCount)} Segmente).`,
+        error: ''
+      }
+    case 'already_queued':
+      return { message: 'Schwärzung der Außerhalb-Segmente läuft bereits.', error: '' }
+    case 'busy':
+      return {
+        message: '',
+        error: 'Ein anderer Verarbeitungsvorgang für dieses Video läuft bereits.'
+      }
+    case 'noop':
+      return {
+        message: 'Keine Außerhalb-Segmente gefunden. Es wurde nichts gestartet.',
+        error: ''
+      }
+    default:
+      if (!status && outsideCount === 0) {
+        return {
+          message: 'Keine Außerhalb-Segmente gefunden. Es wurde nichts gestartet.',
+          error: ''
+        }
+      }
+      return {
+        message: '',
+        error: stringFromUnknown(
+          responseData.error ?? responseData.message,
+          'Unerwarteter Status beim Schwärzen der Außerhalb-Segmente.'
+        )
+      }
+  }
+}
+
+const blackenOutsideSegments = async () => {
+  if (!canBlackenOutsideSegments.value) {
+    return
+  }
+  if (!confirm(`Außerhalb-Segmente für Video ${String(props.fileId)} erneut schwärzen?`)) {
+    return
+  }
+
+  isBlackeningOutsideSegments.value = true
+  recoveryError.value = ''
+  recoveryMessage.value = ''
+  try {
+    const response = await axiosInstance.post(
+      r(endpoints.media.videoSegmentsBlackenOutside(props.fileId)),
+      { onlyValidated: true }
+    )
+    const responseData = recordFromUnknown(response.data)
+    const uploadJob = recordFromUnknown(
+      responseData.postProcessingJob ?? responseData.post_processing_job
+    )
+    const status = stringFromUnknown(uploadJob.status ?? responseData.status)
+    const outsideCount = Number(
+      responseData.outsideSegmentCount ?? responseData.outside_segment_count ?? 0
+    )
+
+    const feedback = feedbackForBlackeningStatus(status, outsideCount, responseData)
+    recoveryMessage.value = feedback.message
+    recoveryError.value = feedback.error
+  } catch (err: unknown) {
+    recoveryError.value = getApiErrorMessage(
+      err,
+      'Schwärzung der Außerhalb-Segmente fehlgeschlagen.'
+    )
+    logger.error('outside-segment-blackening-failed', err)
+  } finally {
+    isBlackeningOutsideSegments.value = false
+  }
+}
+
 const goBack = () => {
-  router.push('/anonymisierung/uebersicht');
-};
+  void router.push('/anonymisierung/uebersicht')
+}
 
 const refreshCurrentVideo = async () => {
   if (!currentVideo.value) {
-    currentVideo.value = { id: props.fileId } as FileItem;
+    currentVideo.value = {
+      id: props.fileId,
+      filename: '',
+      mediaType: 'unknown',
+      anonymizationStatus: 'not_started',
+      fileSize: null,
+      createdAt: null
+    }
   } else {
-    currentVideo.value.id = props.fileId;
+    currentVideo.value.id = props.fileId
   }
-  
-  isRefreshing.value = true;
+
+  isRefreshing.value = true
   try {
-    await loadCurrentItemDetails(currentVideo.value.id);
-  } 
-  finally {
-    isRefreshing.value = false;
+    await loadCurrentItemDetails(props.fileId)
+  } finally {
+    isRefreshing.value = false
   }
-};
+}
 
 const loadCurrentItemDetails = async (fileId: number) => {
+  selection_generation += 1
+  operation_generation += 1
+  isProcessing.value = false
+  currentVideo.value = null
+  anonymizationStatus.value = null
+  processingHistory.value = []
   if (isPdfCorrection.value) {
-    await loadPdfDetails(fileId);
-    return;
+    await loadPdfDetails(fileId)
+    return
   }
-  await loadVideoDetails(fileId);
-};
+  await loadVideoDetails(fileId)
+}
+
+const resetPdfCorrectionState = () => {
+  pdfRenderError.value = ''
+  pdfDocument = null
+  pdfSourceBytes.value = null
+  pdf_correction = null
+  pdfPageBoxes.value = {}
+  pdfPageCount.value = 0
+  activePdfPage.value = 1
+  redactedPdfBytes.value = null
+  if (redactedPdfUrl.value) {
+    URL.revokeObjectURL(redactedPdfUrl.value)
+    redactedPdfUrl.value = ''
+  }
+}
+
+const isCurrentSelection = (generation: number) => generation === selection_generation
+
+const updatePdfDetails = (pdfId: number, details: PdfDetailsResponse) => {
+  const overviewStatus = anonymizationStore.overview.find(
+    (item) => item.id === pdfId && item.mediaType === 'pdf'
+  )?.anonymizationStatus
+  currentVideo.value = {
+    id: pdfId,
+    mediaType: 'pdf',
+    filename: details.filename || `document_${String(pdfId)}.pdf`,
+    anonymizationStatus: overviewStatus ?? 'unknown',
+    fileSize: details.fileSize ?? null,
+    createdAt: details.uploadedAt || null
+  }
+  mediaStore.setCurrentByKey('pdf', pdfId)
+}
 
 const loadPdfDetails = async (pdfId: number) => {
-  loading.value = true;
-  error.value = '';
-  pdfRenderError.value = '';
-  pdfDocument = null;
-  pdfPageBoxes.value = {};
-  pdfPageCount.value = 0;
-  activePdfPage.value = 1;
-  redactedPdfBytes.value = null;
-  if (redactedPdfUrl.value) {
-    URL.revokeObjectURL(redactedPdfUrl.value);
-    redactedPdfUrl.value = '';
-  }
+  const generation = selection_generation
+  loading.value = true
+  error.value = ''
+  resetPdfCorrectionState()
 
   try {
-    const response = await axiosInstance.get(r(`media/pdfs/${pdfId}/`));
-    const details = response.data || {};
-
-    currentVideo.value = {
-      id: pdfId,
-      mediaType: 'pdf',
-      filename: details.filename || `document_${pdfId}.pdf`,
-      anonymizationStatus: details.is_validated ? 'validated' : 'done_processing_anonymization',
-      fileSize: details.file_size ?? null,
-      createdAt: details.uploaded_at || null,
-    };
-
-    mediaStore.setCurrentByKey('pdf', pdfId);
-    await loadPdfDocument(pdfId);
-  } catch (err: any) {
-    error.value = err.response?.data?.error || 'Fehler beim Laden der PDF-Details';
-    console.error('Error loading pdf details:', err);
+    const response = await axiosInstance.get<PdfDetailsResponse>(r(`media/pdfs/${String(pdfId)}/`))
+    if (!isCurrentSelection(generation)) {
+      return
+    }
+    updatePdfDetails(pdfId, response.data)
+  } catch (err: unknown) {
+    if (!isCurrentSelection(generation)) {
+      return
+    }
+    error.value = getApiErrorMessage(err, 'Fehler beim Laden der PDF-Details')
+    logger.error('pdf-details-load-failed', err)
   } finally {
-    loading.value = false;
+    if (isCurrentSelection(generation)) {
+      loading.value = false
+    }
   }
-};
+
+  if (isCurrentSelection(generation) && !error.value) {
+    await nextTick()
+    await loadPdfDocument(pdfId)
+  }
+}
 
 const loadVideoDetails = async (videoId: number) => {
-  loading.value = true;
-  error.value = '';
-  
+  const generation = selection_generation
+  loading.value = true
+  error.value = ''
+  recoveryError.value = ''
+  recoveryMessage.value = ''
+  segmentRecoveryStateLoaded.value = false
+
   try {
     // Load video metadata and processing history
-    const [videoResponse, metadataResponse, historyResponse] = await Promise.all([
-      axiosInstance.get(r(`media/videos/video-correction/${videoId}`)),
-      axiosInstance.get(r(`media/videos/${videoId}/metadata/`)),
-      axiosInstance.get(r(`media/videos/${videoId}/processing-history/`))
-    ]);
-    
-    currentVideo.value = videoResponse.data;
-    videoMetadata.value = metadataResponse.data;
-    processingHistory.value = historyResponse.data;
-    
-    // Update MediaStore with current video for consistent type detection
-    if (currentVideo.value) {
-      mediaStore.setCurrentItem(currentVideo.value as any);
+    const [videoResponse, metadataResponse, historyResponse, anonymizationResponse] =
+      await Promise.all([
+        axiosInstance.get<CorrectionMedia>(r(`media/videos/video-correction/${String(videoId)}`)),
+        axiosInstance.get<VideoMetadata>(r(`media/videos/${String(videoId)}/metadata/`)),
+        axiosInstance.get<unknown>(r(`media/videos/${String(videoId)}/processing-history/`)),
+        axiosInstance.get<VideoAnonymizationStatus>(
+          r(endpoints.media.videoCorrectionAnonymization(videoId))
+        )
+      ])
+
+    if (generation !== selection_generation) {
+      return
     }
-    
-  } catch (err: any) {
-    error.value = err.response?.data?.error || 'Fehler beim Laden der Video-Details';
-    console.error('Error loading video details:', err);
+    currentVideo.value = videoResponse.data
+    videoMetadata.value = metadataResponse.data
+    processingHistory.value = normalizeProcessingHistory(historyResponse.data)
+    anonymizationStatus.value = anonymizationResponse.data
+    selectedStrategy.value =
+      anonymizationResponse.data.selectedStrategy || anonymizationResponse.data.defaultStrategy
+
+    // Update MediaStore with current video for consistent type detection
+    mediaStore.setCurrentItem({
+      id: currentVideo.value.id,
+      filename: currentVideo.value.filename,
+      mediaType: currentVideo.value.mediaType,
+      scope: currentVideo.value.mediaType
+    })
+
+    syncAnnotatorOverride()
+    if (currentVideo.value.anonymizationStatus === 'validated') {
+      await loadSegmentRecoveryState(videoId)
+    }
+  } catch (err: unknown) {
+    if (generation !== selection_generation) {
+      return
+    }
+    error.value = getApiErrorMessage(err, 'Fehler beim Laden der Video-Details')
+    logger.error('video-details-load-failed', err)
   } finally {
-    loading.value = false;
+    if (generation === selection_generation) {
+      loading.value = false
+    }
   }
-};
+}
 
 const ensurePdfJs = async () => {
-  if (pdfJsLib) return;
+  if (pdfJsLib) {
+    return
+  }
   const [pdfModule, workerModule] = await Promise.all([
     import('pdfjs-dist/legacy/build/pdf.mjs'),
-    import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
-  ]);
-  pdfModule.GlobalWorkerOptions.workerSrc = workerModule.default;
-  pdfJsLib = pdfModule;
-};
+    import('pdfjs-dist/build/pdf.worker.min.mjs?url')
+  ])
+  pdfModule.GlobalWorkerOptions.workerSrc = workerModule.default
+  pdfJsLib = pdfModule
+}
 
 const loadPdfDocument = async (pdfId: number) => {
-  isRenderingPdf.value = true;
-  pdfRenderError.value = '';
+  const generation = selection_generation
+  isRenderingPdf.value = true
+  pdfRenderError.value = ''
   try {
-    await ensurePdfJs();
-    const response = await axiosInstance.get(r(`media/pdfs/${pdfId}/stream/`), {
-      params: { type: 'raw' },
-      responseType: 'arraybuffer',
-    });
+    await ensurePdfJs()
+    const response = await axiosInstance.get<ArrayBuffer>(buildPdfStreamUrl(pdfId, 'raw'), {
+      responseType: 'arraybuffer'
+    })
 
-    const source = new Uint8Array(response.data);
-    pdfSourceBytes.value = source;
-    const loadingTask = pdfJsLib.getDocument({ data: source });
-    pdfDocument = await loadingTask.promise;
-    pdfPageCount.value = pdfDocument.numPages;
-    activePdfPage.value = 1;
-    await renderCurrentPdfPage();
-  } catch (err: any) {
-    pdfRenderError.value = 'PDF konnte nicht geladen werden.';
-    console.error('Error loading PDF document:', err);
+    if (generation !== selection_generation) {
+      return
+    }
+    const source = new Uint8Array(response.data)
+    pdfSourceBytes.value = source
+    if (!pdfJsLib) {
+      throw new Error('PDF.js konnte nicht initialisiert werden.')
+    }
+    const loadingTask = pdfJsLib.getDocument({ data: source.slice() })
+    const loaded_document = await loadingTask.promise
+    if (generation !== selection_generation) {
+      await loaded_document.destroy()
+      return
+    }
+    pdfDocument = loaded_document
+    pdfPageCount.value = pdfDocument.numPages
+    activePdfPage.value = 1
+    await renderCurrentPdfPage()
+  } catch (err: unknown) {
+    if (generation !== selection_generation) {
+      return
+    }
+    pdfRenderError.value = getApiErrorMessage(err, 'PDF konnte nicht geladen werden.')
+    logger.error('pdf-document-load-failed', err)
   } finally {
-    isRenderingPdf.value = false;
+    if (generation === selection_generation) {
+      isRenderingPdf.value = false
+    }
   }
-};
+}
 
 const reloadPdfDocument = async () => {
-  if (!currentVideo.value) return;
-  await loadPdfDocument(currentVideo.value.id);
-};
+  if (!currentVideo.value || isProcessing.value) {
+    return
+  }
+  await loadCurrentItemDetails(currentVideo.value.id)
+}
 
 const getCurrentPageBoxCount = () => {
-  return (pdfPageBoxes.value[activePdfPage.value] || []).length;
-};
+  return (pdfPageBoxes.value[activePdfPage.value] ?? []).length
+}
 
 const normalizeRect = (start: { x: number; y: number }, end: { x: number; y: number }) => {
-  const x = Math.min(start.x, end.x);
-  const y = Math.min(start.y, end.y);
-  const width = Math.abs(end.x - start.x);
-  const height = Math.abs(end.y - start.y);
-  return { x, y, width, height };
-};
+  const horizontalPosition = Math.min(start.x, end.x)
+  const verticalPosition = Math.min(start.y, end.y)
+  const width = Math.abs(end.x - start.x)
+  const height = Math.abs(end.y - start.y)
+  return { x: horizontalPosition, y: verticalPosition, width, height }
+}
 
 const drawPdfOverlay = () => {
-  const overlay = pdfOverlayCanvas.value;
-  if (!overlay) return;
-  const ctx = overlay.getContext('2d');
-  if (!ctx) return;
+  const overlay = pdfOverlayCanvas.value
+  if (!overlay) {
+    return
+  }
+  const canvasContext = overlay.getContext('2d')
+  if (!canvasContext) {
+    return
+  }
 
-  ctx.clearRect(0, 0, overlay.width, overlay.height);
-  ctx.fillStyle = '#000000';
+  canvasContext.clearRect(0, 0, overlay.width, overlay.height)
+  canvasContext.fillStyle = '#000000'
 
-  const boxes = pdfPageBoxes.value[activePdfPage.value] || [];
-  for (const box of boxes) {
-    ctx.fillRect(
-      box.x * overlay.width,
-      box.y * overlay.height,
-      box.width * overlay.width,
-      box.height * overlay.height
-    );
+  const boxes = pdfPageBoxes.value[activePdfPage.value] ?? []
+  for (const boundingBox of boxes) {
+    canvasContext.fillRect(
+      boundingBox.x * overlay.width,
+      boundingBox.y * overlay.height,
+      boundingBox.width * overlay.width,
+      boundingBox.height * overlay.height
+    )
   }
 
   if (isDrawingPdfBox.value && drawStart.value && drawCurrent.value) {
-    const preview = normalizeRect(drawStart.value, drawCurrent.value);
-    ctx.save();
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-    ctx.strokeStyle = '#111111';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([6, 4]);
-    ctx.fillRect(preview.x, preview.y, preview.width, preview.height);
-    ctx.strokeRect(preview.x, preview.y, preview.width, preview.height);
-    ctx.restore();
+    const preview = normalizeRect(drawStart.value, drawCurrent.value)
+    canvasContext.save()
+    canvasContext.fillStyle = 'rgba(0, 0, 0, 0.45)'
+    canvasContext.strokeStyle = '#111111'
+    canvasContext.lineWidth = 1
+    canvasContext.setLineDash([6, 4])
+    canvasContext.fillRect(preview.x, preview.y, preview.width, preview.height)
+    canvasContext.strokeRect(preview.x, preview.y, preview.width, preview.height)
+    canvasContext.restore()
   }
-};
+}
 
 const renderCurrentPdfPage = async () => {
-  if (!pdfDocument || !pdfPageCanvas.value || !pdfOverlayCanvas.value) return;
+  const generation = selection_generation
+  if (!pdfDocument || !pdfPageCanvas.value || !pdfOverlayCanvas.value) {
+    return
+  }
 
-  isRenderingPdf.value = true;
-  pdfRenderError.value = '';
+  isRenderingPdf.value = true
+  pdfRenderError.value = ''
   try {
-    const page = await pdfDocument.getPage(activePdfPage.value);
-    const viewport = page.getViewport({ scale: pdfScale.value });
+    const page = await pdfDocument.getPage(activePdfPage.value)
+    if (generation !== selection_generation) {
+      return
+    }
+    const viewport = page.getViewport({ scale: pdfScale.value })
 
-    const canvas = pdfPageCanvas.value;
-    const context = canvas.getContext('2d');
+    const canvas = pdfPageCanvas.value
+    const context = canvas.getContext('2d')
     if (!context) {
-      throw new Error('PDF canvas context not available');
+      throw new Error('PDF canvas context not available')
     }
 
-    canvas.width = Math.floor(viewport.width);
-    canvas.height = Math.floor(viewport.height);
-    canvas.style.width = `${viewport.width}px`;
-    canvas.style.height = `${viewport.height}px`;
+    canvas.width = Math.floor(viewport.width)
+    canvas.height = Math.floor(viewport.height)
+    canvas.style.width = `${String(viewport.width)}px`
+    canvas.style.height = `${String(viewport.height)}px`
 
     const renderContext = {
       canvasContext: context,
-      viewport,
-    };
-    await page.render(renderContext).promise;
+      viewport
+    }
+    await page.render(renderContext).promise
+    if (generation !== selection_generation) {
+      return
+    }
 
-    const overlay = pdfOverlayCanvas.value;
-    overlay.width = canvas.width;
-    overlay.height = canvas.height;
-    overlay.style.width = canvas.style.width;
-    overlay.style.height = canvas.style.height;
-    drawPdfOverlay();
-  } catch (err: any) {
-    pdfRenderError.value = 'PDF-Seite konnte nicht gerendert werden.';
-    console.error('Error rendering PDF page:', err);
+    const overlay = pdfOverlayCanvas.value
+    overlay.width = canvas.width
+    overlay.height = canvas.height
+    overlay.style.width = canvas.style.width
+    overlay.style.height = canvas.style.height
+    drawPdfOverlay()
+  } catch (err: unknown) {
+    if (generation !== selection_generation) {
+      return
+    }
+    pdfRenderError.value = 'PDF-Seite konnte nicht gerendert werden.'
+    logger.error('pdf-page-render-failed', err)
   } finally {
-    isRenderingPdf.value = false;
+    if (generation === selection_generation) {
+      isRenderingPdf.value = false
+    }
   }
-};
+}
 
 const getOverlayPoint = (event: MouseEvent) => {
-  const overlay = pdfOverlayCanvas.value;
+  const overlay = pdfOverlayCanvas.value
   if (!overlay) {
-    return null;
+    return null
   }
-  const bounds = overlay.getBoundingClientRect();
+  const bounds = overlay.getBoundingClientRect()
   if (!bounds.width || !bounds.height) {
-    return null;
+    return null
   }
-  const x = Math.min(Math.max(event.clientX - bounds.left, 0), bounds.width);
-  const y = Math.min(Math.max(event.clientY - bounds.top, 0), bounds.height);
-  return { x, y, width: bounds.width, height: bounds.height };
-};
+  const horizontalPosition = Math.min(Math.max(event.clientX - bounds.left, 0), bounds.width)
+  const verticalPosition = Math.min(Math.max(event.clientY - bounds.top, 0), bounds.height)
+  return {
+    x: (horizontalPosition * overlay.width) / bounds.width,
+    y: (verticalPosition * overlay.height) / bounds.height,
+    width: overlay.width,
+    height: overlay.height
+  }
+}
 
 const onPdfOverlayMouseDown = (event: MouseEvent) => {
-  if (isRenderingPdf.value) return;
-  const point = getOverlayPoint(event);
-  if (!point) return;
-  isDrawingPdfBox.value = true;
-  drawStart.value = { x: point.x, y: point.y };
-  drawCurrent.value = { x: point.x, y: point.y };
-  drawPdfOverlay();
-};
+  if (isRenderingPdf.value || isProcessing.value) {
+    return
+  }
+  const point = getOverlayPoint(event)
+  if (!point) {
+    return
+  }
+  isDrawingPdfBox.value = true
+  drawStart.value = { x: point.x, y: point.y }
+  drawCurrent.value = { x: point.x, y: point.y }
+  drawPdfOverlay()
+}
 
 const onPdfOverlayMouseMove = (event: MouseEvent) => {
-  if (!isDrawingPdfBox.value) return;
-  const point = getOverlayPoint(event);
-  if (!point) return;
-  drawCurrent.value = { x: point.x, y: point.y };
-  drawPdfOverlay();
-};
+  if (!isDrawingPdfBox.value) {
+    return
+  }
+  const point = getOverlayPoint(event)
+  if (!point) {
+    return
+  }
+  drawCurrent.value = { x: point.x, y: point.y }
+  drawPdfOverlay()
+}
 
 const finishPdfBoxDrawing = () => {
-  const overlay = pdfOverlayCanvas.value;
+  const overlay = pdfOverlayCanvas.value
   if (!overlay || !drawStart.value || !drawCurrent.value) {
-    isDrawingPdfBox.value = false;
-    drawStart.value = null;
-    drawCurrent.value = null;
-    return;
+    isDrawingPdfBox.value = false
+    drawStart.value = null
+    drawCurrent.value = null
+    return
   }
 
-  const rect = normalizeRect(drawStart.value, drawCurrent.value);
+  const rect = normalizeRect(drawStart.value, drawCurrent.value)
   if (rect.width >= 4 && rect.height >= 4) {
     const normalized: PdfRedactionBox = {
       x: rect.x / overlay.width,
       y: rect.y / overlay.height,
       width: rect.width / overlay.width,
-      height: rect.height / overlay.height,
-    };
-    const existing = pdfPageBoxes.value[activePdfPage.value] || [];
-    pdfPageBoxes.value[activePdfPage.value] = [...existing, normalized];
+      height: rect.height / overlay.height
+    }
+    const existing = pdfPageBoxes.value[activePdfPage.value] ?? []
+    pdfPageBoxes.value[activePdfPage.value] = [...existing, normalized]
   }
 
-  isDrawingPdfBox.value = false;
-  drawStart.value = null;
-  drawCurrent.value = null;
-  drawPdfOverlay();
-};
+  isDrawingPdfBox.value = false
+  drawStart.value = null
+  drawCurrent.value = null
+  drawPdfOverlay()
+}
 
 const onPdfOverlayMouseUp = () => {
-  finishPdfBoxDrawing();
-};
+  finishPdfBoxDrawing()
+}
 
 const onPdfOverlayMouseLeave = () => {
-  if (!isDrawingPdfBox.value) return;
-  finishPdfBoxDrawing();
-};
+  if (!isDrawingPdfBox.value) {
+    return
+  }
+  finishPdfBoxDrawing()
+}
 
 const previousPdfPage = async () => {
-  if (activePdfPage.value <= 1) return;
-  activePdfPage.value -= 1;
-  await renderCurrentPdfPage();
-};
+  if (activePdfPage.value <= 1) {
+    return
+  }
+  activePdfPage.value -= 1
+  await renderCurrentPdfPage()
+}
 
 const nextPdfPage = async () => {
-  if (activePdfPage.value >= pdfPageCount.value) return;
-  activePdfPage.value += 1;
-  await renderCurrentPdfPage();
-};
+  if (activePdfPage.value >= pdfPageCount.value) {
+    return
+  }
+  activePdfPage.value += 1
+  await renderCurrentPdfPage()
+}
 
 const undoLastPdfBox = () => {
-  const boxes = pdfPageBoxes.value[activePdfPage.value] || [];
-  if (!boxes.length) return;
-  pdfPageBoxes.value[activePdfPage.value] = boxes.slice(0, -1);
-  drawPdfOverlay();
-};
+  if (isProcessing.value) {
+    return
+  }
+  const boxes = pdfPageBoxes.value[activePdfPage.value] ?? []
+  if (!boxes.length) {
+    return
+  }
+  pdfPageBoxes.value[activePdfPage.value] = boxes.slice(0, -1)
+  drawPdfOverlay()
+}
 
 const clearCurrentPdfPageBoxes = () => {
-  pdfPageBoxes.value[activePdfPage.value] = [];
-  drawPdfOverlay();
-};
+  if (isProcessing.value) {
+    return
+  }
+  pdfPageBoxes.value[activePdfPage.value] = []
+  drawPdfOverlay()
+}
 
 const clearAllPdfBoxes = () => {
-  pdfPageBoxes.value = {};
-  drawPdfOverlay();
-};
+  if (isProcessing.value) {
+    return
+  }
+  pdfPageBoxes.value = {}
+  drawPdfOverlay()
+}
 
 const generateRedactedPdf = async () => {
-  if (!pdfSourceBytes.value) return;
+  if (!pdfSourceBytes.value || isProcessing.value) {
+    return
+  }
+  const generation = selection_generation
 
-  isProcessing.value = true;
-  currentOperation.value = 'pdf_redaction';
-  processingProgress.value = 0;
-  processingStatus.value = 'Anonymisierte PDF wird erzeugt...';
+  isProcessing.value = true
+  currentOperation.value = 'pdf_redaction'
+  processingProgress.value = 0
+  processingStatus.value = 'Anonymisierte PDF wird erzeugt...'
 
   try {
-    const { PDFDocument, rgb } = await import('pdf-lib');
-    const doc = await PDFDocument.load(pdfSourceBytes.value);
-    const pages = doc.getPages();
-
-    Object.entries(pdfPageBoxes.value).forEach(([pageNumber, boxes]) => {
-      const index = Number(pageNumber) - 1;
-      if (!Number.isInteger(index) || index < 0 || index >= pages.length) {
-        return;
-      }
-      const page = pages[index];
-      const pageWidth = page.getWidth();
-      const pageHeight = page.getHeight();
-
-      for (const box of boxes) {
-        page.drawRectangle({
-          x: box.x * pageWidth,
-          y: (1 - box.y - box.height) * pageHeight,
-          width: box.width * pageWidth,
-          height: box.height * pageHeight,
-          color: rgb(0, 0, 0),
-          borderWidth: 0,
-        });
-      }
-    });
-
-    const output = await doc.save();
-    redactedPdfBytes.value = output;
-    if (redactedPdfUrl.value) {
-      URL.revokeObjectURL(redactedPdfUrl.value);
+    const source = pdfSourceBytes.value
+    const document = pdfDocument
+    if (!document) {
+      throw new Error('PDF-Quelle ist nicht verfügbar.')
     }
-    redactedPdfUrl.value = URL.createObjectURL(
-      new Blob([output], { type: 'application/pdf' })
-    );
+    const generated = await build_pdf_correction(source, document, pdfPageBoxes.value)
+    if (generation !== selection_generation) {
+      return
+    }
+    pdf_correction = generated
+    const output = generated.bytes
+    redactedPdfBytes.value = output
+    if (redactedPdfUrl.value) {
+      URL.revokeObjectURL(redactedPdfUrl.value)
+    }
+    redactedPdfUrl.value = URL.createObjectURL(new Blob([output], { type: 'application/pdf' }))
 
-    processingProgress.value = 100;
-    processingStatus.value = 'Anonymisierte PDF erfolgreich erzeugt';
+    processingProgress.value = 100
+    processingStatus.value = 'Anonymisierte PDF erfolgreich erzeugt'
     processingHistory.value.unshift({
       id: Date.now(),
       timestamp: new Date().toISOString(),
       operation: 'pdf_redaction',
       status: 'success',
-      details: `${totalPdfBoxCount.value} Box(en) angewendet`,
-    });
-  } catch (err: any) {
-    error.value = 'Fehler beim Erzeugen der anonymisierten PDF';
-    console.error('Error generating redacted PDF:', err);
+      details: `${String(totalPdfBoxCount.value)} Box(en) angewendet`
+    })
+  } catch (err: unknown) {
+    if (generation !== selection_generation) {
+      return
+    }
+    error.value = 'Fehler beim Erzeugen der anonymisierten PDF'
+    logger.error('pdf-redaction-failed', err)
   } finally {
-    isProcessing.value = false;
-    currentOperation.value = '';
+    if (generation === selection_generation) {
+      isProcessing.value = false
+      currentOperation.value = ''
+    }
   }
-};
+}
 
 const downloadRedactedPdf = () => {
-  if (!redactedPdfBytes.value || !currentVideo.value) return;
-  const fileName = String(currentVideo.value.filename || `document_${currentVideo.value.id}.pdf`);
-  const baseName = fileName.toLowerCase().endsWith('.pdf')
-    ? fileName.slice(0, -4)
-    : fileName;
+  if (!redactedPdfBytes.value || !currentVideo.value) {
+    return
+  }
+  const fileName = currentVideo.value.filename || `document_${String(currentVideo.value.id)}.pdf`
+  const baseName = fileName.toLowerCase().endsWith('.pdf') ? fileName.slice(0, -4) : fileName
 
-  const blob = new Blob([redactedPdfBytes.value], { type: 'application/pdf' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${baseName}_anonymized.pdf`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-};
+  const blob = new Blob([redactedPdfBytes.value], { type: 'application/pdf' })
+  const downloadLocation = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = downloadLocation
+  link.download = `${baseName}_anonymized.pdf`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(downloadLocation)
+}
+
+type PdfUploadContext = {
+  target: CorrectionMedia
+  artifact: PdfCorrectionArtifact
+  generation: number
+}
+
+const getPdfUploadContext = (): PdfUploadContext | null => {
+  const target = currentVideo.value
+  const artifact = pdf_correction
+  if (!redactedPdfBytes.value || !target || !artifact || isProcessing.value) {
+    return null
+  }
+  return { target, artifact, generation: selection_generation }
+}
+
+const pdfUploadName = (target: CorrectionMedia): string => {
+  const originalName = target.filename || `document_${String(target.id)}.pdf`
+  return originalName.toLowerCase().endsWith('.pdf')
+    ? `${originalName.slice(0, -4)}_anonymized.pdf`
+    : `${originalName}_anonymized.pdf`
+}
+
+const buildPdfUploadForm = (target: CorrectionMedia, artifact: PdfCorrectionArtifact): FormData => {
+  const formData = new FormData()
+  formData.append(
+    'file',
+    new File([artifact.bytes], pdfUploadName(target), { type: 'application/pdf' })
+  )
+  formData.append('source_type', 'raw')
+  formData.append('redaction_manifest', JSON.stringify(artifact.manifest))
+  formData.append('client_source_sha256', artifact.source_sha256)
+  return formData
+}
+
+const assertPdfCorrectionResponse = (response: PdfCorrectionResponse, targetId: number) => {
+  const isExpectedRevision =
+    response.fileId === targetId &&
+    !response.anonymizationValidated &&
+    response.status === 'done_processing_anonymization'
+  if (!isExpectedRevision) {
+    throw new Error('Unerwartete Antwort für die Berichtskorrektur.')
+  }
+}
+
+const applyPdfCorrectionResponse = (response: PdfCorrectionResponse, targetId: number) => {
+  assertPdfCorrectionResponse(response, targetId)
+  const selectedPdf = currentVideo.value
+  if (!selectedPdf || selectedPdf.id !== targetId) {
+    throw new Error('Die ausgewählte PDF hat sich während der Berichtskorrektur geändert.')
+  }
+  selectedPdf.anonymizationStatus = response.status
+}
 
 const uploadRedactedPdf = async () => {
-  if (!redactedPdfBytes.value || !currentVideo.value) return;
+  const context = getPdfUploadContext()
+  if (!context) {
+    return
+  }
+  const { target, artifact, generation } = context
 
-  isProcessing.value = true;
-  currentOperation.value = 'pdf_upload';
-  processingProgress.value = 0;
-  processingStatus.value = 'Anonymisierte PDF wird hochgeladen...';
+  isProcessing.value = true
+  currentOperation.value = 'pdf_upload'
+  processingProgress.value = 0
+  processingStatus.value = 'Anonymisierte PDF wird hochgeladen...'
 
   try {
-    const originalName = String(currentVideo.value.filename || `document_${currentVideo.value.id}.pdf`);
-    const uploadName = originalName.toLowerCase().endsWith('.pdf')
-      ? `${originalName.slice(0, -4)}_anonymized.pdf`
-      : `${originalName}_anonymized.pdf`;
-    const file = new File([redactedPdfBytes.value], uploadName, { type: 'application/pdf' });
+    const response = await axiosInstance.post<PdfCorrectionResponse>(
+      r(`media/pdfs/${String(target.id)}/apply-redactions/`),
+      buildPdfUploadForm(target, artifact),
+      {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      }
+    )
 
-    const formData = new FormData();
-    formData.append('file', file);
-    const response = await axiosInstance.post(r('upload/'), formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-
-    processingProgress.value = 100;
-    processingStatus.value = 'Upload erfolgreich gestartet';
+    if (!isCurrentSelection(generation)) {
+      return
+    }
+    processingProgress.value = 100
+    applyPdfCorrectionResponse(response.data, target.id)
+    processingStatus.value = 'Korrektur gespeichert. Erneute Anonymisierungsprüfung erforderlich.'
     processingHistory.value.unshift({
       id: Date.now(),
       timestamp: new Date().toISOString(),
       operation: 'pdf_upload',
       status: 'success',
-      details: `Upload-ID: ${response.data.upload_id || 'n/a'}`,
-    });
-  } catch (err: any) {
-    error.value = err.response?.data?.error || 'Fehler beim Upload der anonymisierten PDF';
-    console.error('Error uploading redacted PDF:', err);
+      details: `Revision: ${String(response.data.revisionId)}`
+    })
+  } catch (err: unknown) {
+    if (!isCurrentSelection(generation)) {
+      return
+    }
+    error.value = getApiErrorMessage(err, 'Fehler beim Upload der anonymisierten PDF')
+    logger.error('pdf-upload-failed', err)
   } finally {
-    isProcessing.value = false;
-    currentOperation.value = '';
+    if (isCurrentSelection(generation)) {
+      isProcessing.value = false
+      currentOperation.value = ''
+    }
   }
-};
+}
 
-const analyzeVideo = async () => {
-  if (!currentVideo.value) return;
-  
-  isProcessing.value = true;
-  currentOperation.value = 'analysis';
-  processingProgress.value = 0;
-  processingStatus.value = 'Video wird analysiert...';
-  
-  try {
-    const response = await axiosInstance.post(r(`media/videos/${currentVideo.value.id}/analyze/`), {
-      use_minicpm: frameConfig.value.detectionEngine !== 'traditional',
-      detailed_analysis: true
-    });
-    
-    // Update metadata with analysis results
-    videoMetadata.value = { ...videoMetadata.value, ...response.data };
-    processingProgress.value = 100;
-    processingStatus.value = 'Analyse abgeschlossen';
-    
-    // Add to history
-    processingHistory.value.unshift({
-      id: Date.now(),
-      timestamp: new Date().toISOString(),
-      operation: 'analysis',
-      status: 'success',
-      details: `${response.data.sensitiveFrameCount || 0} sensible Frames gefunden`
-    });
-    
-  } catch (err: any) {
-    error.value = err.response?.data?.error || 'Fehler bei der Video-Analyse';
-    console.error('Error analyzing video:', err);
-  } finally {
-    isProcessing.value = false;
-    currentOperation.value = '';
+const getMaskingVideoId = (): number | null => {
+  if (!currentVideo.value || isProcessing.value) {
+    return null
   }
-};
+  return currentVideo.value.id
+}
+
+const buildVideoAnonymizationRequest = (): VideoAnonymizationRequest => ({
+  strategy: selectedStrategy.value,
+  processingMethod: maskConfig.value.processingMethod,
+  region:
+    maskConfig.value.type === 'custom'
+      ? {
+          mode: 'custom',
+          roi: {
+            x: maskConfig.value.endoscopeX,
+            y: maskConfig.value.endoscopeY,
+            width: maskConfig.value.endoscopeWidth,
+            height: maskConfig.value.endoscopeHeight
+          }
+        }
+      : {
+          mode: 'device',
+          deviceName: maskConfig.value.deviceName
+        },
+  humanReviewRequired: true
+})
+
+const isCurrentOperation = (generation: number) => generation === operation_generation
+
+const assertSuccessfulVideoCorrection = (status: VideoAnonymizationStatus) => {
+  if (status.latestRun?.status !== 'success' || !status.processedArtifact.available) {
+    throw new Error('Die korrigierte Videogeneration ist noch nicht erfolgreich verfügbar.')
+  }
+}
+
+const completeMaskingOperation = async (
+  responseStatus: VideoAnonymizationStatus,
+  videoId: number,
+  generation: number
+) => {
+  if (!isCurrentOperation(generation)) {
+    return
+  }
+  const historyId = responseStatus.job?.historyId
+  processingStatus.value = responseStatus.message || 'Anonymisierung wurde eingereiht...'
+  const completedStatus = historyId
+    ? await pollAnonymizationCorrection(historyId, videoId, generation)
+    : responseStatus
+  if (!isCurrentOperation(generation)) {
+    return
+  }
+  assertSuccessfulVideoCorrection(completedStatus)
+  anonymizationStatus.value = completedStatus
+  selectedStrategy.value = completedStatus.selectedStrategy || selectedStrategy.value
+  processingProgress.value = 100
+  processingStatus.value = 'Anonymisierung abgeschlossen'
+  previewMode.value = 'processed'
+  const refresh = refreshCurrentVideo()
+  const refresh_generation = selection_generation
+  await refresh
+  if (!isCurrentSelection(refresh_generation)) {
+    return
+  }
+  videoElement.value?.load()
+  isProcessing.value = false
+  currentOperation.value = ''
+}
 
 const applyMasking = async () => {
-  if (!currentVideo.value) return;
-  
-  isProcessing.value = true;
-  currentOperation.value = 'masking';
-  processingProgress.value = 0;
-  processingStatus.value = 'Maskierung wird vorbereitet...';
-  
-  try {
-    const payload = {
-      mask_type: maskConfig.value.type,
-      device_name: maskConfig.value.deviceName,
-      use_streaming: maskConfig.value.processingMethod === 'streaming',
-      custom_mask: maskConfig.value.type === 'custom' ? {
-        endoscope_x: maskConfig.value.endoscopeX,
-        endoscope_y: maskConfig.value.endoscopeY,
-        endoscope_width: maskConfig.value.endoscopeWidth,
-        endoscope_height: maskConfig.value.endoscopeHeight
-      } : undefined
-    };
-    
-    // Start masking operation
-    const response = await axiosInstance.post(
-      r(`media/videos/${currentVideo.value.id}/apply-mask/`), 
-      payload
-    );
-    
-    // Start polling for progress
-    const taskId = response.data.task_id;
-    await pollTaskProgress(taskId, 'masking');
-    
-  } catch (err: any) {
-    error.value = err.response?.data?.error || 'Fehler bei der Maskierung';
-    console.error('Error applying mask:', err);
-    isProcessing.value = false;
-    currentOperation.value = '';
+  const video_id = getMaskingVideoId()
+  if (video_id === null) {
+    return
   }
-};
+  const generation = ++operation_generation
+
+  isProcessing.value = true
+  currentOperation.value = 'masking'
+  processingProgress.value = 0
+  processingStatus.value = 'Maskierung wird vorbereitet...'
+
+  try {
+    const response = await axiosInstance.post<VideoAnonymizationStatus>(
+      r(endpoints.media.videoCorrectionAnonymization(video_id)),
+      buildVideoAnonymizationRequest()
+    )
+    await completeMaskingOperation(response.data, video_id, generation)
+  } catch (err: unknown) {
+    if (!isCurrentOperation(generation)) {
+      return
+    }
+    error.value = getApiErrorMessage(err, 'Fehler bei der Anonymisierung')
+    logger.error('video-anonymization-failed', err)
+    isProcessing.value = false
+    currentOperation.value = ''
+  }
+}
+
+type LatestAnonymizationRun = NonNullable<VideoAnonymizationStatus['latestRun']>
+
+const matchingAnonymizationRun = (
+  status: VideoAnonymizationStatus,
+  historyId: number
+): LatestAnonymizationRun | null => {
+  const latestRun = status.latestRun
+  return String(latestRun?.id ?? '') === String(historyId) ? (latestRun ?? null) : null
+}
+
+const updateAnonymizationPollState = (latestRun: LatestAnonymizationRun) => {
+  if (latestRun.status === 'failure' || latestRun.status === 'cancelled') {
+    throw new Error(latestRun.details || 'Anonymisierung ist fehlgeschlagen.')
+  }
+  const isRunning = latestRun.status === 'running'
+  processingProgress.value = isRunning ? 50 : 10
+  processingStatus.value = isRunning
+    ? 'Anonymisierung und HLS-Erzeugung laufen im FFmpeg-Worker...'
+    : 'Anonymisierung wartet auf den FFmpeg-Worker...'
+}
+
+const pollAnonymizationCorrection = async (
+  historyId: number,
+  video_id: number,
+  generation: number
+): Promise<VideoAnonymizationStatus> => {
+  if (!currentVideo.value) {
+    throw new Error('Video für die Anonymisierung ist nicht mehr ausgewählt.')
+  }
+
+  const pollInterval = 5000
+  const maxPolls = 4320
+  for (
+    let polls = 0;
+    polls < maxPolls && isProcessing.value && isCurrentOperation(generation);
+    polls += 1
+  ) {
+    const { data } = await axiosInstance.get<VideoAnonymizationStatus>(
+      r(endpoints.media.videoCorrectionAnonymization(video_id))
+    )
+    if (!isCurrentOperation(generation)) {
+      throw new Error('Beobachtung beendet.')
+    }
+    const latestRun = matchingAnonymizationRun(data, historyId)
+    if (latestRun?.status === 'success') {
+      return data
+    }
+    if (latestRun) {
+      updateAnonymizationPollState(latestRun)
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, pollInterval))
+  }
+  throw new Error('Zeitüberschreitung bei der Anonymisierung.')
+}
 
 const removeFrames = async () => {
-  if (!currentVideo.value) return;
-  
-  isProcessing.value = true;
-  currentOperation.value = 'frame_removal';
-  processingProgress.value = 0;
-  processingStatus.value = 'Frame-Entfernung wird vorbereitet...';
-  
+  if (!currentVideo.value) {
+    return
+  }
+
+  isProcessing.value = true
+  currentOperation.value = 'frame_removal'
+  processingProgress.value = 0
+  processingStatus.value = 'Frame-Entfernung wird vorbereitet...'
+
   try {
     const payload = {
       selection_method: frameConfig.value.selectionMethod,
       detection_engine: frameConfig.value.detectionEngine,
       use_streaming: frameConfig.value.processingMethod === 'streaming',
-      manual_frames: frameConfig.value.selectionMethod === 'manual' 
-        ? parseManualFrames(frameConfig.value.manualFrames)
-        : undefined
-    };
-    
+      manual_frames:
+        frameConfig.value.selectionMethod === 'manual'
+          ? parseManualFrames(frameConfig.value.manualFrames)
+          : undefined
+    }
+
     // Start frame removal operation
-    const response = await axiosInstance.post(
-      r(`media/videos/${currentVideo.value.id}/remove-frames/`), 
+    const response = await axiosInstance.post<FrameRemovalResponse>(
+      r(`media/videos/${String(currentVideo.value.id)}/remove-frames/`),
       payload
-    );
-    
-    // Start polling for progress
-    const taskId = response.data.task_id;
-    await pollTaskProgress(taskId, 'frame_removal');
-    
-  } catch (err: any) {
-    error.value = err.response?.data?.error || 'Fehler bei der Frame-Entfernung';
-    console.error('Error removing frames:', err);
-    isProcessing.value = false;
-    currentOperation.value = '';
+    )
+
+    const taskId = response.data.taskId ?? response.data.task_id
+    if (taskId) {
+      throw new Error(
+        `Der Server lieferte die asynchrone Aufgabe ${taskId}, stellt aber keinen Status-Endpunkt bereit.`
+      )
+    } else {
+      await finalizeCorrectionProcessing('frame_removal', {
+        output_path: response.data.outputFile ?? response.data.output_file,
+        summary: response.data.message || 'Frame-Entfernung erfolgreich abgeschlossen'
+      })
+    }
+  } catch (err: unknown) {
+    error.value = getApiErrorMessage(err, 'Fehler bei der Frame-Entfernung')
+    logger.error('frame-removal-failed', err)
+    isProcessing.value = false
+    currentOperation.value = ''
   }
-};
+}
 
 const parseManualFrames = (frameString: string): number[] => {
-  const frames: number[] = [];
-  const parts = frameString.split(',');
-  
+  const frames: number[] = []
+  const parts = frameString.split(',')
+
   for (const part of parts) {
-    const trimmed = part.trim();
+    const trimmed = part.trim()
     if (trimmed.includes('-')) {
       // Range: "30-35"
-      const [start, end] = trimmed.split('-').map(n => parseInt(n.trim()));
+      const [start, end] = trimmed.split('-').map((n) => parseInt(n.trim()))
       if (!isNaN(start) && !isNaN(end)) {
         for (let i = start; i <= end; i++) {
-          frames.push(i);
+          frames.push(i)
         }
       }
     } else {
       // Single frame: "10"
-      const frame = parseInt(trimmed);
+      const frame = parseInt(trimmed)
       if (!isNaN(frame)) {
-        frames.push(frame);
+        frames.push(frame)
       }
     }
   }
-  
-  return [...new Set(frames)].sort((a, b) => a - b);
-};
 
-const pollTaskProgress = async (taskId: string, operation: string) => {
-  const pollInterval = 5000; // Increased from 2000ms to 5000ms (5 seconds)
-  const maxPolls = 300; // 10 minutes max
-  let polls = 0;
-  
-  const poll = async () => {
-    if (polls >= maxPolls) {
-      throw new Error('Zeitüberschreitung bei der Verarbeitung');
-    }
-    
-    try {
-      const response = await axiosInstance.get(r(`media/videos/task-status/${taskId}/`));
-      const { status, progress, message, result } = response.data;
-      
-      processingProgress.value = progress || 0;
-      processingStatus.value = message || 'Verarbeitung läuft...';
-      
-      if (status === 'SUCCESS') {
-        processingProgress.value = 100;
-        processingStatus.value = 'Verarbeitung abgeschlossen';
-        
-        // Add to history
-        processingHistory.value.unshift({
-          id: Date.now(),
-          timestamp: new Date().toISOString(),
-          operation,
-          status: 'success',
-          details: result?.summary || 'Verarbeitung erfolgreich',
-          outputPath: result?.output_path
-        });
-        
-        // Refresh video details
-        await refreshCurrentVideo();
-        
-        isProcessing.value = false;
-        currentOperation.value = '';
-        return;
-      }
-      
-      if (status === 'FAILURE') {
-        throw new Error(message || 'Verarbeitung fehlgeschlagen');
-      }
-      
-      // Continue polling
-      polls++;
-      setTimeout(poll, pollInterval);
-      
-    } catch (err: any) {
-      console.error('Polling error:', err);
-      throw err;
-    }
-  };
-  
-  await poll();
-};
+  return [...new Set(frames)].sort((a, b) => a - b)
+}
 
-const cancelProcessing = async () => {
-  // Implementation depends on backend support for task cancellation
-  isProcessing.value = false;
-  currentOperation.value = '';
-  processingProgress.value = 0;
-  processingStatus.value = '';
-};
+const finalizeCorrectionProcessing = async (
+  operation: 'masking' | 'frame_removal',
+  result?: { output_path?: string; summary?: string } | null
+) => {
+  if (!currentVideo.value) {
+    return
+  }
+
+  processingProgress.value = 100
+  processingStatus.value = 'Verarbeitung abgeschlossen'
+
+  processingHistory.value.unshift({
+    id: Date.now(),
+    timestamp: new Date().toISOString(),
+    operation,
+    status: 'success',
+    details: result?.summary || 'Verarbeitung erfolgreich',
+    outputPath: result?.output_path
+  })
+
+  await refreshCurrentVideo()
+
+  isProcessing.value = false
+  currentOperation.value = ''
+}
+
+const cancelProcessing = () => {
+  operation_generation += 1
+  // Stop observation only; the server keeps ownership of the running job.
+  isProcessing.value = false
+  currentOperation.value = ''
+  processingProgress.value = 0
+  processingStatus.value = ''
+}
 
 const reprocessVideo = async () => {
-  if (!currentVideo.value) return;
-  
-  try {
-    await axiosInstance.post(r(`media/videos/${currentVideo.value.id}/reprocess/`));
-    await refreshCurrentVideo();
-  } catch (err: any) {
-    error.value = err.response?.data?.error || 'Fehler bei der Neuverarbeitung';
-    console.error('Error reprocessing video:', err);
+  if (!currentVideo.value) {
+    return
   }
-};
+  const generation = selection_generation
 
-const getVideoUrl = () => {
-  if (!currentVideo.value) return '';
-  
-  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-  
-  if (previewMode.value === 'processed' && hasProcessedVersion.value) {
-    // Get the latest processed version
-    const latestProcessed = processingHistory.value
-      .filter(entry => entry.status === 'success' && entry.outputPath)
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
-    
-    if (latestProcessed) {
-      return `${base}/api/media/videos/processed-videos/${currentVideo.value.id}/${latestProcessed.id}/`;
+  try {
+    const { data } = await axiosInstance.post<VideoStateRepairResponse>(
+      r(endpoints.runtime.videoStateRepairOne(currentVideo.value.id)),
+      {
+        dryRun: false
+      }
+    )
+    if (generation !== selection_generation) {
+      return
     }
+    if (data.items.length !== 1 || data.items[0].status === 'reimport_required') {
+      throw new Error(
+        'Ein Neuimport ist erforderlich. Die Zustandsreparatur hat keine Medien neu verarbeitet.'
+      )
+    }
+    await refreshCurrentVideo()
+  } catch (err: unknown) {
+    if (generation !== selection_generation) {
+      return
+    }
+    error.value = getApiErrorMessage(err, 'Fehler bei der Zustandsreparatur')
+    logger.error('video-reprocessing-failed', err)
   }
-  
-  // Default to original
-  return `${base}/api/media/videos/${currentVideo.value.id}/`;
-};
+}
 
 const seekVideo = (seconds: number) => {
   if (videoElement.value) {
-    videoElement.value.currentTime += seconds;
+    videoElement.value.currentTime += seconds
   }
-};
+}
 
-const downloadResult = async (outputPath: string) => {
-  if (!currentVideo.value) return;
-  
-  try {
-    const response = await axiosInstance.get(
-      r(`video-download-processed/${currentVideo.value.id}/`),
-      { 
-        params: { path: outputPath },
-        responseType: 'blob'
-      }
-    );
-    
-    // Create download link
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `${currentVideo.value.filename}_processed.mp4`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-    
-  } catch (err: any) {
-    error.value = err.response?.data?.error || 'Fehler beim Download';
-    console.error('Error downloading result:', err);
+const openProcessedResult = (downloadUrl: string) => {
+  const downloadLocation = new URL(downloadUrl, window.location.origin)
+  if (downloadLocation.origin !== window.location.origin) {
+    error.value = 'Die Ergebnis-URL gehört nicht zu diesem Server.'
+    logger.error('result-url-origin-mismatch', { origin: downloadLocation.origin })
+    return
   }
-};
+  window.open(downloadLocation.toString(), '_blank', 'noopener,noreferrer')
+}
 
 // Event handlers
-const onVideoError = (event: Event) => {
-  console.error('Video loading error:', event);
-  const video = event.target as HTMLVideoElement;
-  console.error('Video error details:', {
-    error: video.error,
-    networkState: video.networkState,
-    readyState: video.readyState,
-    currentSrc: video.currentSrc
-  });
-};
+const onVideoError = () => {
+  logger.error('video-playback-failed')
+}
 
 const onVideoLoadStart = () => {
-  console.log('Video loading started for:', getVideoUrl());
-};
+  logger.debug('video-load-started')
+}
 
 const onVideoCanPlay = () => {
-  console.log('Video can play, loaded successfully');
-};
+  logger.debug('video-ready')
+}
 
 // Utility functions
 const formatFileSize = (bytes: number | null) => {
-  if (!bytes) return 'Unbekannt';
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-};
+  if (!bytes) {
+    return 'Unbekannt'
+  }
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(1024))
+  const amount = Math.round((bytes / Math.pow(1024, i)) * 100) / 100
+  return `${String(amount)} ${sizes[i] ?? 'Bytes'}`
+}
 
 const formatDate = (dateString: string | null) => {
-  if (!dateString) return '-';
+  if (!dateString) {
+    return '-'
+  }
   return new Date(dateString).toLocaleDateString('de-DE', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit'
-  });
-};
+  })
+}
 
 const formatPercentage = (ratio: number | null) => {
-  if (ratio === null || ratio === undefined) return 'Unbekannt';
-  return `${(ratio * 100).toFixed(1)}%`;
-};
+  if (ratio === null) {
+    return 'Unbekannt'
+  }
+  return `${(ratio * 100).toFixed(1)}%`
+}
 
 const getStatusBadgeClass = (status: string) => {
   const classes: { [key: string]: string } = {
-    'not_started': 'bg-secondary',
-    'processing': 'bg-warning',
-    'processing_anonymization': 'bg-warning',
-    'done_processing_anonymization': 'bg-success',
-    'validated': 'bg-success',
-    'failed': 'bg-danger',
-    'success': 'bg-success'
-  };
-  return classes[status] || 'bg-secondary';
-};
+    not_started: 'bg-secondary',
+    processing: 'bg-warning',
+    processing_anonymization: 'bg-warning',
+    done_processing_anonymization: 'bg-success',
+    validated: 'bg-success',
+    failed: 'bg-danger',
+    success: 'bg-success'
+  }
+  return classes[status] || 'bg-secondary'
+}
 
 const getStatusText = (status: string) => {
   const texts: { [key: string]: string } = {
-    'not_started': 'Nicht gestartet',
-    'processing': 'In Bearbeitung',
-    'processing_anonymization': 'In Bearbeitung',
-    'done_processing_anonymization': 'Fertig',
-    'validated': 'Validiert',
-    'failed': 'Fehlgeschlagen',
-    'success': 'Erfolgreich'
-  };
-  return texts[status] || status;
-};
+    unknown: 'Nicht verfügbar',
+    not_started: 'Nicht gestartet',
+    processing: 'In Bearbeitung',
+    processing_anonymization: 'In Bearbeitung',
+    done_processing_anonymization: 'Fertig',
+    validated: 'Validiert',
+    failed: 'Fehlgeschlagen',
+    success: 'Erfolgreich'
+  }
+  return texts[status] || status
+}
 
 const getSensitivityBadgeClass = (ratio: number | null) => {
-  if (ratio === null || ratio === undefined) return 'badge bg-secondary';
-  
-  if (ratio > 0.1) return 'badge bg-danger';
-  if (ratio > 0.05) return 'badge bg-warning';
-  return 'badge bg-success';
-};
+  if (ratio === null) {
+    return 'badge bg-secondary'
+  }
+
+  if (ratio > 0.1) {
+    return 'badge bg-danger'
+  }
+  if (ratio > 0.05) {
+    return 'badge bg-warning'
+  }
+  return 'badge bg-success'
+}
 
 const getOperationText = (operation: string) => {
   const texts: { [key: string]: string } = {
-    'analysis': 'Video-Analyse',
-    'masking': 'Maskierung',
-    'frame_removal': 'Frame-Entfernung',
-    'reprocessing': 'Neuverarbeitung',
-    'pdf_redaction': 'PDF-Redaktion',
-    'pdf_upload': 'PDF-Upload'
-  };
-  return texts[operation] || operation;
-};
+    analysis: 'Video-Analyse',
+    anonymization: 'Anonymisierung',
+    masking: 'Maskierung',
+    frame_removal: 'Frame-Entfernung',
+    reprocessing: 'Neuverarbeitung',
+    pdf_redaction: 'PDF-Redaktion',
+    pdf_upload: 'PDF-Upload'
+  }
+  return texts[operation] || operation
+}
 
 const getOperationBadgeClass = (operation: string) => {
   const classes: { [key: string]: string } = {
-    'analysis': 'bg-info',
-    'masking': 'bg-warning',
-    'frame_removal': 'bg-danger',
-    'reprocessing': 'bg-primary',
-    'pdf_redaction': 'bg-dark',
-    'pdf_upload': 'bg-info'
-  };
-  return classes[operation] || 'bg-secondary';
-};
+    analysis: 'bg-info',
+    anonymization: 'bg-primary',
+    masking: 'bg-warning',
+    frame_removal: 'bg-danger',
+    reprocessing: 'bg-primary',
+    pdf_redaction: 'bg-dark',
+    pdf_upload: 'bg-info'
+  }
+  return classes[operation] || 'bg-secondary'
+}
 
 // Lifecycle hooks
 onMounted(async () => {
   if (!isNaN(props.fileId)) {
-    mediaStore.setCurrentByKey(resolvedMediaType.value, props.fileId);
+    mediaStore.setCurrentByKey(resolvedMediaType.value, props.fileId)
   }
   if (!isNaN(props.fileId)) {
-    await loadCurrentItemDetails(props.fileId);
+    await loadCurrentItemDetails(props.fileId)
   } else {
-    error.value = 'Ungültige Datei-ID';
+    error.value = 'Ungültige Datei-ID'
   }
-});
+})
 
 // Watchers
-watch(() => props.fileId, async (newId) => {
-  if (newId && !isNaN(newId)) {
-    mediaStore.setCurrentByKey(resolvedMediaType.value, newId);
-    await loadCurrentItemDetails(newId);
+watch(
+  () => [props.fileId, resolvedMediaType.value] as const,
+  async ([newId]) => {
+    if (newId && !isNaN(newId)) {
+      mediaStore.setCurrentByKey(resolvedMediaType.value, newId)
+      await loadCurrentItemDetails(newId)
+    }
   }
-});
+)
+
+watch(
+  pdfPageBoxes,
+  () => {
+    pdf_correction = null
+    redactedPdfBytes.value = null
+    if (redactedPdfUrl.value) {
+      URL.revokeObjectURL(redactedPdfUrl.value)
+    }
+    redactedPdfUrl.value = ''
+  },
+  { deep: true }
+)
 
 watch(pdfScale, async () => {
-  if (!isPdfCorrection.value || !pdfDocument) return;
-  await renderCurrentPdfPage();
-});
+  if (!isPdfCorrection.value || !pdfDocument) {
+    return
+  }
+  await renderCurrentPdfPage()
+})
 
 watch(activePdfPage, () => {
-  if (!isPdfCorrection.value) return;
-  drawPdfOverlay();
-});
+  if (!isPdfCorrection.value) {
+    return
+  }
+  drawPdfOverlay()
+})
 
 onUnmounted(() => {
+  selection_generation += 1
+  operation_generation += 1
+  isProcessing.value = false
   if (redactedPdfUrl.value) {
-    URL.revokeObjectURL(redactedPdfUrl.value);
+    URL.revokeObjectURL(redactedPdfUrl.value)
   }
-});
+})
+const blackeningButtonLabel = computed(() =>
+  isBlackeningOutsideSegments.value
+    ? 'Schwärzung wird gestartet...'
+    : 'Außerhalb-Segmente schwärzen'
+)
+
+const ocrEnginesLabel = computed(
+  () => anonymizationStatus.value?.ocrEngines.join(', ') || 'Nicht gemeldet'
+)
+
+const ocrAbsenceDescription = computed(() =>
+  selectedStrategy.value === 'detector_assisted'
+    ? 'Nicht Teil dieses All-Frame-Maskierungslaufs'
+    : 'Nicht Teil dieses Prozessorregion-Laufs'
+)
+
+const reviewRequirementLabel = computed(() =>
+  anonymizationStatus.value?.reviewRequired
+    ? 'Menschliche Freigabe erforderlich'
+    : 'Nicht freigabefähig'
+)
+
+const selectedStrategyLabel = computed(() =>
+  selectedStrategy.value === 'detector_assisted'
+    ? 'Detektor-gestützte All-Frame-Anonymisierung'
+    : 'Prozessorregion'
+)
+
+const selectedStrategyDescription = computed(() =>
+  selectedStrategy.value === 'detector_assisted'
+    ? 'Empfohlen: PHI-Modell-gestützte Schwärzung in jedem Frame.'
+    : 'Legacy-Verfahren: dauerhafte statische Maskierung der gewählten Prozessorregion.'
+)
+
+const previewTitle = computed(() =>
+  previewMode.value === 'original' ? 'Original-Video' : 'Verarbeitetes Video'
+)
+const currentStatusLabel = computed(() =>
+  getStatusText(currentVideo.value?.anonymizationStatus ?? 'unknown')
+)
+const currentFileSizeLabel = computed(() => formatFileSize(currentVideo.value?.fileSize ?? null))
+const sensitiveFrameCountLabel = computed(
+  () => videoMetadata.value.sensitiveFrameCount || 'Unbekannt'
+)
+const sensitiveRatioLabel = computed(() => formatPercentage(videoMetadata.value.sensitiveRatio))
 </script>
 
 <style scoped>
@@ -1705,18 +2661,19 @@ onUnmounted(() => {
   cursor: pointer;
 }
 
-.progress {
+.correction-progress {
+  height: 8px;
   background-color: #e9ecef;
 }
 
-.table th {
+.history-heading {
   border-top: none;
   font-weight: 600;
   color: #6c757d;
   font-size: 0.875rem;
 }
 
-.table td {
+.history-cell {
   vertical-align: middle;
 }
 
@@ -1734,14 +2691,14 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
-  .video-container video {
+  .correction-video {
     height: 300px;
   }
 
   .pdf-preview-frame {
     min-height: 420px;
   }
-  
+
   .card-body {
     padding: 1rem 0.75rem;
   }

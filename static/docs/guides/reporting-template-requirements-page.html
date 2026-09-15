@@ -3,7 +3,7 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="API Reference" href="../api/index.html"><link rel="prev" title="Pydantic V2 Cheat Sheet" href="pydantic-cheatsheet.html">
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="API Reference" href="../api/index.html"><link rel="prev" title="Core Concept Type Matrix" href="core-concept-type-matrix.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
         <title>Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage) - lx-annotate Documentation</title>
@@ -194,20 +194,24 @@
   <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="general-documentation.html">General Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deployment-strategy.html">Deployment Strategy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="runtime-environment-contract-test.html">Runtime environment migration and rollback record</a></li>
+<li class="toctree-l1"><a class="reference internal" href="encrypted-storage-process.html">Encrypted Storage Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="secure-backup-disaster-recovery.html">Secure Backup and Disaster Recovery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hub-export-workflow.html">Hub Export Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hub-storage-load-balancing.html">Hub storage load balancing and production-test runbook</a></li>
 <li class="toctree-l1"><a class="reference internal" href="asset-deployment.html">Frontend Asset Deployment Contract</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../assisted-reporting-report.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wheel-deployment.html">Wheel Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pypi.html">PyPI Publishing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ai-training-data-export.html">AI Training Data Export</a></li>
 <li class="toctree-l1"><a class="reference internal" href="segment-annotation-workflow.html">Segment Annotation Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="frame-annotation-availability.html">Frame Annotation Availability</a></li>
 <li class="toctree-l1"><a class="reference internal" href="anonymization-validation-correction-workflow.html">Anonymization Validation and Correction Workflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html">1. Always Use Strong Typing (Not Strings)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#enforce-timezone-awareness-crucial">2. Enforce Timezone Awareness (Crucial)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#stick-to-iso-8601-standards">3. Stick to ISO 8601 Standards</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#validating-business-logic-past-future">4. Validating Business Logic (Past/Future)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#handling-now-and-defaults">5. Handling “Now” and Defaults</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#serialization-json-output">6. Serialization (JSON Output)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#summary-checklist">Summary Checklist</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#example-putting-it-all-together">7. Example: Putting it all together</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#next-step">Next Step</a></li>
-<li class="toctree-l1"><a class="reference internal" href="pydantic-cheatsheet.html">Pydantic V2 Cheat Sheet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dtypes-findings-migration.html">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="terminology-delivery.html">Governed terminology delivery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-contract.html">Core Concept Contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-readiness-verdict.html">Core Concept Readiness Verdict</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-type-matrix.html">Core Concept Type Matrix</a></li>
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
@@ -279,6 +283,56 @@
 <li><p>Route: <code class="docutils literal notranslate"><span class="pre">/reporting/:patient_examination_id/template-requirements</span></code></p></li>
 </ul>
 <p>This means it is part of the guided multi-step reporting process, not a standalone page.</p>
+</section>
+<section id="publication-and-runtime-visibility">
+<h2>Publication And Runtime Visibility<a class="headerlink" href="#publication-and-runtime-visibility" title="Link to this heading">¶</a></h2>
+<p>The template builder runs inside <code class="docutils literal notranslate"><span class="pre">ReportingShell</span></code> and uses the shell’s active
+knowledge-base module. Saving a template creates a draft; it does not make the
+template available for clinical reporting. Publication remains a separate,
+authorized action and succeeds only after the backend readiness compiler reports
+that the template can be published.</p>
+<p>After a successful publish or unpublish action, the builder notifies the shell.
+The shell then reloads the published templates for the active module and current
+examination. Normal reporting routes continue to receive only templates whose
+lifecycle is <code class="docutils literal notranslate"><span class="pre">published</span></code> and whose production readiness is valid. If a template
+used by an existing draft is unpublished, the draft is retained but cannot be
+treated as verified against an available production template.</p>
+<p>Templates shipped inside the <code class="docutils literal notranslate"><span class="pre">lx-dtypes</span></code> wheel are immutable release content.
+They are published through the protected package release workflow, not by
+writing into <code class="docutils literal notranslate"><span class="pre">site-packages</span></code> at runtime. To author or change lifecycle state,
+first import an editable terminology bundle so the API can resolve one explicit,
+writable module root and version.</p>
+</section>
+<section id="examination-and-indication-resolution-contract">
+<h2>Examination And Indication Resolution Contract<a class="headerlink" href="#examination-and-indication-resolution-contract" title="Link to this heading">¶</a></h2>
+<p>The reporting shell owns the active patient-examination context. It passes the
+canonical examination name to nested reporting pages while the reporting flow
+store retains the patient-examination ID and, when available, the numeric
+examination concept ID.</p>
+<p>Frontend pages must resolve that identity through
+<code class="docutils literal notranslate"><span class="pre">reportingExaminationResolution.ts</span></code>. They must not independently select the
+first examination with a similar label. Resolution is valid only when one of
+these conditions holds:</p>
+<ul class="simple">
+<li><p>the stored examination ID exists and its canonical name agrees with the
+patient-examination payload; or</p></li>
+<li><p>no ID is stored and the canonical name identifies exactly one examination in
+the loaded catalog.</p></li>
+</ul>
+<p>Missing IDs, missing names, duplicate canonical names, and ID/name
+contradictions are visible workflow errors. These states must not trigger a
+broader indication, finding, or report-template query.</p>
+<p>API indication payloads enter the frontend through
+<code class="docutils literal notranslate"><span class="pre">reportingIndicationContract.ts</span></code>. This boundary separately normalizes:</p>
+<ul class="simple">
+<li><p>persisted indication selections used by the reporting flow; and</p></li>
+<li><p>indication and indication-choice options displayed by the report editor.</p></li>
+</ul>
+<p>An indication-choice row is never treated as an indication node. The report
+editor loads options for the resolved examination ID and patient-examination
+ID, while report-template discovery uses the same resolved canonical
+examination name. This shared resolution path keeps colonoscopy findings,
+indications, and report templates in one coherent clinical context.</p>
 </section>
 <hr class="docutils" />
 <section id="what-you-see-on-the-page">
@@ -467,6 +521,15 @@
 </section>
 </section>
 <hr class="docutils" />
+<section id="related-specialized-guides">
+<h2>Related Specialized Guides<a class="headerlink" href="#related-specialized-guides" title="Link to this heading">¶</a></h2>
+<p>For detailed operational instructions, continue with:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="segment-annotation-workflow.html"><span class="std std-doc">Segment Annotation Workflow</span></a></p></li>
+<li><p><a class="reference internal" href="anonymization-validation-correction-workflow.html"><span class="std std-doc">Anonymization Validation and Correction Workflow</span></a></p></li>
+</ul>
+</section>
+<hr class="docutils" />
 <section id="quick-practical-path-for-clinical-documentation">
 <h2>Quick Practical Path for Clinical Documentation<a class="headerlink" href="#quick-practical-path-for-clinical-documentation" title="Link to this heading">¶</a></h2>
 <p>If the primary objective is to document findings quickly and safely:</p>
@@ -641,7 +704,7 @@
 <h2>Training Checklist (For Clinical Onboarding)<a class="headerlink" href="#training-checklist-for-clinical-onboarding" title="Link to this heading">¶</a></h2>
 <p>Use this checklist when teaching staff.</p>
 <ol class="arabic simple">
-<li><p>Can the user identify current <code class="docutils literal notranslate"><span class="pre">PatientExamination-ID</span></code>?</p></li>
+<li><p>Can the user select the intended case and examination without relying on a numerical ID?</p></li>
 <li><p>Can the user explain the purpose of each reporting step/page?</p></li>
 <li><p>Can the user load templates for the examination?</p></li>
 <li><p>Can the user select the correct template?</p></li>
@@ -663,6 +726,26 @@
 <li><p><strong>Recompute</strong>: Re-run backend logic after changes.</p></li>
 <li><p><strong>Patient examination</strong>: The concrete clinical case instance used for reporting.</p></li>
 </ul>
+</section>
+<hr class="docutils" />
+<section id="canonical-language-and-progressive-disclosure">
+<h2>Canonical Language and Progressive Disclosure<a class="headerlink" href="#canonical-language-and-progressive-disclosure" title="Link to this heading">¶</a></h2>
+<p>Reporting presentation follows the terminology supplied by <code class="docutils literal notranslate"><span class="pre">lx_dtypes</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code> is the stable graph and API identity and must not be translated locally.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">name_de</span></code> and <code class="docutils literal notranslate"><span class="pre">name_en</span></code> are the canonical user-facing terms. The frontend normalizes them to
+<code class="docutils literal notranslate"><span class="pre">nameDe</span></code> and <code class="docutils literal notranslate"><span class="pre">nameEn</span></code> and selects the requested report language without maintaining a parallel
+clinical terminology map.</p></li>
+<li><p>Report-template titles follow the same contract; template-specific title overrides in the frontend
+are not permitted.</p></li>
+<li><p>If a localized name is absent, the stable <code class="docutils literal notranslate"><span class="pre">name</span></code> is shown. A guessed translation must not be
+substituted.</p></li>
+</ul>
+<p>The primary reporting viewport keeps case selection, examination selection, template selection,
+report language, and the short start guide visible. Primary labels use clinical terms and dates,
+not database IDs. Technical case and report references, terminology version, media state, and other
+supporting context remain available through collapsed details. Lists are constrained by the active
+patient, case, examination, and terminology context before they are rendered.</p>
 </section>
 <hr class="docutils" />
 <section id="related-technical-files-for-admins-developers">
@@ -692,14 +775,14 @@
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="pydantic-cheatsheet.html">
+          <a class="prev-page" href="core-concept-type-matrix.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Pydantic V2 Cheat Sheet</div>
+                <div class="title">Core Concept Type Matrix</div>
                 
               </div>
             </a>
@@ -736,6 +819,8 @@
 <li><a class="reference internal" href="#">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a><ul>
 <li><a class="reference internal" href="#audience-and-purpose">Audience and Purpose</a></li>
 <li><a class="reference internal" href="#where-this-page-is-used">Where This Page Is Used</a></li>
+<li><a class="reference internal" href="#publication-and-runtime-visibility">Publication And Runtime Visibility</a></li>
+<li><a class="reference internal" href="#examination-and-indication-resolution-contract">Examination And Indication Resolution Contract</a></li>
 <li><a class="reference internal" href="#what-you-see-on-the-page">What You See on the Page</a><ul>
 <li><a class="reference internal" href="#template-selection">1. Template Selection</a></li>
 <li><a class="reference internal" href="#template-requirement-sets">2. Template &amp; Requirement Sets</a></li>
@@ -754,6 +839,7 @@
 <li><a class="reference internal" href="#step-7-finalization-artifacts">Step 7: Finalization / Artifacts</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#related-specialized-guides">Related Specialized Guides</a></li>
 <li><a class="reference internal" href="#quick-practical-path-for-clinical-documentation">Quick Practical Path for Clinical Documentation</a></li>
 <li><a class="reference internal" href="#deep-link-behavior">Deep Link Behavior</a></li>
 <li><a class="reference internal" href="#field-and-button-reference">Field and Button Reference</a><ul>
@@ -775,6 +861,7 @@
 </li>
 <li><a class="reference internal" href="#training-checklist-for-clinical-onboarding">Training Checklist (For Clinical Onboarding)</a></li>
 <li><a class="reference internal" href="#glossary-plain-language">Glossary (Plain Language)</a></li>
+<li><a class="reference internal" href="#canonical-language-and-progressive-disclosure">Canonical Language and Progressive Disclosure</a></li>
 <li><a class="reference internal" href="#related-technical-files-for-admins-developers">Related Technical Files (for Admins/Developers)</a></li>
 </ul>
 </li>
@@ -787,7 +874,7 @@
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=d45e8c67"></script>
+</div><script src="../_static/documentation_options.js?v=010db75e"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

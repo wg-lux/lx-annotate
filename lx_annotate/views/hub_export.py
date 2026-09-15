@@ -1,0 +1,216 @@
+from __future__ import annotations
+
+from django.core.exceptions import ObjectDoesNotExist
+from endoreg_db.models import NetworkNode
+from pydantic import ValidationError
+from rest_framework import status
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+)
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from lx_annotate.hub.hub_export_contracts import (
+    HubEligibleVideoOffloadRequest,
+    HubExportMutationRequest,
+)
+from lx_annotate.hub.hub_export_jobs import (
+    build_hub_export_overview,
+    mark_resources_for_hub_upload,
+    queue_all_eligible_videos_for_hub_upload,
+    require_normal_sender_target_hub,
+    resolve_target_hub_node,
+    retry_failed_outbound_job,
+    unmark_resources_for_hub_upload,
+)
+from lx_annotate.permissions import LifecyclePolicyPermission, lifecycle_center_ids
+
+
+def _resolve_target_node(target_node_key: str | None) -> NetworkNode | None:
+    normalized = str(target_node_key or "").strip()
+    if normalized:
+        return resolve_target_hub_node(target_node_key=normalized)
+    try:
+        return require_normal_sender_target_hub()
+    except ValueError:
+        return None
+
+
+def _parse_mutation_request(data: object) -> HubExportMutationRequest:
+    return HubExportMutationRequest.model_validate(data)
+
+
+def _parse_eligible_video_offload_request(
+    data: object,
+) -> HubEligibleVideoOffloadRequest:
+    return HubEligibleVideoOffloadRequest.model_validate(data)
+
+
+def _validation_errors(exc: ValidationError) -> object:
+    return exc.errors(include_url=False, include_input=False)
+
+
+@api_view(["GET"])
+@authentication_classes([SessionAuthentication])
+@permission_classes([IsAuthenticated, LifecyclePolicyPermission])
+def hub_export_overview(request):
+    center_ids = lifecycle_center_ids(request.user)
+    target_node_key = request.query_params.get("target_node_key")
+    target_node = (
+        resolve_target_hub_node(target_node_key=target_node_key)
+        if str(target_node_key or "").strip()
+        else _resolve_target_node(None)
+    )
+    payload = build_hub_export_overview(
+        target_node=target_node, allowed_center_ids=center_ids
+    )
+    return Response(payload, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@authentication_classes([SessionAuthentication])
+@permission_classes([IsAuthenticated, LifecyclePolicyPermission])
+def hub_export_mark(request):
+    center_ids = lifecycle_center_ids(request.user)
+    try:
+        mutation = _parse_mutation_request(request.data or {})
+    except ValidationError as exc:
+        return Response(
+            {"errors": _validation_errors(exc)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    target_node = _resolve_target_node(mutation.target_node_key)
+    if target_node is None:
+        return Response(
+            {
+                "errors": {
+                    "target_node_key": "No active central hub node is configured.",
+                },
+            },
+            status=status.HTTP_409_CONFLICT,
+        )
+
+    try:
+        jobs = mark_resources_for_hub_upload(
+            resource_refs=[
+                resource.model_dump(mode="json") for resource in mutation.resources
+            ],
+            target_node=target_node,
+            marked_by=request.user,
+            allowed_center_ids=center_ids,
+        )
+    except (ObjectDoesNotExist, ValueError) as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(
+        {
+            "marked_count": len(jobs),
+            "target_node_key": target_node.node_key,
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["POST"])
+@authentication_classes([SessionAuthentication])
+@permission_classes([IsAuthenticated, LifecyclePolicyPermission])
+def hub_export_offload_eligible_videos(request):
+    center_ids = lifecycle_center_ids(request.user)
+    try:
+        mutation = _parse_eligible_video_offload_request(request.data or {})
+    except ValidationError as exc:
+        return Response(
+            {"errors": _validation_errors(exc)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    target_node = _resolve_target_node(mutation.target_node_key)
+    if target_node is None:
+        return Response(
+            {
+                "errors": {
+                    "target_node_key": "No active central hub node is configured.",
+                },
+            },
+            status=status.HTTP_409_CONFLICT,
+        )
+
+    try:
+        result = queue_all_eligible_videos_for_hub_upload(
+            target_node=target_node,
+            marked_by=request.user,
+            allowed_center_ids=center_ids,
+        )
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(result.model_dump(mode="json"), status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@authentication_classes([SessionAuthentication])
+@permission_classes([IsAuthenticated, LifecyclePolicyPermission])
+def hub_export_retry(request, outbound_job_id):
+    center_ids = lifecycle_center_ids(request.user)
+    try:
+        result = retry_failed_outbound_job(
+            outbound_job_id=str(outbound_job_id),
+            requested_by=request.user,
+            allowed_center_ids=center_ids,
+        )
+    except ObjectDoesNotExist:
+        return Response(
+            {"detail": "Hub transfer job not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except ValueError as exc:
+        return Response(
+            {"detail": str(exc)},
+            status=status.HTTP_409_CONFLICT,
+        )
+    return Response(result.model_dump(mode="json"), status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@authentication_classes([SessionAuthentication])
+@permission_classes([IsAuthenticated, LifecyclePolicyPermission])
+def hub_export_unmark(request):
+    center_ids = lifecycle_center_ids(request.user)
+    try:
+        mutation = _parse_mutation_request(request.data or {})
+    except ValidationError as exc:
+        return Response(
+            {"errors": _validation_errors(exc)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    target_node = _resolve_target_node(mutation.target_node_key)
+    if target_node is None:
+        return Response(
+            {
+                "errors": {
+                    "target_node_key": "No active central hub node is configured.",
+                },
+            },
+            status=status.HTTP_409_CONFLICT,
+        )
+
+    try:
+        deleted_count = unmark_resources_for_hub_upload(
+            resource_refs=[
+                resource.model_dump(mode="json") for resource in mutation.resources
+            ],
+            target_node=target_node,
+            allowed_center_ids=center_ids,
+        )
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(
+        {
+            "unmarked_count": deleted_count,
+            "target_node_key": target_node.node_key,
+        },
+        status=status.HTTP_200_OK,
+    )

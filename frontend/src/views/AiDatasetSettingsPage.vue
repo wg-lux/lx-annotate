@@ -1,0 +1,939 @@
+<template>
+  <div class="dataset-settings-page container-fluid py-4 px-3 px-lg-4">
+    <section class="page-heading">
+      <div>
+        <p class="section-kicker">KI-Datensatz</p>
+        <h1 class="page-heading__title">Training-Manifest</h1>
+        <p class="heading-copy">
+          Verwalten Sie Datensätze und prüfen Sie die Manifest-Konfiguration für das Modelltraining.
+        </p>
+      </div>
+      <button
+        type="button"
+        class="btn btn-outline-secondary btn-sm"
+        :disabled="isBusy"
+        data-test="reload-options"
+        @click="loadOptions"
+      >
+        Neu laden
+      </button>
+    </section>
+
+    <div class="settings-layout">
+      <section class="settings-panel">
+        <div class="panel-heading">
+          <h2 class="panel-heading__title">Datensatz</h2>
+          <span
+            class="status-chip"
+            :class="{ 'status-chip-busy': isBusy }"
+          >
+            {{ statusLabel }}
+          </span>
+        </div>
+
+        <form
+          class="create-dataset-panel"
+          data-test="create-dataset-form"
+          @submit.prevent="createDataset"
+        >
+          <div>
+            <h3 class="create-dataset-panel__title">Neuen Datensatz erstellen</h3>
+            <p class="create-dataset-panel__description">
+              Erstellt einen leeren Datensatz und wählt ihn direkt für die Manifest-Vorschau aus.
+            </p>
+          </div>
+          <div class="create-dataset-grid">
+            <label class="field-group">
+              <span>Name</span>
+              <input
+                v-model="createDatasetForm.name"
+                class="form-control"
+                data-test="new-dataset-name-input"
+                :disabled="isBusy"
+                placeholder="z. B. Koloskopie Training Mai 2026"
+                maxlength="255"
+              />
+            </label>
+
+            <label class="field-group">
+              <span>Datensatztyp</span>
+              <select
+                v-model="createDatasetForm.datasetType"
+                class="form-select"
+                data-test="new-dataset-type-select"
+                :disabled="isBusy"
+              >
+                <option value="image">Bilddatensatz</option>
+                <option value="video">Video-Segmentdatensatz</option>
+              </select>
+            </label>
+
+            <button
+              type="submit"
+              class="btn btn-outline-primary create-dataset-button"
+              data-test="create-dataset-button"
+              :disabled="!canCreateDataset"
+            >
+              {{ createDatasetLabel }}
+            </button>
+          </div>
+        </form>
+
+        <div
+          v-if="createdDatasetMessage"
+          class="alert alert-success mb-0 mt-3"
+          role="status"
+        >
+          {{ createdDatasetMessage }}
+        </div>
+
+        <form
+          class="attach-annotations-panel"
+          data-test="attach-annotations-form"
+          @submit.prevent="attachExistingAnnotations"
+        >
+          <div>
+            <h3 class="attach-annotations-panel__title">Bestehende Annotationen hinzufügen</h3>
+          </div>
+          <div class="attach-options-grid">
+            <label class="check-row">
+              <input
+                v-model="attachForm.includeFrameAnnotations"
+                class="form-check-input"
+                type="checkbox"
+                data-test="attach-frame-annotations-checkbox"
+                :disabled="isBusy"
+              />
+              <span>Frame-Annotationen</span>
+            </label>
+            <label class="check-row">
+              <input
+                v-model="attachForm.includeVideoAnnotations"
+                class="form-check-input"
+                type="checkbox"
+                data-test="attach-video-annotations-checkbox"
+                :disabled="isBusy"
+              />
+              <span>Video-Segmente</span>
+            </label>
+            <button
+              type="submit"
+              class="btn btn-outline-primary attach-annotations-button"
+              data-test="attach-existing-annotations"
+              :disabled="!canAttachExistingAnnotations"
+            >
+              {{ attachAnnotationsLabel }}
+            </button>
+          </div>
+        </form>
+
+        <div
+          v-if="attachmentMessage"
+          class="alert alert-success mb-0 mt-3"
+          role="status"
+        >
+          {{ attachmentMessage }}
+        </div>
+
+        <div class="settings-grid">
+          <label class="field-group">
+            <span>KI-Datensatz</span>
+            <select
+              v-model="selectedDatasetId"
+              class="form-select"
+              data-test="dataset-select"
+              :disabled="isBusy"
+            >
+              <option value="">Datensatz auswählen</option>
+              <option
+                v-for="dataset in datasetOptions"
+                :key="dataset.id"
+                :value="String(dataset.id)"
+              >
+                {{ dataset.label }} - {{ datasetTypeLabel(dataset.datasetType) }} - ID
+                {{ dataset.id }}
+              </option>
+            </select>
+          </label>
+
+          <label class="field-group">
+            <span>Label-Set</span>
+            <select
+              v-model="form.labelSetId"
+              class="form-select"
+              data-test="label-set-select"
+              :disabled="isBusy"
+            >
+              <option value="">Automatisch erkennen</option>
+              <option
+                v-for="group in labelSetOptions"
+                :key="group.id"
+                :value="String(group.id)"
+              >
+                {{ group.name }} v{{ group.version }} - {{ group.labelCount }} Labels
+              </option>
+            </select>
+          </label>
+
+          <label class="field-group">
+            <span>Aktuelle Vorverarbeitung</span>
+            <select
+              v-model="form.preprocessingStrategy"
+              class="form-select"
+              data-test="preprocessing-strategy-select"
+              :disabled="isBusy"
+            >
+              <option value="preserve_dimensions_black_mask">
+                Dimensionen mit schwarzer Maske beibehalten
+              </option>
+              <option value="crop_to_endoscope_roi">Endoskop-ROI zuschneiden</option>
+            </select>
+          </label>
+
+          <label class="field-group">
+            <span>Modelleingabe</span>
+            <select
+              v-model="form.recommendedModelInputStrategy"
+              class="form-select"
+              data-test="model-input-strategy-select"
+              :disabled="isBusy"
+            >
+              <option value="crop_to_endoscope_roi">Endoskop-ROI zuschneiden</option>
+              <option value="preserve_dimensions_black_mask">
+                Dimensionen mit schwarzer Maske beibehalten
+              </option>
+            </select>
+          </label>
+
+          <label class="field-group">
+            <span>Informationsquellen</span>
+            <input
+              v-model="informationSourceInput"
+              class="form-control"
+              data-test="information-source-input"
+              :disabled="isBusy"
+              placeholder="manual_annotation, prediction"
+            />
+          </label>
+
+          <div class="check-column">
+            <label class="check-row">
+              <input
+                v-model="form.treatUnlabeledAsNegative"
+                class="form-check-input"
+                type="checkbox"
+                data-test="unknowns-negative-checkbox"
+                :disabled="isBusy"
+              />
+              <span>Unbekannte als negativ trainieren</span>
+            </label>
+            <label class="check-row">
+              <input
+                v-model="form.checkFrameFormat"
+                class="form-check-input"
+                type="checkbox"
+                data-test="check-frame-format-checkbox"
+                :disabled="isBusy"
+              />
+              <span>Frame-Format prüfen</span>
+            </label>
+            <label class="check-row">
+              <input
+                v-model="form.includeFilePaths"
+                class="form-check-input"
+                type="checkbox"
+                data-test="include-file-paths-checkbox"
+                :disabled="isBusy"
+              />
+              <span>Lokale Dateipfade einschließen</span>
+            </label>
+          </div>
+        </div>
+
+        <div
+          v-if="errorMessage"
+          class="alert alert-warning mb-0 mt-3"
+          role="alert"
+        >
+          {{ errorMessage }}
+        </div>
+
+        <div class="actions-row">
+          <button
+            type="button"
+            class="btn btn-primary"
+            data-test="build-training-manifest"
+            :disabled="isBusy || !selectedDatasetId"
+            @click="buildManifest"
+          >
+            {{ buildManifestLabel }}
+          </button>
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            :disabled="isBusy"
+            @click="resetManifest"
+          >
+            Ergebnis zurücksetzen
+          </button>
+        </div>
+      </section>
+
+      <section class="settings-panel summary-panel">
+        <div class="panel-heading">
+          <h2 class="panel-heading__title">Manifest-Zusammenfassung</h2>
+          <span
+            v-if="manifestPreview"
+            class="status-chip status-chip-ready"
+            data-test="manifest-ready"
+          >
+            {{ manifestPreview.summary.sampleCount }} Beispiele
+          </span>
+        </div>
+
+        <div
+          v-if="!manifestPreview"
+          class="empty-state"
+        >
+          Noch keine Manifest-Vorschau vorhanden.
+        </div>
+
+        <template v-else>
+          <div
+            class="summary-grid"
+            data-test="manifest-summary"
+          >
+            <div class="metric-tile">
+              <span class="metric-tile__label">Labels</span>
+              <strong class="metric-tile__value">{{ manifestPreview.summary.labelCount }}</strong>
+            </div>
+            <div class="metric-tile">
+              <span class="metric-tile__label">Beispiele</span>
+              <strong class="metric-tile__value">{{ manifestPreview.summary.sampleCount }}</strong>
+            </div>
+            <div class="metric-tile">
+              <span class="metric-tile__label">Frame-Prüfung</span>
+              <strong class="metric-tile__value">{{ frameFormatLabel }}</strong>
+            </div>
+            <div class="metric-tile">
+              <span class="metric-tile__label">Crop-Vorlagen</span>
+              <strong class="metric-tile__value">{{ cropTemplateCount }}</strong>
+            </div>
+          </div>
+
+          <dl
+            class="format-list"
+            data-test="frame-format-summary"
+          >
+            <div class="format-list__item">
+              <dt class="format-list__term">Format</dt>
+              <dd class="format-list__value">{{ frameFormatDetail }}</dd>
+            </div>
+            <div class="format-list__item">
+              <dt class="format-list__term">Vorverarbeitung</dt>
+              <dd class="format-list__value">
+                {{ strategyLabel(manifestPreview.summary.frameFormat.preprocessingStrategy) }}
+              </dd>
+            </div>
+            <div class="format-list__item">
+              <dt class="format-list__term">Modelleingabe</dt>
+              <dd class="format-list__value">
+                {{
+                  strategyLabel(manifestPreview.summary.frameFormat.recommendedModelInputStrategy)
+                }}
+              </dd>
+            </div>
+          </dl>
+
+          <details class="manifest-json">
+            <summary class="manifest-json__disclosure">lx-ai-core-Payload</summary>
+            <pre
+              class="manifest-json__content"
+              data-test="lx-ai-core-manifest-json"
+              >{{ lxAiCoreManifestJson }}</pre>
+          </details>
+        </template>
+      </section>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import {
+  attachAiDatasetAnnotations,
+  buildAiDatasetTrainingManifest,
+  createAiDataset,
+  fetchAiDatasetLabelSets,
+  fetchAiDatasetOptions,
+  type AiDatasetAttachmentResult,
+  type AiDatasetModelType,
+  type AiDatasetType,
+  type AiDatasetFrameFormatStrategy,
+  type AiDatasetLabelSetOption,
+  type AiDatasetOption,
+  type AiDatasetTrainingManifestConfig,
+  type AiDatasetTrainingManifestPreview
+} from '@/api/aiDatasetApi'
+import { isAxiosError } from 'axios'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('ai-dataset-settings')
+
+interface AiDatasetValidationErrors {
+  name?: string
+  datasetType?: string
+  aiModelType?: string
+  includeAllAnnotations?: string
+  include_all_annotations?: string
+  includeFrameAnnotations?: string
+  include_frame_annotations?: string
+  includeVideoAnnotations?: string
+  include_video_annotations?: string
+  manifest?: string
+  labelSetId?: string
+  preprocessingStrategy?: string
+  recommendedModelInputStrategy?: string
+}
+
+interface AiDatasetErrorPayload {
+  errors?: AiDatasetValidationErrors
+}
+
+function aiDatasetValidationErrors(error: unknown): AiDatasetValidationErrors {
+  return isAxiosError<AiDatasetErrorPayload>(error) ? error.response?.data.errors || {} : {}
+}
+
+const datasetOptions = ref<AiDatasetOption[]>([])
+const labelSetOptions = ref<AiDatasetLabelSetOption[]>([])
+const selectedDatasetId = ref('')
+const loadingOptions = ref(true)
+const buildingManifest = ref(false)
+const creatingDataset = ref(false)
+const attachingAnnotations = ref(false)
+const errorMessage = ref('')
+const createdDatasetMessage = ref('')
+const attachmentMessage = ref('')
+const attachmentResult = ref<AiDatasetAttachmentResult | null>(null)
+const manifestPreview = ref<AiDatasetTrainingManifestPreview | null>(null)
+const informationSourceInput = ref('')
+
+const createDatasetForm = reactive<{
+  name: string
+  datasetType: AiDatasetType
+}>({
+  name: '',
+  datasetType: 'image'
+})
+
+const attachForm = reactive({
+  includeFrameAnnotations: true,
+  includeVideoAnnotations: true
+})
+
+const form = reactive<AiDatasetTrainingManifestConfig>({
+  labelSetId: '',
+  treatUnlabeledAsNegative: false,
+  includeFilePaths: false,
+  checkFrameFormat: true,
+  preprocessingStrategy: 'preserve_dimensions_black_mask',
+  recommendedModelInputStrategy: 'crop_to_endoscope_roi',
+  informationSourceNames: null
+})
+
+const createDatasetLabel = computed(() =>
+  creatingDataset.value ? 'Datensatz wird erstellt...' : 'Datensatz erstellen'
+)
+const attachAnnotationsLabel = computed(() =>
+  attachingAnnotations.value ? 'Annotationen werden hinzugefügt...' : 'Annotationen hinzufügen'
+)
+const buildManifestLabel = computed(() =>
+  buildingManifest.value ? 'Manifest wird erstellt...' : 'Manifest-Vorschau erstellen'
+)
+
+const isBusy = computed(
+  () =>
+    loadingOptions.value ||
+    buildingManifest.value ||
+    creatingDataset.value ||
+    attachingAnnotations.value
+)
+
+const canCreateDataset = computed(() => createDatasetForm.name.trim().length > 0 && !isBusy.value)
+
+const canAttachExistingAnnotations = computed(
+  () =>
+    Boolean(selectedDatasetId.value) &&
+    (attachForm.includeFrameAnnotations || attachForm.includeVideoAnnotations) &&
+    !isBusy.value
+)
+
+const statusLabel = computed(() => {
+  if (loadingOptions.value) {
+    return 'Optionen werden geladen'
+  }
+  if (creatingDataset.value) {
+    return 'Datensatz wird erstellt'
+  }
+  if (attachingAnnotations.value) {
+    return 'Annotationen werden hinzugefügt'
+  }
+  if (buildingManifest.value) {
+    return 'Vorschau wird erstellt'
+  }
+  return 'Bereit'
+})
+
+const frameFormatLabel = computed(() => {
+  const status = manifestPreview.value?.summary.frameFormat.status
+  if (status === 'passed') {
+    return 'Bestanden'
+  }
+  if (status === 'failed') {
+    return 'Fehlgeschlagen'
+  }
+  return 'Nicht geprüft'
+})
+
+const frameFormatDetail = computed(() => {
+  const frameFormat = manifestPreview.value?.summary.frameFormat
+  if (!frameFormat || frameFormat.status === 'not_checked') {
+    return 'Nicht geprüft'
+  }
+  const dimensions =
+    frameFormat.expectedWidth && frameFormat.expectedHeight
+      ? `${String(frameFormat.expectedWidth)} x ${String(frameFormat.expectedHeight)}`
+      : 'Unbekannte Dimensionen'
+  return `${frameFormat.expectedImageFormat || 'Unbekanntes Format'} - ${dimensions} - ${
+    frameFormat.expectedMode || 'Unbekannter Modus'
+  }`
+})
+
+const cropTemplateCount = computed(() => {
+  const templates = manifestPreview.value?.summary.frameFormat.cropTemplatesByVideoUuid ?? {}
+  return Object.values(templates).filter((template) => Array.isArray(template)).length
+})
+
+const lxAiCoreManifestJson = computed(() => {
+  if (!manifestPreview.value) {
+    return ''
+  }
+  return JSON.stringify(manifestPreview.value.lxAiCoreManifest, null, 2)
+})
+
+function strategyLabel(strategy: AiDatasetFrameFormatStrategy): string {
+  if (strategy === 'crop_to_endoscope_roi') {
+    return 'Endoskop-ROI zuschneiden'
+  }
+  return 'Dimensionen mit schwarzer Maske beibehalten'
+}
+
+function datasetTypeLabel(datasetType: AiDatasetType): string {
+  return datasetType === 'image' ? 'Bild' : 'Video'
+}
+
+function aiModelTypeForDatasetType(datasetType: AiDatasetType): AiDatasetModelType {
+  if (datasetType === 'video') {
+    return 'video_segment_classification'
+  }
+  return 'image_multilabel_classification'
+}
+
+function normalizedInformationSourceNames(): string[] | null {
+  const names = informationSourceInput.value
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean)
+  return names.length ? names : null
+}
+
+async function loadOptions(): Promise<void> {
+  loadingOptions.value = true
+  errorMessage.value = ''
+  try {
+    const [datasets, labelSets] = await Promise.all([
+      fetchAiDatasetOptions(),
+      fetchAiDatasetLabelSets()
+    ])
+    datasetOptions.value = datasets
+    labelSetOptions.value = labelSets
+    if (!selectedDatasetId.value) {
+      const imageDataset =
+        datasets.find((dataset) => dataset.datasetType === 'image' && dataset.isActive) ??
+        datasets.find((dataset) => dataset.datasetType === 'image') ??
+        datasets.at(0)
+      selectedDatasetId.value = imageDataset ? String(imageDataset.id) : ''
+    }
+  } catch (error) {
+    logger.error('options-load-failed', error)
+    errorMessage.value = 'Datensatz-Optionen konnten nicht geladen werden.'
+  } finally {
+    loadingOptions.value = false
+  }
+}
+
+async function createDataset(): Promise<void> {
+  if (!canCreateDataset.value) {
+    return
+  }
+
+  creatingDataset.value = true
+  errorMessage.value = ''
+  createdDatasetMessage.value = ''
+  attachmentMessage.value = ''
+  try {
+    const createdDataset = await createAiDataset({
+      name: createDatasetForm.name.trim(),
+      datasetType: createDatasetForm.datasetType,
+      aiModelType: aiModelTypeForDatasetType(createDatasetForm.datasetType),
+      isActive: true
+    })
+    datasetOptions.value = await fetchAiDatasetOptions()
+    selectedDatasetId.value = String(createdDataset.id)
+    createDatasetForm.name = ''
+    createdDatasetMessage.value = `Datensatz "${createdDataset.label}" wurde erstellt und ausgewählt.`
+    resetManifest()
+  } catch (error: unknown) {
+    logger.error('dataset-create-failed', error)
+    const errors = aiDatasetValidationErrors(error)
+    if (errors.name) {
+      errorMessage.value = 'Bitte geben Sie einen gültigen Namen für den Datensatz ein.'
+    } else if (errors.datasetType) {
+      errorMessage.value = 'Bitte wählen Sie einen gültigen Datensatztyp aus.'
+    } else if (errors.aiModelType) {
+      errorMessage.value = 'Der Modelltyp passt nicht zum ausgewählten Datensatztyp.'
+    } else {
+      errorMessage.value = 'Der Datensatz konnte nicht erstellt werden.'
+    }
+  } finally {
+    creatingDataset.value = false
+  }
+}
+
+async function attachExistingAnnotations(): Promise<void> {
+  if (!canAttachExistingAnnotations.value) {
+    return
+  }
+
+  attachingAnnotations.value = true
+  errorMessage.value = ''
+  createdDatasetMessage.value = ''
+  attachmentMessage.value = ''
+  attachmentResult.value = null
+  manifestPreview.value = null
+  try {
+    attachmentResult.value = await attachAiDatasetAnnotations(selectedDatasetId.value, {
+      includeAllAnnotations: true,
+      includeFrameAnnotations: attachForm.includeFrameAnnotations,
+      includeVideoAnnotations: attachForm.includeVideoAnnotations
+    })
+    attachmentMessage.value =
+      `Datensatz enthält ${String(attachmentResult.value.frameAnnotationCount)} Frame-Annotationen ` +
+      `und ${String(attachmentResult.value.videoAnnotationCount)} Video-Segmente.`
+  } catch (error: unknown) {
+    logger.error('annotations-attach-failed', error)
+    const errors = aiDatasetValidationErrors(error)
+    errorMessage.value =
+      errors.includeAllAnnotations ||
+      errors.include_all_annotations ||
+      errors.includeFrameAnnotations ||
+      errors.include_frame_annotations ||
+      errors.includeVideoAnnotations ||
+      errors.include_video_annotations ||
+      'Die Annotationen konnten nicht hinzugefügt werden.'
+  } finally {
+    attachingAnnotations.value = false
+  }
+}
+
+async function buildManifest(): Promise<void> {
+  if (!selectedDatasetId.value) {
+    return
+  }
+
+  buildingManifest.value = true
+  errorMessage.value = ''
+  createdDatasetMessage.value = ''
+  attachmentMessage.value = ''
+  manifestPreview.value = null
+  try {
+    manifestPreview.value = await buildAiDatasetTrainingManifest(selectedDatasetId.value, {
+      ...form,
+      labelSetId: form.labelSetId || null,
+      informationSourceNames: normalizedInformationSourceNames()
+    })
+  } catch (error: unknown) {
+    logger.error('manifest-build-failed', error)
+    const errors = aiDatasetValidationErrors(error)
+    errorMessage.value =
+      errors.manifest ||
+      errors.labelSetId ||
+      errors.preprocessingStrategy ||
+      errors.recommendedModelInputStrategy ||
+      'Das Manifest konnte mit dieser Konfiguration nicht erstellt werden.'
+  } finally {
+    buildingManifest.value = false
+  }
+}
+
+function resetManifest(): void {
+  manifestPreview.value = null
+  errorMessage.value = ''
+}
+
+onMounted(() => {
+  void loadOptions()
+})
+</script>
+
+<style scoped>
+.dataset-settings-page {
+  color: #172337;
+}
+
+.page-heading,
+.panel-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.page-heading {
+  margin-bottom: 1rem;
+}
+
+.section-kicker {
+  margin: 0 0 0.35rem;
+  color: #2f6f94;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.page-heading .page-heading__title,
+.panel-heading .panel-heading__title {
+  margin: 0;
+}
+
+.page-heading .page-heading__title {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.heading-copy {
+  margin: 0.5rem 0 0;
+  color: #5d7085;
+}
+
+.panel-heading .panel-heading__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(20rem, 0.9fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.settings-panel,
+.empty-state {
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 1rem;
+}
+
+.create-dataset-panel {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  background: #f8fbfc;
+}
+
+.attach-annotations-panel {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #d9e2ec;
+}
+
+.create-dataset-panel .create-dataset-panel__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.attach-annotations-panel .attach-annotations-panel__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.create-dataset-panel .create-dataset-panel__description {
+  margin: 0.3rem 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.create-dataset-grid {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) minmax(11rem, 0.7fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.attach-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(10rem, auto)) minmax(12rem, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.create-dataset-button {
+  min-height: 2.35rem;
+}
+
+.attach-annotations-button {
+  justify-self: start;
+  min-height: 2.35rem;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.field-group {
+  display: grid;
+  gap: 0.35rem;
+  color: #334155;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.check-column {
+  display: grid;
+  gap: 0.65rem;
+  align-content: center;
+}
+
+.check-row {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  margin: 0;
+  color: #334155;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.status-chip {
+  border-radius: 999px;
+  background: #eef3f8;
+  color: #476176;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.25rem 0.65rem;
+  white-space: nowrap;
+}
+
+.status-chip-ready {
+  background: #e7f7ef;
+  color: #20724d;
+}
+
+.status-chip-busy {
+  background: #fff6de;
+  color: #8a620f;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.metric-tile {
+  border: 1px solid #e0e7ef;
+  border-radius: 8px;
+  padding: 0.8rem;
+}
+
+.metric-tile .metric-tile__label,
+.format-list .format-list__term {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.metric-tile .metric-tile__value {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 1.35rem;
+}
+
+.format-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+}
+
+.format-list .format-list__item {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.format-list .format-list__value {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.manifest-json .manifest-json__disclosure {
+  cursor: pointer;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.manifest-json .manifest-json__content {
+  max-height: 28rem;
+  overflow: auto;
+  border-radius: 8px;
+  background: #101828;
+  color: #e5edf7;
+  padding: 1rem;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 991.98px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .create-dataset-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .attach-options-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

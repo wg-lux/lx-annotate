@@ -8,7 +8,7 @@
 
   "db:load-base-data" = {
     description = "Load base DB data";
-    before = [ "devenv:python:uv" "env:export" ];
+    before = [ "env:export" ];
     # "after" brauchst du hier nicht zwingend
     exec = ''
       set -euo pipefail

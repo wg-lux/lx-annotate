@@ -8,39 +8,120 @@ import {
 type UnknownRecord = Record<string, unknown>
 export type JsonMap = Record<string, unknown>
 
-const asRecord = (input: unknown): UnknownRecord =>
-  input && typeof input === 'object' ? (input as UnknownRecord) : {}
-
-const readKey = <T = unknown>(input: UnknownRecord, camel: string, snake: string): T | undefined => {
-  const camelValue = input[camel]
-  if (camelValue !== undefined) return camelValue as T
-  return input[snake] as T | undefined
+function contractError(path: string, expectation: string): TypeError {
+  return new TypeError(`Invalid findings response at ${path}: expected ${expectation}.`)
 }
 
-const asString = (value: unknown): string | undefined => (typeof value === 'string' ? value : undefined)
+function isRecord(input: unknown): input is UnknownRecord {
+  return typeof input === 'object' && input !== null && !Array.isArray(input)
+}
 
-const asNumber = (value: unknown): number | undefined => {
-  if (typeof value === 'number' && Number.isFinite(value)) return value
-  if (typeof value === 'string' && value.trim()) {
-    const parsed = Number(value)
-    if (Number.isFinite(parsed)) return parsed
+function requireRecord(input: unknown, path: string): UnknownRecord {
+  if (!isRecord(input)) {
+    throw contractError(path, 'an object')
   }
-  return undefined
+  return input
 }
 
-const asBoolean = (value: unknown): boolean | undefined =>
-  typeof value === 'boolean' ? value : undefined
+function readKey(input: UnknownRecord, camel: string, snake: string): unknown {
+  if (input[camel] !== undefined) {
+    return input[camel]
+  }
+  return input[snake]
+}
 
-const asStringArray = (value: unknown): string[] => {
-  if (!Array.isArray(value)) return []
+function requirePositiveIntegerValue(value: unknown, path: string): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+    throw contractError(path, 'a positive integer')
+  }
   return value
-    .map((entry) => asString(entry)?.trim())
-    .filter((entry): entry is string => Boolean(entry))
 }
 
-const asJsonMap = (value: unknown): JsonMap => {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
-  return value as JsonMap
+function optionalPositiveIntegerValue(value: unknown, path: string): number | undefined {
+  if (value === undefined || value === null) {
+    return undefined
+  }
+  return requirePositiveIntegerValue(value, path)
+}
+
+function requireName(value: unknown, path: string): string {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw contractError(path, 'a non-empty string')
+  }
+  return value.trim()
+}
+
+function optionalString(value: unknown, path: string): string | undefined {
+  if (value === undefined || value === null) {
+    return undefined
+  }
+  if (typeof value !== 'string') {
+    throw contractError(path, 'a string or null')
+  }
+  return value
+}
+
+function optionalNullableString(value: unknown, path: string): string | null | undefined {
+  if (value === undefined || value === null) {
+    return value
+  }
+  if (typeof value !== 'string') {
+    throw contractError(path, 'a string or null')
+  }
+  return value
+}
+
+function optionalName(value: unknown, path: string): string | undefined {
+  if (value === undefined || value === null) {
+    return undefined
+  }
+  return requireName(value, path)
+}
+
+function requireBoolean(value: unknown, path: string): boolean {
+  if (typeof value !== 'boolean') {
+    throw contractError(path, 'a boolean')
+  }
+  return value
+}
+
+function requireArray(value: unknown, path: string): unknown[] {
+  if (!Array.isArray(value)) {
+    throw contractError(path, 'an array')
+  }
+  return value
+}
+
+function optionalStringArray(value: unknown, path: string): string[] {
+  if (value === undefined) {
+    return []
+  }
+  return requireStringArray(value, path)
+}
+
+function requireStringArray(value: unknown, path: string): string[] {
+  return requireArray(value, path).map((entry, index) =>
+    requireName(entry, `${path}[${String(index)}]`)
+  )
+}
+
+function optionalJsonMap(value: unknown, path: string): JsonMap {
+  if (value === undefined) {
+    return {}
+  }
+  return requireRecord(value, path)
+}
+
+function requireJsonMap(value: unknown, path: string): JsonMap {
+  return requireRecord(value, path)
+}
+
+function requireRows(input: unknown, path: string): unknown[] {
+  if (Array.isArray(input)) {
+    return input
+  }
+  const envelope = requireRecord(input, path)
+  return requireArray(envelope.results, `${path}.results`)
 }
 
 export interface FindingChoiceDto {
@@ -48,6 +129,7 @@ export interface FindingChoiceDto {
   name: string
   description?: string | null
   name_de?: string
+  name_en?: string
   subcategories?: JsonMap
   numerical_descriptors?: JsonMap
 }
@@ -57,6 +139,7 @@ export interface FindingClassificationDto {
   name: string
   description?: string | null
   name_de?: string
+  name_en?: string
   required?: boolean
   classification_types: string[]
   choices: FindingChoiceDto[]
@@ -67,6 +150,7 @@ export interface FindingDto {
   name: string
   description?: string | null
   name_de?: string
+  name_en?: string
   classifications: FindingClassificationDto[]
   location_classifications: FindingClassificationDto[]
   morphology_classifications: FindingClassificationDto[]
@@ -102,16 +186,20 @@ export interface FindingChoice extends Pick<ClassificationChoiceCore, 'name'> {
   id: number
   description?: string
   nameDe?: string
+  nameEn?: string
   displayName?: string
   subcategories: JsonMap
   numericalDescriptors: JsonMap
 }
 
-export interface FindingClassification extends Partial<Pick<ClassificationCore, 'name' | 'description'>> {
+export interface FindingClassification extends Partial<
+  Pick<ClassificationCore, 'name' | 'description'>
+> {
   id: number
   name: string
   description?: string
   nameDe?: string
+  nameEn?: string
   displayName?: string
   required: boolean
   classificationTypes: string[]
@@ -122,6 +210,7 @@ export interface Finding extends Pick<FindingCore, 'name'> {
   id: number
   description: string
   nameDe?: string
+  nameEn?: string
   displayName?: string
   examinations: string[]
   patientExaminationId?: number
@@ -169,51 +258,77 @@ export interface ClassificationSelection {
   choice: number
 }
 
-export const normalizeFindingChoice = (input: unknown): FindingChoice => {
-  const source = asRecord(input)
-  const name = asString(readKey(source, 'name', 'name')) ?? 'unknown'
-  const nameDe = asString(readKey(source, 'nameDe', 'name_de'))
+export const normalizeFindingChoice = (input: unknown, path = 'findingChoice'): FindingChoice => {
+  const source = requireRecord(input, path)
+  const name = requireName(readKey(source, 'name', 'name'), `${path}.name`)
+  const nameDe = optionalName(readKey(source, 'nameDe', 'name_de'), `${path}.nameDe`)
+  const nameEn = optionalName(readKey(source, 'nameEn', 'name_en'), `${path}.nameEn`)
   return {
-    id: asNumber(readKey(source, 'id', 'id')) ?? 0,
+    id: requirePositiveIntegerValue(readKey(source, 'id', 'id'), `${path}.id`),
     name,
     nameDe,
+    nameEn,
     displayName: nameDe ?? name,
-    description: asString(readKey(source, 'description', 'description')),
-    subcategories: asJsonMap(readKey(source, 'subcategories', 'subcategories')),
-    numericalDescriptors: asJsonMap(
-      readKey(source, 'numericalDescriptors', 'numerical_descriptors')
+    description: optionalString(
+      readKey(source, 'description', 'description'),
+      `${path}.description`
+    ),
+    subcategories: optionalJsonMap(
+      readKey(source, 'subcategories', 'subcategories'),
+      `${path}.subcategories`
+    ),
+    numericalDescriptors: optionalJsonMap(
+      readKey(source, 'numericalDescriptors', 'numerical_descriptors'),
+      `${path}.numericalDescriptors`
     )
   }
 }
 
-export const normalizeFindingClassification = (input: unknown): FindingClassification => {
-  const source = asRecord(input)
-  const choicesRaw = readKey(source, 'choices', 'choices')
-  const name = asString(readKey(source, 'name', 'name')) ?? 'unknown'
-  const nameDe = asString(readKey(source, 'nameDe', 'name_de'))
+export const normalizeFindingClassification = (
+  input: unknown,
+  path = 'findingClassification'
+): FindingClassification => {
+  const source = requireRecord(input, path)
+  const name = requireName(readKey(source, 'name', 'name'), `${path}.name`)
+  const nameDe = optionalName(readKey(source, 'nameDe', 'name_de'), `${path}.nameDe`)
+  const nameEn = optionalName(readKey(source, 'nameEn', 'name_en'), `${path}.nameEn`)
+  const choices = requireArray(readKey(source, 'choices', 'choices'), `${path}.choices`)
   return {
-    id: asNumber(readKey(source, 'id', 'id')) ?? 0,
+    id: requirePositiveIntegerValue(readKey(source, 'id', 'id'), `${path}.id`),
     name,
     nameDe,
+    nameEn,
     displayName: nameDe ?? name,
-    description: asString(readKey(source, 'description', 'description')),
-    required: asBoolean(readKey(source, 'required', 'required')) ?? false,
-    classificationTypes: asStringArray(
-      readKey(source, 'classificationTypes', 'classification_types')
+    description: optionalString(
+      readKey(source, 'description', 'description'),
+      `${path}.description`
     ),
-    choices: Array.isArray(choicesRaw) ? choicesRaw.map(normalizeFindingChoice) : []
+    required: requireBoolean(readKey(source, 'required', 'required'), `${path}.required`),
+    classificationTypes: requireStringArray(
+      readKey(source, 'classificationTypes', 'classification_types'),
+      `${path}.classificationTypes`
+    ),
+    choices: choices.map((choice, index) =>
+      normalizeFindingChoice(choice, `${path}.choices[${String(index)}]`)
+    )
   }
 }
 
-const normalizeFindingClassificationList = (input: unknown): FindingClassification[] => {
-  if (!Array.isArray(input)) return []
-  return input
-    .map(normalizeFindingClassification)
-    .filter((classification) => Number.isFinite(classification.id) && classification.id > 0)
+const normalizeFindingClassificationList = (
+  input: unknown,
+  path: string
+): FindingClassification[] => {
+  return requireArray(input, path).map((classification, index) =>
+    normalizeFindingClassification(classification, `${path}[${String(index)}]`)
+  )
 }
 
-export const mergeFindingClassifications = (finding: Partial<Finding> | null | undefined): FindingClassification[] => {
-  if (!finding) return []
+export const mergeFindingClassifications = (
+  finding: Partial<Finding> | null | undefined
+): FindingClassification[] => {
+  if (!finding) {
+    return []
+  }
   const merged = [
     ...(Array.isArray(finding.classifications) ? finding.classifications : []),
     ...(Array.isArray(finding.locationClassifications) ? finding.locationClassifications : []),
@@ -223,143 +338,228 @@ export const mergeFindingClassifications = (finding: Partial<Finding> | null | u
 
   const byId = new Map<number, FindingClassification>()
   for (const classification of merged) {
-    if (!Number.isFinite(classification.id) || classification.id <= 0) continue
-    if (!byId.has(classification.id)) byId.set(classification.id, classification)
+    requirePositiveIntegerValue(classification.id, 'finding.classifications[].id')
+    if (!byId.has(classification.id)) {
+      byId.set(classification.id, classification)
+    }
   }
   return Array.from(byId.values())
 }
 
-export const normalizeFinding = (input: unknown): Finding => {
-  const source = asRecord(input)
-  const name = asString(readKey(source, 'name', 'name')) ?? 'unknown'
-  const nameDe = asString(readKey(source, 'nameDe', 'name_de'))
+export const normalizeFinding = (input: unknown, path = 'finding'): Finding => {
+  const source = requireRecord(input, path)
+  const name = requireName(readKey(source, 'name', 'name'), `${path}.name`)
+  const nameDe = optionalName(readKey(source, 'nameDe', 'name_de'), `${path}.nameDe`)
+  const nameEn = optionalName(readKey(source, 'nameEn', 'name_en'), `${path}.nameEn`)
   const classifications = normalizeFindingClassificationList(
-    readKey(source, 'classifications', 'classifications')
+    readKey(source, 'classifications', 'classifications'),
+    `${path}.classifications`
   )
   const locationClassifications = normalizeFindingClassificationList(
-    readKey(source, 'locationClassifications', 'location_classifications')
+    readKey(source, 'locationClassifications', 'location_classifications'),
+    `${path}.locationClassifications`
   )
   const morphologyClassifications = normalizeFindingClassificationList(
-    readKey(source, 'morphologyClassifications', 'morphology_classifications')
+    readKey(source, 'morphologyClassifications', 'morphology_classifications'),
+    `${path}.morphologyClassifications`
   )
-  const legacyFindingClassifications = normalizeFindingClassificationList(
-    readKey(source, 'FindingClassifications', 'FindingClassifications')
-  )
+  const legacyRaw = readKey(source, 'FindingClassifications', 'FindingClassifications')
+  const legacyFindingClassifications =
+    legacyRaw === undefined
+      ? []
+      : normalizeFindingClassificationList(legacyRaw, `${path}.FindingClassifications`)
 
-  const finding: Finding = {
-    id: asNumber(readKey(source, 'id', 'id')) ?? 0,
+  const baseFinding: Omit<Finding, 'FindingClassifications'> = {
+    id: requirePositiveIntegerValue(readKey(source, 'id', 'id'), `${path}.id`),
     name,
     nameDe,
+    nameEn,
     displayName: nameDe ?? name,
-    description: asString(readKey(source, 'description', 'description')) ?? '',
-    examinations: asStringArray(readKey(source, 'examinations', 'examinations')),
-    patientExaminationId: asNumber(
+    description:
+      optionalString(readKey(source, 'description', 'description'), `${path}.description`) ?? '',
+    examinations: optionalStringArray(
+      readKey(source, 'examinations', 'examinations'),
+      `${path}.examinations`
+    ),
+    patientExaminationId: optionalPositiveIntegerValue(
       readKey(source, 'patientExaminationId', 'patient_examination_id') ??
-        readKey(source, 'PatientExaminationId', 'PatientExaminationId')
+        readKey(source, 'PatientExaminationId', 'PatientExaminationId'),
+      `${path}.patientExaminationId`
     ),
     classifications,
     locationClassifications,
     morphologyClassifications,
-    FindingClassifications: legacyFindingClassifications.length
-      ? legacyFindingClassifications
-      : classifications,
-    findingTypes: asStringArray(readKey(source, 'findingTypes', 'finding_types')),
-    findingInterventions: asStringArray(
-      readKey(source, 'findingInterventions', 'finding_interventions')
+    findingTypes: optionalStringArray(
+      readKey(source, 'findingTypes', 'finding_types'),
+      `${path}.findingTypes`
+    ),
+    findingInterventions: optionalStringArray(
+      readKey(source, 'findingInterventions', 'finding_interventions'),
+      `${path}.findingInterventions`
     )
   }
 
-  if (finding.FindingClassifications.length === 0) {
-    finding.FindingClassifications = mergeFindingClassifications(finding)
+  return {
+    ...baseFinding,
+    FindingClassifications:
+      legacyFindingClassifications.length > 0
+        ? legacyFindingClassifications
+        : classifications.length > 0
+          ? classifications
+          : mergeFindingClassifications(baseFinding)
   }
-
-  return finding
 }
 
 export const normalizeFindings = (input: unknown): Finding[] => {
-  const rows = Array.isArray((input as { results?: unknown[] } | null)?.results)
-    ? ((input as { results: unknown[] }).results)
-    : Array.isArray(input)
-      ? input
-      : []
-
-  return rows
-    .map(normalizeFinding)
-    .filter((finding) => Number.isFinite(finding.id) && finding.id > 0)
+  return requireRows(input, 'findings').map((row, index) =>
+    normalizeFinding(row, `findings[${String(index)}]`)
+  )
 }
 
 export const normalizePatientFindingClassification = (
-  input: unknown
+  input: unknown,
+  path = 'patientFindingClassification'
 ): PatientFindingClassification => {
-  const source = asRecord(input)
+  const source = requireRecord(input, path)
   return {
-    id: asNumber(readKey(source, 'id', 'id')) ?? 0,
-    classification: asNumber(readKey(source, 'classification', 'classification')) ?? 0,
-    classificationChoice:
-      asNumber(readKey(source, 'classificationChoice', 'classification_choice')) ?? 0,
-    classificationName: asString(
-      readKey(source, 'classificationName', 'classification_name')
+    id: requirePositiveIntegerValue(readKey(source, 'id', 'id'), `${path}.id`),
+    classification: requirePositiveIntegerValue(
+      readKey(source, 'classification', 'classification'),
+      `${path}.classification`
     ),
-    classificationChoiceName: asString(
-      readKey(source, 'classificationChoiceName', 'classification_choice_name')
+    classificationChoice: requirePositiveIntegerValue(
+      readKey(source, 'classificationChoice', 'classification_choice'),
+      `${path}.classificationChoice`
     ),
-    subcategories: asJsonMap(readKey(source, 'subcategories', 'subcategories')),
-    numericalDescriptors: asJsonMap(
-      readKey(source, 'numericalDescriptors', 'numerical_descriptors')
+    classificationName: optionalName(
+      readKey(source, 'classificationName', 'classification_name'),
+      `${path}.classificationName`
     ),
-    isActive: asBoolean(readKey(source, 'isActive', 'is_active')) ?? true
+    classificationChoiceName: optionalName(
+      readKey(source, 'classificationChoiceName', 'classification_choice_name'),
+      `${path}.classificationChoiceName`
+    ),
+    subcategories: requireJsonMap(
+      readKey(source, 'subcategories', 'subcategories'),
+      `${path}.subcategories`
+    ),
+    numericalDescriptors: requireJsonMap(
+      readKey(source, 'numericalDescriptors', 'numerical_descriptors'),
+      `${path}.numericalDescriptors`
+    ),
+    isActive: requireBoolean(readKey(source, 'isActive', 'is_active'), `${path}.isActive`)
   }
 }
 
-export const normalizePatientFindingRow = (input: unknown): PatientFindingRow => {
-  const source = asRecord(input)
-  const rawClassifications = readKey(source, 'classifications', 'classifications')
-  const findingId = asNumber(readKey(source, 'finding', 'finding'))
-  const nestedFinding = asRecord(readKey(source, 'finding', 'finding'))
+function normalizePatientFindingIntervention(
+  input: unknown,
+  path: string
+): number | PatientFindingIntervention {
+  if (typeof input === 'number') {
+    return requirePositiveIntegerValue(input, path)
+  }
+  const source = requireRecord(input, path)
+  return {
+    intervention: optionalPositiveIntegerValue(source.intervention, `${path}.intervention`),
+    interventionId: optionalPositiveIntegerValue(
+      readKey(source, 'interventionId', 'intervention_id'),
+      `${path}.interventionId`
+    ),
+    state: optionalNullableString(source.state, `${path}.state`),
+    date: optionalNullableString(source.date, `${path}.date`),
+    timeStart: optionalNullableString(
+      readKey(source, 'timeStart', 'time_start'),
+      `${path}.timeStart`
+    ),
+    timeEnd: optionalNullableString(readKey(source, 'timeEnd', 'time_end'), `${path}.timeEnd`)
+  }
+}
+
+function normalizeFindingReference(input: unknown, path: string): number | { id: number } {
+  if (typeof input === 'number') {
+    return requirePositiveIntegerValue(input, path)
+  }
+  const source = requireRecord(input, path)
+  return { id: requirePositiveIntegerValue(source.id, `${path}.id`) }
+}
+
+export const normalizePatientFindingRow = (
+  input: unknown,
+  path = 'patientFinding'
+): PatientFindingRow => {
+  const source = requireRecord(input, path)
+  const rawClassifications = requireArray(
+    readKey(source, 'classifications', 'classifications'),
+    `${path}.classifications`
+  )
+  const rawInterventions = readKey(source, 'interventions', 'interventions')
 
   return {
-    id: asNumber(readKey(source, 'id', 'id')) ?? 0,
-    patientExamination:
-      asNumber(readKey(source, 'patientExamination', 'patient_examination')) ?? 0,
-    finding:
-      findingId !== undefined
-        ? findingId
-        : { id: asNumber(readKey(nestedFinding, 'id', 'id')) ?? 0 },
-    isActive: asBoolean(readKey(source, 'isActive', 'is_active')) ?? true,
-    createdAt: asString(readKey(source, 'createdAt', 'created_at')),
-    updatedAt: asString(readKey(source, 'updatedAt', 'updated_at')),
-    classifications: Array.isArray(rawClassifications)
-      ? rawClassifications.map(normalizePatientFindingClassification)
-      : []
+    id: requirePositiveIntegerValue(readKey(source, 'id', 'id'), `${path}.id`),
+    patientExamination: requirePositiveIntegerValue(
+      readKey(source, 'patientExamination', 'patient_examination'),
+      `${path}.patientExamination`
+    ),
+    finding: normalizeFindingReference(readKey(source, 'finding', 'finding'), `${path}.finding`),
+    isActive: requireBoolean(readKey(source, 'isActive', 'is_active'), `${path}.isActive`),
+    createdAt: optionalString(readKey(source, 'createdAt', 'created_at'), `${path}.createdAt`),
+    updatedAt: optionalString(readKey(source, 'updatedAt', 'updated_at'), `${path}.updatedAt`),
+    classifications: rawClassifications.map((classification, index) =>
+      normalizePatientFindingClassification(
+        classification,
+        `${path}.classifications[${String(index)}]`
+      )
+    ),
+    interventions:
+      rawInterventions === undefined
+        ? undefined
+        : requireArray(rawInterventions, `${path}.interventions`).map((intervention, index) =>
+            normalizePatientFindingIntervention(
+              intervention,
+              `${path}.interventions[${String(index)}]`
+            )
+          )
   }
 }
 
 export const normalizePatientFindingRows = (input: unknown): PatientFindingRow[] => {
-  const rows = Array.isArray((input as { results?: unknown[] } | null)?.results)
-    ? ((input as { results: unknown[] }).results)
-    : Array.isArray(input)
-      ? input
-      : []
-
-  return rows
-    .map(normalizePatientFindingRow)
-    .filter((row) => Number.isFinite(row.id) && row.id > 0)
+  return requireRows(input, 'patientFindings').map((row, index) =>
+    normalizePatientFindingRow(row, `patientFindings[${String(index)}]`)
+  )
 }
 
 export const getFindingDisplayName = (
   finding: Pick<Finding, 'name' | 'nameDe' | 'displayName' | 'id'> | null | undefined
 ): string =>
-  getCoreConceptDisplayName(finding, `Finding ${finding?.id ?? 'unknown'}`)
+  getCoreConceptDisplayName(
+    finding,
+    `Finding ${finding?.id === undefined ? 'unknown' : String(finding.id)}`
+  )
+
+type LocalizedFindingCatalogEntry = {
+  name: string
+  nameDe?: string
+  nameEn?: string
+}
+
+export const getFindingCatalogLocalizedName = (
+  entry: LocalizedFindingCatalogEntry,
+  language: 'de' | 'en'
+): string => (language === 'de' ? entry.nameDe : entry.nameEn) || entry.name
 
 export const getClassificationDisplayName = (
   classification: Pick<FindingClassification, 'name' | 'nameDe' | 'displayName'> | null | undefined
 ): string => getCoreConceptDisplayName(classification, 'unknown')
 
 export const extractFindingId = (value: unknown): number | null => {
-  const directId = asNumber(value)
-  if (directId !== undefined) return directId
-
-  const source = asRecord(value)
-  const nestedId = asNumber(readKey(source, 'id', 'id'))
-  return nestedId ?? null
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+    return value
+  }
+  if (!isRecord(value)) {
+    return null
+  }
+  const nestedId = value.id
+  return typeof nestedId === 'number' && Number.isInteger(nestedId) && nestedId > 0
+    ? nestedId
+    : null
 }

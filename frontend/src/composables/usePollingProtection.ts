@@ -1,7 +1,14 @@
 // frontend/src/composables/usePollingProtection.ts
 
 import { ref, computed } from 'vue'
-import { useMediaManagement } from '@/api/mediaManagement'
+import {
+  useMediaManagement,
+  type AnonymizationStatusResponse,
+  type ProcessingResponse
+} from '@/api/mediaManagement'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('polling-protection')
 
 export type ProtectedMediaType = 'video' | 'pdf'
 
@@ -18,7 +25,7 @@ export function usePollingProtection() {
 
   // Helper to create lock key
   const createLockKey = (fileId: number, mediaType: ProtectedMediaType): string => {
-    return `${mediaType}:${fileId}`
+    return `${mediaType}:${String(fileId)}`
   }
 
   // Remove expired locks
@@ -81,12 +88,12 @@ export function usePollingProtection() {
   const getStatusSafeWithProtection = async (
     fileId: number,
     mediaType: ProtectedMediaType
-  ): Promise<any> => {
+  ): Promise<AnonymizationStatusResponse | null> => {
     try {
       const result = await getStatusSafe(fileId, mediaType)
       return result
-    } catch (error: any) {
-      console.error(`Status check failed for ${mediaType}:${fileId}:`, error)
+    } catch (error: unknown) {
+      logger.error('status-check-failed', error, { mediaType })
       throw error
     }
   }
@@ -97,16 +104,13 @@ export function usePollingProtection() {
   const startAnonymizationSafeWithProtection = async (
     fileId: number,
     mediaType: ProtectedMediaType
-  ): Promise<any> => {
+  ): Promise<ProcessingResponse | null> => {
     const acquired = acquireProcessingLock(fileId, mediaType)
     if (!acquired) {
       throw new Error('Datei wird bereits verarbeitet')
     }
     try {
-      const result = await startAnonymizationSafe(fileId)
-      return result
-    } catch (error) {
-      throw error
+      return await startAnonymizationSafe(fileId)
     } finally {
       // Lock immer freigeben, damit UI nicht gebremst wird
       releaseProcessingLock(fileId, mediaType)
@@ -119,7 +123,7 @@ export function usePollingProtection() {
   const validateAnonymizationSafeWithProtection = async (
     fileId: number,
     mediaType: ProtectedMediaType
-  ): Promise<any> => {
+  ): Promise<ProcessingResponse | null> => {
     const acquired = acquireProcessingLock(fileId, mediaType)
     if (!acquired) {
       // Falls parallel etwas läuft, trotzdem versuchen (Validation ist idempotent)
@@ -128,8 +132,8 @@ export function usePollingProtection() {
     try {
       const result = await validateAnonymizationSafe(fileId)
       return result
-    } catch (error: any) {
-      console.error(`Validation failed for ${mediaType}:${fileId}:`, error)
+    } catch (error: unknown) {
+      logger.error('validation-failed', error, { mediaType })
       throw error
     } finally {
       releaseProcessingLock(fileId, mediaType)
@@ -142,7 +146,7 @@ export function usePollingProtection() {
   const clearAllLocalLocks = (): void => {
     const clearedCount = processingLocks.value.size
     processingLocks.value.clear()
-    console.log(`Cleared ${clearedCount} local processing locks`)
+    logger.debug('local-locks-cleared', { count: clearedCount })
   }
 
   /**
@@ -164,9 +168,9 @@ export function usePollingProtection() {
         clearAllLocalLocks()
       }
 
-      console.log('All processing locks cleared successfully')
+      logger.info('all-locks-cleared')
     } catch (error) {
-      console.error('Failed to clear processing locks:', error)
+      logger.error('clear-locks-failed', error)
       throw error
     }
   }

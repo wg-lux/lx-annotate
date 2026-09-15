@@ -37,13 +37,16 @@ export type SaveReportSubmissionRequest = {
   reportId?: number
   patientExaminationId: number
   templateName: string
+  knowledgeBaseModule: string
+  knowledgeBaseVersion: string
+  templateVersion?: string
+  templateHash?: string
   status: ReportSubmissionStatus
   editorPayload: Record<string, unknown>
   renderedText: string
   patientData: ReportSubmissionPatientData
   indications: ReportSubmissionIndication[]
   findings: ReportSubmissionFinding[]
-  selectedRequirementSetIds: number[]
   expectedVersion?: number
 }
 
@@ -56,7 +59,6 @@ export type SaveReportSubmissionResponse = {
   created: boolean
   warnings: string[]
   historyContext: Record<string, unknown> | null
-  requirementGuidance: Record<string, unknown> | null
   persistedReportArtifactId?: number | null
   persistedPdfArtifactId?: number | null
   persistedArtifacts: {

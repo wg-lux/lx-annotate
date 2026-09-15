@@ -9,7 +9,7 @@ let
     uvPackage
     libglvnd 
     glib
-    xorg.libxcb
+    libxcb
     zlib
     cryptomator
   ] ++ (if enableOllama then [ ollama.out ] else [ ]);

@@ -1,0 +1,318 @@
+schema_version: '1.0'
+id: reporting_workflow_standardization
+name: Reporting Workflow Standardization
+description: Standardize reporting context propagation, typed API boundaries, graph resolution, and workflow
+  behavior through durable regression coverage.
+owners:
+- lx-annotate frontend maintainers
+- lx-dtypes maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: docs/guides/reporting-template-requirements-page.md
+  disposition: reference
+  note: Reporting template and lookup workflow contract.
+definition_of_done:
+- id: coherent_context_typing
+  category: requirements
+  title: Reporting context has one coherent typed representation
+  acceptance:
+  - Patient examination identity, examination concept name, and numeric examination ID are propagated
+    without divergent local guesses.
+  - Runtime boundary assertions reject malformed or contradictory reporting context.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the reporting shell, builder, editor, and store contracts and run their focused
+      tests.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/views/reporting/reportingExaminationResolution.ts
+    - kind: test
+      reference: frontend/src/views/reporting/__tests__/reportingExaminationResolution.test.ts
+    note: One shared typed examination resolver now governs builder, findings, editor, case setup, and
+      case-resolution handoffs; ID/name contradictions and ambiguous names fail explicitly.
+    assessed_by: codex-reporting-types-20260813
+    assessed_at: '2026-08-13T08:27:12.211124Z'
+- id: deterministic_graph_resolution
+  category: functionality
+  title: Clinical concept graph resolution is deterministic
+  acceptance:
+  - Examination names resolve to the correct concept IDs within the active terminology bundle.
+  - Indications, findings, and report templates are loaded from the resolved examination context.
+  - Missing and ambiguous graph nodes fail visibly instead of selecting unrelated defaults.
+  required: true
+  verification:
+    kind: manual
+    instructions: Exercise colonoscopy and upper-GI reporting contexts against representative API payloads.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'frontend reporting graph and workflow suite: 75 passed'
+    - kind: code
+      reference: frontend/src/views/reporting/reportingIndicationContract.ts
+    - kind: test
+      reference: 'frontend reporting/API suite: 17 files, 117 tests passed'
+    - kind: command
+      reference: frontend npm run type-check; npm run type-check:component-tests; scoped ESLint (passed)
+    - kind: test
+      reference: 'ReportTemplateBuilderPage delayed terminology regression: no /core-concepts/ request
+        without module; later catalog/template load passes'
+    - kind: command
+      reference: 'installed lx-dtypes 0.2.17: star_upper_gi@0.1.1 export_report_template published, can_publish=true,
+        name_de present'
+    - kind: code
+      reference: frontend/src/api/knowledgeBaseGraphApi.ts; frontend/src/types/knowledgeBaseGraph.ts
+    - kind: code
+      reference: frontend/src/views/reporting/ReportingShell.vue; ReportEditorPage.vue; ReportTemplateBuilderPage.vue
+    - kind: review
+      reference: lx-data-models d7f7a7e knowledge_base_graph_v1
+    note: ReportingShell and ReportEditor consume the exact-version knowledge_base_graph_v1 examination
+      projection for semantic concepts and published templates; ReportTemplateBuilder consumes the complete
+      graph snapshot. Numeric indication and finding endpoints remain isolated to ledger persistence IDs
+      because graph node identity is semantic by design.
+    assessed_by: codex-graph-api-integration-20260814
+    assessed_at: '2026-08-14T08:52:40.930071Z'
+- id: typed_boundary_safety
+  category: security
+  title: Reporting API boundaries are validated and fail closed
+  acceptance:
+  - Unknown API payloads are normalized before use and are not accepted through unchecked assertions.
+  - Missing clinical identifiers do not silently broaden queries or load unrelated concepts.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review changed API boundaries and negative-path tests for malformed, missing, and ambiguous
+      values.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: frontend/src/views/reporting/__tests__/reportingIndicationContract.test.ts
+    - kind: test
+      reference: frontend/src/views/reporting/__tests__/ReportTemplateBuilderPage.test.ts
+    - kind: code
+      reference: frontend/src/api/casesApi.ts; frontend/src/views/reporting/CaseSetupPage.vue
+    - kind: test
+      reference: frontend/src/api/__tests__/casesApi.test.ts; frontend/src/views/reporting/__tests__/CaseSetupPage.test.ts
+    - kind: command
+      reference: npm run test:unit -- --run src/api/__tests__/casesApi.test.ts src/views/reporting/__tests__/CaseSetupPage.test.ts
+        (11 passed)
+    - kind: command
+      reference: npm run type-check:component-tests and scoped ESLint (passed)
+    - kind: test
+      reference: frontend/src/api/__tests__/coreConcepts.test.ts (2 passed against additive classification/examination
+        type arrays)
+    - kind: review
+      reference: 'lx-data-models CoreConceptCollection tightening: 237 Python tests and Pyright passed;
+        frontend compatibility reviewed'
+    - kind: code
+      reference: frontend/src/types/coreConcepts.ts; frontend/src/api/coreConcepts.ts
+    - kind: test
+      reference: frontend/src/api/__tests__/coreConcepts.test.ts (2 passed with caused_by_interventions
+        normalization)
+    - kind: command
+      reference: npm run type-check and scoped ESLint (passed after caused_by_interventions addition)
+    - kind: document
+      reference: /home/admin/lx-data-models/docs/data-model-concept-map.yml
+    - kind: test
+      reference: frontend/src/api/__tests__/reportTemplateKnowledgeBaseIdentity.test.ts preserves report_template_examples@0.1.0
+        and canonical German template title
+    - kind: command
+      reference: npm run type-check; npm run type-check:component-tests; 4 focused reporting suites 62
+        passed; scoped ESLint passed
+    - kind: test
+      reference: /home/admin/lx-data-models report-template API emits knowledge_base_module, knowledge_base_version,
+        title_de and title_en; focused API/semantic tests passed
+    - kind: review
+      reference: '/home/admin/lx-data-models CoreConceptCollection descriptor boundary: non-finite direct
+        payloads rejected, legacy unbounded KB sentinels normalized to canonical null, ranges/defaults/cardinalities
+        validated; lx-dtypes 658 passed, 1 skipped'
+    - kind: command
+      reference: npm exec -- vitest run src/api/__tests__/coreConcepts.test.ts src/api/__tests__/reportTemplatesApi.test.ts
+        && npm run type-check (working directory frontend; 20 passed; type-check exit 0)
+    - kind: test
+      reference: 'knowledgeBaseGraphApi.test.ts: 5 passed'
+    - kind: code
+      reference: frontend/src/api/knowledgeBaseGraphApi.ts
+    note: Frontend rejects unknown contract versions, malformed hashes, mismatched requested/returned
+      identities, duplicate edges, dangling node references, malformed concept names, cross-examination
+      templates, and non-published graph templates.
+    assessed_by: codex-graph-api-integration-20260814
+    assessed_at: '2026-08-14T08:52:42.116689Z'
+- id: workflow_regression_suite
+  category: testing
+  title: Reporting workflows have layered regression coverage
+  acceptance:
+  - Unit tests cover normalization and graph resolution helpers.
+  - Component tests cover shell context propagation and colonoscopy indication/template access.
+  - Application and component-test type checks pass.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run focused reporting tests followed by both frontend type-check lanes.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'cd frontend && npm run test:unit -- --run: 93 files, 608 tests passed'
+    - kind: command
+      reference: cd frontend && npm run type-check
+    - kind: command
+      reference: cd frontend && npm run type-check:component-tests
+    - kind: test
+      reference: 7 focused frontend files, 67 tests passed
+    - kind: test
+      reference: 'lx-data-models knowledge_base_graph_api.py: 4 passed'
+    - kind: command
+      reference: npm run type-check; npm run type-check:component-tests; scoped ESLint; git diff --check
+        passed
+    note: Versioned graph API, real-YAML fixture graph, reporting shell, editor, builder, and shared template
+      tests pass with both TypeScript lanes and scoped ESLint.
+    assessed_by: codex-graph-api-integration-20260814
+    assessed_at: '2026-08-14T08:52:43.382107Z'
+- id: observable_workflow_failures
+  category: operations
+  title: Reporting resolution failures are observable
+  acceptance:
+  - Users receive actionable errors when selected examinations cannot resolve in the active catalog.
+  - Async context changes do not apply stale examination, indication, or template results.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review error presentation and race guards, then run context-switch regression tests.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: frontend/src/views/reporting/__tests__/CaseSetupPage.test.ts
+    - kind: test
+      reference: frontend/src/views/reporting/__tests__/CaseResolutionPage.test.ts
+    - kind: test
+      reference: frontend/src/views/reporting/__tests__/ReportEditorPage.test.ts
+    note: Missing, ambiguous, and contradictory examination contexts surface actionable UI errors; shell/editor
+      generation guards and template request generations reject stale async results.
+    assessed_by: codex-reporting-types-20260813
+    assessed_at: '2026-08-13T08:27:18.180747Z'
+- id: maintained_contract_documentation
+  category: documentation
+  title: Reporting ownership and lookup contracts remain maintainable
+  acceptance:
+  - Canonical contract sources and frontend ownership boundaries are documented in English.
+  - New workflow invariants are represented in the YAML tracker and linked tests.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review project documentation and tracker evidence after each workflow increment.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: docs/guides/reporting-template-requirements-page.md
+    - kind: code
+      reference: frontend/src/views/reporting/reportingExaminationResolution.ts and reportingIndicationContract.ts
+    note: Canonical English guide documents shell ownership, shared examination resolution, fail-closed
+      graph states, and the separate persisted-selection versus option-normalization indication contracts.
+    assessed_by: codex-reporting-types-20260813
+    assessed_at: '2026-08-13T08:28:14.114669Z'
+- id: canonical_localized_terms
+  category: requirements
+  title: Reporting labels use canonical lx-data-model terms
+  acceptance:
+  - Stable concept names remain graph identifiers and are never translated through frontend-specific clinical
+    mappings.
+  - German and English labels resolve from canonical name_de and name_en fields at typed API boundaries.
+  - Missing localized terms fall back to the stable canonical name without guessed translations.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run focused core-concept, case API, reporting shell, and report editor tests.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/types/coreConcepts.ts, frontend/src/api/casesApi.ts, and frontend/src/api/reportTemplatesApi.ts
+    - kind: test
+      reference: 16 focused API/reporting files and 116 tests passed
+    - kind: command
+      reference: cd frontend && npm run type-check && npm run type-check:component-tests
+    - kind: test
+      reference: '2026-09-10: frontend full suite: 128 files, 961 tests passed; application/component
+        TypeScript checks passed.'
+    - kind: test
+      reference: '2026-09-10: backend report LLM tests: 23 passed with local lx-data-models source; scoped
+        Python type check: 0 errors.'
+    - kind: code
+      reference: /home/admin/lx-data-models/tests/unit/lx_dtypes/test_packaged_report_templates.py
+    - kind: document
+      reference: docs/guides/reporting-llm.yml
+    - kind: test
+      reference: '2026-09-10: backend report LLM tests including old-package compatibility: 24 passed
+        with local lx-data-models source.'
+    - kind: test
+      reference: '2026-09-10: final reporting/template/API lane: 46 passed; packaged catalog digests verified.'
+    note: 'Added 314 canonical German YAML labels across STAR, shared DGVS/ColoReg terminology, ERCP/EUS
+      and exportable examples; translated patient fields and ColoReg coverage labels. Descriptor labels
+      now survive compiler/API/shell. Templates declare short/standard/detailed verbosity without changing
+      requirements. Final focused lx-dtypes reporting/template/API lane: 46 passed; LLM lane: 24 passed.
+      Installed lx-dtypes 0.3.1 and active registry were not upgraded. Full lx-dtypes suite: 951 passed,
+      1 skipped, 2 unrelated FHIR exception-type failures. Full Pyright has 47 unrelated Django import-symbol
+      errors; scoped check passed.'
+    assessed_by: codex-reporting-german-20260910
+    assessed_at: '2026-09-10T07:56:06.415665Z'
+- id: reporting_progressive_disclosure
+  category: functionality
+  title: Reporting prioritizes recognition and first actions
+  acceptance:
+  - Case and examination choices use clinical labels and dates without exposing numerical IDs as primary
+    text.
+  - The first viewport retains workflow selections and a short start guide while supporting information
+    is collapsed but accessible.
+  - Case, examination, template, and terminology lists remain filtered by the active workflow context.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run reporting shell component tests and inspect the command bar at desktop and narrow
+      viewport widths.
+    timeout_seconds: 900
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: frontend/src/views/reporting/ReportingShell.vue and ReportEditorPage.vue
+    - kind: test
+      reference: frontend/src/views/reporting/__tests__/ReportingShell.mediaPreload.test.ts
+    - kind: document
+      reference: docs/guides/reporting-template-requirements-page.md
+    - kind: code
+      reference: frontend/src/views/reporting/ReportingShell.vue; frontend/src/views/reporting/CaseSetupPage.vue
+    - kind: test
+      reference: 'CaseSetupPage.test.ts and ReportingShell.mediaPreload.test.ts: 38 passed'
+    - kind: command
+      reference: frontend type-check, component-test type-check, scoped ESLint, and git diff --check passed
+    - kind: test
+      reference: '2026-09-08: ReportingShell.mediaPreload.test.ts and reportingShellPresentation.test.ts:
+        2 files, 46 tests passed.'
+    - kind: command
+      reference: '2026-09-08: frontend vue-tsc --build --force and scoped ESLint for ReportingShell.vue
+        passed (exit 0).'
+    note: Shell navigation now precedes findings in DOM and visual order. Added a focus-revealed workspace
+      skip link, persistent settings labels, context disclosure state, and clearer setup copy. Narrow
+      layouts stack resolved context and creation actions; opening the technical inspector no longer restores
+      two columns below 992px. Existing clinical gates and script logic are unchanged. Automated verification
+      passed; desktop/mobile visual inspection and real-browser keyboard verification remain outstanding
+      for this increment.
+    assessed_by: codex-reporting-usability-20260908
+    assessed_at: '2026-09-08T06:23:16.835965Z'

@@ -1,0 +1,197 @@
+schema_version: '1.0'
+id: frontend_async_reliability
+name: Frontend Async Reliability
+description: Ensure every first-party frontend promise has explicit ownership, observable failure behavior,
+  and deterministic lifecycle cleanup.
+owners:
+- lx-annotate frontend maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-professionalism
+    changed_at: '2026-08-04T17:08:29.042829Z'
+    note: 'Completed 2026-08-04: five-rule inventory reduced from 49 to 0; strict baseline pruned to 426;
+      lint, both typechecks, 89 files/536 tests, and production build pass.'
+source_documents:
+- path: frontend/README.md
+  disposition: reference
+  note: Frontend quality-gate and strict-baseline guidance.
+definition_of_done:
+- id: reproducible_async_inventory
+  category: requirements
+  title: Async reliability scope and baseline are reproducible
+  acceptance:
+  - The inventory covers first-party TypeScript and Vue files under frontend/src, frontend/tests, and
+    frontend/cypress.
+  - Production, unit/integration-test, and Cypress findings are reported separately.
+  - The inventory includes no-floating-promises, no-misused-promises, no-confusing-void-expression, require-await,
+    and prefer-promise-reject-errors.
+  - Generated output, dependencies, coverage, and legacy frontend trees are excluded.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the documented unsuppressed ESLint Node API inventory and compare its scope and
+      rule totals with the checked-in strict baseline.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: cd frontend && npm run lint:async-inventory => total 0; production 0; test 0; Cypress
+        0
+    - kind: document
+      reference: frontend/scripts/async-lint-inventory.mjs
+    note: 'Initial inventory: 49 findings across 21 files (36 production, 13 test, 0 Cypress). Final Node
+      API inventory: 0 findings for all five async rules in every scope.'
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T17:07:03.562627Z'
+- id: production_promise_ownership
+  category: functionality
+  title: Production promises have explicit ownership and visible failure behavior
+  acceptance:
+  - Every production promise is awaited, returned to an owning lifecycle, or deliberately detached with
+    an explicit rejection handler.
+  - Event handlers, watchers, timers, router hooks, and mount callbacks do not pass rejected promises
+    into void callback contracts.
+  - User-triggered async failures update the existing visible error or notification state and do not become
+    unhandled rejections.
+  - Concurrent or repeated operations preserve existing request-deduplication and stale-response protections.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review every migrated production call site and its focused tests, then run the unsuppressed
+      async-rule audit.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: Reviewed all changed production call sites and failure ownership
+    - kind: command
+      reference: cd frontend && npm run lint:async-inventory => production 0
+    note: All 36 production async findings removed. Router, lifecycle, watcher, timer, patient, export,
+      metrics, and settings paths now await or catch their promise and expose user-triggered failures.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T17:07:30.143710Z'
+- id: lifecycle_cleanup
+  category: operations
+  title: Scheduled async work is deterministic and cleaned up
+  acceptance:
+  - Timers and recurring refreshes are cancelled when their owning component unmounts.
+  - Watch and mount callbacks explicitly handle asynchronous failures without hiding them or creating
+    retry loops.
+  - Tests prove first-load, refresh-failure, retry, and teardown behavior where lifecycle scheduling is
+    changed.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect component lifecycle ownership and run focused fake-timer or unmount tests for
+      every changed scheduler.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'NavbarComponent.annotationStats.test.ts: 4/4; metrics/settings negative tests: 14/14'
+    note: Navbar refresh interval is cleared on unmount and guarded against delayed mount completion;
+      rejection paths are owned. Focused teardown and refresh-failure tests pass.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T17:07:33.727055Z'
+- id: typed_async_tests
+  category: testing
+  title: Async test doubles model promises without fake async or invalid rejection values
+  acceptance:
+  - Test callbacks are async only when they await asynchronous work.
+  - Rejected promises use Error instances or validated domain errors.
+  - Focused tests exercise resolved, rejected, and teardown paths without leaked timers, wrappers, or
+    unhandled rejections.
+  - Application and component-test TypeScript configurations pass.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review migrated test doubles, run focused Vitest suites, and run both frontend type-check
+      commands.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: cd frontend && npm run test:unit -- --run => 89 files, 536 tests passed
+    - kind: command
+      reference: Both vue-tsc configurations exit 0
+    note: Removed 13 fake-async test findings, converted invalid rejection values to Error objects, and
+      retained explicit Promise-returning mocks where contracts are asynchronous.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T17:07:37.472206Z'
+- id: async_failure_integrity
+  category: security
+  title: Async error handling preserves clinical and authorization gates
+  acceptance:
+  - Promise handling changes do not suppress authentication, authorization, anonymization, or clinical
+    workflow failures.
+  - Detached background work is limited to non-blocking refresh or telemetry paths and always records
+    rejection.
+  - User-visible mutations remain awaited through their authoritative success or failure boundary.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review migrated production workflows and negative tests for fail-open behavior or hidden
+      rejected mutations.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: Production async diff review and focused negative-path tests
+    note: Reviewed changed clinical and authorization paths. User-visible mutations stay awaited; lookup/settings/metrics/navigation
+      failures surface existing or explicit error state; 401 redirect semantics remain unchanged.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T17:07:40.020967Z'
+- id: automated_async_gate
+  category: operations
+  title: Strict automation prevents async reliability regressions
+  acceptance:
+  - ESLint enforces all five async reliability rules at error severity with type information.
+  - The checked-in suppression baseline contains no entries for the five async reliability rules.
+  - Normal lint is non-mutating and rejects new or stale findings.
+  - CI pairs strict lint with application/test type checking, unit tests, and the production build.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect effective ESLint configuration, prune the baseline, and run lint, both type
+      checks, the complete unit suite, and the production build.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: lint, both typechecks, 89-file/536-test suite, and production build exit 0
+    - kind: command
+      reference: npm run lint:async-inventory => 0
+    note: 'All five rules remain error-level under typed ESLint. Suppression baseline has zero async-rule
+      entries and pruned to 426 diagnostics across 90 files: 288 production, 138 test, 0 Cypress.'
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T17:07:41.986683Z'
+- id: contributor_guidance
+  category: documentation
+  title: Contributors have actionable async ownership guidance
+  acceptance:
+  - Frontend documentation explains when to await, return, catch, or deliberately detach a promise.
+  - Guidance covers Vue lifecycle callbacks, event handlers, watchers, and timers.
+  - The documented ratchet workflow preserves separate production, test, and Cypress counts.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review frontend README guidance against the implemented patterns and quality commands.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: frontend/README.md#async-ownership
+    note: README now documents await/return/catch/detach ownership, visible failure behavior, Vue event/watch/timer
+      lifecycles, unmount cleanup, and separate scope reporting.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T17:07:44.457297Z'

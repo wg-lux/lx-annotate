@@ -1,0 +1,169 @@
+schema_version: '1.0'
+id: pdf_correction_rendering
+name: PDF Correction Rendering
+description: Keep the PDF correction canvases available across asynchronous document and page rendering.
+owners:
+- lx-annotate frontend maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-pdf-render-fix
+    changed_at: '2026-08-27T12:25:55.515717Z'
+    note: PDF editor canvases remain mounted across async rendering; initial render waits for DOM mount;
+      focused regression test, both type checks, ESLint, production build, tracker validate and readiness
+      check pass.
+source_documents:
+- path: frontend/README.md
+  disposition: reference
+  note: Frontend component verification and quality-gate guidance.
+definition_of_done:
+- id: rendering_scope
+  category: requirements
+  title: PDF correction rendering scope remains explicit
+  acceptance:
+  - The change is limited to the PDF correction editor lifecycle and focused regression coverage.
+  - Backend streaming, routing, and PDF redaction coordinate semantics remain unchanged.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the final diff for scope and ownership boundaries.
+    timeout_seconds: 120
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: git diff --check and scoped diff review passed
+    note: Diff is limited to the correction component, one focused component test, and this tracker; backend
+      streaming, routing, and redaction mapping are unchanged.
+    assessed_by: codex-pdf-render-fix
+    assessed_at: '2026-08-27T12:25:28.943093Z'
+- id: canvas_lifecycle
+  category: functionality
+  title: PDF pages render into stable canvases
+  acceptance:
+  - Loading indicators do not unmount the page or overlay canvases required by PDF.js.
+  - Initial document load waits until the PDF editor DOM is available before rendering the first page.
+  - Reload, zoom, and page navigation preserve visible failure handling.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the component lifecycle and run the focused component test.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/components/Anonymizer/AnonymizationCorrectionComponent.vue
+    note: The editor mounts before loadPdfDocument runs, and v-show keeps both canvas refs alive while
+      the rendering spinner or error state changes.
+    assessed_by: codex-pdf-render-fix
+    assessed_at: '2026-08-27T12:25:30.819359Z'
+- id: authenticated_pdf_source
+  category: security
+  title: PDF source loading remains authenticated and fail closed
+  acceptance:
+  - PDF bytes continue to load through the authenticated Axios client and canonical stream URL.
+  - Rendering failures remain visible and do not fall back to an unauthenticated source.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the PDF loading call and focused failure behavior.
+    timeout_seconds: 180
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: authenticated Axios PDF stream path unchanged
+    note: PDF bytes still use axiosInstance with buildPdfStreamUrl(raw); load and render errors remain
+      visible.
+    assessed_by: codex-pdf-render-fix
+    assessed_at: '2026-08-27T12:25:32.415902Z'
+- id: redaction_coordinate_integrity
+  category: data_integrity
+  title: Canvas lifecycle changes preserve redaction coordinates
+  acceptance:
+  - Page and overlay canvases retain matching dimensions after rendering.
+  - Existing normalized redaction box coordinates and PDF output mapping remain unchanged.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review canvas sizing and redaction coordinate conversion in the component.
+    timeout_seconds: 180
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'AnonymizationCorrectionComponent.test.ts: 1 passed'
+    note: Page and overlay sizing plus normalized box-to-PDF mapping were not changed; the focused test
+      verifies matching render dimensions.
+    assessed_by: codex-pdf-render-fix
+    assessed_at: '2026-08-27T12:25:33.937056Z'
+- id: rendering_regression_test
+  category: testing
+  title: PDF canvas lifecycle has deterministic regression coverage
+  acceptance:
+  - A focused component test proves the canvas remains mounted while an asynchronous page render is pending.
+  - The test proves the first page is rendered after the document loads.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - test:unit
+    - --
+    - run
+    - src/components/Anonymizer/__tests__/AnonymizationCorrectionComponent.test.ts
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: npm --prefix frontend run test:unit -- run src/components/Anonymizer/__tests__/AnonymizationCorrectionComponent.test.ts
+      note: Exit-Code 0
+    assessed_by: codex-pdf-render-fix
+    assessed_at: '2026-08-27T12:25:12.886367Z'
+- id: frontend_static_checks
+  category: operations
+  title: Frontend static checks remain valid
+  acceptance:
+  - Application and component-test TypeScript checks pass.
+  - The production bundle emits the PDF.js worker successfully.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run both frontend type checks and the production build.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'vue-tsc app/component tests, focused ESLint, build-only: exit 0'
+    note: Application vue-tsc, component-test vue-tsc, focused ESLint, and Vite production build all exit
+      0; the PDF.js worker is emitted.
+    assessed_by: codex-pdf-render-fix
+    assessed_at: '2026-08-27T12:25:35.488188Z'
+- id: maintainable_lifecycle_contract
+  category: documentation
+  title: The canvas lifecycle is clear in component structure
+  acceptance:
+  - Template structure makes it clear that loading state must not destroy the render targets.
+  - No unrelated documentation or generated assets are changed.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the component template and final changed-file list.
+    timeout_seconds: 120
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: component template and final changed-file list reviewed
+    note: Template uses v-show for stable render targets and nextTick documents the mount-before-render
+      ordering; no generated assets or unrelated docs were changed.
+    assessed_by: codex-pdf-render-fix
+    assessed_at: '2026-08-27T12:25:37.065310Z'

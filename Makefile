@@ -10,6 +10,7 @@ GIT_URL ?= https://github.com/wg-lux/lx-annotate.git
 REMOTE ?= origin
 
 # Tooling
+DEVENV_PROFILE ?=
 DEVENV ?= devenv
 GIT ?= git
 MKDIR_P ?= mkdir -p
@@ -17,18 +18,20 @@ CACHE_DIR ?= $(REPO_DIR)/.make-cache
 FRONTEND_HASH_FILE ?= $(CACHE_DIR)/frontend-src.sha256
 MIGRATIONS_HASH_FILE ?= $(CACHE_DIR)/migrations.sha256
 
-# Helper: run commands inside the devenv environment
-ifneq ($(DEVENV_PROFILE),)
+# Helper: run commands directly if inside an active devenv shell, otherwise wrap in subshell
+ifneq ($(strip $(DEVENV_PROFILE)$(DEVENV_ROOT)$(DEVENV_STATE)),)
 DEVENV_RUN ?=
 else
 DEVENV_RUN ?= $(DEVENV) shell --
 endif
 
+
 .PHONY: help doctor check-tools check-repo ensure-repo-dir ensure-git-repo \
 	setup bootstrap update submodules reset-branch migrate load-base-data static \
 	deploy-prod deploy start-app start-watcher start-export shell django-check \
-	test lint frontend-build frontend-build-force backend-server docs-build docs-publish \
-	migrate-force verify-vite-artifacts
+	test lint frontend-build frontend-build-force frontend-lock-check frontend-npm-deps-hash \
+	backend-server docs-build docs-publish package-migrations \
+	migrate-force verify-vite-artifacts verify-vite-manifest package package-check package-upload
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*## "}; /^[a-zA-Z0-9_.-]+:.*## / {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) | sort
@@ -84,6 +87,12 @@ reset-branch: setup ## Hard-reset local branch to remote (destructive; use caref
 django-check: check-repo check-tools ## Run Django checks in devenv
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) python manage.py check
 
+make-migrations: check-repo check-tools
+	cd "$(REPO_DIR)" && $(DEVENV_RUN) python manage.py makemigrations
+
+package-migrations: check-repo check-tools ## Validate migration state with isolated package settings
+	cd "$(REPO_DIR)" && DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_test $(DEVENV_RUN) python manage.py makemigrations
+
 migrate: check-repo check-tools ## Apply database migrations (only when migration files changed)
 	@$(MKDIR_P) "$(CACHE_DIR)"
 	@set -e; \
@@ -111,17 +120,37 @@ static: check-repo check-tools ## Collect static files
 docs-build: check-repo check-tools ## Build Sphinx HTML docs
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) uv run --extra docs make -C docs html
 
-docs-publish: docs-build ## Publish docs to static/docs for the /documentation app route
+docs-publish: docs-build ## Publish docs for the /documentation app route
 	cd "$(REPO_DIR)" && $(MKDIR_P) static/docs
 	cd "$(REPO_DIR)" && rsync -a --delete docs/_build/html/ static/docs/
+	cd "$(REPO_DIR)" && $(MKDIR_P) staticfiles/docs
+	cd "$(REPO_DIR)" && rsync -a --delete docs/_build/html/ staticfiles/docs/
 
-verify-vite-artifacts: check-repo check-tools frontend-build-force ## Fail if frontend build changes committed static artifacts
+verify-vite-artifacts: check-repo check-tools frontend-build-force ## Fail if frontend build changes committed staticfiles artifacts
 	@set -e; \
-	if ! cd "$(REPO_DIR)" && "$(GIT)" diff --quiet -- static; then \
-		echo "static changed after vue-build. Commit updated frontend artifacts."; \
-		cd "$(REPO_DIR)" && "$(GIT)" diff --name-only -- static; \
+	if ! cd "$(REPO_DIR)" && "$(GIT)" diff --quiet -- staticfiles; then \
+		echo "staticfiles changed after vue-build. Commit updated frontend artifacts."; \
+		cd "$(REPO_DIR)" && "$(GIT)" diff --name-only -- staticfiles; \
 		exit 1; \
 	fi
+
+verify-vite-manifest: check-repo check-tools frontend-build-force ## Fail if the built Vite manifest is empty, invalid, or missing src/main.ts
+	@cd "$(REPO_DIR)" && $(DEVENV_RUN) python lx_annotate_assets/__init__.py --root staticfiles
+
+frontend-lock-check: check-repo check-tools ## Fail early when frontend package-lock.json cannot satisfy npm ci
+	cd "$(REPO_DIR)/frontend" && $(DEVENV_RUN) npm ci --ignore-scripts --dry-run --loglevel=error
+
+frontend-npm-deps-hash: check-repo check-tools ## Print the Nix hash for the current frontend package-lock.json
+	cd "$(REPO_DIR)" && nix run nixpkgs#prefetch-npm-deps -- frontend/package-lock.json
+
+package: frontend-lock-check verify-vite-artifacts verify-vite-manifest package-migrations ## Build sdist and wheel only after frontend artifacts and Sphinx docs are valid
+	cd "$(REPO_DIR)" && $(DEVENV_RUN) uv run --with build python -m build
+
+package-check: ## Validate built sdist and wheel metadata
+	cd "$(REPO_DIR)" && $(DEVENV_RUN) uv run --with twine python -m twine check dist/*
+
+package-upload: package-check ## Upload built distributions with twine
+	cd "$(REPO_DIR)" && $(DEVENV_RUN) uv run --with twine python -m twine upload dist/* --skip-existing --verbose
 
 deploy-prod: update submodules verify-vite-artifacts migrate load-base-data static ## Update code and prepare prod assets
 	@echo "Production deploy steps completed."
@@ -164,6 +193,9 @@ shell: check-repo check-tools ## Open interactive devenv shell in repo
 
 test: check-repo check-tools ## Run backend tests (pytest)
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) pytest
+
+test-real: check-repo check-tools ## Run backend tests through devenv print-dev-env and the repo venv
+	cd "$(REPO_DIR)" && ./scripts/run-backend-checks.sh
 
 lint: check-repo check-tools ## Run frontend lint (best-effort if configured)
 	cd "$(REPO_DIR)/frontend" && $(DEVENV_RUN) npm run lint

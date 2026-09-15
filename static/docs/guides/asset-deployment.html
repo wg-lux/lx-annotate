@@ -3,7 +3,7 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)" href="../assisted-reporting-report.html"><link rel="prev" title="General Documentation Guide" href="general-documentation.html">
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Wheel Deployment" href="wheel-deployment.html"><link rel="prev" title="Hub storage load balancing and production-test runbook" href="hub-storage-load-balancing.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
         <title>Frontend Asset Deployment Contract - lx-annotate Documentation</title>
@@ -194,20 +194,24 @@
   <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="general-documentation.html">General Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deployment-strategy.html">Deployment Strategy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="runtime-environment-contract-test.html">Runtime environment migration and rollback record</a></li>
+<li class="toctree-l1"><a class="reference internal" href="encrypted-storage-process.html">Encrypted Storage Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="secure-backup-disaster-recovery.html">Secure Backup and Disaster Recovery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hub-export-workflow.html">Hub Export Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hub-storage-load-balancing.html">Hub storage load balancing and production-test runbook</a></li>
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Frontend Asset Deployment Contract</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../assisted-reporting-report.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wheel-deployment.html">Wheel Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pypi.html">PyPI Publishing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ai-training-data-export.html">AI Training Data Export</a></li>
 <li class="toctree-l1"><a class="reference internal" href="segment-annotation-workflow.html">Segment Annotation Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="frame-annotation-availability.html">Frame Annotation Availability</a></li>
 <li class="toctree-l1"><a class="reference internal" href="anonymization-validation-correction-workflow.html">Anonymization Validation and Correction Workflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html">1. Always Use Strong Typing (Not Strings)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#enforce-timezone-awareness-crucial">2. Enforce Timezone Awareness (Crucial)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#stick-to-iso-8601-standards">3. Stick to ISO 8601 Standards</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#validating-business-logic-past-future">4. Validating Business Logic (Past/Future)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#handling-now-and-defaults">5. Handling “Now” and Defaults</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#serialization-json-output">6. Serialization (JSON Output)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#summary-checklist">Summary Checklist</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#example-putting-it-all-together">7. Example: Putting it all together</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#next-step">Next Step</a></li>
-<li class="toctree-l1"><a class="reference internal" href="pydantic-cheatsheet.html">Pydantic V2 Cheat Sheet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dtypes-findings-migration.html">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="terminology-delivery.html">Governed terminology delivery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-contract.html">Core Concept Contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-readiness-verdict.html">Core Concept Readiness Verdict</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-type-matrix.html">Core Concept Type Matrix</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reporting-template-requirements-page.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
@@ -254,19 +258,37 @@
           <section id="frontend-asset-deployment-contract">
 <h1>Frontend Asset Deployment Contract<a class="headerlink" href="#frontend-asset-deployment-contract" title="Link to this heading">¶</a></h1>
 <p>This guide defines the deployment contract for Vite assets in <code class="docutils literal notranslate"><span class="pre">lx-annotate</span></code>.</p>
+<section id="canonical-ownership">
+<h2>Canonical Ownership<a class="headerlink" href="#canonical-ownership" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/src/assets/</span></code> owns source assets imported by the Vue application.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">static/</span></code> owns non-Vite Django source assets and the published documentation
+tree under <code class="docutils literal notranslate"><span class="pre">static/docs/</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">staticfiles/</span></code> is disposable deployment output produced by Vite,
+<code class="docutils literal notranslate"><span class="pre">collectstatic</span></code>, and <code class="docutils literal notranslate"><span class="pre">docs-publish</span></code>; it is ignored by Git and packaged only
+after regeneration.</p></li>
+</ul>
+<p>Do not create package-local copies under <code class="docutils literal notranslate"><span class="pre">lx_annotate/static/</span></code> or
+<code class="docutils literal notranslate"><span class="pre">lx_annotate/staticfiles/</span></code>. Django and third-party application assets are
+collected from their installed packages, while the generated top-level
+<code class="docutils literal notranslate"><span class="pre">staticfiles/</span></code> tree is force-included in release artifacts.</p>
+<p>Vite’s dependency cache under <code class="docutils literal notranslate"><span class="pre">frontend/.vite/</span></code> is local and ignored. Legacy
+dashboard bundles under <code class="docutils literal notranslate"><span class="pre">static/assets/</span></code> must not be restored; the maintained
+dashboard source is imported from <code class="docutils literal notranslate"><span class="pre">frontend/src/assets/</span></code> and emitted by Vite.</p>
+</section>
 <section id="contract-summary">
 <h2>Contract Summary<a class="headerlink" href="#contract-summary" title="Link to this heading">¶</a></h2>
 <ol class="arabic simple">
 <li><p>Build output directory:
 <code class="docutils literal notranslate"><span class="pre">frontend/vite.config.ts</span></code> writes compiled assets to:
-<code class="docutils literal notranslate"><span class="pre">&lt;repo&gt;/static</span></code></p></li>
+<code class="docutils literal notranslate"><span class="pre">&lt;repo&gt;/staticfiles</span></code></p></li>
 <li><p>Manifest location:
 Vite manifest must exist at:
-<code class="docutils literal notranslate"><span class="pre">static/.vite/manifest.json</span></code></p></li>
+<code class="docutils literal notranslate"><span class="pre">staticfiles/.vite/manifest.json</span></code></p></li>
 <li><p>Django Vite config:</p></li>
 </ol>
 <ul class="simple">
-<li><p>Dev: <code class="docutils literal notranslate"><span class="pre">lx_annotate/settings/settings_dev.py</span></code> reads <code class="docutils literal notranslate"><span class="pre">BASE_DIR/static/.vite/manifest.json</span></code></p></li>
+<li><p>Dev: <code class="docutils literal notranslate"><span class="pre">lx_annotate/settings/settings_dev.py</span></code> reads <code class="docutils literal notranslate"><span class="pre">BASE_DIR/staticfiles/.vite/manifest.json</span></code></p></li>
 <li><p>Prod: <code class="docutils literal notranslate"><span class="pre">lx_annotate/settings/settings_prod.py</span></code> reads <code class="docutils literal notranslate"><span class="pre">STATIC_ROOT/.vite/manifest.json</span></code></p></li>
 </ul>
 <ol class="arabic simple" start="4">
@@ -283,37 +305,43 @@ Vite manifest must exist at:
 <ol class="arabic simple">
 <li><p>Build frontend:
 <code class="docutils literal notranslate"><span class="pre">devenv</span> <span class="pre">shell</span> <span class="pre">--</span> <span class="pre">vue-build</span></code></p></li>
-<li><p>Verify committed artifacts:
-<code class="docutils literal notranslate"><span class="pre">devenv</span> <span class="pre">tasks</span> <span class="pre">run</span> <span class="pre">deploy:verify-vite-artifacts</span> <span class="pre">--no-tui</span></code></p></li>
-<li><p>Apply Django migration/static pipeline:
-<code class="docutils literal notranslate"><span class="pre">devenv</span> <span class="pre">tasks</span> <span class="pre">run</span> <span class="pre">deploy:full</span> <span class="pre">--no-tui</span></code></p></li>
+<li><p>Verify manifest contract:
+<code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">verify-vite-manifest</span></code></p></li>
+<li><p>Build distributable artifacts:
+<code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">package</span></code></p></li>
 </ol>
-<p>The verification task fails if building the frontend changes tracked files under <code class="docutils literal notranslate"><span class="pre">static/</span></code>.
-This prevents stale or missing frontend artifacts from reaching runtime.</p>
+<p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">package</span></code> forces a frontend rebuild, checks that committed frontend artifacts
+did not drift, publishes Sphinx HTML into <code class="docutils literal notranslate"><span class="pre">static/docs</span></code> and <code class="docutils literal notranslate"><span class="pre">staticfiles/docs</span></code>,
+and then fails if <code class="docutils literal notranslate"><span class="pre">staticfiles/.vite/manifest.json</span></code> is empty, invalid JSON,
+missing the <code class="docutils literal notranslate"><span class="pre">src/main.ts</span></code> entry, or points at a missing asset. This prevents
+stale or broken frontend artifacts from reaching wheel or sdist packaging and
+ensures the frontend <code class="docutils literal notranslate"><span class="pre">/documentation</span></code> page can load the packaged docs bundle.</p>
 </section>
 <section id="why-emptyoutdir-is-disabled">
 <h2>Why <code class="docutils literal notranslate"><span class="pre">emptyOutDir</span></code> Is Disabled<a class="headerlink" href="#why-emptyoutdir-is-disabled" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">vite.config.ts</span></code> uses <code class="docutils literal notranslate"><span class="pre">emptyOutDir:</span> <span class="pre">false</span></code> because <code class="docutils literal notranslate"><span class="pre">static/</span></code> is a mixed directory
-containing both Vite output and non-Vite assets (for example, framework/static content).
-Auto-emptying this directory would risk deleting non-Vite files.</p>
+<p><code class="docutils literal notranslate"><span class="pre">vite.config.ts</span></code> uses <code class="docutils literal notranslate"><span class="pre">emptyOutDir:</span> <span class="pre">false</span></code> because <code class="docutils literal notranslate"><span class="pre">staticfiles/</span></code> is a mixed
+generated directory containing Vite output plus assets produced by
+<code class="docutils literal notranslate"><span class="pre">collectstatic</span></code> and <code class="docutils literal notranslate"><span class="pre">docs-publish</span></code>. Auto-emptying this directory would risk
+deleting output owned by the other build stages.</p>
 </section>
 <section id="smoke-tests">
 <h2>Smoke Tests<a class="headerlink" href="#smoke-tests" title="Link to this heading">¶</a></h2>
 <p>Run these checks after deployment changes:</p>
 <ol class="arabic simple">
 <li><p>Manifest exists:
-<code class="docutils literal notranslate"><span class="pre">ls</span> <span class="pre">-l</span> <span class="pre">static/.vite/manifest.json</span></code></p></li>
+<code class="docutils literal notranslate"><span class="pre">ls</span> <span class="pre">-l</span> <span class="pre">staticfiles/.vite/manifest.json</span></code></p></li>
 <li><p>Legacy folder is gone:
-<code class="docutils literal notranslate"><span class="pre">test</span> <span class="pre">!</span> <span class="pre">-d</span> <span class="pre">static/dist</span></code></p></li>
+<code class="docutils literal notranslate"><span class="pre">test</span> <span class="pre">!</span> <span class="pre">-d</span> <span class="pre">staticfiles/dist</span></code></p></li>
 <li><p>Entry mapping is valid:
-<code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-</span> <span class="pre">&lt;&lt;'PY'</span> <span class="pre">import</span> <span class="pre">json</span> <span class="pre">from</span> <span class="pre">pathlib</span> <span class="pre">import</span> <span class="pre">Path</span> <span class="pre">m</span> <span class="pre">=</span> <span class="pre">json.loads(Path('static/.vite/manifest.json').read_text())</span> <span class="pre">entry</span> <span class="pre">=</span> <span class="pre">m['src/main.ts']['file']</span> <span class="pre">print(entry,</span> <span class="pre">(Path('static')</span> <span class="pre">/</span> <span class="pre">entry).exists())</span> <span class="pre">PY</span></code></p></li>
+<code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-</span> <span class="pre">&lt;&lt;'PY'</span> <span class="pre">import</span> <span class="pre">json</span> <span class="pre">from</span> <span class="pre">pathlib</span> <span class="pre">import</span> <span class="pre">Path</span> <span class="pre">m</span> <span class="pre">=</span> <span class="pre">json.loads(Path('staticfiles/.vite/manifest.json').read_text())</span> <span class="pre">entry</span> <span class="pre">=</span> <span class="pre">m['src/main.ts']['file']</span> <span class="pre">print(entry,</span> <span class="pre">(Path('staticfiles')</span> <span class="pre">/</span> <span class="pre">entry).exists())</span> <span class="pre">PY</span></code></p></li>
 </ol>
 </section>
-<section id="label-studio-integration-note">
-<h2>Label Studio Integration Note<a class="headerlink" href="#label-studio-integration-note" title="Link to this heading">¶</a></h2>
-<p>Label Studio is loaded by the Vue wrapper component
-<code class="docutils literal notranslate"><span class="pre">frontend/src/components/EndoAI/LabelStudioHost.vue</span></code> via CDN at runtime.
-Do not duplicate a global Label Studio script include in <code class="docutils literal notranslate"><span class="pre">lx_annotate/templates/base.html</span></code>.</p>
+<section id="frame-annotation-integration-note">
+<h2>Frame Annotation Integration Note<a class="headerlink" href="#frame-annotation-integration-note" title="Link to this heading">¶</a></h2>
+<p>Frame annotation is rendered directly by
+<code class="docutils literal notranslate"><span class="pre">frontend/src/views/FrameAnnotation.vue</span></code> without third-party runtime widget
+scripts. Keep <code class="docutils literal notranslate"><span class="pre">lx_annotate/templates/base.html</span></code> free of ad-hoc global script
+includes.</p>
 </section>
 </section>
 
@@ -322,23 +350,23 @@ Do not duplicate a global Label Studio script include in <code class="docutils l
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="../assisted-reporting-report.html">
+          <a class="next-page" href="wheel-deployment.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</div>
+                <div class="title">Wheel Deployment</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="general-documentation.html">
+          <a class="prev-page" href="hub-storage-load-balancing.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">General Documentation Guide</div>
+                <div class="title">Hub storage load balancing and production-test runbook</div>
                 
               </div>
             </a>
@@ -373,11 +401,12 @@ Do not duplicate a global Label Studio script include in <code class="docutils l
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Frontend Asset Deployment Contract</a><ul>
+<li><a class="reference internal" href="#canonical-ownership">Canonical Ownership</a></li>
 <li><a class="reference internal" href="#contract-summary">Contract Summary</a></li>
 <li><a class="reference internal" href="#deployment-flow">Deployment Flow</a></li>
 <li><a class="reference internal" href="#why-emptyoutdir-is-disabled">Why <code class="docutils literal notranslate"><span class="pre">emptyOutDir</span></code> Is Disabled</a></li>
 <li><a class="reference internal" href="#smoke-tests">Smoke Tests</a></li>
-<li><a class="reference internal" href="#label-studio-integration-note">Label Studio Integration Note</a></li>
+<li><a class="reference internal" href="#frame-annotation-integration-note">Frame Annotation Integration Note</a></li>
 </ul>
 </li>
 </ul>
@@ -389,7 +418,7 @@ Do not duplicate a global Label Studio script include in <code class="docutils l
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=d45e8c67"></script>
+</div><script src="../_static/documentation_options.js?v=010db75e"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

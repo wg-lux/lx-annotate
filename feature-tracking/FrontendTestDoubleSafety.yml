@@ -1,0 +1,170 @@
+schema_version: '1.0'
+id: frontend_test_double_safety
+name: Frontend Test Double Safety
+description: Ensure frontend spies, mocks, and call assertions observe the exact bound function invoked
+  by production code and remain isolated between tests.
+owners:
+- lx-annotate frontend maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-professionalism
+    changed_at: '2026-08-04T17:38:50.751919Z'
+    note: 'Completed 2026-08-04: unbound-method inventory reduced from 98 to 0; strict baseline pruned
+      to 192; lint, both typechecks, 89 files/541 tests, and production build pass.'
+source_documents:
+- path: frontend/README.md
+  disposition: reference
+  note: Frontend testing and strict quality-gate guidance.
+definition_of_done:
+- id: reproducible_unbound_inventory
+  category: requirements
+  title: Unbound-method scope and baseline are reproducible
+  acceptance:
+  - The inventory covers first-party TypeScript and Vue tests under frontend/src, frontend/tests, and
+    frontend/cypress.
+  - Production, unit/integration-test, and Cypress findings are reported separately.
+  - Generated output, dependencies, coverage, and legacy frontend trees are excluded.
+  - The inventory reports unbound-method findings by scope and rule total.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the documented unsuppressed ESLint Node API inventory and compare its totals with
+      the checked-in strict baseline.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: cd frontend && npm run lint:unbound-inventory => total 0; production 0; test 0; Cypress
+        0
+    - kind: document
+      reference: frontend/scripts/unbound-method-lint-inventory.mjs
+    note: 'Initial inventory: 98 findings across 19 test files (0 production, 98 test, 0 Cypress). Final
+      shared Node API inventory: 0 in every scope.'
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T17:38:30.800380Z'
+- id: bound_test_doubles
+  category: security
+  title: Test doubles preserve method binding and identity
+  acceptance:
+  - Object methods are observed with vi.spyOn or through direct mock-function references that production
+    actually invokes.
+  - Tests do not extract methods in ways that can lose a receiver or assert against a different function
+    instance.
+  - Binding workarounds, unsafe casts, rule disables, and placeholder wrappers are not used to silence
+    diagnostics.
+  - Assertions retain or improve their original call, argument, order, and result coverage.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review every migrated method access and run the unsuppressed unbound-method audit.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: Reviewed 19 migrated suites and mock factories
+    - kind: command
+      reference: Unsuppressed unbound-method inventory => 0
+    note: All 98 extracted method findings replaced with exact hoisted vi.fn references installed in module
+      mocks or receiver-preserving spies. No bind, casts, disables, or placeholder wrappers remain.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T17:38:32.316159Z'
+- id: mock_isolation
+  category: testing
+  title: Mock state is deterministic and isolated
+  acceptance:
+  - Shared mocks are reset or restored at the appropriate test boundary.
+  - Replacing an object method does not leak implementation or call history into another test.
+  - Async mock behavior still models success, rejection, retry, and sequencing contracts accurately.
+  - Focused suites pass without order dependence, leaked timers, or unhandled rejections.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect setup and teardown in every migrated suite, then run focused suites together
+      and individually where shared state exists.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'Three delegated groups: 19 suites, 101 focused tests passed together'
+    note: Migrated suites retain beforeEach reset/clear behavior, Pinia isolation, async rejection/sequencing,
+      timers, and exact mock identity. A combined-suite identity mismatch was detected and corrected before
+      acceptance.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T17:38:33.641687Z'
+- id: assertion_integrity
+  category: functionality
+  title: Behavioral assertions retain their intended coverage
+  acceptance:
+  - Migrated assertions still verify the exact production dependency call and arguments.
+  - Ordered, repeated, rejected, and stateful calls retain their original behavioral expectations.
+  - Focused regression tests cover any helper or setup pattern whose mock identity changes materially.
+  required: true
+  verification:
+    kind: manual
+    instructions: Compare migrated assertions with their pre-change intent and run every affected suite.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: Compared migrated call assertions and direct mock handles
+    - kind: test
+      reference: 'Complete suite: 89 files, 541 tests passed'
+    note: Call count, ordered call, argument, response, rejection, and state assertions now target the
+      exact function invoked by production code; assertion intent was preserved across all suites.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T17:38:35.091265Z'
+- id: typed_test_gate
+  category: operations
+  title: Typed automation prevents unsafe test-double regressions
+  acceptance:
+  - ESLint enforces unbound-method at error severity with type information for all first-party tests.
+  - The checked-in suppression baseline contains no unbound-method entries.
+  - Normal lint is non-mutating and rejects new or stale findings.
+  - Both application and component-test TypeScript configurations pass.
+  - The complete unit suite and production build pass.
+  required: true
+  verification:
+    kind: manual
+    instructions: Prune the baseline and run lint, both type checks, the complete unit suite, and the
+      production build.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: lint, both typechecks, 89-file/541-test suite, and production build exit 0
+    - kind: command
+      reference: async, string, and unbound inventories all report 0
+    note: 'unbound-method remains error-level under typed ESLint. Baseline has zero entries for it and
+      pruned from 291 to 192 diagnostics across 51 files: 181 production, 11 test, 0 Cypress. Zero no-unsafe
+      baseline remains intact.'
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T17:38:36.590991Z'
+- id: contributor_guidance
+  category: documentation
+  title: Contributors have actionable test-double guidance
+  acceptance:
+  - Frontend documentation explains when to use vi.spyOn versus a direct hoisted mock reference.
+  - Guidance explains why extracting object methods can invalidate binding and call assertions.
+  - Guidance covers reset/restore isolation and separate scope inventory reporting.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review frontend README guidance against the implemented test patterns and quality commands.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: frontend/README.md#test-doubles-and-method-binding
+    note: README documents receiver-preserving vi.spyOn, exact hoisted mock references, why method extraction
+      is unsafe, reset/restore isolation, and separate inventory scopes.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T17:38:37.931722Z'

@@ -28,6 +28,60 @@ The goal of this page is simple:
 
 This means it is part of the guided multi-step reporting process, not a standalone page.
 
+## Publication And Runtime Visibility
+
+The template builder runs inside `ReportingShell` and uses the shell's active
+knowledge-base module. Saving a template creates a draft; it does not make the
+template available for clinical reporting. Publication remains a separate,
+authorized action and succeeds only after the backend readiness compiler reports
+that the template can be published.
+
+After a successful publish or unpublish action, the builder notifies the shell.
+The shell then reloads the published templates for the active module and current
+examination. Normal reporting routes continue to receive only templates whose
+lifecycle is `published` and whose production readiness is valid. If a template
+used by an existing draft is unpublished, the draft is retained but cannot be
+treated as verified against an available production template.
+
+Templates shipped inside the `lx-dtypes` wheel are immutable release content.
+They are published through the protected package release workflow, not by
+writing into `site-packages` at runtime. To author or change lifecycle state,
+first import an editable terminology bundle so the API can resolve one explicit,
+writable module root and version.
+
+## Examination And Indication Resolution Contract
+
+The reporting shell owns the active patient-examination context. It passes the
+canonical examination name to nested reporting pages while the reporting flow
+store retains the patient-examination ID and, when available, the numeric
+examination concept ID.
+
+Frontend pages must resolve that identity through
+`reportingExaminationResolution.ts`. They must not independently select the
+first examination with a similar label. Resolution is valid only when one of
+these conditions holds:
+
+- the stored examination ID exists and its canonical name agrees with the
+  patient-examination payload; or
+- no ID is stored and the canonical name identifies exactly one examination in
+  the loaded catalog.
+
+Missing IDs, missing names, duplicate canonical names, and ID/name
+contradictions are visible workflow errors. These states must not trigger a
+broader indication, finding, or report-template query.
+
+API indication payloads enter the frontend through
+`reportingIndicationContract.ts`. This boundary separately normalizes:
+
+- persisted indication selections used by the reporting flow; and
+- indication and indication-choice options displayed by the report editor.
+
+An indication-choice row is never treated as an indication node. The report
+editor loads options for the resolved examination ID and patient-examination
+ID, while report-template discovery uses the same resolved canonical
+examination name. This shared resolution path keeps colonoscopy findings,
+indications, and report templates in one coherent clinical context.
+
 ---
 
 ## What You See on the Page
@@ -80,7 +134,7 @@ If sets are missing, downstream steps can be incomplete, and the final report qu
 Use this sequence for training sessions.
 
 1. Open a reporting case via deep link, for example:
-`/reporting/<patient_examination_id>/template-requirements`
+   `/reporting/<patient_examination_id>/template-requirements`
 2. Confirm the displayed `PatientExamination-ID` is correct.
 3. In **Template Selection**, keep module `report_template_examples` (for training) or switch to your production module.
 4. Click **Templates for examination load**.
@@ -101,6 +155,7 @@ The reporting process is designed as a sequence inside `ReportingShell`.
 - Route: `/reporting`
 - Main goal: Start a new report or resume an existing one.
 - Typical actions:
+
 1. Filter by status (`draft`, `final`, or all).
 2. Open an existing case.
 3. Or click **Start new report** to begin a new case.
@@ -110,11 +165,12 @@ The reporting process is designed as a sequence inside `ReportingShell`.
 - Route: `/reporting/case-setup`
 - Main goal: Create a valid case context.
 - Typical actions:
+
 1. Select patient.
 2. Select examination.
 3. Start patient examination and lookup session.
 4. Confirm that both fields are populated:
-`PatientExamination-ID` and `Lookup-Token`.
+   `PatientExamination-ID` and `Lookup-Token`.
 
 Without this step, later pages cannot calculate requirement logic reliably.
 
@@ -123,6 +179,7 @@ Without this step, later pages cannot calculate requirement logic reliably.
 - Route: `/reporting/<patient_examination_id>/template-requirements`
 - Main goal: Align template structure and requirement logic for this case.
 - Typical actions:
+
 1. Load templates for the selected examination.
 2. Select a template.
 3. Load lookup state.
@@ -136,6 +193,7 @@ This step controls what should be documented in later steps.
 - Route: `/reporting/<patient_examination_id>/findings`
 - Main goal: Enter clinical findings and their classifications.
 - Typical actions:
+
 1. Add findings to the case.
 2. Set or update classifications.
 3. Recompute lookup after important changes.
@@ -148,6 +206,7 @@ For clinical documentation quality, this is one of the most important steps.
 - Route: `/reporting/<patient_examination_id>/requirements-review`
 - Main goal: Check unmet requirements and suggested actions.
 - Typical actions:
+
 1. Load lookup hints.
 2. Review unmet requirement sets.
 3. Review advisory recommendations.
@@ -160,6 +219,7 @@ Important: This page is advisory; it supports decision-making but does not repla
 - Route: `/reporting/<patient_examination_id>/report-editor`
 - Main goal: Produce and save the report text/content.
 - Typical actions:
+
 1. Confirm template context.
 2. Fill section notes (draft text per section).
 3. Set indication rows when needed.
@@ -173,6 +233,7 @@ The editor creates/updates structured report submissions linked to the case.
 - Route: `/reporting/<patient_examination_id>/frame-selector`
 - Main goal: Select representative frames for segments and optionally link findings.
 - Typical actions:
+
 1. Select a segment.
 2. Set a representative frame manually or with helper actions.
 3. Optionally attach/remove finding links.
@@ -184,10 +245,20 @@ Use this step when image/video evidence selection is needed.
 - Route: `/reporting/<patient_examination_id>/finalized`
 - Main goal: Access final outputs and verify traceability.
 - Typical actions:
+
 1. Load latest finalized report state.
 2. Open/download PDF artifact.
 3. Open patient timeline.
 4. Verify status, version, and document type.
+
+---
+
+## Related Specialized Guides
+
+For detailed operational instructions, continue with:
+
+- [Segment Annotation Workflow](segment-annotation-workflow.md)
+- [Anonymization Validation and Correction Workflow](anonymization-validation-correction-workflow.md)
 
 ---
 
@@ -242,6 +313,7 @@ This reduces manual setup and makes training demos reliable.
 The new `base_api` requirement routes are derived from `lx_dtypes` report templates and validator runtime execution.
 
 Source implementation:
+
 - `lx-data-models/lx_dtypes/django/api/main.py`
 
 ### 1. `GET /base_api/requirement-sets`
@@ -249,6 +321,7 @@ Source implementation:
 Each returned requirement set maps to one `report_template`.
 
 Mapping:
+
 - `requirement_set.id` -> 1-based index over `sorted(kb.report_template.keys())`
 - `requirement_set.name` -> `report_template.name`
 - `requirement_set.template_name` -> `report_template.name`
@@ -257,6 +330,7 @@ Mapping:
 - `requirement_set.requirements[]` -> flattened validators attached to the template
 
 Nested requirement object mapping:
+
 - `requirements[i].id` -> 1-based local index within the requirement set
 - `requirements[i].name` -> validator name
 - `requirements[i].kind`:
@@ -264,6 +338,7 @@ Nested requirement object mapping:
   - `examination_validator` if from `template.validators.examination_validators`
 
 Important:
+
 - These IDs are API-generated projection IDs, not database IDs.
 - They are deterministic for a given module content/order, but can change if template names or validator ordering changes.
 
@@ -274,15 +349,18 @@ This returns the same projected object as above, selected by projected `id`.
 ### 3. `POST /base_api/evaluate-requirement-set`
 
 Accepted selector fields:
+
 - `requirement_set_id`
 - `requirement_set_ids`
 - `requirementSetIds` (legacy camelCase compatibility)
 
 Evaluation input mapping:
+
 - `reported_findings` (or fallback `findings`) is passed to:
   - `kb.evaluate_report_template_validators(template_name, reported_findings=...)`
 
 Output mapping per validator execution:
+
 - `result.requirement_set_id` -> projected requirement set id
 - `result.requirement_set_name` -> template name
 - `result.requirement_name` -> validator execution `name`
@@ -292,6 +370,7 @@ Output mapping per validator execution:
 - `result.validator_result` -> full runtime validator execution object
 
 Compatibility notes:
+
 - `patient_examination_id` is retained in request/response meta for frontend compatibility.
 - Requirement evaluation for these `base_api` routes no longer depends on `endoreg_db` requirement models/services.
 
@@ -345,16 +424,16 @@ What to do:
 
 Use this checklist when teaching staff.
 
-1. Can the user identify current `PatientExamination-ID`?
+1. Can the user select the intended case and examination without relying on a numerical ID?
 2. Can the user explain the purpose of each reporting step/page?
-2. Can the user load templates for the examination?
-3. Can the user select the correct template?
-4. Can the user understand requirement set status (fulfilled / not fulfilled / unknown)?
-5. Can the user toggle a set and recompute?
-6. Can the user add findings and update classifications?
-7. Can the user use Requirements Review to identify gaps?
-8. Can the user save draft/final report in the editor?
-9. Can the user verify artifacts in Finalization?
+3. Can the user load templates for the examination?
+4. Can the user select the correct template?
+5. Can the user understand requirement set status (fulfilled / not fulfilled / unknown)?
+6. Can the user toggle a set and recompute?
+7. Can the user add findings and update classifications?
+8. Can the user use Requirements Review to identify gaps?
+9. Can the user save draft/final report in the editor?
+10. Can the user verify artifacts in Finalization?
 
 ---
 
@@ -365,6 +444,27 @@ Use this checklist when teaching staff.
 - **Lookup token**: Session key for requirement calculations.
 - **Recompute**: Re-run backend logic after changes.
 - **Patient examination**: The concrete clinical case instance used for reporting.
+
+---
+
+## Canonical Language and Progressive Disclosure
+
+Reporting presentation follows the terminology supplied by `lx_dtypes`:
+
+- `name` is the stable graph and API identity and must not be translated locally.
+- `name_de` and `name_en` are the canonical user-facing terms. The frontend normalizes them to
+  `nameDe` and `nameEn` and selects the requested report language without maintaining a parallel
+  clinical terminology map.
+- Report-template titles follow the same contract; template-specific title overrides in the frontend
+  are not permitted.
+- If a localized name is absent, the stable `name` is shown. A guessed translation must not be
+  substituted.
+
+The primary reporting viewport keeps case selection, examination selection, template selection,
+report language, and the short start guide visible. Primary labels use clinical terms and dates,
+not database IDs. Technical case and report references, terminology version, media state, and other
+supporting context remain available through collapsed details. Lists are constrained by the active
+patient, case, examination, and terminology context before they are rendered.
 
 ---
 

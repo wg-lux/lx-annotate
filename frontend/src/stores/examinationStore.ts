@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
-import axiosInstance from '@/api/axiosInstance'
+import axiosInstance, { r } from '@/api/axiosInstance'
 import { findingsApi, parseFindingsApiError } from '@/api/findingsApi'
 import type { Finding, FindingClassification } from '@/api/findings.contract'
+import { endpoints } from '@/types/api/endpoints'
 import {
   getCoreConceptDisplayName,
   type ClassificationChoiceCore,
@@ -39,9 +40,64 @@ type ClassifPayload = {
   morphologyClassifications: MorphologyClassification[]
 }
 
+function optionalString(record: Record<string, unknown>, ...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = record[key]
+    if (typeof value === 'string') return value
+  }
+  return undefined
+}
+
+function normalizeExamination(entry: unknown): Examination | null {
+  if (!entry || typeof entry !== 'object') return null
+  const record = entry as Record<string, unknown>
+  const fallbackName = optionalString(record, 'name', 'name_de') ?? ''
+  const name = optionalString(record, 'name', 'nameDe') ?? fallbackName
+  const nameDe = optionalString(record, 'nameDe', 'name_de')
+  const nameEn = optionalString(record, 'nameEn', 'name_en')
+  const displayName = optionalString(record, 'displayName', 'display_name')
+  const id = Number(record.id)
+  if (!Number.isFinite(id)) return null
+  return {
+    id,
+    name,
+    nameDe,
+    nameEn,
+    name_de: nameDe,
+    name_en: nameEn,
+    displayName: getCoreConceptDisplayName({ name, nameDe, nameEn, displayName }, name)
+  }
+}
+
+function requireDropdownRows(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value
+  if (value && typeof value === 'object' && 'results' in value && Array.isArray(value.results)) {
+    return value.results
+  }
+  throw new TypeError('Examination dropdown response does not match the expected contract')
+}
+
+function objectRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+}
+
+function stringProperty(record: Record<string, unknown>, key: string): string | null {
+  const value = record[key]
+  return typeof value === 'string' ? value : null
+}
+
+function examinationRequestError(error: unknown): string {
+  const candidate = objectRecord(error)
+  const response = objectRecord(candidate.response)
+  const data = objectRecord(response.data)
+  return (
+    stringProperty(data, 'detail') ?? stringProperty(candidate, 'message') ?? 'Unbekannter Fehler'
+  )
+}
+
 export const useExaminationStore = defineStore('examination', {
   state: () => ({
-    loading: false as boolean,
+    loading: false,
     error: null as string | null,
     exams: [] as Examination[],
     selectedExaminationId: null as number | null,
@@ -66,9 +122,9 @@ export const useExaminationStore = defineStore('examination', {
       return state.exams.find((e) => e.id === state.selectedExaminationId) ?? null
     },
     availableFindings(state): Finding[] {
-      const id = state.selectedExaminationId
-      if (!id) return []
-      return state.findingsByExam.get(id) ?? []
+      const examinationId = state.selectedExaminationId
+      if (!examinationId) return []
+      return state.findingsByExam.get(examinationId) ?? []
     }
   },
 
@@ -79,37 +135,22 @@ export const useExaminationStore = defineStore('examination', {
 
     /**
      * Load examinations list.
-     * We have 2 viable endpoints in your project:
-     *  - /api/examinations/  (generic list)
-     *  - /api/patient-examinations/examinations_dropdown/ (already tailored for dropdown)
-     *
-     * While patient Examinations will filter the examinations available for the patient, examinations query will return all available examinations.
+     * The patient-examinations dropdown action is the canonical endpoint for
+     * examination choices used while setting up a reporting case.
      */
     async fetchExaminations(): Promise<void> {
       this.loading = true
       this.error = null
       try {
-        const res = await axiosInstance.get('/api/examinations/')
-        // Normalize to Examination[]
-        this.exams = (res.data as any[]).map((e) => ({
-          id: e.id,
-          name: e.name,
-          nameDe: e.nameDe ?? e.name_de,
-          nameEn: e.nameEn ?? e.name_en,
-          name_de: e.name_de ?? e.nameDe,
-          name_en: e.name_en ?? e.nameEn,
-          displayName: getCoreConceptDisplayName(
-            {
-              name: e.name,
-              nameDe: e.nameDe ?? e.name_de,
-              nameEn: e.nameEn ?? e.name_en,
-              displayName: e.displayName
-            },
-            e.name
-          )
-        }))
-      } catch (e: any) {
-        this.error = e?.response?.data?.detail ?? e?.message ?? 'Unbekannter Fehler'
+        const dropdownPayload = await axiosInstance.get<unknown>(
+          r(endpoints.examination.examinationsDropdown)
+        )
+        this.exams = requireDropdownRows(dropdownPayload.data)
+          .map(normalizeExamination)
+          .filter((entry): entry is Examination => entry !== null)
+      } catch (e: unknown) {
+        this.exams = []
+        this.error = examinationRequestError(e)
       } finally {
         this.loading = false
       }
@@ -127,7 +168,7 @@ export const useExaminationStore = defineStore('examination', {
         const findings = await findingsApi.getExaminationFindings(examId)
         this.findingsByExam.set(examId, findings)
         return findings
-      } catch (e: any) {
+      } catch (e: unknown) {
         const parsed = parseFindingsApiError(e)
         this.error = parsed.message
         return []
@@ -161,7 +202,7 @@ export const useExaminationStore = defineStore('examination', {
         }
         this.classificationsByFinding.set(findingId, payload)
         return payload
-      } catch (e: any) {
+      } catch (e: unknown) {
         const parsed = parseFindingsApiError(e)
         this.error = parsed.message
         return { locationClassifications: [], morphologyClassifications: [] }

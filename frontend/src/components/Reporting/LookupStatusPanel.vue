@@ -5,8 +5,10 @@
         <div>
           <div class="fw-semibold small">{{ title }}</div>
           <div class="small text-muted">
-            PE #{{ patientExaminationId ?? 'n/a' }} · Lookup {{ lookupToken ? 'aktiv' : 'kein Token' }}
-            <template v-if="sessionStatus"> · Status {{ sessionStatus }}</template>
+            {{
+              patientExaminationId ? 'Mit Untersuchung verknüpft' : 'Keine Untersuchung verknüpft'
+            }}
+            · Abfrage {{ lookupToken ? 'aktiv' : 'nicht verbunden' }}
           </div>
         </div>
         <button
@@ -20,22 +22,51 @@
         </button>
       </div>
 
-      <div v-if="!collapsed" data-testid="lookup-status-details" class="row g-3 mt-1">
+      <div
+        v-if="!collapsed"
+        data-testid="lookup-status-details"
+        class="row g-3 mt-1"
+      >
         <div class="col-md-4">
-          <label class="form-label">PatientExamination-ID</label>
-          <input class="form-control" :value="patientExaminationId ?? ''" readonly />
+          <label class="form-label">Technische Untersuchungsreferenz</label>
+          <input
+            class="form-control"
+            :value="patientExaminationId ?? ''"
+            readonly
+          />
         </div>
-        <div v-if="selectedExaminationId !== undefined" class="col-md-4">
-          <label class="form-label">Untersuchungs-ID</label>
-          <input class="form-control" :value="selectedExaminationId ?? ''" readonly />
+        <div
+          v-if="selectedExaminationId !== undefined"
+          class="col-md-4"
+        >
+          <label class="form-label">Technische Konzeptreferenz</label>
+          <input
+            class="form-control"
+            :value="selectedExaminationId ?? ''"
+            readonly
+          />
         </div>
-        <div v-if="sessionStatus !== undefined" class="col-md-4">
-          <label class="form-label">Lookup-Status</label>
-          <input class="form-control" :value="sessionStatus" readonly />
+        <div
+          v-if="sessionStatus !== undefined"
+          class="col-md-4"
+        >
+          <label class="form-label">Abfragestatus</label>
+          <input
+            class="form-control"
+            :value="sessionStatus"
+            readonly
+          />
         </div>
-        <div v-if="findingsRevision !== undefined" class="col-md-4">
+        <div
+          v-if="findingsRevision !== undefined"
+          class="col-md-4"
+        >
           <label class="form-label">Befund-Revision</label>
-          <input class="form-control" :value="findingsRevision" readonly />
+          <input
+            class="form-control"
+            :value="findingsRevision"
+            readonly
+          />
         </div>
       </div>
     </div>
@@ -45,20 +76,28 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-const props = withDefaults(defineProps<{
-  patientExaminationId?: number | null
-  selectedExaminationId?: number | null
-  lookupToken?: string | null
-  sessionStatus?: string
-  findingsRevision?: number
-  title?: string
-  collapsible?: boolean
-  initiallyCollapsed?: boolean
-}>(), {
-  title: 'Technische Diagnostik',
-  collapsible: true,
-  initiallyCollapsed: true
-})
+const props = withDefaults(
+  defineProps<{
+    patientExaminationId?: number | null
+    selectedExaminationId?: number | null
+    lookupToken?: string | null
+    sessionStatus?: string
+    findingsRevision?: number
+    title?: string
+    collapsible?: boolean
+    initiallyCollapsed?: boolean
+  }>(),
+  {
+    patientExaminationId: null,
+    selectedExaminationId: null,
+    lookupToken: null,
+    sessionStatus: '',
+    findingsRevision: undefined,
+    title: 'Status',
+    collapsible: true,
+    initiallyCollapsed: true
+  }
+)
 
 const collapsed = ref(props.collapsible ? props.initiallyCollapsed : false)
 </script>

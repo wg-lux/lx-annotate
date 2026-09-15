@@ -1,0 +1,166 @@
+schema_version: '1.0'
+id: sidebar_route_component
+name: Sidebar Route Component Integrity
+description: Ensure sidebar destinations resolve to loadable application components.
+owners:
+- lx-annotate maintainers
+- lx-annotate frontend maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-sidebar-route-20260825
+    changed_at: '2026-08-25T13:30:09.849057Z'
+    note: Registered CaseSetupPage on the sidebar case-setup route; sidebar, router, type-check, and generated
+      artifact freshness checks pass.
+source_documents:
+- path: docs/guides/openapi-type-generation.md
+  disposition: reference
+  note: Existing frontend contract verification workflow.
+definition_of_done:
+- id: route_component
+  category: functionality
+  title: Sidebar case setup resolves to a component
+  acceptance:
+  - The case-setup route has a loadable default component.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - test:unit
+    - --
+    - run
+    - src/components/Menus/__tests__/SidebarComponent.routes.test.ts
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'SidebarComponent.routes.test.ts: 5 passed'
+    note: The sidebar case-setup link now resolves to and loads CaseSetupPage.vue.
+    assessed_by: codex-sidebar-route-20260825
+    assessed_at: '2026-08-25T13:29:50.001017Z'
+- id: route_navigation
+  category: requirements
+  title: Case setup remains a stable reporting destination
+  acceptance:
+  - Navigation to case setup does not unexpectedly redirect to the reporting worklist.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - test:unit
+    - --
+    - run
+    - src/router/__tests__/reportingFlow.test.ts
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'reportingFlow.test.ts: 10 passed'
+    note: Case setup remains at /reporting/case-setup instead of redirecting unexpectedly.
+    assessed_by: codex-sidebar-route-20260825
+    assessed_at: '2026-08-25T13:29:51.583389Z'
+- id: sidebar_contract
+  category: testing
+  title: Sidebar route coverage remains regression tested
+  acceptance:
+  - The sidebar route test covers the linked route and component import.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - test:unit
+    - --
+    - run
+    - src/components/Menus/__tests__/SidebarComponent.routes.test.ts
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'SidebarComponent.routes.test.ts: 5 passed'
+    note: The existing sidebar route/component coverage passes.
+    assessed_by: codex-sidebar-route-20260825
+    assessed_at: '2026-08-25T13:29:53.226742Z'
+- id: no_redirect_regression
+  category: security
+  title: Legacy reporting redirects remain intact
+  acceptance:
+  - Existing reporting aliases continue to resolve through the application router.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - test:unit
+    - --
+    - run
+    - src/router/__tests__/archivedRoutes.test.ts
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'archivedRoutes.test.ts: 2 passed'
+    note: Legacy aliases continue to resolve through the configured reporting destinations.
+    assessed_by: codex-sidebar-route-20260825
+    assessed_at: '2026-08-25T13:29:54.886318Z'
+- id: type_safe_route
+  category: operations
+  title: Route registration remains statically valid
+  acceptance:
+  - Frontend type checking passes with the registered component route.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - type-check
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'npm --prefix frontend run type-check: exit 0'
+    note: Generated contract freshness, vue-tsc, and ESLint all pass after route registration.
+    assessed_by: codex-sidebar-route-20260825
+    assessed_at: '2026-08-25T13:29:56.296589Z'
+- id: documented_boundary
+  category: documentation
+  title: Route ownership remains explicit
+  acceptance:
+  - The router is the canonical owner of the sidebar destination component.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the case-setup child route in frontend/src/router/index.ts.
+    timeout_seconds: 60
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: frontend/src/router/index.ts owns the case-setup route component.
+    note: The router explicitly owns the sidebar destination and lazy-loads CaseSetupPage.vue.
+    assessed_by: codex-sidebar-route-20260825
+    assessed_at: '2026-08-25T13:29:59.450470Z'

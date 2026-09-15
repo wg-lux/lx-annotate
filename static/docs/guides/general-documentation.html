@@ -3,7 +3,7 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Frontend Asset Deployment Contract" href="asset-deployment.html"><link rel="prev" title="lx-annotate Documentation" href="../index.html">
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Deployment Strategy" href="deployment-strategy.html"><link rel="prev" title="lx-annotate Documentation" href="../index.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
         <title>General Documentation Guide - lx-annotate Documentation</title>
@@ -194,20 +194,24 @@
   <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
 <ul class="current">
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">General Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deployment-strategy.html">Deployment Strategy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="runtime-environment-contract-test.html">Runtime environment migration and rollback record</a></li>
+<li class="toctree-l1"><a class="reference internal" href="encrypted-storage-process.html">Encrypted Storage Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="secure-backup-disaster-recovery.html">Secure Backup and Disaster Recovery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hub-export-workflow.html">Hub Export Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hub-storage-load-balancing.html">Hub storage load balancing and production-test runbook</a></li>
 <li class="toctree-l1"><a class="reference internal" href="asset-deployment.html">Frontend Asset Deployment Contract</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../assisted-reporting-report.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wheel-deployment.html">Wheel Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pypi.html">PyPI Publishing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ai-training-data-export.html">AI Training Data Export</a></li>
 <li class="toctree-l1"><a class="reference internal" href="segment-annotation-workflow.html">Segment Annotation Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="frame-annotation-availability.html">Frame Annotation Availability</a></li>
 <li class="toctree-l1"><a class="reference internal" href="anonymization-validation-correction-workflow.html">Anonymization Validation and Correction Workflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html">1. Always Use Strong Typing (Not Strings)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#enforce-timezone-awareness-crucial">2. Enforce Timezone Awareness (Crucial)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#stick-to-iso-8601-standards">3. Stick to ISO 8601 Standards</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#validating-business-logic-past-future">4. Validating Business Logic (Past/Future)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#handling-now-and-defaults">5. Handling “Now” and Defaults</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#serialization-json-output">6. Serialization (JSON Output)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#summary-checklist">Summary Checklist</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#example-putting-it-all-together">7. Example: Putting it all together</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#next-step">Next Step</a></li>
-<li class="toctree-l1"><a class="reference internal" href="pydantic-cheatsheet.html">Pydantic V2 Cheat Sheet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dtypes-findings-migration.html">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="terminology-delivery.html">Governed terminology delivery</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-contract.html">Core Concept Contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-readiness-verdict.html">Core Concept Readiness Verdict</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-type-matrix.html">Core Concept Type Matrix</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reporting-template-requirements-page.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
@@ -266,32 +270,49 @@
 <section id="documentation-structure">
 <h2>Documentation Structure<a class="headerlink" href="#documentation-structure" title="Link to this heading">¶</a></h2>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">assisted-reporting-report</span></code>: Practical reporting workflow with step-by-step guidance</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">guides/reporting-template-requirements-page</span></code>: Reporting workflow, template selection, and requirement-set reference</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">guides/asset-deployment</span></code>: Frontend build/manifest/runtime deployment contract</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">guides/hub-export-workflow</span></code>: Secure outbound transfer and export workflow</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">guides/hub-storage-load-balancing</span></code>: Central-hub storage placement, rotation,
+rollback, and production-test runbook</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">guides/ai-training-data-export</span></code>: Frame, annotation, AI dataset, and GastroNet-style training exports</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">guides/segment-annotation-workflow</span></code>: Practical video segment review and validation workflow</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">guides/anonymization-validation-correction-workflow</span></code>: Validation/approval and correction flow before reporting</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/reporting-template-requirements-page</span></code>: Detailed template and requirement-set workflow</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/dates-and-times</span></code>: Date/time conventions</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/pydantic-cheatsheet</span></code>: Data-modeling and validation patterns</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">guides/dtypes-findings-migration</span></code>: Incremental findings migration plan</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">guides/core-concept-contract</span></code>: Core concept contract and API surface</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">guides/core-concept-readiness-verdict</span></code>: Readiness assessment for structured evaluation</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">guides/core-concept-type-matrix</span></code>: Generated type matrix for core concepts</p></li>
+<li><p><a class="reference external" href="https://github.com/wg-lux/lx-data-models/blob/main/docs/guides/dates-and-times.md">Shared date/time conventions</a>: canonical timezone and serialization rules owned by <code class="docutils literal notranslate"><span class="pre">lx-data-models</span></code></p></li>
+<li><p><a class="reference external" href="https://github.com/wg-lux/lx-data-models/blob/main/docs/guides/pydantic-cheatsheet.md">Shared Pydantic patterns</a>: canonical model and validation guidance owned by <code class="docutils literal notranslate"><span class="pre">lx-data-models</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">api/index</span></code>: API reference entry point</p></li>
 </ul>
+<p>To add documentation to the frontend run these commands:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>--extra<span class="w"> </span>docs<span class="w"> </span>make<span class="w"> </span>-C<span class="w"> </span>docs<span class="w"> </span>html
+mkdir<span class="w"> </span>-p<span class="w"> </span>static/docs
+rsync<span class="w"> </span>-a<span class="w"> </span>--delete<span class="w"> </span>docs/_build/html/<span class="w"> </span>static/docs/
+mkdir<span class="w"> </span>-p<span class="w"> </span>staticfiles/docs
+rsync<span class="w"> </span>-a<span class="w"> </span>--delete<span class="w"> </span>docs/_build/html/<span class="w"> </span>staticfiles/docs/
+</pre></div>
+</div>
 </section>
 <section id="recommended-reading-paths">
 <h2>Recommended Reading Paths<a class="headerlink" href="#recommended-reading-paths" title="Link to this heading">¶</a></h2>
 <section id="clinical-documentation-path">
 <h3>Clinical Documentation Path<a class="headerlink" href="#clinical-documentation-path" title="Link to this heading">¶</a></h3>
 <ol class="arabic simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">assisted-reporting-report</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/segment-annotation-workflow</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/anonymization-validation-correction-workflow</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">guides/reporting-template-requirements-page</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">guides/anonymization-validation-correction-workflow</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">guides/segment-annotation-workflow</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">guides/ai-training-data-export</span></code></p></li>
 </ol>
 </section>
 <section id="technical-maintenance-path">
 <h3>Technical Maintenance Path<a class="headerlink" href="#technical-maintenance-path" title="Link to this heading">¶</a></h3>
 <ol class="arabic simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/dates-and-times</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">guides/pydantic-cheatsheet</span></code></p></li>
+<li><p><a class="reference external" href="https://github.com/wg-lux/lx-data-models/blob/main/docs/guides/dates-and-times.md">Shared date/time conventions</a></p></li>
+<li><p><a class="reference external" href="https://github.com/wg-lux/lx-data-models/blob/main/docs/guides/pydantic-cheatsheet.md">Shared Pydantic patterns</a></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">guides/core-concept-contract</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">guides/dtypes-findings-migration</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">api/index</span></code></p></li>
 </ol>
 </section>
@@ -311,7 +332,7 @@
 <ul class="simple">
 <li><p>If templates are missing, verify selected module and examination type.</p></li>
 <li><p>If requirement sets are empty, ensure a valid <code class="docutils literal notranslate"><span class="pre">patient_examination_id</span></code> and active lookup token exist.</p></li>
-<li><p>If a step is unclear for training, start with <code class="docutils literal notranslate"><span class="pre">assisted-reporting-report</span></code> and follow the section order.</p></li>
+<li><p>If a step is unclear for training, start with <code class="docutils literal notranslate"><span class="pre">guides/reporting-template-requirements-page</span></code> and follow the section order.</p></li>
 </ul>
 </section>
 </section>
@@ -321,12 +342,12 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="asset-deployment.html">
+          <a class="next-page" href="deployment-strategy.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Frontend Asset Deployment Contract</div>
+                <div class="title">Deployment Strategy</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
@@ -392,7 +413,7 @@
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=d45e8c67"></script>
+</div><script src="../_static/documentation_options.js?v=010db75e"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

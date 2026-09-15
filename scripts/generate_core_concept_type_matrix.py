@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
+# flake8: noqa: E402
 from __future__ import annotations
 
 import json
 import os
 import re
 import sys
-from pathlib import Path
+from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any, Callable, get_type_hints
+from pathlib import Path
+from typing import Any, get_type_hints
 
 # Ensure imports resolve both in local dev and CI.
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -28,15 +30,17 @@ from lx_dtypes.models.knowledge_base.citation.Citation import Citation  # noqa: 
 from lx_dtypes.models.knowledge_base.citation.CitationDataDict import (  # noqa: E402
     CitationDataDict,
 )
-from lx_dtypes.models.knowledge_base.citation.CitationDjango import CitationDjango  # noqa: E402
+from lx_dtypes.models.knowledge_base.citation.CitationDjango import (
+    CitationDjango,  # noqa: E402
+)
+from lx_dtypes.models.knowledge_base.classification._ClassificationDjango import (  # noqa: E402
+    ClassificationDjango,
+)
 from lx_dtypes.models.knowledge_base.classification.Classification import (  # noqa: E402
     Classification,
 )
 from lx_dtypes.models.knowledge_base.classification.ClassificationDataDict import (  # noqa: E402
     ClassificationDataDict,
-)
-from lx_dtypes.models.knowledge_base.classification._ClassificationDjango import (  # noqa: E402
-    ClassificationDjango,
 )
 from lx_dtypes.models.knowledge_base.classification_choice.ClassificationChoice import (  # noqa: E402
     ClassificationChoice,
@@ -56,24 +60,34 @@ from lx_dtypes.models.knowledge_base.classification_choice_descriptor.Classifica
 from lx_dtypes.models.knowledge_base.classification_choice_descriptor.ClassificationChoiceDescriptorDjango import (  # noqa: E402
     ClassificationChoiceDescriptorDjango,
 )
-from lx_dtypes.models.knowledge_base.examination.Examination import Examination  # noqa: E402
+from lx_dtypes.models.knowledge_base.examination.Examination import (
+    Examination,  # noqa: E402
+)
 from lx_dtypes.models.knowledge_base.examination.ExaminationDataDict import (  # noqa: E402
     ExaminationDataDict,
 )
 from lx_dtypes.models.knowledge_base.examination.ExaminationDjango import (  # noqa: E402
     ExaminationDjango,
 )
-from lx_dtypes.models.knowledge_base.finding.FindingDataDict import FindingDataDict  # noqa: E402
-from lx_dtypes.models.knowledge_base.finding.FindingTypeDataDict import (  # noqa: E402
-    FindingTypeDataDict,
-)
 from lx_dtypes.models.knowledge_base.finding._Finding import Finding  # noqa: E402
-from lx_dtypes.models.knowledge_base.finding._FindingDjango import FindingDjango  # noqa: E402
-from lx_dtypes.models.knowledge_base.finding._FindingType import FindingType  # noqa: E402
+from lx_dtypes.models.knowledge_base.finding._FindingDjango import (
+    FindingDjango,  # noqa: E402
+)
+from lx_dtypes.models.knowledge_base.finding._FindingType import (
+    FindingType,  # noqa: E402
+)
 from lx_dtypes.models.knowledge_base.finding._FindingTypeDjango import (  # noqa: E402
     FindingTypeDjango,
 )
-from lx_dtypes.models.knowledge_base.indication.Indication import Indication  # noqa: E402
+from lx_dtypes.models.knowledge_base.finding.FindingDataDict import (
+    FindingDataDict,  # noqa: E402
+)
+from lx_dtypes.models.knowledge_base.finding.FindingTypeDataDict import (  # noqa: E402
+    FindingTypeDataDict,
+)
+from lx_dtypes.models.knowledge_base.indication.Indication import (
+    Indication,  # noqa: E402
+)
 from lx_dtypes.models.knowledge_base.indication.IndicationDataDict import (  # noqa: E402
     IndicationDataDict,
 )
@@ -129,8 +143,12 @@ from lx_dtypes.models.knowledge_base.unit.Unit import Unit  # noqa: E402
 from lx_dtypes.models.knowledge_base.unit.UnitDataDict import UnitDataDict  # noqa: E402
 from lx_dtypes.models.knowledge_base.unit.UnitDjango import UnitDjango  # noqa: E402
 from lx_dtypes.models.knowledge_base.unit.UnitType import UnitType  # noqa: E402
-from lx_dtypes.models.knowledge_base.unit.UnitTypeDataDict import UnitTypeDataDict  # noqa: E402
-from lx_dtypes.models.knowledge_base.unit.UnitTypeDjango import UnitTypeDjango  # noqa: E402
+from lx_dtypes.models.knowledge_base.unit.UnitTypeDataDict import (
+    UnitTypeDataDict,  # noqa: E402
+)
+from lx_dtypes.models.knowledge_base.unit.UnitTypeDjango import (
+    UnitTypeDjango,  # noqa: E402
+)
 
 ConceptConfig = dict[str, Any]
 
@@ -153,7 +171,10 @@ def _parse_ts_interfaces(path: Path) -> dict[str, dict[str, str]]:
         r"export interface\s+(\w+)(?:\s+extends\s+([^{]+))?\s*\{([\s\S]*?)\}\n",
         re.MULTILINE,
     )
-    field_pattern = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\??:\s*([^\n]+)", re.MULTILINE)
+    field_pattern = re.compile(
+        r"^\s*([A-Za-z_][A-Za-z0-9_]*)\??:\s*([^\n]+)",
+        re.MULTILINE,
+    )
 
     for match in interface_pattern.finditer(data):
         name = match.group(1)
@@ -199,6 +220,11 @@ def _camel_to_snake(name: str) -> str:
 
 
 def _builders() -> dict[str, Callable[[], Any]]:
+    from lx_dtypes.names import (
+        ClassificationChoiceDescriptorTypes,
+        NumericDistributionChoices,
+    )
+
     return {
         "Classification": lambda: Classification(
             name="classification_model",
@@ -213,8 +239,8 @@ def _builders() -> dict[str, Callable[[], Any]]:
         ),
         "ClassificationChoiceDescriptor": lambda: ClassificationChoiceDescriptor(
             name="descriptor_model",
-            classification_choice_descriptor_type="numeric",
-            numeric_distribution="uniform",
+            classification_choice_descriptor_type=ClassificationChoiceDescriptorTypes.NUMERIC,
+            numeric_distribution=NumericDistributionChoices.UNIFORM,
             unit="mm",
             selection_options=["opt_1", "opt_2"],
             tags=["tag_a", "tag_b"],
@@ -233,21 +259,28 @@ def _builders() -> dict[str, Callable[[], Any]]:
             interventions=["intervention_1"],
             tags=["tag_a", "tag_b"],
         ),
-        "FindingType": lambda: FindingType(name="finding_type_model", tags=["tag_a", "tag_b"]),
+        "FindingType": lambda: FindingType(
+            name="finding_type_model",
+            tags=["tag_a", "tag_b"],
+        ),
         "Indication": lambda: Indication(
             name="indication_model",
             indication_types=["indication_type_1"],
             interventions=["intervention_1", "intervention_2"],
             tags=["tag_a", "tag_b"],
         ),
-        "IndicationType": lambda: IndicationType(name="indication_type_model", tags=["tag_a", "tag_b"]),
+        "IndicationType": lambda: IndicationType(
+            name="indication_type_model",
+            tags=["tag_a", "tag_b"],
+        ),
         "Intervention": lambda: Intervention(
             name="intervention_model",
             intervention_types=["intervention_type_1"],
             tags=["tag_a", "tag_b"],
         ),
         "InterventionType": lambda: InterventionType(
-            name="intervention_type_model", tags=["tag_a", "tag_b"]
+            name="intervention_type_model",
+            tags=["tag_a", "tag_b"],
         ),
         "Unit": lambda: Unit(
             name="unit_model",
@@ -262,7 +295,8 @@ def _builders() -> dict[str, Callable[[], Any]]:
             tags=["tag_a", "tag_b"],
         ),
         "InformationSourceType": lambda: InformationSourceType(
-            name="source_type_model", tags=["tag_a", "tag_b"]
+            name="source_type_model",
+            tags=["tag_a", "tag_b"],
         ),
         "Citation": lambda: Citation(
             name="citation_model",
@@ -396,7 +430,9 @@ def _django_field_types(model_cls: Any) -> dict[str, str]:
 
 
 def build_matrix() -> dict[str, Any]:
-    ts_interfaces = _parse_ts_interfaces(REPO_ROOT / "frontend/src/types/coreConcepts.ts")
+    ts_interfaces = _parse_ts_interfaces(
+        REPO_ROOT / "frontend/src/types/coreConcepts.ts",
+    )
     builders = _builders()
     concepts = _concepts()
 
@@ -409,8 +445,14 @@ def build_matrix() -> dict[str, Any]:
         django_cls = concept["django"]
         ts_interface_name = concept["frontend_interface"]
 
-        model_hints = {k: _type_to_str(v) for k, v in get_type_hints(model_cls, include_extras=True).items()}
-        ddict_hints = {k: _type_to_str(v) for k, v in get_type_hints(ddict_cls, include_extras=True).items()}
+        model_hints = {
+            k: _type_to_str(v)
+            for k, v in get_type_hints(model_cls, include_extras=True).items()
+        }
+        ddict_hints = {
+            k: _type_to_str(v)
+            for k, v in get_type_hints(ddict_cls, include_extras=True).items()
+        }
         django_hints = _django_field_types(django_cls)
         frontend_hints_raw = ts_interfaces.get(ts_interface_name, {})
         frontend_hints = {
@@ -421,7 +463,13 @@ def build_matrix() -> dict[str, Any]:
         runtime_ddict = builders[concept_name]().ddict
         runtime_types = {k: type(v).__name__ for k, v in runtime_ddict.items()}
 
-        fields = sorted(set(model_hints) | set(ddict_hints) | set(django_hints) | set(frontend_hints) | set(runtime_types))
+        fields = sorted(
+            set(model_hints)
+            | set(ddict_hints)
+            | set(django_hints)
+            | set(frontend_hints)
+            | set(runtime_types),
+        )
 
         field_rows: list[dict[str, Any]] = []
         for field_name in fields:
@@ -446,7 +494,7 @@ def build_matrix() -> dict[str, Any]:
                 "concept": concept_name,
                 "frontend_interface": ts_interface_name,
                 "fields": field_rows,
-            }
+            },
         )
 
     return {
@@ -464,7 +512,7 @@ def _render_markdown(matrix: dict[str, Any]) -> str:
     lines.append("# Core Concept Type Matrix")
     lines.append("")
     lines.append(
-        "This file is generated by `scripts/generate_core_concept_type_matrix.py`."
+        "This file is generated by `scripts/generate_core_concept_type_matrix.py`.",
     )
     lines.append("")
 
@@ -472,7 +520,7 @@ def _render_markdown(matrix: dict[str, Any]) -> str:
         lines.append(f"## {concept['concept']}")
         lines.append("")
         lines.append(
-            "| Field | Pydantic Model | DataDict | Django ORM | Runtime `ddict` type | Frontend Canonical | Drift |"
+            "| Field | Pydantic Model | DataDict | Django ORM | Runtime `ddict` type | Frontend Canonical | Drift |",
         )
         lines.append("|---|---|---|---|---|---|---|")
         for field in concept["fields"]:
@@ -485,7 +533,7 @@ def _render_markdown(matrix: dict[str, Any]) -> str:
                     runtime_ddict=field["runtime_ddict"],
                     frontend=field["frontend"].replace("|", "\\|"),
                     drift="yes" if field["drift"] else "no",
-                )
+                ),
             )
         lines.append("")
 
@@ -500,7 +548,10 @@ def main() -> None:
     json_path = docs_dir / "core-concept-type-matrix.json"
     md_path = docs_dir / "core-concept-type-matrix.md"
 
-    json_path.write_text(json.dumps(matrix, indent=2, sort_keys=False), encoding="utf-8")
+    json_path.write_text(
+        json.dumps(matrix, indent=2, sort_keys=False),
+        encoding="utf-8",
+    )
     md_path.write_text(_render_markdown(matrix), encoding="utf-8")
 
     print(f"Wrote {json_path}")

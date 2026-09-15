@@ -1,0 +1,138 @@
+schema_version: '1.0'
+id: pyright_repository_baseline
+name: Repository Pyright Baseline
+description: Keep Pyright diagnostics actionable with explicit framework stub dependencies.
+owners:
+- lx-annotate maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-pyright-20260827
+    changed_at: '2026-08-27T11:10:39.416210Z'
+    note: Pyright, repository mypy, focused hub tests, Ruff, tracker validation, and dependency lock checks
+      pass.
+source_documents:
+- path: docs/guides/openapi-type-generation.md
+  disposition: reference
+  note: Existing repository type-checking workflow context.
+definition_of_done:
+- id: application_typecheck
+  category: requirements
+  title: Application package passes Pyright
+  acceptance:
+  - pyright lx_annotate exits successfully.
+  required: true
+  verification:
+    kind: command
+    command:
+    - pyright
+    - lx_annotate
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'pyright lx_annotate: 0 errors, 0 warnings, 0 informations'
+    note: The reported 111 diagnostics are resolved.
+    assessed_by: codex-pyright-20260827
+    assessed_at: '2026-08-27T11:10:18.281162Z'
+- id: django_boundary
+  category: functionality
+  title: Django framework boundaries have explicit Pyright stubs
+  acceptance:
+  - Django and Django REST Framework stub packages are direct development dependencies.
+  - Application and installed library source remain fully analyzed.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the development dependencies and confirm the Pyright stub contract is explicit.
+    timeout_seconds: 60
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: django-types and djangorestframework-types are direct dev dependencies; no runtime dependency
+        changed.
+    note: The repository no longer relies on endoreg-db to provide Pyright framework stubs transitively.
+    assessed_by: codex-pyright-20260827
+    assessed_at: '2026-08-27T11:10:20.016079Z'
+- id: repository_mypy
+  category: testing
+  title: Repository Mypy baseline remains clean
+  acceptance:
+  - mypy lx_annotate tests exits successfully.
+  required: true
+  verification:
+    kind: command
+    command:
+    - mypy
+    - lx_annotate
+    - tests
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'mypy lx_annotate tests: Success, no issues found in 181 source files'
+    note: Dynamic test boundaries are explicit and the repository baseline remains clean.
+    assessed_by: codex-pyright-20260827
+    assessed_at: '2026-08-27T11:10:21.824848Z'
+- id: configuration_valid
+  category: operations
+  title: Feature tracking and dependency lock remain valid
+  acceptance:
+  - The tracker validates all feature YAML files.
+  - uv lock confirms dependency metadata is consistent.
+  required: true
+  verification:
+    kind: command
+    command:
+    - ./feature-tracking/tracker.py
+    - validate
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'tracker validate: 38 valid feature definitions; uv lock --check: resolved 394 packages'
+    note: Feature metadata and dependency lock are consistent.
+    assessed_by: codex-pyright-20260827
+    assessed_at: '2026-08-27T11:10:23.743148Z'
+- id: no_diagnostic_suppression
+  category: security
+  title: Project diagnostics are not suppressed
+  acceptance:
+  - No report rule is disabled to hide application errors.
+  required: true
+  verification:
+    kind: manual
+    instructions: Confirm the change adds framework type information without disabling diagnostics.
+    timeout_seconds: 60
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: No Pyright or Mypy diagnostic rule was disabled by this change.
+    note: The fix restores missing type information rather than hiding diagnostics.
+    assessed_by: codex-pyright-20260827
+    assessed_at: '2026-08-27T11:10:27.357143Z'
+- id: configuration_scope_documented
+  category: documentation
+  title: Pyright dependency scope is explicit
+  acceptance:
+  - The feature definition records why the framework stub dependencies are direct.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review pyproject.toml and the feature definition for an explicit scope.
+    timeout_seconds: 60
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: Direct dev dependencies and feature rationale are recorded in pyproject.toml and PyrightRepositoryBaseline.yml.
+    note: The framework typing ownership boundary is explicit.
+    assessed_by: codex-pyright-20260827
+    assessed_at: '2026-08-27T11:10:30.167667Z'

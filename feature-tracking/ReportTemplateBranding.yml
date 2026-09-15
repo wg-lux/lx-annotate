@@ -1,0 +1,149 @@
+schema_version: '1.0'
+id: report_template_branding
+name: Report Template Branding
+description: Add hospital branding controls and a realistic editable page preview to the report-template
+  builder.
+owners:
+- lx-annotate frontend maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-root-20260902-feature-advance
+    changed_at: '2026-09-02T11:39:41.927078Z'
+    note: Completed after 12 focused branding/builder tests, both frontend TypeScript lanes, ESLint, tracker
+      validation, and the production-readiness check passed.
+source_documents:
+- path: docs/guides/reporting-template-requirements-page.md
+  disposition: reference
+  note: Reporting template and frontend ownership context.
+definition_of_done:
+- id: hospital_identity_editor
+  category: requirements
+  title: Template makers can configure hospital identity
+  acceptance:
+  - Users can upload, preview, replace, and remove a hospital logo.
+  - Users can edit a multiline hospital name and postal address.
+  required: true
+  verification:
+    kind: manual
+    instructions: Exercise logo and address controls in the focused component tests.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/components/Reporting/ReportTemplateBrandingEditor.vue
+    - kind: test
+      reference: 'ReportTemplateBrandingEditor.test.ts: 4 passed'
+    note: Builder now supports validated logo upload, preview, replacement/removal, and multiline clinic
+      identity editing.
+    assessed_by: codex-report-branding-20260814
+    assessed_at: '2026-08-14T07:29:31.580745Z'
+- id: realistic_report_preview
+  category: functionality
+  title: Branding and report sections have a realistic page preview
+  acceptance:
+  - The preview resembles a printable report page with header, patient block, report content, and footer.
+  - Changes to branding and section order appear immediately in the preview.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect the builder at desktop and narrow viewport widths and run focused tests.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/components/Reporting/ReportTemplateBrandingEditor.vue
+    - kind: test
+      reference: branding preview component test passed
+    note: Responsive print-style preview renders branding, patient metadata, template identity, configured
+      sections, and footer in live section order.
+    assessed_by: codex-report-branding-20260814
+    assessed_at: '2026-08-14T07:29:32.908634Z'
+- id: safe_logo_boundary
+  category: security
+  title: Logo uploads are constrained at the browser boundary
+  acceptance:
+  - Only PNG, JPEG, and WebP files up to one MiB are accepted.
+  - Unsupported or oversized files are rejected visibly and are not added to the template payload.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run negative upload tests for MIME type and file size.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: unsupported SVG and oversized PNG rejection tests passed
+    note: Upload boundary accepts only PNG/JPEG/WebP up to one MiB and rejects invalid input before template
+      mutation.
+    assessed_by: codex-report-branding-20260814
+    assessed_at: '2026-08-14T07:29:34.686257Z'
+- id: branding_regression_coverage
+  category: testing
+  title: Branding behavior has focused regression coverage
+  acceptance:
+  - Component tests cover upload, address editing, preview, removal, and rejection paths.
+  - Frontend type checks and scoped lint pass.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run branding component tests, builder tests, both type-check lanes, and scoped lint.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'vitest focused branding/builder suites: 2 files, 9 tests passed'
+    - kind: command
+      reference: 'npm run type-check; npm run type-check:component-tests; scoped ESLint: passed'
+    note: Focused component and builder suites pass 9 tests; both Vue TypeScript lanes, scoped ESLint,
+      and diff checks pass.
+    assessed_by: codex-report-branding-20260814
+    assessed_at: '2026-08-14T07:29:36.157800Z'
+- id: visible_branding_failures
+  category: operations
+  title: Branding failures are actionable
+  acceptance:
+  - Upload errors explain the supported formats and size limit.
+  - File reading failures do not silently retain partial logo state.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review error states and focused component tests.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/components/Reporting/ReportTemplateBrandingEditor.vue
+    note: Unsupported format, size overflow, invalid read result, and FileReader failures have explicit
+      user-facing errors without partial state.
+    assessed_by: codex-report-branding-20260814
+    assessed_at: '2026-08-14T07:29:37.522975Z'
+- id: existing_section_contract
+  category: documentation
+  title: Branding reuses the existing template-section contract
+  acceptance:
+  - Logo and address values remain typed logo and clinic_address sections in the save payload.
+  - The feature does not introduce separate branding persistence or backend filesystem mutations.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the component integration, save payload, and this YAML tracker.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: ReportTemplateBuilderPage.test.ts branding save-payload integration passed
+    - kind: document
+      reference: feature-tracking/ReportTemplateBranding.yml
+    note: Branding uses existing logo and clinic_address sections; integration test proves address data
+      reaches saveReportTemplateDefinition without separate persistence.
+    assessed_by: codex-report-branding-20260814
+    assessed_at: '2026-08-14T07:29:39.230103Z'

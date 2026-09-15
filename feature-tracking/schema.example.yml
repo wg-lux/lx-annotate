@@ -1,0 +1,29 @@
+# Authoring example. The tracker does not load this file as a feature.
+schema_version: '1.0'
+id: example_feature
+name: Example Feature
+description: Example definition for a production-critical feature.
+owners:
+- lx-annotate maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: docs/example.md
+  disposition: reference
+  note: Design context without an independent completion status.
+definition_of_done:
+- id: documented_scope
+  category: requirements
+  title: Scope is documented
+  acceptance:
+  - Supported and unsupported workflows are documented.
+  - Failure and security behavior are expressed as verifiable requirements.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the document against implementation, API contracts, and deployment profiles.
+    timeout_seconds: 300
+  assessment:
+    status: not_assessed

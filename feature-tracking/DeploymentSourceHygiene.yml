@@ -1,0 +1,243 @@
+schema_version: '1.0'
+id: deployment_source_hygiene
+name: Deployment Source Hygiene
+description: Govern attributable release inputs, temporary deployment artifacts, release worktrees, Nix
+  roots, and post-deployment cleanup for LX-Annotate across the LuxNix clinical fleet.
+owners:
+- LuxNix maintainers
+- lx-annotate maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: docs/guides/deployment-strategy.md
+  disposition: reference
+  note: Application deployment-source, temporary-file, and cleanup boundaries.
+- path: docs/guides/wheel-deployment.md
+  disposition: reference
+  note: Verified wheel staging, installation, acceptance, and cleanup procedure.
+definition_of_done:
+- id: attributable_source_contract
+  category: requirements
+  title: Every production input has an attributable source identity
+  acceptance:
+  - The deployment record identifies the LuxNix commit, selected host, locked Flake inputs, LX-Annotate
+    version, and immutable wheel or Nix closure digest.
+  - Record exact repository paths and revisions, application lockfile identity, and installed
+    lx-annotate, endoreg-db, and lx-dtypes versions and artifact identities; verify that the
+    installed dependency set contains the reviewed fixes. Local checkout versions alone are
+    not release evidence.
+  - Any emergency runtime patch is incorporated into the reviewed release source and artifact
+    before promotion; verify that service imports resolve to that artifact without unexplained
+    differences from the reviewed source.
+  - Operators review repository status and reject unrelated or unexplained changes before evaluation.
+  - Evaluation, build, and deployment use the same reviewed source path.
+  - Shared module and default changes are reviewed for their fleet-wide impact, not only for the named
+    target host.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review a production-like deployment record against the LuxNix deployment guide, Git
+      state, flake.lock, selected host output, and LX-Annotate artifact metadata.
+    timeout_seconds: 600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: command
+      reference: target gc-02; active system /nix/store/bcia1cqm7n4rgq6hqk6axlxixzig0rq3-nixos-system-gc-02-25.11.20260125.1cd347b;
+        active service /nix/store/9l9lmzl7p2bjvrpsb9gx0hzg3qgzgihv-lx-annotate-wheel-runtime-1.0.4
+    - kind: command
+      reference: LuxNix revision 1658288bb85eff92d2d87689a667e9208261a53b; flake.lock sha256 3ea0f05365ef457e1bad9e31809aba280a39f0999b2a32b4d78ed98bd2335f87;
+        dirty entries=25
+    - kind: command
+      reference: Evaluated and active wheel sha256 bb8cd013002c7bee361e6f59eb58da6a23b1640fc7f809405f008c3c0a9f8546;
+        installed lx-annotate=1.0.4, endoreg-db=1.0.20.0, lx-dtypes=0.2.22
+    note: 'Provenance was captured for the storage work: target gc-02, active system and service closures,
+      LuxNix revision and flake.lock digest, installed package versions, and the immutable LX-Annotate
+      1.0.4 wheel digest. The evaluated default now matches the active wheel exactly. Readiness remains
+      incomplete because the LuxNix worktree has 25 entries requiring ownership review and the coordinated
+      wheel containing current endoreg/lx changes has not been released or identified.'
+    assessed_by: codex-storage-optimization-20260824
+    assessed_at: '2026-08-25T07:58:40.036667Z'
+- id: immutable_runtime_source
+  category: functionality
+  title: Runtime services consume immutable installed artifacts
+  acceptance:
+  - Production service entrypoints resolve to an installed virtual environment or a Nix store closure.
+  - Persistent configuration does not reference a repository, worktree, render directory, test environment,
+    package cache, or verification clone below /tmp.
+  - A release worktree used for deployment is clean, attached to a durable Git reference, and located
+    outside /tmp.
+  - The active system profile and /run/current-system protect the selected NixOS generation independently
+    of temporary GC roots.
+  required: true
+  verification:
+    kind: manual
+    instructions: On a disposable production-like host, inspect /run/current-system, system profiles,
+      relevant systemd ExecStart values, service environments, Git worktrees, and Nix roots after activation.
+    timeout_seconds: 900
+  assessment:
+    status: not_assessed
+    evidence: []
+- id: reproducible_pre_deploy_gate
+  category: testing
+  title: Pre-deployment checks reproduce the selected fleet configuration
+  acceptance:
+  - The selected host evaluates and builds from the reviewed LuxNix source without changing that source
+    between the checks and deployment.
+  - LX-Annotate package and deployment contract tests run against the exact version selected by LuxNix.
+  - A production-like rollout proves migration, startup, live acceptance, and rollback behavior before
+    fleet promotion.
+  - Reject application or dependency downgrades before replacing a shared runtime environment. Compare
+    applied database migrations with the installed migration contract before migration and runtime
+    startup, preserving explicitly supported legacy histories without silently repairing unknown history.
+  - Rollback acceptance includes a database newer than the selected package and stale NixOS boot pins;
+    reject incompatible code without dropping constraints, rewriting migration records, or retrying
+    deterministic schema failures as transient work. Previously deployed installer scripts need a
+    separate reviewed generation and shared-runtime recovery procedure.
+  - From the intended user's browser and client network, a fresh login synchronizes the expected
+    center and permits a populated overview, playback, anonymization approval using JSON frame
+    ranges, and annotation save and reload while background processing is active. Record the
+    selected host, release identity, workload, measured response times, result, and assessor
+    without retaining clinical payloads or credentials in deployment evidence.
+  - Background HLS backfill does not block web startup; competing import and backfill work and
+    worker interruption recover without duplicate imports, lost artifacts, or premature queue
+    redelivery. Verify capacity and archive I/O health on the selected host before acceptance.
+  - Test output records commands, revisions, artifact identities, results, and the assessor.
+  required: true
+  verification:
+    kind: manual
+    instructions: Reproduce the target-host evaluation and build, focused LX-Annotate deployment tests,
+      and disposable-host rollout and rollback using one recorded source identity.
+    timeout_seconds: 3600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: review
+      reference: 'codex://threads/01a07b15-3574-7743-96e0-730210c51406; 2026-09-07 gc-10 read-only
+        verification: lx-annotate0.9.51/endoreg-db1.0.8.0/lx-dtypes0.2.8, installed backend migrations
+        through0056 versus database through0076. VideoHLSArtifact model omits encoding_profile_name
+        and source_content_hash; both database columns are NOT NULL without database defaults.
+        Thread installer logs show lx-annotate1.2.1 to0.9.51 and endoreg-db1.1.6 to1.0.8.0 downgrade.
+        Why the stale boot generation was selected remains unverified.'
+    - kind: test
+      reference: '2026-09-07 application migration guard: 37 focused tests passed, then9 new-guard
+        tests passed after the final inaccessible-database case was added (38 distinct tests).
+        Includes read-only rejection of database0076/package0056, canonical/legacy/squashed
+        histories, runtime failure and non-secret database diagnostics. Focused Mypy and Ruff passed.'
+    - kind: test
+      reference: '2026-09-07 final application integration after migration guard: .devenv/state/venv/bin/pytest
+        -q tests/system/test_oidc_settings.py tests/system/test_production_celery_routing.py
+        tests/system/test_installed_video_segments_contract.py tests/system/test_secretspec_environment_contract.py
+        tests/system/test_config_unit.py tests/system/test_environment_checks.py
+        tests/system/test_candidate_dependency_workflows.py tests/system/test_production_celery_redis_recovery.py
+        =>87 passed in69.93s. No live deployment or successful clinical-media recovery claimed.'
+    - kind: test
+      reference: '2026-09-07 canonical /home/admin/luxnix: downgrade/shared-runtime/encryption suite24
+        passed; startup/module-layout/documentation suite33 passed. Rendered gc05 wrapper guard and
+        typed filesystem helper bytes match source and import; migration/preflight ordering verified.
+        Independent review confirms exact constraints on every install step and projected override
+        validation, including already-installed downgrade targets. No live installer executed.'
+    - kind: command
+      reference: LuxNix 8b0b8a556e3f2c7d30d91530cd5a5a1628a4b984; flake.lock sha256 aac5cc82ffc23649a62dde7fd515b1a2f7131e816e6c69cdb075866380ca8d36;
+        focused nixtest lx-annotate-large-hub-transfer-timeouts-are-ordered passed
+    - kind: command
+      reference: gc-02 rendered worker ExecStart includes --soft-time-limit=46800 --time-limit=50400;
+        requestTimeoutSeconds=43200; staleAfterSeconds=54000; complete gc-02 NixOS toplevel build passed
+    - kind: command
+      reference: gs-02 transfer API rendered client_body_timeout/proxy_read_timeout/proxy_send_timeout/send_timeout=43200s;
+        affected Nginx and lx-annotate unit derivations built; full toplevel build stopped during unrelated
+        llama-cpp CUDA compilation
+    note: 'Focused LuxNix hub-transfer timeout alignment is implemented and verified for gc-02 and gs-02.
+      Full production readiness remains open: no host was switched, the repository contains pre-existing
+      unrelated documentation changes, and the gs-02 whole-system build was intentionally interrupted
+      during an unrelated multi-architecture llama-cpp CUDA rebuild after the affected units had evaluated
+      successfully. September7 gc10 evidence adds a confirmed code/database downgrade blocker.
+      Read-only migration compatibility guards and application regressions now pass locally; this does
+      not approve the installed gc10 runtime, temporary systemd overrides, or job recovery. The new
+      application guard must be packaged in the same reviewed release as the LuxNix command wiring.'
+    assessed_by: codex-remote-review-20260907
+    assessed_at: '2026-09-07T09:36:52Z'
+- id: protected_temporary_boundary
+  category: security
+  title: Temporary storage never becomes a protected-data or secret boundary
+  acceptance:
+  - Temporary build and staging paths contain no clinical data, master keys, node secrets, private keys,
+    credentials, or durable audit evidence.
+  - Secret-file references resolve to host-managed protected locations with the required ownership and
+    permissions.
+  - Cleanup preserves security and acceptance logs in the approved audit-log location.
+  - Cleanup never removes an active encrypted-storage mount, application key, trust anchor, or Nix store
+    path.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review generated service configuration, temporary artifact inventories, secret-file
+      paths, mount dependencies, permissions, and cleanup evidence on a disposable production-like host.
+    timeout_seconds: 1200
+  assessment:
+    status: not_assessed
+    evidence: []
+- id: accepted_cleanup_and_recovery
+  category: operations
+  title: Cleanup follows successful acceptance and remains recoverable
+  acceptance:
+  - Operators verify the active generation, installed LX-Annotate version, service entrypoints, required
+    workers, and post-deployment acceptance gate before cleanup.
+  - No live process references a temporary candidate path when that path is removed.
+  - Unique commits are preserved by a durable branch or tag before a worktree or clone is removed.
+  - Registered worktrees are removed through Git, stale metadata is pruned, and redundant GC roots are
+    removed only after another durable root protects the closure.
+  - Unverified artifacts are quarantined recoverably; verified disposable artifacts are removed according
+    to the host retention policy.
+  required: true
+  verification:
+    kind: manual
+    instructions: Perform deployment, acceptance, inventory, recoverable cleanup, Git worktree validation,
+      and Nix-root validation on a disposable production-like host, then demonstrate artifact recovery.
+    timeout_seconds: 1800
+  assessment:
+    status: not_assessed
+    evidence: []
+- id: documented_operator_and_agent_workflow
+  category: documentation
+  title: Operators and agents follow one source-hygiene workflow
+  acceptance:
+  - The LuxNix deployment guide and LX-Annotate deployment guides agree on source identity, /tmp staging,
+    release worktrees, Nix roots, acceptance, and cleanup.
+  - AGENTS.md directs deployment-source and temporary-artifact work to this feature tracker.
+  - Documentation distinguishes disposable build output from required runtime state and durable deployment
+    evidence.
+  - Readiness is recorded only in this YAML tracker and is not inferred from documentation, cleanup completion,
+    or a local passing build.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review AGENTS.md, the LuxNix deployment guide, both LX-Annotate deployment guides, and
+      this tracker together; then run the tracker registry validation.
+    timeout_seconds: 600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: command
+      reference: uv run --frozen --extra dev pytest -q tests/system/test_focused_coverage.py
+        tests/system/test_secretspec_environment_contract.py tests/system/test_production_celery_routing.py;
+        38 passed on 2026-08-31
+    - kind: command
+      reference: LuxNix focused Hub environment-contract pytest; 4 passed, including a real Nix
+        module evaluation with recipientPrivateKeyFiles configured
+    - kind: command
+      reference: nix-instantiate --parse succeeded for the five changed LuxNix module, host, and
+        nixtest files; full gs-02 toplevel evaluation remains blocked by the unrelated existing
+        modules/nixos/luxnix/nvidia-default/default.nix undefined variable nvidia-x11
+    - kind: document
+      reference: docs/guides/wheel-deployment.md and LuxNix docs/deployment-guide.md now document
+        Secretspec ownership, production rendering, typed Django export, runtime key validation,
+        key rotation, restart requirements, and safe verification without printing secrets
+    note: The inbound Hub environment contract is now explicit from Secretspec through LuxNix and
+      Django settings. The obsolete ENDOREG_ENABLE_HUB_TRANSFERS compatibility alias is not rendered;
+      ENDOREG_ENABLE_INCOMING_HUB_TRANSFERS is the only receiver switch. Readiness remains in progress
+      because these dirty-worktree changes have not been released, deployed, or accepted on gs-02.
+    assessed_by: 01a056b7-c453-77a0-ae95-bed12f17d130
+    assessed_at: '2026-08-31T13:24:10Z'

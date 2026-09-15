@@ -1,0 +1,210 @@
+schema_version: '1.0'
+id: frontend_visual_refresh
+name: Frontend visual refresh
+description: Cohesive, accessible visual polish for the shared LX-Annotate application shell.
+owners:
+- lx-annotate maintainers
+production_critical: false
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-ui-config-20260813
+    changed_at: '2026-08-13T09:52:49.876644Z'
+    note: Shared frontend shell and global visual system implemented; type-check, production build, scoped
+      lint, and 9 focused navigation tests passed.
+  - action: reopened
+    changed_by: codex-table-filters-20260813
+    changed_at: '2026-08-13T09:55:11.013030Z'
+    note: Large anonymization and hub tables need resource-type and physical-storage-state filters.
+  - action: done
+    changed_by: codex-table-filters-20260813
+    changed_at: '2026-08-13T10:00:35.177483Z'
+    note: Resource-type and physical-storage-state filtering added to anonymization and Hub tables; lint,
+      type-check, build, and 30 focused tests passed.
+  - action: reopened
+    changed_by: codex-mobile-menu-20260814
+    changed_at: '2026-08-14T06:59:03.150732Z'
+    note: Captured mobile DOM shows competing sidebar controls, a nested global sidenav, and close-button
+      flow displacement.
+  - action: done
+    changed_by: codex-mobile-menu-20260814
+    changed_at: '2026-08-14T07:02:42.213079Z'
+    note: Responsive navigation unified under App state; mobile opener is unobstructed and close control
+      no longer displaces sidebar content. Lint, type-check, 12 tests, and production build passed.
+  - action: reopened
+    changed_by: codex-corner-radius-20260814
+    changed_at: '2026-08-14T07:24:06.176777Z'
+    note: Ordinary app corners currently mix Bootstrap, LX sm/md/lg, and component-local pixel radii.
+  - action: done
+    changed_by: codex-corner-radius-20260814
+    changed_at: '2026-08-14T07:28:25.303586Z'
+    note: Unified application corner rounding under one shared token and verified the focused frontend
+      surface.
+  - action: reopened
+    changed_by: codex-usability-20260908-a
+    changed_at: '2026-09-08T06:21:39.160392Z'
+    note: Add direct keyboard access to content, sidebar Escape dismissal, and mobile account labels.
+  - action: done
+    changed_by: codex-usability-20260908-a
+    changed_at: '2026-09-08T06:25:03.217569Z'
+    note: 'Shared navigation usability pass complete: skip-to-content, sidebar keyboard focus and Escape
+      dismissal, mobile account labels. 16 navigation tests, full frontend build/type-check/lint, final
+      build-only and tracker validation passed. Browser visual review remains unperformed.'
+source_documents:
+- path: AGENTS.md
+  disposition: reference
+  note: Repository implementation and clinical terminology constraints.
+definition_of_done:
+- id: shared_shell
+  category: functionality
+  title: Shared application shell has a cohesive responsive hierarchy
+  acceptance:
+  - Navigation, content, and account controls remain usable at desktop and mobile widths.
+  - Existing routes, permissions, workflow counters, and authentication behavior are unchanged.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - type-check
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: npm --prefix frontend run type-check
+      note: Exit-Code 0
+    - kind: command
+      reference: 'npm --prefix frontend run type-check: exit 0'
+    note: Vue type-check passed and scoped review confirmed responsive navigation plus unchanged route,
+      permission, counter, and authentication behavior.
+    assessed_by: codex-ui-config-20260813
+    assessed_at: '2026-08-13T09:51:47.514716Z'
+- id: visual_system
+  category: requirements
+  title: Global visual system is legible and accessible
+  acceptance:
+  - Typography, surfaces, controls, tables, focus states, and motion use consistent tokens.
+  - Reduced-motion preferences and keyboard focus visibility are preserved.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the global overrides and shared shell components for contrast, focus, motion,
+      and responsive behavior.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: frontend/src/assets/custom-overrides.css and shared shell component styles
+    - kind: test
+      reference: 'AnonymizationOverviewComponent and HubExportOverviewComponent filter tests: 30 total
+        focused tests passed'
+    - kind: test
+      reference: 'App, Navbar, and Sidebar responsive navigation suites: 3 files, 12 tests passed'
+    - kind: review
+      reference: 'corner-radius-centralization-20260814: reviewed scoped Vue and CSS changes; ordinary
+        surfaces resolve to the shared token while shape-semantic exceptions remain intact'
+    note: Centralized ordinary application corner rounding on --lx-corner-radius (0.75rem), aligned LX
+      and Bootstrap radius variables plus semantic surface utilities, and preserved intentional circular,
+      pill, progress, switch, and joined-control geometry.
+    assessed_by: codex-corner-radius-20260814
+    assessed_at: '2026-08-14T07:28:03.791373Z'
+- id: frontend_verification
+  category: testing
+  title: Frontend build and navigation component tests pass
+  acceptance:
+  - The production frontend build succeeds.
+  - Existing shared navigation tests continue to pass.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - build
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: '2026-09-08: npm --prefix frontend run build: exit 0 (OpenAPI freshness, Vue type check,
+        ESLint and Vite); final build-only rerun: exit 0'
+    - kind: test
+      reference: '2026-09-08: App, Navbar and Sidebar navigation suites: 3 files, 16 tests passed'
+    note: Shared navigation usability verified with focus restoration and skip-link behavior tests. Scoped
+      lint and diff whitespace checks pass. Build retains bundle-size advisory and Django test-environment
+      warnings; no real-browser visual or assistive-technology review performed.
+    assessed_by: codex-usability-20260908-a
+    assessed_at: '2026-09-08T06:25:01.960544Z'
+- id: accessibility_contract
+  category: security
+  title: Keyboard and motion accessibility remain explicit
+  acceptance:
+  - Interactive shell controls expose visible focus states and meaningful accessible names.
+  - Non-essential animation is disabled when reduced motion is requested.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect shared shell controls and reduced-motion CSS.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'App.navigation.test.ts, NavbarComponent.annotationStats.test.ts, SidebarComponent.routes.test.ts:
+        16/16 passed on 2026-09-08'
+    - kind: command
+      reference: 'Scoped ESLint for App.vue, NavbarComponent.vue and App.navigation.test.ts: exit 0'
+    note: Added a focus-visible skip link that closes navigation and focuses page content, sidebar Escape
+      dismissal with keyboard focus restoration, a named navigation landmark, state-aware toggle labels,
+      and persistent mobile login/logout text. Existing reduced-motion rules remain unchanged. Automated
+      DOM checks pass; real-browser mobile and assistive-technology review was not performed.
+    assessed_by: codex-usability-20260908-a
+    assessed_at: '2026-09-08T06:24:29.719259Z'
+- id: workflow_regression
+  category: operations
+  title: Clinical workflow presentation semantics are preserved
+  acceptance:
+  - Anonymization and segment annotation status terminology is not changed.
+  - No route filtering, authorization, API, or workflow state logic is changed.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the scoped diff against AGENTS.md workflow terminology requirements.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'npm --prefix frontend run test:unit -- --run menu component tests: 9 passed'
+    note: Scoped diff changes presentation and the existing mobile shell event hookup only; routes, permissions,
+      counters, API calls, and clinical status terminology are unchanged.
+    assessed_by: codex-ui-config-20260813
+    assessed_at: '2026-08-13T09:51:39.460917Z'
+- id: maintainable_scope
+  category: documentation
+  title: Visual changes stay within shared presentation boundaries
+  acceptance:
+  - Existing component behavior and data loading remain unchanged.
+  - Global styling uses named design tokens and avoids generated asset edits.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review changed file scope and CSS token usage.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: scoped git diff for five declared files
+    note: Changes use named global tokens and component-scoped styles; generated Material Dashboard assets
+      and application data behavior were not edited.
+    assessed_by: codex-ui-config-20260813
+    assessed_at: '2026-08-13T09:51:41.173564Z'
