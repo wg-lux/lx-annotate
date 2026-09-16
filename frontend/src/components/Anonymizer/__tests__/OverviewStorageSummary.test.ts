@@ -56,7 +56,10 @@ describe('OverviewStorageSummary', () => {
   it('shows permission denial without manufacturing a zero capacity', async () => {
     const forbidden = new AxiosError('Forbidden')
     forbidden.response = {
-      data: {}, status: 403, statusText: 'Forbidden', headers: {},
+      data: {},
+      status: 403,
+      statusText: 'Forbidden',
+      headers: {},
       config: { headers: new AxiosHeaders() }
     }
     fetchStorage.mockRejectedValueOnce(forbidden)
@@ -69,7 +72,11 @@ describe('OverviewStorageSummary', () => {
 
   it('aborts pending observation on unmount and does not start concurrent refreshes', async () => {
     let resolveRequest: ((response: AnonymizationStorageCapacity) => void) | undefined
-    fetchStorage.mockReturnValueOnce(new Promise((resolve) => { resolveRequest = resolve }))
+    fetchStorage.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveRequest = resolve
+      })
+    )
     const wrapper = mount(OverviewStorageSummary)
     await wrapper.get('button').trigger('click')
     expect(fetchStorage).toHaveBeenCalledTimes(1)

@@ -12,7 +12,6 @@
 import PatientDashboard from '@/components/Patients/PatientDashboard.vue'
 
 defineOptions({ name: 'Patients' })
-
 </script>
 
 <style scoped></style>

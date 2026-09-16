@@ -158,7 +158,7 @@ describe('useReportTemplates', () => {
       },
       reportSections: [],
       validators: { examinationValidators: [], findingsValidators: [] },
-      conceptCoverage: null,
+      conceptCoverage: null
     }
     catalog.applyTemplateOptions([verifiedTemplate])
 

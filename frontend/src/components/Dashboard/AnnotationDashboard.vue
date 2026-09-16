@@ -3,9 +3,7 @@
     <section class="dashboard-hero mb-4">
       <div>
         <h2 class="dashboard-title mb-1">Dashboard</h2>
-        <p class="dashboard-subtitle mb-0">
-          Status und Schnellzugriffe an einem Ort.
-        </p>
+        <p class="dashboard-subtitle mb-0">Status und Schnellzugriffe an einem Ort.</p>
       </div>
 
       <button
@@ -62,9 +60,7 @@
             <strong class="state-metric-value">
               {{ datasetState.items.length }}
             </strong>
-            <span class="state-metric-description">
-              {{ activeDatasetCount }} aktiv
-            </span>
+            <span class="state-metric-description"> {{ activeDatasetCount }} aktiv </span>
           </div>
 
           <div
@@ -245,19 +241,14 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import {
-  fetchAiDatasetOptions,
-  type AiDatasetOption
-} from '@/api/aiDatasetApi'
+import { fetchAiDatasetOptions, type AiDatasetOption } from '@/api/aiDatasetApi'
 import { fetchStudyCohortPreview } from '@/api/studyApi'
 import { fetchAdministrationOverview } from '@/api/administrationApi'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
 
-type StudyCohortSummary =
-  Awaited<ReturnType<typeof fetchStudyCohortPreview>>['summary']
+type StudyCohortSummary = Awaited<ReturnType<typeof fetchStudyCohortPreview>>['summary']
 
-type HubHealth =
-  Awaited<ReturnType<typeof fetchAdministrationOverview>>['hubHealth']
+type HubHealth = Awaited<ReturnType<typeof fetchAdministrationOverview>>['hubHealth']
 
 interface DatasetState {
   loading: boolean
@@ -394,11 +385,7 @@ async function refreshOperationalState(): Promise<void> {
   loadingOperationalState.value = true
 
   try {
-    await Promise.all([
-      loadDatasetState(),
-      loadCohortState(),
-      loadHubState()
-    ])
+    await Promise.all([loadDatasetState(), loadCohortState(), loadHubState()])
   } finally {
     loadingOperationalState.value = false
   }

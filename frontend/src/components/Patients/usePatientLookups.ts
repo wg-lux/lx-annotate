@@ -2,7 +2,11 @@ import { computed } from 'vue'
 import { usePatientStore } from '@/stores/patientStore'
 import { patientService, type Gender, type Center } from '@/api/patientService'
 
-function lookupName(items: Array<Gender | Center>, value: string | null | undefined, empty: string) {
+function lookupName(
+  items: Array<Gender | Center>,
+  value: string | null | undefined,
+  empty: string
+) {
   if (!value) return empty
   const item = items.find((candidate) => candidate.name === value)
   return item?.nameDe || item?.name || value

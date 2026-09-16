@@ -1,11 +1,16 @@
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { VideoTranscodeJob, VideoTranscodeOverview, VideoTranscodeStartResponse } from '@/api/anonymizationOperations'
+import type {
+  VideoTranscodeJob,
+  VideoTranscodeOverview,
+  VideoTranscodeStartResponse
+} from '@/api/anonymizationOperations'
 import OverviewTranscodePanel from '../OverviewTranscodePanel.vue'
 
 const { fetchJobs, startJob } = vi.hoisted(() => ({
   fetchJobs: vi.fn<(signal?: AbortSignal) => Promise<VideoTranscodeOverview>>(),
-  startJob: vi.fn<(videoId: number, option: string, key: string) => Promise<VideoTranscodeStartResponse>>()
+  startJob:
+    vi.fn<(videoId: number, option: string, key: string) => Promise<VideoTranscodeStartResponse>>()
 }))
 vi.mock('@/api/anonymizationOperations', () => ({
   fetchVideoTranscodeJobs: fetchJobs,
@@ -17,16 +22,26 @@ afterEach(() => vi.useRealTimers())
 
 function job(overrides: Partial<VideoTranscodeJob> = {}): VideoTranscodeJob {
   return {
-    id: 'transcode-job', videoId: 17, option: 'replace_processed', status: 'running',
-    stage: 'transcoding', progressPercent: null, beforeBytes: null, afterBytes: null,
-    savedBytes: null, errorCode: '', createdAt: '2026-09-14T09:00:00Z',
-    updatedAt: '2026-09-14T09:00:00Z', ...overrides
+    id: 'transcode-job',
+    videoId: 17,
+    option: 'replace_processed',
+    status: 'running',
+    stage: 'transcoding',
+    progressPercent: null,
+    beforeBytes: null,
+    afterBytes: null,
+    savedBytes: null,
+    errorCode: '',
+    createdAt: '2026-09-14T09:00:00Z',
+    updatedAt: '2026-09-14T09:00:00Z',
+    ...overrides
   }
 }
 
 function overview(jobs: VideoTranscodeJob[] = []): VideoTranscodeOverview {
   return {
-    jobs, options: ['replace_processed'],
+    jobs,
+    options: ['replace_processed'],
     candidates: [{ videoId: 17, filename: 'processed.mp4', options: ['replace_processed'] }]
   }
 }
@@ -42,20 +57,28 @@ describe('OverviewTranscodePanel', () => {
     const wrapper = mount(OverviewTranscodePanel)
     await flushPromises()
     expect(wrapper.get('[data-test="start-transcode"]').attributes('disabled')).toBeDefined()
-    expect(wrapper.get('[data-test="transcode-video"]').text()).toContain('processed.mp4 (Video-ID: 17)')
+    expect(wrapper.get('[data-test="transcode-video"]').text()).toContain(
+      'processed.mp4 (Video-ID: 17)'
+    )
     expect(wrapper.text()).toContain('HLS-Wiedergabe wird erneuert')
     expect(wrapper.find('[data-test="transcode-option"]').exists()).toBe(false)
     await wrapper.get('[data-test="transcode-video"]').setValue(17)
     await wrapper.get('[data-test="start-transcode"]').trigger('click')
     await flushPromises()
-    expect(startJob).toHaveBeenCalledWith(17, 'replace_processed', expect.stringMatching(/^[0-9a-f-]{36}$/))
+    expect(startJob).toHaveBeenCalledWith(
+      17,
+      'replace_processed',
+      expect.stringMatching(/^[0-9a-f-]{36}$/)
+    )
     expect(wrapper.text()).toContain('Transkodierungsauftrag angelegt')
   })
 
   it('makes replacement explicit and emits bulk repair scope independently of selected video', async () => {
     const wrapper = mount(OverviewTranscodePanel)
     await flushPromises()
-    expect(wrapper.get('[data-test="replacement-notice"]').text()).toContain('Rohvideo bleibt erhalten')
+    expect(wrapper.get('[data-test="replacement-notice"]').text()).toContain(
+      'Rohvideo bleibt erhalten'
+    )
     expect(wrapper.text()).toContain('unabhängig von Videoauswahl und Tabellenfiltern')
     await wrapper.get('[data-test="repair-and-transcode"]').trigger('click')
     expect(wrapper.emitted('repair')).toEqual([['replace_processed']])
@@ -70,16 +93,26 @@ describe('OverviewTranscodePanel', () => {
     await flushPromises()
     expect(wrapper.get('[data-test="repair-and-transcode"]').attributes('disabled')).toBeDefined()
     expect(wrapper.get('[data-test="start-transcode"]').attributes('disabled')).toBeDefined()
-    expect(wrapper.get('[data-test="no-transcode-candidates"]').text()).toContain('keine geeigneten')
+    expect(wrapper.get('[data-test="no-transcode-candidates"]').text()).toContain(
+      'keine geeigneten'
+    )
   })
 
   it('shows indeterminate stage progress and stops polling on measured completion', async () => {
     vi.useFakeTimers()
     fetchJobs.mockResolvedValueOnce(overview([job()]))
-    fetchJobs.mockResolvedValueOnce(overview([job({
-      status: 'completed', stage: 'completed', progressPercent: 100,
-      beforeBytes: 4096, afterBytes: 1024, savedBytes: 0
-    })]))
+    fetchJobs.mockResolvedValueOnce(
+      overview([
+        job({
+          status: 'completed',
+          stage: 'completed',
+          progressPercent: 100,
+          beforeBytes: 4096,
+          afterBytes: 1024,
+          savedBytes: 0
+        })
+      ])
+    )
     const wrapper = mount(OverviewTranscodePanel)
     await flushPromises()
     expect(wrapper.get('progress').attributes('value')).toBeUndefined()
@@ -94,9 +127,16 @@ describe('OverviewTranscodePanel', () => {
   })
 
   it('shows retained storage and server cleanup guidance when cleanup remains pending', async () => {
-    fetchJobs.mockResolvedValueOnce(overview([job({
-      status: 'failed', stage: 'cleanup', errorCode: 'transcode_cleanup_pending', savedBytes: 0
-    })]))
+    fetchJobs.mockResolvedValueOnce(
+      overview([
+        job({
+          status: 'failed',
+          stage: 'cleanup',
+          errorCode: 'transcode_cleanup_pending',
+          savedBytes: 0
+        })
+      ])
+    )
     const wrapper = mount(OverviewTranscodePanel)
     await flushPromises()
     const notice = wrapper.get('[data-test="cleanup-pending"]').text()
@@ -136,7 +176,11 @@ describe('OverviewTranscodePanel', () => {
   it('submits the explicitly selected replacement mode and ignores late acceptance after unmount', async () => {
     vi.useFakeTimers()
     let finishStart: ((response: VideoTranscodeStartResponse) => void) | undefined
-    startJob.mockReturnValueOnce(new Promise((resolve) => { finishStart = resolve }))
+    startJob.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishStart = resolve
+      })
+    )
     const wrapper = mount(OverviewTranscodePanel)
     await flushPromises()
     await wrapper.get('[data-test="transcode-video"]').setValue(17)
@@ -154,7 +198,11 @@ describe('OverviewTranscodePanel', () => {
   it('coalesces external refresh triggers and aborts observation on unmount', async () => {
     vi.useFakeTimers()
     let finishRequest: ((response: VideoTranscodeOverview) => void) | undefined
-    fetchJobs.mockReturnValueOnce(new Promise((resolve) => { finishRequest = resolve }))
+    fetchJobs.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishRequest = resolve
+      })
+    )
     const wrapper = mount(OverviewTranscodePanel)
     await wrapper.setProps({ refreshToken: 1 })
     await wrapper.setProps({ refreshToken: 2 })

@@ -34,7 +34,11 @@
           :refresh-token="transcodeRefreshToken"
           @repair="repairAllVideoStates"
         />
-        <p v-if="cancellationError" class="alert alert-warning" role="alert">
+        <p
+          v-if="cancellationError"
+          class="alert alert-warning"
+          role="alert"
+        >
           {{ cancellationError }}
         </p>
         <div
@@ -295,7 +299,11 @@ import { useAnonymizationStore, type FileItem } from '@/stores/anonymizationStor
 import { useMediaTypeStore, type MediaItem } from '@/stores/mediaTypeStore'
 import { usePollingProtection } from '@/composables/usePollingProtection'
 import { useMediaManagement } from '@/api/mediaManagement'
-import { cancelAnonymizationImport, type ImportCancellationResponse, type TranscodeOption } from '@/api/anonymizationOperations'
+import {
+  cancelAnonymizationImport,
+  type ImportCancellationResponse,
+  type TranscodeOption
+} from '@/api/anonymizationOperations'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
 import AnonymizationOverviewRow from './AnonymizationOverviewRow.vue'
 import OverviewStorageSummary from './OverviewStorageSummary.vue'
@@ -336,7 +344,11 @@ const isRefreshing = ref(false)
 const isRepairingVideoStates = ref(false)
 const videoStateRepairMessage = ref('')
 const transcodeRefreshToken = ref(0)
-let bulkTranscodeAttempt: { option: TranscodeOption; idempotencyKey: string; afterVideoId: number } | null = null
+let bulkTranscodeAttempt: {
+  option: TranscodeOption
+  idempotencyKey: string
+  afterVideoId: number
+} | null = null
 const processingFiles = ref<Set<string>>(new Set())
 const cancellationError = ref('')
 const monitoringRefreshHandle = ref<ReturnType<typeof setTimeout> | null>(null)
@@ -449,7 +461,8 @@ const repairWithTranscodes = async (option: TranscodeOption) => {
     if (!isComponentMounted() || !result) return
     const submissions = result.transcodes
     if (!submissions) {
-      videoStateRepairMessage.value = 'Der Server hat keine Transkodierungsaufträge bestätigt. Bitte den Serverstand prüfen.'
+      videoStateRepairMessage.value =
+        'Der Server hat keine Transkodierungsaufträge bestätigt. Bitte den Serverstand prüfen.'
       return
     }
     queued += submissions.queued
@@ -463,7 +476,8 @@ const repairWithTranscodes = async (option: TranscodeOption) => {
       return
     }
     if (!Number.isSafeInteger(nextCursor) || nextCursor <= attempt.afterVideoId) {
-      videoStateRepairMessage.value += ' Ungültiger Fortsetzungspunkt; Sammelauftrag wurde angehalten.'
+      videoStateRepairMessage.value +=
+        ' Ungültiger Fortsetzungspunkt; Sammelauftrag wurde angehalten.'
       return
     }
     attempt.afterVideoId = nextCursor
@@ -613,8 +627,7 @@ const applyCancellationAcknowledgment = (jobId: string, result: ImportCancellati
 const cancelImport = async (file: FileItem) => {
   const job = file.uploadJob
   const operationKey = getFileKey(file)
-  if (!job || !canCancelImport(file) ||
-      processingFiles.value.has(operationKey)) return
+  if (!job || !canCancelImport(file) || processingFiles.value.has(operationKey)) return
   const jobId = job.id
   processingFiles.value.add(operationKey)
   cancellationError.value = ''
@@ -627,7 +640,8 @@ const cancelImport = async (file: FileItem) => {
     await refreshOverview()
   } catch (error: unknown) {
     if (!isComponentMounted()) return
-    cancellationError.value = 'Abbruch konnte nicht bestätigt werden. Bitte den aktuellen Importstatus prüfen.'
+    cancellationError.value =
+      'Abbruch konnte nicht bestätigt werden. Bitte den aktuellen Importstatus prüfen.'
     runtimeLogger.error('import-cancellation-unconfirmed', error)
     await refreshOverview()
   } finally {
@@ -719,7 +733,12 @@ const isProcessing = (file: FileItem) => {
 
 const isUploadJobActive = (file: FileItem) => {
   const status = (file.uploadJob?.status || '').toLowerCase()
-  return status === 'pending' || status === 'processing' || status === 'retrying' || status === 'cancel_requested'
+  return (
+    status === 'pending' ||
+    status === 'processing' ||
+    status === 'retrying' ||
+    status === 'cancel_requested'
+  )
 }
 
 const isHlsMaterializationActive = (file: FileItem) =>
@@ -729,8 +748,12 @@ const isHlsMaterializationActive = (file: FileItem) =>
   )
 
 const hasActiveMonitoringState = () =>
-  overviewFiles.value.some((file) => isUploadJobActive(file) || isHlsMaterializationActive(file) ||
-    (file.uploadJob?.status !== 'cancelled' && isAnonymizationProcessing(file)))
+  overviewFiles.value.some(
+    (file) =>
+      isUploadJobActive(file) ||
+      isHlsMaterializationActive(file) ||
+      (file.uploadJob?.status !== 'cancelled' && isAnonymizationProcessing(file))
+  )
 
 const scheduleMonitoringRefresh = () => {
   if (!isComponentMounted() || overviewRefresh || monitoringRefreshHandle.value) {
@@ -762,8 +785,9 @@ const getTotalByStatus = (status: string) => {
   }
 
   const relevantStatuses = statusMap[status] || [status]
-  return availableFiles.value.filter((file) => !isImportInterrupted(file) && relevantStatuses.includes(file.anonymizationStatus))
-    .length
+  return availableFiles.value.filter(
+    (file) => !isImportInterrupted(file) && relevantStatuses.includes(file.anonymizationStatus)
+  ).length
 }
 
 // Lifecycle

@@ -71,7 +71,7 @@ function graph(): ExaminationReportingContext {
         identity: context().templateIdentity,
         reportSections: [],
         validators: { examinationValidators: [], findingsValidators: [] },
-        conceptCoverage: null,
+        conceptCoverage: null
       }
     ]
   }

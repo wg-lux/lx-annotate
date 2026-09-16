@@ -12,3 +12,5 @@ The functionality for anonymization is loaded in the Anonymizer component folder
 Here, Users will validate if a video or pdf is fully anonymized.
 
 ## VideoExamination
+
+VideoExamination is related to the view where users can see a video and add annotations about segments.

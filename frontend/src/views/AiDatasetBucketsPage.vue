@@ -142,19 +142,27 @@
           data-test="summary-merged-frames"
         >
           <span class="metric-tile__label">Bucket-Frames</span>
-          <strong class="metric-tile__value">{{ formatNumber(distribution.summary.mergedFrameCount) }}</strong>
+          <strong class="metric-tile__value">{{
+            formatNumber(distribution.summary.mergedFrameCount)
+          }}</strong>
         </div>
         <div class="metric-tile">
           <span class="metric-tile__label">Annotations-Frames</span>
-          <strong class="metric-tile__value">{{ formatNumber(distribution.summary.annotationFrameCount) }}</strong>
+          <strong class="metric-tile__value">{{
+            formatNumber(distribution.summary.annotationFrameCount)
+          }}</strong>
         </div>
         <div class="metric-tile">
           <span class="metric-tile__label">Segment-Frames</span>
-          <strong class="metric-tile__value">{{ formatNumber(distribution.summary.segmentFrameCount) }}</strong>
+          <strong class="metric-tile__value">{{
+            formatNumber(distribution.summary.segmentFrameCount)
+          }}</strong>
         </div>
         <div class="metric-tile">
           <span class="metric-tile__label">Labels</span>
-          <strong class="metric-tile__value">{{ formatNumber(distribution.summary.labelCount) }}</strong>
+          <strong class="metric-tile__value">{{
+            formatNumber(distribution.summary.labelCount)
+          }}</strong>
         </div>
       </section>
 
@@ -187,7 +195,10 @@
                 class="bucket-meter"
                 aria-hidden="true"
               >
-                <span class="bucket-meter__fill" :style="{ width: bucketWidth(bucket.frameCount, targetBucketMax) }"></span>
+                <span
+                  class="bucket-meter__fill"
+                  :style="{ width: bucketWidth(bucket.frameCount, targetBucketMax) }"
+                ></span>
               </div>
               <strong class="bucket-row__count">{{ formatNumber(bucket.frameCount) }}</strong>
             </div>
@@ -271,7 +282,10 @@
                 </td>
                 <td class="bucket-table__cell bucket-table__combined-cell">
                   <div class="inline-meter">
-                    <span class="inline-meter__fill" :style="{ width: bucketWidth(row.mergedFrames, mergedFrameMax) }"></span>
+                    <span
+                      class="inline-meter__fill"
+                      :style="{ width: bucketWidth(row.mergedFrames, mergedFrameMax) }"
+                    ></span>
                   </div>
                   <strong>{{ formatNumber(row.mergedFrames) }}</strong>
                 </td>

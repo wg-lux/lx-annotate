@@ -14,7 +14,14 @@ const runtimeLogger = createRuntimeLogger('anonymization-store')
 /* ------------------------------------------------------------------ */
 
 export type UploadJobMonitoringStatus =
-  'pending' | 'processing' | 'retrying' | 'cancel_requested' | 'cancelled' | 'anonymized' | 'error' | 'lost'
+  | 'pending'
+  | 'processing'
+  | 'retrying'
+  | 'cancel_requested'
+  | 'cancelled'
+  | 'anonymized'
+  | 'error'
+  | 'lost'
 export type UploadJobIngestMode = 'api' | 'watcher'
 export type UploadJobCleanupStatus = 'pending' | 'eligible' | 'deleting' | 'completed' | 'skipped'
 export type ImportErrorCode =
@@ -856,11 +863,16 @@ export const useAnonymizationStore = defineStore('anonymization', {
           r(endpoints.runtime.videoStateRepair),
           {
             dry_run: dryRun,
-            ...(transcode ? {
-              transcode: { option: transcode.option, idempotency_key: transcode.idempotencyKey },
-              after_video_id: transcode.afterVideoId,
-              batch_size: 100
-            } : {})
+            ...(transcode
+              ? {
+                  transcode: {
+                    option: transcode.option,
+                    idempotency_key: transcode.idempotencyKey
+                  },
+                  after_video_id: transcode.afterVideoId,
+                  batch_size: 100
+                }
+              : {})
           }
         )
         await this.fetchOverview()

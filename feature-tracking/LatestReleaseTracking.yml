@@ -1,7 +1,8 @@
 schema_version: '1.0'
 id: latest_release_tracking
-name: Latest Published Release Tracking
-description: Report the latest published stable lx-annotate GitHub release in every CI/CD run.
+name: Latest Release Tracking And Tag Publication
+description: Report the latest stable GitHub release in CI and publish validated version tags after
+  the wheel workflow's CI and artifact-install checks pass.
 owners:
 - lx-annotate maintainers
 production_critical: false
@@ -18,7 +19,7 @@ definition_of_done:
   - Show the release tag as the version, a clickable release link and publication timestamp in the run summary.
   - Report no stable release when the endpoint returns 404 and repository access succeeds.
   - Other API failures fail the reporting job visibly.
-  - Do not create releases, tags, version changes, dependency updates or deployment actions.
+  - The reporting job does not create releases, tags, version changes, dependency updates or deployment actions.
   required: true
   verification:
     kind: manual
@@ -33,6 +34,44 @@ definition_of_done:
         validated successfully with PyYAML and node --check.
     note: Implemented in .github/workflows/ci-cd.yml for existing push, pull request and manual triggers.
       Local syntax and configuration checks passed; the hosted GitHub Actions summary remains unverified.
+    assessed_by: codex-ci-tooling-20260915
+    assessed_at: '2026-09-15T12:51:38Z'
+- id: tested_tag_publication
+  category: functionality
+  title: Version-tag pushes create releases only after successful CI
+  acceptance:
+  - Pushing vMAJOR.MINOR.PATCH starts the wheel workflow; the tag must match pyproject.toml project.version.
+  - Backend coverage, static checks, frontend tests and component types, package build and artifact-install
+    verification must succeed before creating the release.
+  - Lightweight and annotated tags must still resolve to the tested commit before release publication.
+  - Create a published stable GitHub release with generated notes; reuse an existing stable release without
+    moving its tag or overwriting its notes.
+  - Publish the same verified distributions to PyPI in the same workflow, preserving the pypi environment
+    and OIDC authentication. This avoids relying on release events suppressed for GITHUB_TOKEN.
+  - Branch pushes, pull requests and ordinary workflow_dispatch runs do not create releases or publish to PyPI.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run tests/system/test_release_evidence_workflow.py and syntax-check workflow scripts.
+      After merging the workflow, push an intentional version tag matching committed package metadata
+      and inspect the GitHub release and PyPI job. No version tag is pushed as part of implementation.
+    timeout_seconds: 300
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: command
+      reference: 'PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q -c /dev/null --noconftest
+        tests/system/test_release_evidence_workflow.py: 6 passed'
+    - kind: command
+      reference: 'PyYAML workflow parsing, node --check for both GitHub scripts, Python AST parsing of
+        the release-version step and Ruff checks: passed'
+    note: Implemented in .github/workflows/wheel-testpypi.yml. Automatic creation occurs only on a
+      version-tag push; existing manually published release events continue through verification and
+      PyPI publication. GitHub release creation is reusable on reruns; PyPI still rejects an already
+      published distribution version. Hosted release creation and PyPI publication remain unverified.
+      Implementation source is /home/admin/dev/lx-annotate at 452176bef9455488eadca327da5be550b537c37d;
+      unrelated in-progress 1.2.9 version changes were preserved. No host is targeted or artifact built
+      locally. DeploymentSourceHygiene readiness remains separate and is not implied by these checks.
     assessed_by: codex-ci-tooling-20260915
     assessed_at: '2026-09-15T12:51:38Z'
 - id: summary_rendering

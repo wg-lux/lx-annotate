@@ -356,6 +356,21 @@ describe('FrameAnnotation route', () => {
     }
   )
 
+  it('keeps the label dropdown and blocks a target outside its group', async () => {
+    hoisted.queueStore = buildQueueStore({ targetLabelName: 'cold_snare', taskQueue: [] })
+    hoisted.get.mockResolvedValue({
+      data: {
+        results: [{ id: 3, name: 'Upper GI', version: 1, labels: [{ id: 11, name: 'Polyp' }] }]
+      }
+    })
+    const wrapper = mountFrameAnnotation()
+    await flushPromises()
+    expect(wrapper.get('#target-label-name').element.tagName).toBe('SELECT')
+    expect(wrapper.text()).toContain('Das Ziellabel gehört nicht zur gewählten Label-Gruppe')
+    expect(hoisted.queueStore.fetchBatch).not.toHaveBeenCalled()
+    expect(wrapper.get('#target-label-name').text()).toContain('Polyp')
+  })
+
   it('loads label groups and submits multilabel frame annotations through the route API', async () => {
     hoisted.post.mockResolvedValue({ data: { ok: true } })
 

@@ -58,7 +58,7 @@ const draftTemplate = {
   },
   reportSections: [],
   validators: { findingsValidators: [], examinationValidators: [] },
-  conceptCoverage: null,
+  conceptCoverage: null
 }
 
 function deferred<T>() {

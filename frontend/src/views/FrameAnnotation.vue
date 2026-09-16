@@ -192,13 +192,35 @@
           class="form-label"
           >Zu annotierendes Label</label
         >
-        <input
+        <select
           id="target-label-name"
-          v-model.lazy="targetLabelName"
-          type="text"
-          class="form-control"
-          placeholder="Optional, z. B. polyp"
-        />
+          v-model="targetLabelName"
+          class="form-select"
+          :disabled="isLoadingLabelGroups || isSubmitting"
+        >
+          <option value="">Alle Labels der Gruppe</option>
+          <option
+            v-if="targetLabelName && !targetLabelOptions.includes(targetLabelName)"
+            :value="targetLabelName"
+            disabled
+          >
+            {{ targetLabelName }} (in dieser Gruppe nicht verfügbar)
+          </option>
+          <option
+            v-for="labelName in targetLabelOptions"
+            :key="labelName"
+            :value="labelName"
+          >
+            {{ labelName }}
+          </option>
+        </select>
+        <small
+          v-if="!isLoadingLabelGroups && targetLabelOptions.length === 0"
+          class="text-warning d-block mt-1"
+        >
+          Keine Labels in dieser Gruppe verfügbar. Bitte eine andere Label-Gruppe auswählen oder die
+          Gruppen neu laden.
+        </small>
       </div>
       <div
         v-if="advancedQueueSettingsOpen"
@@ -806,6 +828,7 @@ interface LabelGroupOption {
   displayName: string
   version: number | null
   labelCount: number | null
+  labelNames: string[]
 }
 
 interface AnonymizerFieldDefinition {
@@ -982,6 +1005,12 @@ const targetLabelName = computed({
     queueStore.setTargetLabelName(value)
   }
 })
+
+const targetLabelOptions = computed(
+  () =>
+    labelGroupOptions.value.find((group) => group.id === selectedLabelGroupId.value)?.labelNames ??
+    []
+)
 
 const filterLabelName = computed({
   get: () => queueStore.filterLabelName ?? '',
@@ -2073,6 +2102,13 @@ function parseGroupOption(raw: Record<string, unknown>): LabelGroupOption | null
     name,
     version,
     labelCount,
+    labelNames: [
+      ...new Set(
+        extractListPayload(firstDefinedValue([raw.labels, nestedLabelGroup?.labels]))
+          .map((label) => label.name)
+          .filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
+      )
+    ].sort((a, b) => a.localeCompare(b)),
     displayName: buildGroupDisplayName(name, version, labelCount)
   }
 }
@@ -2125,27 +2161,49 @@ async function loadAiDatasets(): Promise<void> {
   }
 }
 
+let taskLoadGeneration = 0
+
+function incompatibleTargetLabel(): boolean {
+  const target = targetLabelName.value.trim().toLowerCase()
+  return Boolean(
+    target &&
+    targetLabelOptions.value.length > 0 &&
+    !targetLabelOptions.value.some((name) => name.trim().toLowerCase() === target)
+  )
+}
+
+function showQueueError(generation: number): void {
+  if (generation === taskLoadGeneration && !currentTask.value && queueStore.lastError) {
+    errorMessage.value = queueStore.lastError
+  }
+}
+
 async function loadNextTask(): Promise<void> {
+  const generation = ++taskLoadGeneration
   isLoadingTask.value = true
   errorMessage.value = null
   annotationWriteRetryAllowed.value = true
   try {
-    applyActiveAnnotatorToQueue()
-    if (!queueStore.taskQueue.length) {
-      await queueStore.fetchBatch(10)
+    if (incompatibleTargetLabel()) {
+      currentTask.value = null
+      errorMessage.value =
+        'Das Ziellabel gehört nicht zur gewählten Label-Gruppe. Bitte wählen Sie ein verfügbares Label oder alle Labels der Gruppe.'
+      return
     }
+    applyActiveAnnotatorToQueue()
+    if (!queueStore.taskQueue.length) await queueStore.fetchBatch(10)
+    if (generation !== taskLoadGeneration) return
     currentTask.value = queueStore.popNextTask() ?? null
     resetBoxAnnotationState()
     syncSelectedLabelsFromTask(currentTask.value)
     await loadBoxAnnotationsForTask(currentTask.value)
-    if (!currentTask.value && queueStore.lastError) {
-      errorMessage.value = queueStore.lastError
-    }
+    showQueueError(generation)
   } catch (error: unknown) {
+    if (generation !== taskLoadGeneration) return
     currentTask.value = null
     errorMessage.value = frameAnnotationErrorMessage(error, 'Aufgabe konnte nicht geladen werden.')
   } finally {
-    isLoadingTask.value = false
+    if (generation === taskLoadGeneration) isLoadingTask.value = false
   }
 }
 
@@ -2359,6 +2417,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  taskLoadGeneration += 1
+  queueStore.clearQueue()
   frameImageRequestsEnabled = false
   clearFrameImageRetryTimer()
   clearPrefetchedFrameImages()

@@ -22,8 +22,51 @@ source_documents:
   note: Deployment and storage boundary for durable video artifacts.
 - path: docs/guides/frame-annotation-availability.md
   disposition: reference
-  note: Label-primary dataset, on-demand decode, back-pressure, and recovery contract.
+  note: 'Label-primary dataset, on-demand decode, back-pressure, and recovery contract. 2026-09-15 (codex-frame-labels-20260915):
+    frontend/src/views/FrameAnnotation.vue target-label dropdown uses the selected label group labels
+    from the existing label-set response, preserves the optional all-labels choice, and marks unavailable
+    saved targets. Empty groups show selection/reload guidance. Backend task labels and annotation submission
+    remain authoritative and unchanged. Verification: FrameAnnotationPage.test.ts and FrameAnnotationPage.usability.test.ts
+    (36 tests passed), vue-tsc --noEmit -p tsconfig.app.json, scoped ESLint and Prettier checks passed.'
 definition_of_done:
+- id: bounded_task_queue_construction
+  category: testing
+  title: Frame task construction avoids dataset-sized query growth and duplicate requests
+  acceptance:
+  - Label membership queries do not grow with annotation row count; distribution counts are aggregated
+    in the database.
+  - Segment buckets are built once per queue request and interval matching does not scan every frame for
+    every overlapping segment.
+  - Eligibility is evaluated once per dataset-backed queue, with selected tasks retaining dataset, label,
+    source, annotator, and media filters.
+  - Concurrent queue fetches for the same signature share one request; obsolete requests are cancelled
+    and cannot publish stale errors or tasks.
+  - The label dropdown remains available and incompatible target/group selections block fetching with
+    actionable feedback.
+  - Regression tests cover query counts, overlapping intervals, request sharing, cancellation, and invalid
+    label selection; production-scale latency is verified before deployment readiness is claimed.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run focused backend query-count and frontend queue tests, then measure representative
+      queue latency and memory before deployment.
+    timeout_seconds: 1200
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: frontend/src/stores/annotationQueue.ts; frontend/src/views/FrameAnnotation.vue; /home/admin/endoreg-db/endoreg_db/services/frame_annotation_buckets.py;
+        /home/admin/endoreg-db/endoreg_db/services/frame_annotation_sampling.py
+    - kind: test
+      reference: frontend/src/stores/__tests__/annotationQueue.test.ts; frontend/src/views/__tests__/FrameAnnotationPage.test.ts;
+        /home/admin/endoreg-db/tests/services/test_frame_annotation_bucket_builders_unit.py
+    note: 'Local implementation complete: 48 backend tests and 3 subtests passed with RUN_VIDEO_TESTS=true;
+      56 frontend tests passed across four suites. Full backend Pyright, scoped Ruff, frontend OpenAPI
+      freshness, source and component-test type checks, full ESLint plus scoped final-change lint passed.
+      Query-count regressions verify constant membership queries and single candidate eligibility evaluation.
+      Not deployed; gc-10 production latency and memory remain unverified.'
+    assessed_by: codex-frame-queue-20260915
+    assessed_at: '2026-09-15T13:41:53.105786Z'
 - id: label_primary_dataset_setting
   category: requirements
   title: Application settings select a label-primary annotation dataset

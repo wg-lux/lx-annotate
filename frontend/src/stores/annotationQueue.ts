@@ -482,6 +482,11 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   const taskQueue = ref<AnnotationTask[]>([])
   const reservedFrameIds = new Set<number>()
   let queueGeneration = 0
+  let applyingDatasetDefaults = false
+  let pendingBatch: {
+    controller: AbortController
+    promise: Promise<AnnotationTask[]>
+  } | null = null
   const isInitialLoading = ref(false)
   const isPrefetching = ref(false)
   const lastError = ref<string | null>(null)
@@ -610,29 +615,20 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   function applyAiDatasetDefaults(
     settings: Awaited<ReturnType<typeof fetchApplicationSettings>>
   ): void {
+    applyingDatasetDefaults = true
     aiDatasetId.value = String(settings.aiDatasetId)
     aiDatasetName.value = settings.aiDatasetName?.trim() || null
     aiDatasetType.value = settings.aiDatasetType?.trim() || null
-  }
-
-  function clearAiDatasetDefaults(): void {
-    aiDatasetId.value = null
-    aiDatasetName.value = null
-    aiDatasetType.value = null
+    applyingDatasetDefaults = false
   }
 
   async function hydrateAiDatasetDefaults(): Promise<void> {
-    if (hasAiDatasetSelection()) {
-      return
-    }
-    try {
-      const settings = await fetchApplicationSettings()
-      requireValidPrimaryDataset(settings)
-      applyAiDatasetDefaults(settings)
-    } catch (error) {
-      clearAiDatasetDefaults()
-      throw error
-    }
+    if (hasAiDatasetSelection()) return
+    const identity = captureQueueRequestIdentity()
+    const settings = await fetchApplicationSettings()
+    if (!isCurrentQueueRequest(identity)) return
+    requireValidPrimaryDataset(settings)
+    applyAiDatasetDefaults(settings)
   }
 
   function buildTaskRequestParams(
@@ -678,13 +674,29 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     return params
   }
 
+  function isEmptyTaskResponse(error: unknown): boolean {
+    const failure = isRecord(error) ? error : {}
+    const response = isRecord(failure.response) ? failure.response : {}
+    const data = isRecord(response.data) ? response.data : {}
+    return response.status === 404 && data.error === 'No frame task available.'
+  }
+
   async function fetchTaskBatchFromApi(
     batchSize: number,
-    mode: AnnotationTaskMode
+    mode: AnnotationTaskMode,
+    signal: AbortSignal
   ): Promise<AnnotationTask[]> {
-    const response = await axiosInstance.get(r(endpoints.annotation.randomTask), {
-      params: buildTaskRequestParams(batchSize, mode)
-    })
+    const response = await axiosInstance
+      .get(r(endpoints.annotation.randomTask), {
+        params: buildTaskRequestParams(batchSize, mode),
+        signal
+      })
+      .catch((error: unknown) => {
+        if (mode === 'filtered' && allowRandomFallback.value && isEmptyTaskResponse(error)) {
+          return { data: { tasks: [] } }
+        }
+        throw error
+      })
     return extractTaskList(response.data)
       .map((raw) => coerceTask(raw))
       .filter((task): task is AnnotationTask => task !== null)
@@ -723,22 +735,6 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     return [dummy]
   }
 
-  async function fetchRandomFallback(
-    batchSize: number,
-    generation: number,
-    signature: string
-  ): Promise<{ current: boolean; tasks: AnnotationTask[] }> {
-    try {
-      const fallbackParsed = await fetchTaskBatchFromApi(batchSize, 'random')
-      if (!isCurrentRequest(generation, signature)) {
-        return { current: false, tasks: [] }
-      }
-      return { current: true, tasks: enqueueUniqueTasks(fallbackParsed) }
-    } catch {
-      return { current: true, tasks: [] }
-    }
-  }
-
   function getTaskBatchErrorMessage(error: unknown): string {
     const failure = isRecord(error) ? error : {}
     const response = isRecord(failure.response) ? failure.response : {}
@@ -753,17 +749,21 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   type QueueRequestIdentity = {
     generation: number
     signature: string
+    signal: AbortSignal
   }
 
-  function captureQueueRequestIdentity(): QueueRequestIdentity {
+  function captureQueueRequestIdentity(
+    signal = new AbortController().signal
+  ): QueueRequestIdentity {
     return {
+      signal,
       generation: queueGeneration,
       signature: currentTaskRequestSignature()
     }
   }
 
   function isCurrentQueueRequest(request: QueueRequestIdentity): boolean {
-    return isCurrentRequest(request.generation, request.signature)
+    return !request.signal.aborted && isCurrentRequest(request.generation, request.signature)
   }
 
   function shouldFetchRandomFallback(tasks: AnnotationTask[]): boolean {
@@ -784,12 +784,12 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     batchSize: number,
     request: QueueRequestIdentity
   ): Promise<AnnotationTask[]> {
-    let parsed = await fetchTaskBatchFromApi(batchSize, taskMode.value)
+    let parsed = await fetchTaskBatchFromApi(batchSize, taskMode.value, request.signal)
     if (!isCurrentQueueRequest(request)) {
       return []
     }
     if (shouldFetchRandomFallback(parsed)) {
-      parsed = await fetchTaskBatchFromApi(batchSize, 'random')
+      parsed = await fetchTaskBatchFromApi(batchSize, 'random', request.signal)
       if (!isCurrentQueueRequest(request)) {
         return []
       }
@@ -797,41 +797,51 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     return enqueueTaskBatch(parsed, request)
   }
 
-  async function recoverTaskBatch(
-    batchSize: number,
-    request: QueueRequestIdentity,
-    error: unknown
-  ): Promise<AnnotationTask[]> {
+  function recoverTaskBatch(request: QueueRequestIdentity, error: unknown): AnnotationTask[] {
     if (!isCurrentQueueRequest(request)) {
       return []
-    }
-    if (taskMode.value === 'filtered' && allowRandomFallback.value) {
-      const fallback = await fetchRandomFallback(batchSize, request.generation, request.signature)
-      if (!fallback.current) {
-        return []
-      }
-      if (fallback.tasks.length > 0) {
-        return fallback.tasks
-      }
     }
     lastError.value = getTaskBatchErrorMessage(error)
     return enqueueDummyTaskWhenQueueEmpty(request.generation, request.signature)
   }
 
-  async function fetchBatch(batchSize = 10): Promise<AnnotationTask[]> {
+  function cancelPendingBatch(): void {
+    pendingBatch?.controller.abort()
+    pendingBatch = null
+  }
+
+  watch(
+    [selectedLabelGroupId, taskQuerySignature],
+    () => {
+      if (!applyingDatasetDefaults) cancelPendingBatch()
+    },
+    { flush: 'sync' }
+  )
+
+  async function runBatch(batchSize: number, signal: AbortSignal): Promise<AnnotationTask[]> {
+    lastError.value = null
+    let request = captureQueueRequestIdentity(signal)
+    try {
+      await hydrateAiDatasetDefaults()
+      if (signal.aborted || request.generation !== queueGeneration) return []
+      request = captureQueueRequestIdentity(signal)
+      return await fetchCurrentTaskBatch(batchSize, request)
+    } catch (error: unknown) {
+      return recoverTaskBatch(request, error)
+    }
+  }
+
+  function fetchBatch(batchSize = 10): Promise<AnnotationTask[]> {
     if (!selectedLabelGroupId.value && dummyTaskModeEnabled) {
       selectedLabelGroupId.value = DEBUG_DUMMY_TASK_GROUP_ID
     }
-
-    lastError.value = null
-    let request = captureQueueRequestIdentity()
-    try {
-      await hydrateAiDatasetDefaults()
-      request = captureQueueRequestIdentity()
-      return await fetchCurrentTaskBatch(batchSize, request)
-    } catch (error: unknown) {
-      return await recoverTaskBatch(batchSize, request, error)
-    }
+    if (pendingBatch) return pendingBatch.promise
+    const controller = new AbortController()
+    const promise = runBatch(batchSize, controller.signal).finally(() => {
+      if (pendingBatch?.controller === controller) pendingBatch = null
+    })
+    pendingBatch = { controller, promise }
+    return promise
   }
 
   async function prefetchIfNeeded(): Promise<void> {
@@ -852,11 +862,12 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
 
   function popNextTask(): AnnotationTask | undefined {
     const task = taskQueue.value.shift()
-    void prefetchIfNeeded()
+    if (task) void prefetchIfNeeded()
     return task
   }
 
   function clearQueue(): void {
+    cancelPendingBatch()
     queueGeneration += 1
     taskQueue.value = []
     reservedFrameIds.clear()

@@ -60,7 +60,11 @@
           :data-test="action.testSelector"
           :title="action.title"
           :aria-label="action.ariaLabel"
-          :disabled="action.intent === 'retry-import' || action.intent === 'cancel-import' ? retryProcessing : processing"
+          :disabled="
+            action.intent === 'retry-import' || action.intent === 'cancel-import'
+              ? retryProcessing
+              : processing
+          "
           @click="emit(action.intent, file)"
         >
           <i
@@ -72,7 +76,9 @@
 
         <!-- Processing indicator -->
         <button
-          v-if="file.anonymizationStatus === 'processing_anonymization' && !isImportInterrupted(file)"
+          v-if="
+            file.anonymizationStatus === 'processing_anonymization' && !isImportInterrupted(file)
+          "
           class="btn btn-outline-info"
           disabled
         >
@@ -103,7 +109,11 @@
           {{ getUploadJobStatusText(file.uploadJob.status) }}
         </span>
         <progress
-          v-if="['pending', 'processing', 'retrying', 'cancel_requested'].includes(file.uploadJob.status)"
+          v-if="
+            ['pending', 'processing', 'retrying', 'cancel_requested'].includes(
+              file.uploadJob.status
+            )
+          "
           class="job-progress d-block mt-1"
           :aria-label="`${getFileDisplayName(file)}: ${getUploadJobStatusText(file.uploadJob.status)}`"
         ></progress>
@@ -191,7 +201,8 @@
       <span
         v-else-if="isImportInterrupted(file)"
         class="badge bg-warning text-dark"
-      >Verarbeitung unterbrochen</span>
+        >Verarbeitung unterbrochen</span
+      >
       <span
         v-else
         :class="getStatusBadgeClass(file.anonymizationStatus)"

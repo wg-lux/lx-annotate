@@ -12,7 +12,6 @@
 import DashboardComponent from '../components/Dashboard/DashboardComponent.vue'
 
 defineOptions({ name: 'Dashboard' })
-
 </script>
 
 <style></style>

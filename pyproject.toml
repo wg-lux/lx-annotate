@@ -61,7 +61,6 @@ dependencies = [
     "django-linear-migrations>=2.19.0",
     "redis>=5.0.3,<6.5",
     "lx-dtypes>=0.3.2",
-    "pre-commit[dev]>=4.6.1",
     "pylint-django>=2.8.0",
     "asgiref>=3.12.1",
 ]
@@ -146,6 +145,7 @@ dev = [
   "radon>=6.0.1",
   "pre-commit==4.6.1",
   "typebridge-check>=0.0.1",
+  "prek>=0.5.3",
 ]
 
 docs = [
@@ -170,6 +170,7 @@ plugins = ["mypy_django_plugin.main"]
 
 [tool.django-stubs]
 django_settings_module = "lx_annotate.settings.settings_test"
+
 
 [[tool.mypy.overrides]]
 module = [

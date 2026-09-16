@@ -1,7 +1,16 @@
 <template>
-  <div class="pdf-preview" :class="variant">
-    <h6 class="text-center mb-3" :class="presentation.textClass">
-      <i class="ni me-1" :class="presentation.icon"></i>
+  <div
+    class="pdf-preview"
+    :class="variant"
+  >
+    <h6
+      class="text-center mb-3"
+      :class="presentation.textClass"
+    >
+      <i
+        class="ni me-1"
+        :class="presentation.icon"
+      ></i>
       {{ presentation.heading }}
     </h6>
     <iframe
@@ -15,7 +24,14 @@
       Ihr Browser unterstützt keine eingebetteten PDFs.
     </iframe>
     <div class="mt-2 text-center">
-      <a v-if="src" class="btn btn-sm" :class="presentation.buttonClass" :href="src" target="_blank" rel="noopener noreferrer">
+      <a
+        v-if="src"
+        class="btn btn-sm"
+        :class="presentation.buttonClass"
+        :href="src"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
         {{ presentation.openLabel }}
       </a>
     </div>

@@ -46,12 +46,13 @@ defineOptions({ name: 'Dashboard' })
 const router = useRouter()
 
 const availableRoutes = computed(() => {
-  return router.options.routes.filter((route): route is RouteRecordRaw & { description?: string } => {
-    // Filter out login route and routes without names
-    return Boolean(route.name) && route.name !== 'Login'
-  })
+  return router.options.routes.filter(
+    (route): route is RouteRecordRaw & { description?: string } => {
+      // Filter out login route and routes without names
+      return Boolean(route.name) && route.name !== 'Login'
+    }
+  )
 })
-
 </script>
 
 <style scoped>

@@ -131,7 +131,9 @@ describe('anonymizationStore video reimport', () => {
   })
 
   it('does not report a blocked repair as a successful reimport', async () => {
-    hoisted.post.mockResolvedValue({ data: { items: [{ status: 'blocked', missing: ['active_transcode'] }] } })
+    hoisted.post.mockResolvedValue({
+      data: { items: [{ status: 'blocked', missing: ['active_transcode'] }] }
+    })
     const store = useAnonymizationStore()
     store.overview = [buildVideoFile()]
     await expect(store.reimportVideo(42)).resolves.toBe(false)
@@ -175,18 +177,20 @@ describe('anonymizationStore video reimport', () => {
     expect(hoisted.post).toHaveBeenCalledWith('api/runtime/videos/repair/', { dry_run: false })
     expect(result?.annotationsPreserved).toBe(true)
   })
-  it.each(['replace_processed'] as const)('posts a bounded %s repair batch using the API contract', async (option) => {
-    hoisted.post.mockResolvedValue({ data: { annotationsPreserved: true } })
-    hoisted.get.mockResolvedValue({ data: [] })
-    const store = useAnonymizationStore()
-    const idempotencyKey = 'f1f224a8-43d4-486e-b3ef-fbbed852be26'
-    await store.repairAllVideoStates(false, { option, idempotencyKey, afterVideoId: 100 })
-    expect(hoisted.post).toHaveBeenCalledWith('api/runtime/videos/repair/', {
-      dry_run: false,
-      transcode: { option, idempotency_key: idempotencyKey },
-      after_video_id: 100,
-      batch_size: 100
-    })
-  })
-
+  it.each(['replace_processed'] as const)(
+    'posts a bounded %s repair batch using the API contract',
+    async (option) => {
+      hoisted.post.mockResolvedValue({ data: { annotationsPreserved: true } })
+      hoisted.get.mockResolvedValue({ data: [] })
+      const store = useAnonymizationStore()
+      const idempotencyKey = 'f1f224a8-43d4-486e-b3ef-fbbed852be26'
+      await store.repairAllVideoStates(false, { option, idempotencyKey, afterVideoId: 100 })
+      expect(hoisted.post).toHaveBeenCalledWith('api/runtime/videos/repair/', {
+        dry_run: false,
+        transcode: { option, idempotency_key: idempotencyKey },
+        after_video_id: 100,
+        batch_size: 100
+      })
+    }
+  )
 })

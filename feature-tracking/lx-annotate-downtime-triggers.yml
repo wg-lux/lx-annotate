@@ -1,0 +1,171 @@
+schema_version: 1
+owner: LuxNix service operations
+canonical_topic: Evidence-based downtime trigger proposal for gc-02, gc-10, and gs-02
+status: proposed_not_deployed
+inspection_date: '2026-09-14'
+agent_id: codex-downtime-20260914
+scope:
+  method: Read-only inspection following lx-annotate-diagnostics skill.
+  diagnostics: /home/admin/luxnix/modules/nixos/services/lx-annotate-local/Diagnostics.md
+  inventory: /home/admin/luxnix/ansible/inventory/hosts.ini
+  profiles: /home/admin/.codex/skills/lx-annotate-diagnostics/references/machine-profiles.yml
+  observation_window_utc: '2026-09-14 12:03 through 12:09 approximately'
+  counted_log_window_utc: '[2026-09-07 12:00:00, 2026-09-14 12:00:00]'
+  limitations:
+    - Counts describe matching retained journal messages, not independently measured outage duration.
+    - Noninteractive sudo required a password on gc-02 and gs-02; readable journals and systemctl metadata were sufficient for the reported observations.
+    - No secrets, patient records, or raw application payloads are included in this report.
+    - No production changes, restarts, migrations, acceptance-unit starts, or recovery jobs were requested or executed.
+    - HTTPS, authenticated application readiness, mTLS transfer, backup restore, and service-user credential readability were not verified.
+    - Queue depth samples do not establish worker progress or absence of unacknowledged tasks.
+hosts:
+  gc-02:
+    profile: site-client
+    access: local
+    findings:
+      - Web active with NRestarts=0; direct HTTP returned 301 in 0.006327 seconds. This proves redirect responsiveness only.
+      - A probe with Host gc-02.intern returned 400; this does not establish a web outage.
+      - Root filesystem 94 percent used, approximately 31 to 33 GiB available during sampling.
+      - Both data and configured external-storage paths resolved to the root Btrfs filesystem. No separate mount was observed at the configured external-storage path.
+      - Swap 19 GiB used with zero free; approximately 5 GiB MemAvailable.
+      - Memory PSI full avg60=26.25 and IO PSI full avg60=45.23 in one snapshot.
+      - Video import logged outcome failed after 17993.0126 seconds at 12:02:24 UTC; RapidOCR ONNXRuntimeError and a scheduled retry followed.
+      - PostgreSQL on 5432 accepted connections; Redis returned PONG; nginx was active.
+      - Hub export health at 12:01:23 UTC reported healthy=true, critical_count=0, total_jobs=1, completed=1.
+      - Migration was activating from 12:03:32 UTC with a two-hour timeout while web remained active. This sample alone is not a stuck migration.
+    first_failing_stage: No failed startup gate established; observed failure is runtime video processing.
+    uncertainty: Memory and IO pressure are plausible contributors to slow processing, but the underlying ONNX error cause was not established.
+  gs-02:
+    profile: gpu-hub
+    access: admin@172.16.255.22
+    findings:
+      - Web activating with auto-restart-queued, Result=exit-code, ExecMainStatus=1, NRestarts=5687 at first detailed sample.
+      - Direct HTTP port 8117 refused connection while nginx, PostgreSQL, and Redis were active.
+      - Web journal contained 5682 occurrences of the static-assets error in the counted seven-day window.
+      - Earliest matching static-assets error in that window was 2026-09-10T17:04:38+02:00.
+      - Runtime-env, preflight, and hub-envelope-key-preflight reported active and success despite web failure.
+      - Hub backup failed with status 243/CREDENTIALS and Failed to set up credentials, Protocol error.
+      - Backup journal contained 168 status=243/CREDENTIALS messages in the counted window and no Finished messages in the queried seven-day history.
+      - Root filesystem 34 percent used and approximately 86 GiB memory available.
+      - GPU sample showed 255 MiB of 16376 MiB used and zero utilization; pipeline and llm_inference queue lengths were zero.
+    first_failing_stage: Web static-assets discovery or synchronization gate, after successful prerequisite gates.
+    static_error: 'ERROR: No packaged static assets found in installed lx-annotate wheel.'
+    uncertainty: The message establishes failure of asset discovery, not proof that the wheel archive lacks assets. Inspect installed artifact and deployed discovery script before selecting a repair.
+    backup_uncertainty: Failure occurs at systemd credential setup before the backup program; existing backup inventory and restore viability were not inspected.
+  gc-10:
+    profile: site-client
+    access: admin@172.16.255.110
+    status: inspection_blocked
+    findings:
+      - Direct SSH timed out on port 22 with a ten-second connection timeout.
+      - ProxyJump through gs-02 failed because forwarding was administratively prohibited.
+    uncertainty: No live logs obtained; cannot distinguish a host outage from routing, firewall, VPN, or SSH restrictions.
+triggers:
+  - id: web_readiness_and_restart_loop
+    priority: P0
+    owner: LuxNix operations
+    evidence: gs-02 static gate failure, thousands of restarts, refused HTTP connection.
+    condition: Page after three consecutive failed 30-second application probes, or three automatic web restarts within five minutes.
+    implementation: Run probes outside Django; check TLS frontend, static manifest and referenced asset, and bounded application readiness. Observe NRestarts as a reset-aware delta.
+    response: Identify first failing gate and release revision; repair or select a verified compatible release through the deployment process.
+    recovery: Require five minutes of successful probes and stable restart count before resolving.
+    guardrail: Do not restart the entire database and broker stack in response to a deterministic web gate failure.
+  - id: artifact_gate_before_activation
+    priority: P0
+    owner: LX-Annotate release engineering
+    evidence: gs-02 prerequisite preflight passed but web asset discovery failed.
+    condition: Block release promotion on missing or unreadable packaged static directories, invalid Vite manifest, missing referenced assets, or failed startup smoke check.
+    implementation: Validate the exact built wheel in an isolated installation using the deployed discovery procedure and service permissions; keep machine-readable discovery output separate from startup logging.
+    response: Retain the current working release and reject the candidate artifact.
+    guardrail: Rollback after migrations requires schema compatibility review; do not automatically roll back database state.
+  - id: memory_and_io_pressure
+    priority: P1
+    owner: LuxNix operations and pipeline maintainers
+    evidence: gc-02 swap exhausted, memory PSI full avg60=26.25, IO PSI full avg60=45.23, five-hour failed import.
+    condition: Warn when memory PSI full avg60 exceeds 10 percent for two minutes; page when it exceeds 20 percent for two minutes with failed probes or stalled task progress.
+    supporting_signals: Swap over 90 percent, low MemAvailable, IO PSI, per-worker memory peaks, and workload timing.
+    response: Identify the responsible cgroup; propose bounded worker concurrency and workload admission limits that preserve web and database headroom.
+    guardrail: Swap usage alone must not page; do not kill or retry a running task solely because it is old.
+  - id: storage_capacity_and_mount_identity
+    priority: P1
+    owner: LuxNix storage operations
+    evidence: gc-02 root 94 percent used; configured external path resolved to root.
+    condition: Warn at available space at or below 10 percent for five minutes; page at or below 5 percent or projected exhaustion within six hours. Independently alert on an expected mount resolving to the wrong filesystem.
+    implementation: Monitor actual backing filesystems, Btrfs capacity, expected mount identity, and free bytes relative to maximum admitted job staging requirements.
+    response: Review archive or cleanup eligibility and expected external mount before admitting more large jobs.
+    guardrail: No automatic deletion of original data; projected exhaustion needs a sustained growth sample, which this inspection did not collect.
+  - id: backup_credential_failure_and_freshness
+    priority: P1
+    owner: Hub operations
+    evidence: gs-02 hourly backup failed at systemd CREDENTIALS, 168 matching failures.
+    condition: Alert on the first backup credential-setup failure; page if no independently verified successful coupled backup exists within two scheduled intervals plus fifteen minutes.
+    implementation: For the observed hourly schedule use 135 minutes; record success only after snapshot artifacts and completion metadata are verified. Missing history is unknown, not healthy.
+    response: Diagnose credential provisioning and file metadata without exposing contents; verify a subsequent coupled backup and perform an authorized isolated restore test.
+    guardrail: An active timer or successful process exit alone is not proof of a usable backup.
+  - id: pipeline_progress_and_repeated_failure
+    priority: P1
+    owner: LX-Annotate pipeline maintainers
+    evidence: gc-02 video_import failed after 17993 seconds with an ONNXRuntimeError and retry scheduling.
+    condition: Warn on no progress heartbeat for fifteen minutes while work is active, or oldest pending task over one hour; page on retry exhaustion or repeated identical failures with no successful progress for thirty minutes.
+    implementation: Track task phase progress, workload.timing outcome, oldest queued age, unacknowledged work, and retry classification. Adjust phase limits to measured workload size and historical percentiles.
+    response: Classify deterministic model/runtime errors before retrying; apply bounded backoff and preserve original input for investigation.
+    guardrail: Do not count failed_count=0 log text as an error, or restart a worker with an active non-idempotent task automatically.
+  - id: host_and_monitoring_silence
+    priority: P1
+    owner: LuxNix operations
+    evidence: gc-10 was unreachable by the available inspection paths.
+    condition: Alert when independent host heartbeat is absent for two minutes; classify a host outage only with corroborating network or service probes.
+    implementation: Observe from a permitted network location; distinguish exporter silence, SSH access failure, and application failure.
+    response: Check host power, routing, VPN, firewall and SSH access, then repeat this read-only inspection.
+    guardrail: SSH timeout alone must not be labelled an application outage.
+  - id: hub_transfer_dependency
+    priority: P2
+    owner: Hub and site operations
+    evidence: gs-02 web unavailable, but gc-02 sampled export health was healthy with no active jobs.
+    condition: Alert on oldest eligible transfer pending over fifteen minutes with repeated transport failure; escalate authorization, integrity, or retry-exhausted classifications immediately.
+    response: Correlate site symptoms with hub readiness and suppress duplicate site pages under a confirmed hub incident.
+    guardrail: No transfer failure was established here; this is a dependency-protection proposal.
+alert_design:
+  - Thresholds are proposed starting points, not measured SLOs or deployed rules.
+  - Collect both default and lx-annotate journal namespaces. Parse application severity and event fields, because text errors can have non-error journal priority.
+  - Observe startup gates in dependency order; successful inactive one-shot units and disabled or manual workers are not failures.
+  - Use host, deployment revision, unit, and error class for deduplication; exclude payload identifiers from alert labels.
+  - Run essential monitoring independently of the failing web application.
+  - Validate proposed rules against these known incidents and healthy one-shot/timer states before activation.
+command_record:
+  access:
+    - hostname
+    - date -u
+    - sudo -n true
+    - ssh -o BatchMode=yes -o ConnectTimeout=10 admin@172.16.255.110
+    - ssh -o BatchMode=yes -o ConnectTimeout=10 admin@172.16.255.22
+    - ssh -o BatchMode=yes -o ConnectTimeout=8 -o ProxyJump=admin@172.16.255.22 admin@172.16.255.110
+  common_read_only:
+    - systemctl list-units 'lx-annotate*' --all --no-pager --plain
+    - systemctl show lx-annotate.service -p ActiveState -p SubState -p Result -p NRestarts -p ExecMainStatus
+    - journalctl --namespace=lx-annotate -u lx-annotate.service --since '24 hours ago' --no-pager -n 60
+    - systemctl is-active nginx postgresql redis-lx-annotate
+    - timeout 5 redis-cli PING
+    - timeout 5 pg_isready -h 127.0.0.1 -p 5432
+    - df -h /var/lib/lx-annotate /var/lib/lx-annotate/data
+    - free -h
+  gc_02_additional:
+    - systemctl show lx-annotate.service lx-annotate-migrate.service -p Id -p ActiveState -p SubState -p Result -p NRestarts -p MemoryCurrent -p MemoryPeak -p MemoryHigh -p MemoryMax -p ActiveEnterTimestamp
+    - systemctl show lx-annotate-migrate.service -p InactiveExitTimestamp -p ExecMainStartTimestamp -p TimeoutStartUSec
+    - cat /proc/pressure/memory /proc/pressure/io
+    - findmnt -T /var/lib/lx-annotate/data
+    - findmnt -T /mnt/endoreg-client-storage
+    - curl -sS --max-time 8 -o /dev/null -w 'local_default_host_http=%{http_code} seconds=%{time_total}\n' http://127.0.0.1:8117/
+    - journalctl --namespace=lx-annotate -u lx-annotate-hub-export-health.service --since '24 hours ago' --no-pager -n 3
+    - journalctl --namespace=lx-annotate --since '2026-09-14 14:02:20' --until '2026-09-14 14:02:30' --no-pager -g 'onnxruntime|CUDA|CUDNN|allocat|memory|Exception|Error|Failed to' -n 25
+  gs_02_additional:
+    - systemctl show lx-annotate.service lx-annotate-hub-backup.service -p Id -p ActiveState -p SubState -p Result -p NRestarts -p ExecMainStatus -p ActiveEnterTimestamp
+    - journalctl -u lx-annotate-hub-backup.service --since '7 days ago' --no-pager -n 30
+    - journalctl --namespace=lx-annotate -u lx-annotate.service --since '2026-09-07 12:00:00 UTC' --until '2026-09-14 12:00:00 UTC' --no-pager -g 'No packaged static' -o cat | wc -l
+    - journalctl -u lx-annotate-hub-backup.service --since '2026-09-07 12:00:00 UTC' --until '2026-09-14 12:00:00 UTC' --no-pager -g '243/CREDENTIALS' -o cat | wc -l
+    - journalctl -u lx-annotate-hub-backup.service --since '7 days ago' --no-pager -g 'Finished' -o cat | wc -l
+    - curl -sS --max-time 5 -o /dev/null -w 'http=%{http_code}\n' -H 'Host: gs-02.intern' http://127.0.0.1:8117/
+    - nvidia-smi --query-gpu=name,memory.used,memory.total,utilization.gpu --format=csv,noheader
+    - timeout 5 redis-cli LLEN pipeline
+    - timeout 5 redis-cli LLEN llm_inference
+    - journalctl -k --since '7 days ago' --no-pager -g 'oom-kill|Out of memory|Killed process|Xid' -n 5

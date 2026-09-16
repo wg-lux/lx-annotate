@@ -3,7 +3,9 @@ import type { FileItem, UploadJobOverview } from '@/stores/anonymizationStore'
 export type OriginalFileDeletionState = 'deleted' | 'present' | 'quarantined' | 'unknown'
 
 export const isAnonymizationProcessing = (file: FileItem): boolean =>
-  ['processing_anonymization', 'extracting_frames', 'predicting_segments'].includes(file.anonymizationStatus)
+  ['processing_anonymization', 'extracting_frames', 'predicting_segments'].includes(
+    file.anonymizationStatus
+  )
 
 export const isImportInterrupted = (file: FileItem): boolean =>
   file.uploadJob?.status === 'cancelled' && isAnonymizationProcessing(file)
@@ -378,11 +380,13 @@ export type OverviewActionIntent =
   | 'dismiss-import'
   | 'delete'
 
-export const canCancelImport = (file: FileItem): boolean => Boolean(
-  !file.quarantined && file.mediaType === 'video' &&
-  file.uploadJob?.allowedActions.includes('cancel') &&
-  ['pending', 'processing', 'retrying'].includes(file.uploadJob.status)
-)
+export const canCancelImport = (file: FileItem): boolean =>
+  Boolean(
+    !file.quarantined &&
+    file.mediaType === 'video' &&
+    file.uploadJob?.allowedActions.includes('cancel') &&
+    ['pending', 'processing', 'retrying'].includes(file.uploadJob.status)
+  )
 
 interface OverviewAction {
   intent: OverviewActionIntent

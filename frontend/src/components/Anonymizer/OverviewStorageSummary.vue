@@ -1,5 +1,8 @@
 <template>
-  <section class="storage-summary mb-3" aria-label="Speicherplatz">
+  <section
+    class="storage-summary mb-3"
+    aria-label="Speicherplatz"
+  >
     <div class="d-flex justify-content-between align-items-center gap-2">
       <h5 class="mb-0">Speicherplatz</h5>
       <button
@@ -15,14 +18,37 @@
       Dateisystem des geschützten Medienspeichers, einschließlich anderer Dateien auf diesem
       Dateisystem. Unabhängig von den Tabellenfiltern.
     </p>
-    <p v-if="loading" class="mb-0" role="status">Speicherplatz wird abgefragt…</p>
-    <p v-else-if="error" class="mb-0 text-warning" role="status">{{ error }}</p>
+    <p
+      v-if="loading"
+      class="mb-0"
+      role="status"
+    >
+      Speicherplatz wird abgefragt…
+    </p>
+    <p
+      v-else-if="error"
+      class="mb-0 text-warning"
+      role="status"
+    >
+      {{ error }}
+    </p>
     <template v-else-if="capacity">
-      <div class="d-flex flex-wrap gap-3 mb-2" data-test="storage-capacity">
-        <span>Gesamt: <strong>{{ formatBytes(capacity.totalBytes) }}</strong></span>
-        <span>Belegt: <strong>{{ formatBytes(capacity.usedBytes) }}</strong></span>
-        <span>Verfügbar: <strong>{{ formatBytes(capacity.availableBytes) }}</strong></span>
-        <span>Systemreserviert: <strong>{{ formatBytes(capacity.reservedBytes) }}</strong></span>
+      <div
+        class="d-flex flex-wrap gap-3 mb-2"
+        data-test="storage-capacity"
+      >
+        <span
+          >Gesamt: <strong>{{ formatBytes(capacity.totalBytes) }}</strong></span
+        >
+        <span
+          >Belegt: <strong>{{ formatBytes(capacity.usedBytes) }}</strong></span
+        >
+        <span
+          >Verfügbar: <strong>{{ formatBytes(capacity.availableBytes) }}</strong></span
+        >
+        <span
+          >Systemreserviert: <strong>{{ formatBytes(capacity.reservedBytes) }}</strong></span
+        >
       </div>
       <progress
         class="storage-capacity-bar"
@@ -55,7 +81,8 @@ const isDisposed = () => disposed
 
 function formatBytes(bytes: number): string {
   const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB']
-  const exponent = bytes > 0 ? Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1) : 0
+  const exponent =
+    bytes > 0 ? Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1) : 0
   return `${(bytes / 1024 ** exponent).toLocaleString('de-DE', { maximumFractionDigits: 1 })} ${units[exponent]}`
 }
 
@@ -70,9 +97,10 @@ async function refresh(): Promise<void> {
     if (!isDisposed()) capacity.value = response
   } catch (failure: unknown) {
     if (isDisposed()) return
-    error.value = isAxiosError(failure) && failure.response?.status === 403
-      ? 'Für die Speicheranzeige ist eine Berechtigung zur Speicherüberwachung erforderlich.'
-      : 'Speicherplatz konnte nicht abgefragt werden. Bitte erneut aktualisieren.'
+    error.value =
+      isAxiosError(failure) && failure.response?.status === 403
+        ? 'Für die Speicheranzeige ist eine Berechtigung zur Speicherüberwachung erforderlich.'
+        : 'Speicherplatz konnte nicht abgefragt werden. Bitte erneut aktualisieren.'
   } finally {
     if (!isDisposed()) loading.value = false
     controller = null

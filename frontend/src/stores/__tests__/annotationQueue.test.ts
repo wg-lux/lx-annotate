@@ -7,7 +7,7 @@ const hoisted = vi.hoisted(() => ({
   get: vi.fn<
     (
       url: string,
-      config?: { params: Record<string, string | number> }
+      config?: { params: Record<string, string | number>; signal?: AbortSignal }
     ) => Promise<{ data: unknown }>
   >(),
   fetchApplicationSettings: vi.fn()
@@ -80,6 +80,69 @@ describe('annotationQueue store', () => {
       primaryAnnotationDatasetValid: true,
       primaryAnnotationDatasetError: null
     })
+  })
+
+  it('retains the explicit random fallback for an exhausted filtered queue', async () => {
+    hoisted.get
+      .mockRejectedValueOnce({
+        response: { status: 404, data: { error: 'No frame task available.' } }
+      })
+      .mockResolvedValueOnce({ data: { tasks: [buildTask(302)] } })
+    const store = useAnnotationQueueStore()
+    store.setAiDataset('test', 'image', 7)
+    store.setTaskMode('filtered')
+    store.setAllowRandomFallback(true)
+    await store.fetchBatch()
+    expect(hoisted.get).toHaveBeenCalledTimes(2)
+    expectLastTaskRequestParams({ task_mode: 'random' })
+    expect(store.taskQueue.map((task) => task.data.frameId)).toEqual([302])
+    expect(store.lastError).toBeNull()
+  })
+
+  it('shares concurrent fetches and enqueues once', async () => {
+    const response = deferred<TaskBatchResponse>()
+    hoisted.get.mockReturnValueOnce(response.promise)
+    const store = useAnnotationQueueStore()
+    store.setAiDataset('test', 'image', 7)
+    const first = store.fetchBatch()
+    const second = store.fetchBatch()
+    await waitForGetCall(1)
+    response.resolve({ data: { tasks: [buildTask(301)] } })
+    await Promise.all([first, second])
+    expect(hoisted.get).toHaveBeenCalledTimes(1)
+    expect(store.taskQueue.map((task) => task.data.frameId)).toEqual([301])
+  })
+
+  it('aborts obsolete requests and ignores late failures', async () => {
+    const response = deferred<TaskBatchResponse>()
+    hoisted.get.mockReturnValueOnce(response.promise)
+    const store = useAnnotationQueueStore()
+    store.setAiDataset('test', 'image', 7)
+    const pending = store.fetchBatch()
+    await waitForGetCall(1)
+    const signal = hoisted.get.mock.calls[0]?.[1]?.signal
+    expect(signal?.aborted).toBe(false)
+    store.setTargetLabelName('new-label')
+    expect(signal?.aborted).toBe(true)
+    response.reject(new Error('old failure'))
+    await pending
+    expect(store.lastError).toBeNull()
+    expect(store.taskQueue).toEqual([])
+  })
+
+  it('does not retry empty queues or validation errors', async () => {
+    hoisted.get.mockRejectedValueOnce({
+      response: { status: 400, data: { error: 'Unknown target_label.' } }
+    })
+    const store = useAnnotationQueueStore()
+    store.setAiDataset('test', 'image', 7)
+    store.setTaskMode('filtered')
+    store.setAllowRandomFallback(true)
+    await store.fetchBatch()
+    expect(store.popNextTask()).toBeUndefined()
+    await Promise.resolve()
+    expect(hoisted.get).toHaveBeenCalledTimes(1)
+    expect(store.lastError).toBe('Unknown target_label.')
   })
 
   it('discards stale batch results after clearQueue invalidates the queue generation', async () => {

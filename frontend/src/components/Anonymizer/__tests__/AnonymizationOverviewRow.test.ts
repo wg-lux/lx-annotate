@@ -68,7 +68,12 @@ describe('AnonymizationOverviewRow', () => {
   it('allows advertised cancellation during processing and waits for the worker acknowledgment', async () => {
     const file: FileItem = {
       ...video,
-      uploadJob: { ...failedImport, status: 'processing', errorCode: '', allowedActions: ['cancel'] }
+      uploadJob: {
+        ...failedImport,
+        status: 'processing',
+        errorCode: '',
+        allowedActions: ['cancel']
+      }
     }
     const wrapper = renderRow(file)
     await wrapper.setProps({ processing: true })
@@ -78,17 +83,27 @@ describe('AnonymizationOverviewRow', () => {
     expect(wrapper.emitted('cancel-import')).toEqual([[file]])
     await wrapper.setProps({ retryProcessing: true })
     expect(button.attributes('disabled')).toBeDefined()
-    await wrapper.setProps({ file: { ...file, uploadJob: { ...failedImport, status: 'cancel_requested', allowedActions: [] } } })
+    await wrapper.setProps({
+      file: {
+        ...file,
+        uploadJob: { ...failedImport, status: 'cancel_requested', allowedActions: [] }
+      }
+    })
     expect(wrapper.find('[data-test="cancel-upload-job-button"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('Abbruch angefordert')
     expect(wrapper.find('progress').exists()).toBe(true)
-    await wrapper.setProps({ file: { ...file, uploadJob: { ...failedImport, status: 'cancelled', allowedActions: [] } } })
+    await wrapper.setProps({
+      file: { ...file, uploadJob: { ...failedImport, status: 'cancelled', allowedActions: [] } }
+    })
     expect(wrapper.text()).toContain('Import abgebrochen')
     expect(wrapper.find('progress').exists()).toBe(false)
   })
 
   it('does not invent cancellation capability from a running import state', () => {
-    const wrapper = renderRow({ ...video, uploadJob: { ...failedImport, status: 'processing', allowedActions: [] } })
+    const wrapper = renderRow({
+      ...video,
+      uploadJob: { ...failedImport, status: 'processing', allowedActions: [] }
+    })
     expect(wrapper.find('[data-test="cancel-upload-job-button"]').exists()).toBe(false)
   })
   it.each([
