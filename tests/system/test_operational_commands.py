@@ -289,6 +289,13 @@ def test_runtime_recovery_skip_messages_are_structured(
     monkeypatch.delenv("LX_ANNOTATE_MASTER_KEY_FILE", raising=False)
     emitted: list[str] = []
 
+    from endoreg_db.utils.paths import EndoregPathsModel
+
+    monkeypatch.setattr(
+        "lx_annotate.services.runtime_recovery.get_runtime_paths",
+        lambda: EndoregPathsModel.from_root(target),
+    )
+
     RuntimeRecoveryService(emitted.append).run(
         target=target,
         state_file=state_file,

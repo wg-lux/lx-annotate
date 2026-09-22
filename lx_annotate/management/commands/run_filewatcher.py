@@ -8,6 +8,7 @@ from django.core.files import File
 from django.core.files.storage import default_storage
 from django.core.management.base import BaseCommand, CommandError
 from endoreg_db.utils.file_operations import safe_unlink_file
+from endoreg_db.utils.paths import get_runtime_paths
 
 
 def process_intake_file(
@@ -63,6 +64,7 @@ def extract_frames_with_ffmpeg(
     storage = storage_backend or default_storage
     suffix = Path(storage_name).suffix or ".bin"
     with NamedTemporaryFile(
+        dir=get_runtime_paths().transcoding,
         prefix="lx_annotate_tmp_",
         suffix=suffix,
         delete=False,

@@ -61,22 +61,6 @@ def _ensure_required_runtime_packages() -> None:
 os.environ["DJANGO_SETTINGS_MODULE"] = _select_settings_module(sys.argv)
 
 
-default_data_dir = os.environ.get(
-    "LX_ANNOTATE_ENCRYPTED_DATA_DIR",
-    os.environ.get("LX_ANNOTATE_DATA_DIR", os.environ.get("DATA_DIR", "")),
-)
-if not default_data_dir:
-    default_data_dir = str(Path(BASE_DIR) / "data")
-default_storage_dir = os.environ.get(
-    "STORAGE_DIR",
-    str(Path(default_data_dir) / "storage"),
-)
-os.environ.setdefault("LX_ANNOTATE_ENCRYPTED_DATA_DIR", default_data_dir)
-os.environ.setdefault("LX_ANNOTATE_DATA_DIR", default_data_dir)
-os.environ.setdefault("DATA_DIR", default_data_dir)
-os.environ.setdefault("STORAGE_DIR", default_storage_dir)
-
-
 def main():
     """Run administrative tasks."""
     try:

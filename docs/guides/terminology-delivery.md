@@ -2,7 +2,8 @@
 
 Terminology shown by the reporting frontend is a deployed, versioned artifact.
 It is not loaded from a developer checkout. The only runtime selection source
-is the JSON file named by `LX_DTYPES_KB_REGISTRY`.
+is the registry resolved by `lx_dtypes.terminology.terminology_loader` from
+the application's `TERMINOLOGY_ROOT` setting.
 
 ## Delivery path
 
@@ -11,7 +12,7 @@ is the JSON file named by `LX_DTYPES_KB_REGISTRY`.
 3. The approved export receives an immutable module name and version.
 4. An authorized terminology administrator selects one or more editor ZIPs, a
    package directory, or a directory containing complete package directories
-   in *Settings -> Terminology*. ZIPs may come from local
+   in _Settings -> Terminology_. ZIPs may come from local
    storage or a cloud location exposed by the operating system's file picker.
 5. Folder selections are split at their top-level `config.yaml` files and
    packaged in the browser. Every resulting ZIP is sent sequentially through
@@ -20,9 +21,8 @@ is the JSON file named by `LX_DTYPES_KB_REGISTRY`.
 6. The server validates each extracted artifact before atomically registering
    and activating its exact identity. A failed package is reported by name and
    does not stop the remaining packages. The last successful package is active.
-   Validated ZIP contents are retained in the local directory configured by
-   `LX_DTYPES_TERMINOLOGY_IMPORT_ROOT`. LX-Annotate defaults this to
-   `<LX_ANNOTATE_ENCRYPTED_DATA_DIR>/terminology/packages`; deployments must
+   Validated ZIP contents are retained below
+   `<LX_RUNTIME_ROOT>/terminology/terminology-packages`; deployments must
    keep that directory on the encrypted application-data volume.
 7. Startup checks report missing or invalid terminology as an operational
    warning. Annotation remains available while terminology-dependent reporting
@@ -98,10 +98,14 @@ Deployment-owned imports use an explicit filesystem source:
   "modules": {
     "gastroenterology_reporting": {
       "2026.07.31": {
-        "sources": [{
-          "kind": "filesystem",
-          "input_dirs": ["/var/lib/lx-annotate/data/terminology/packages/gastroenterology_reporting/2026.07.31"]
-        }]
+        "sources": [
+          {
+            "kind": "filesystem",
+            "input_dirs": [
+              "/var/lib/lx-annotate/data/terminology/gastroenterology_reporting/2026.07.31"
+            ]
+          }
+        ]
       }
     }
   }
@@ -128,11 +132,13 @@ digest. A built-in registry entry persists only that stable identity:
 
 ```json
 {
-  "sources": [{
-    "kind": "provider",
-    "provider": "lx_dtypes.builtin",
-    "content_sha256": "<catalog digest>"
-  }]
+  "sources": [
+    {
+      "kind": "provider",
+      "provider": "lx_dtypes.builtin",
+      "content_sha256": "<catalog digest>"
+    }
+  ]
 }
 ```
 
@@ -141,16 +147,14 @@ verifies the catalog digest. An absolute `site-packages`, virtual-environment,
 or Nix-store path from an installed wheel must never be persisted. Missing
 providers, absent versions, and digest conflicts fail explicitly.
 
-The package-owned `lx-dtypes-kb-registry bootstrap` boundary registers missing
-identities for all packaged catalog bundles and fully loads every packaged
-bundle before succeeding. A missing registry, an empty `{ "modules": {} }`
-registry, or a registry without an active identity receives the
-configured/default packaged identity. If the active entry is a stale built-in
-provider or a legacy filesystem entry pointing into an installed wheel,
-bootstrap atomically replaces it with the matching current catalog identity.
-An active custom or imported filesystem entry is preserved, including an older
-custom version with the same module name. LX-Annotate does not own a terminology
-bootstrap command and Django import does not silently mutate this registry.
+The package's `hydrate_shipped_terminology()` initialization boundary copies
+shipped resources into writable runtime storage and registers their filesystem
+locations. It preserves existing runtime edits and active selections. Only an
+initially empty registry receives the packaged default selection; a populated
+registry without an active identity requires explicit selection. Route imports
+and reads do not provision storage. LX-Annotate's existing AppConfig initializes
+and validates the shared service during normal startup; API tests hydrate it
+explicitly through their fixture.
 
 The reporting frontend renders the registry entries returned by
 `GET /dtypes-api/terminology/bundles` and loads templates only for the selected
@@ -207,3 +211,21 @@ host allowlist, download limits, and audit policy. Until that contract exists,
 cloud packages must be selected through the browser/operating-system file
 picker so lx-annotate never receives cloud credentials or fetches untrusted
 URLs.
+
+## Canonical host integration
+
+LX-Annotate mounts the package API once at `/dtypes-api/` through
+`lx_annotate.dtypes_api_urls`. Do not include `lx_dtypes.django.urls` as well:
+that adds the package's `/base_api/` prefix. ReportingShell uses the existing
+`dtypesApi()` client for bundles, graphs, templates, and terminology editing.
+
+Application runtime paths come from `endoreg_db.utils.paths.get_runtime_paths()`.
+Set the absolute `LX_RUNTIME_ROOT` before starting Django; `TERMINOLOGY_ROOT`
+is the model's `terminology` directory. The package's terminology service owns
+registry and bundle resolution. Reads use `load_module_kb(module, version=version)`;
+initialization uses `hydrate_shipped_terminology()`. Do not reconstruct resource
+paths or reset Ninja's API registry to change terminology.
+
+API tests use the existing application URL configuration and `packaged_registry`
+fixture. Test settings establish an isolated runtime root before importing
+routes, so route callbacks and direct loaders share the same service.

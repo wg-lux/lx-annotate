@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 from collections.abc import Iterator
 from functools import partial
+from pathlib import Path
 
 import fitz
 import pytest
@@ -10,7 +12,8 @@ from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
 from endoreg_db.models import Center, NetworkNode, RawPdfFile, RawPdfState
 from endoreg_db.models.state.anonymization import AnonymizationState
-from endoreg_db.utils.file_operations import safe_delete_field_file
+from endoreg_db.utils.file_operations import atomic_write_file, safe_delete_field_file
+from endoreg_db.utils.paths import get_runtime_paths
 
 from lx_annotate.hub.hub_export_jobs import (
     mark_resources_for_hub_upload,
@@ -236,7 +239,9 @@ def test_overview_readiness_does_not_rehash_processed_report(
     def unexpected_hash(*args: object, **kwargs: object) -> str:
         pytest.fail("Overview must not reread the complete processed report")
 
-    monkeypatch.setattr("lx_annotate.hub.hub_export_state.sha256_file", unexpected_hash)
+    monkeypatch.setattr(
+        "lx_annotate.hub.hub_export_state.get_file_hash", unexpected_hash
+    )
 
     # Act
     eligible = is_report_hub_export_eligible(reviewed_report)
@@ -245,15 +250,17 @@ def test_overview_readiness_does_not_rehash_processed_report(
     assert eligible is True
 
 
+@pytest.mark.parametrize("error_type", [OSError, RuntimeError])
 def test_fresh_report_integrity_check_rejects_unreadable_content(
     reviewed_report: RawPdfFile,
     monkeypatch: pytest.MonkeyPatch,
+    error_type: type[Exception],
 ) -> None:
     # Arrange: inject a storage read failure at the adjacent I/O boundary.
     def unreadable(*args: object, **kwargs: object) -> str:
-        raise OSError("processed report read failed")
+        raise error_type("processed report read failed")
 
-    monkeypatch.setattr("lx_annotate.hub.hub_export_state.sha256_file", unreadable)
+    monkeypatch.setattr("lx_annotate.hub.hub_export_state.get_file_hash", unreadable)
 
     # Act
     reason = report_hub_export_blocked_reason(
@@ -266,3 +273,44 @@ def test_fresh_report_integrity_check_rejects_unreadable_content(
     assert not OutboundHubTransferJob.objects.filter(
         raw_pdf_file=reviewed_report
     ).exists()
+
+
+@pytest.mark.parametrize("failure", ["wrong_key", "missing_key", "tampered"])
+def test_report_hash_rejects_invalid_ciphertext_without_plaintext_artifacts(
+    reviewed_report: RawPdfFile,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: str,
+) -> None:
+    path = Path(reviewed_report.processed_file.path)
+    ciphertext = path.read_bytes()
+    assert ciphertext.startswith(b"LXENC01\n")
+    staging = get_runtime_paths().transcoding
+    before = set(staging.rglob("*"))
+
+    try:
+        with monkeypatch.context() as change:
+            if failure == "tampered":
+                atomic_write_file(
+                    destination=path,
+                    content=(ciphertext[:-1] + bytes([ciphertext[-1] ^ 1]),),
+                )
+            elif failure == "wrong_key":
+                change.setenv(
+                    "LX_ANNOTATE_MASTER_KEY",
+                    base64.urlsafe_b64encode(b"1" * 32).decode("ascii"),
+                )
+            else:
+                change.delenv("LX_ANNOTATE_MASTER_KEY")
+
+            assert (
+                report_hub_export_blocked_reason(
+                    reviewed_report, verify_processed_media=True
+                )
+                == "processed media unreadable"
+            )
+    finally:
+        if failure == "tampered":
+            atomic_write_file(destination=path, content=(ciphertext,))
+
+    assert set(staging.rglob("*")) == before
+    assert path.read_bytes() == ciphertext

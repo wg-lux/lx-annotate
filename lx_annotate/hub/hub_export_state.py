@@ -11,7 +11,7 @@ from endoreg_db.models.state.video_segment_validation import SegmentAnnotationSt
 from endoreg_db.services.video_segment_validation_workflow import (
     resolve_segment_annotation_status,
 )
-from endoreg_db.utils.file_operations import sha256_file
+from endoreg_db.utils.hashs import get_file_hash
 
 from ..models import OutboundHubTransferJob
 from .hub_export_audit import emit_hub_export_audit_event
@@ -210,8 +210,8 @@ def resolve_video_hub_export_state(
         integrity_status = HubExportIntegrityStatus.PERSISTED_VERIFIED
     else:
         try:
-            actual_processed_file_sha256 = sha256_file(video.processed_file)
-        except (OSError, TypeError, ValueError):
+            actual_processed_file_sha256 = get_file_hash(video.processed_file)
+        except (OSError, RuntimeError, TypeError, ValueError):
             integrity_status = HubExportIntegrityStatus.PROCESSED_MEDIA_UNREADABLE
         else:
             integrity_status = (
@@ -293,8 +293,8 @@ def report_hub_export_blocked_reason(
         return "processed media missing"
     if verify_processed_media:
         try:
-            actual_digest = sha256_file(report.processed_file)
-        except (OSError, TypeError, ValueError):
+            actual_digest = get_file_hash(report.processed_file)
+        except (OSError, RuntimeError, TypeError, ValueError):
             return "processed media unreadable"
         if actual_digest != processed_file_sha256:
             return "processed media hash mismatch"

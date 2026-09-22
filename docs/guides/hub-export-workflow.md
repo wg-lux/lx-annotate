@@ -185,6 +185,15 @@ Required properties:
 
 This key must be reused whenever the sender retries the same logical transfer.
 
+For videos, `resource_hash` and every `raw_video_hash` reference come from
+`VideoFile.raw_video_hash`, calculated from the original input before processing
+with `endoreg_db.utils.hashs.get_file_hash`. Reimport uses this same identity.
+Anonymization, transcoding, and frame operations may change `processed_video_hash`,
+but cannot change the raw identity or transfer key. The local lx-dtypes contract
+uses `raw_video_hash` throughout; the former `video_hash` payload name is rejected.
+Upgrade both transfer endpoints together.
+
+
 ## Transfer Mode Policy
 
 The sender must use:

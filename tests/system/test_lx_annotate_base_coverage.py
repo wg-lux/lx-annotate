@@ -280,8 +280,14 @@ def test_runtime_checks_skip_django_management_entrypoints(monkeypatch, tmp_path
 
 
 def test_start_file_watcher_starts_daemon_thread_and_calls_command(monkeypatch):
+    from lx_annotate import file_watcher
+
     config = LxAnnotateConfig("lx_annotate", __import__("lx_annotate"))
     calls: list[tuple[str, dict]] = []
+    preloaded: list[bool] = []
+    monkeypatch.setattr(
+        file_watcher, "_preload_processing_stack", lambda: preloaded.append(True)
+    )
 
     fake_mgmt = types.ModuleType("django.core.management")
 
@@ -298,6 +304,7 @@ def test_start_file_watcher_starts_daemon_thread_and_calls_command(monkeypatch):
             self.started = False
 
         def start(self):
+            assert preloaded == [True]
             self.started = True
             self.target()
 

@@ -27,25 +27,7 @@
         </div>
       </div>
 
-      <div class="card-body">
-        <OverviewStorageSummary />
-        <OverviewTranscodePanel
-          :repairing="isRepairingVideoStates"
-          :refresh-token="transcodeRefreshToken"
-          @repair="repairAllVideoStates"
-        />
-        <p
-          v-if="cancellationError"
-          class="alert alert-warning"
-          role="alert"
-        >
-          {{ cancellationError }}
-        </p>
-        <div
-          v-if="videoStateRepairMessage"
-          class="alert alert-info"
-          role="status"
-        >
+
           {{ videoStateRepairMessage }}
         </div>
         <!-- Error State -->
@@ -288,6 +270,25 @@
           </div>
         </div>
       </div>
+            <div class="card-body">
+        <OverviewStorageSummary />
+        <OverviewTranscodePanel
+          :repairing="isRepairingVideoStates"
+          :refresh-token="transcodeRefreshToken"
+          @repair="repairAllVideoStates"
+        />
+        <p
+          v-if="cancellationError"
+          class="alert alert-warning"
+          role="alert"
+        >
+          {{ cancellationError }}
+        </p>
+        <div
+          v-if="videoStateRepairMessage"
+          class="alert alert-info"
+          role="status"
+        >
     </div>
   </div>
 </template>

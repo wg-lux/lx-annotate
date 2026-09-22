@@ -372,7 +372,7 @@ def _resource_hash(outbound_job: OutboundHubTransferJob) -> str:
         else outbound_job.raw_pdf_file
     )
     field_name = (
-        "video_hash"
+        "raw_video_hash"
         if outbound_job.resource_kind == OutboundHubTransferJob.ResourceKind.VIDEO
         else "pdf_hash"
     )
@@ -545,7 +545,7 @@ def _validate_remote_transfer_status(
         "source_center_key": str(getattr(source_center, "center_key", "") or ""),
         "resource_kind": str(outbound_job.resource_kind),
         "resource_hash": (
-            str(getattr(video, "video_hash", "") or "")
+            str(getattr(video, "raw_video_hash", "") or "")
             if outbound_job.resource_kind == OutboundHubTransferJob.ResourceKind.VIDEO
             else str(getattr(report, "pdf_hash", "") or "")
         ),

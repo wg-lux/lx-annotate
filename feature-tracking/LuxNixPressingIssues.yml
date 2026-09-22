@@ -15,6 +15,120 @@ source_documents:
   disposition: reference
   note: LX-Annotate view of the active LuxNix deployment contract and remaining gaps.
 definition_of_done:
+- id: rewritten_dependency_environment_upgrade
+  category: operations
+  title: Rewritten endoreg-db and lx-dtypes can be installed without identity or runtime-root drift
+  acceptance:
+  - Service wrappers, maintenance commands, and both systemd environment files export the same absolute
+    LX_RUNTIME_ROOT derived from runtime.encryptedDataDir.
+  - DJANGO_SALT_FILE references a provisioned private regular file readable by the service user. Existing
+    identity hashes remain compatible; default-salt deployments require a reviewed migration, never an
+    automatically generated replacement salt or a bypass of production validation.
+  - Recovery commands exist in the installed dependency release and do not fall back to raw file copying
+    when a removed migration command fails.
+  - Production settings, worker imports, queue recovery, canonical migration graph, and installed artifact
+    acceptance pass for the reviewed dependency set before host activation.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the system tests and LuxNix rewrite environment contract, then verify salt provenance,
+      recovery compatibility, immutable wheel identity, and database upgrade on a disposable production-like
+      host.
+    timeout_seconds: 1800
+  assessment:
+    status: blocked
+    evidence:
+    - kind: code
+      reference: /home/admin/dev/luxnix/modules/nixos/services/lx-annotate-local/options.nix
+    - kind: code
+      reference: /home/admin/dev/luxnix/modules/nixos/services/lx-annotate-local/scripts.nix
+    - kind: code
+      reference: /home/admin/dev/luxnix/tests/test_lx_annotate_rewrite_environment.py
+    - kind: code
+      reference: tests/system/test_production_celery_routing.py
+    - kind: code
+      reference: scripts/evaluate_runtime_check_bundle.py
+    - kind: command
+      reference: .devenv/state/venv/bin/python -m pytest tests/system -q --tb=short (288 passed, 5 skipped)
+    - kind: command
+      reference: /home/admin/dev/luxnix/.devenv/state/venv/bin/pytest /home/admin/dev/luxnix/tests/test_lx_annotate_rewrite_environment.py
+        -q --tb=short (2 passed; evaluates gc-02 options and shell helper without activation)
+    - kind: command
+      reference: .devenv/state/venv/bin/python scripts/evaluate_runtime_check_bundle.py (passed)
+    - kind: document
+      reference: docs/guides/wheel-deployment.md
+    - kind: command
+      reference: 'gc-02 privileged read-only storage walk: 6973 regular files; 66/66 wrapped keys and
+        64/64 available first chunks authenticated; zero read/authentication errors'
+    - kind: command
+      reference: 'gc-02: systemctl show lx-annotate.service; selected /proc/3488/environ presence checks;
+        findmnt -T /var/lib/lx-annotate/data/storage; lsblk -o NAME,TYPE,FSTYPE,MOUNTPOINTS'
+    - kind: code
+      reference: /var/endoreg-service-user/lx-annotate-wheel/.venv/lib/python3.12/site-packages/endoreg_db/utils/encryption/encryption.py
+    - kind: code
+      reference: /var/endoreg-service-user/lx-annotate-wheel/.venv/lib/python3.12/site-packages/endoreg_db/utils/hashs.py
+    note: 'Local source audit only, no deployment or production approval. Application checkout /home/admin/dev/lx-annotate
+      at 95f33c33f29ffced96c34091ecbaef643bc23f1a has extensive pre-existing staged changes; source version
+      1.3.1, locally installed metadata lx-annotate 1.3.0, endoreg-db 1.3.1, lx-dtypes 0.3.6. Application
+      flake.lock SHA256 3f755aa25b0b9aacdfb3f261a41ad94ae97e95df892541e53dc1619c4aea345d; uv.lock SHA256
+      b9b8c5a75b438d728f9c9f26c7b82f38723fac0b5ba888ffd976fe350f0b252b. LuxNix checkout /home/admin/dev/luxnix
+      at 1658288bb85eff92d2d87689a667e9208261a53b is also dirty; its locked inputs are recorded by flake.lock
+      SHA256 3ea0f05365ef457e1bad9e31809aba280a39f0999b2a32b4d78ed98bd2335f87. No rollout target or reviewed
+      wheel digest selected; gc-02 is only the existing local evaluation fixture. Shared module changes
+      affect all consumers and require fleet review. Added runtime.identitySaltFile with no invented production
+      default and exported LX_RUNTIME_ROOT from the existing protected data root. Inspection of /home/admin/endoreg-db
+      at a93d65a9e32e202e2cc59689447dd017305ab1c0 plus its staged rewrite confirms previous os.getenv(''DJANGO_SALT'',
+      ''default_salt'') behavior, explicit new rejection of default_salt, and additive migration 0081
+      without legacy rehashing. No established salt-file path found; actual host identity provenance is
+      unverified. Legacy default-salt migration is unresolved. migrate_data_dir was removed upstream but
+      lx_annotate/services/runtime_recovery.py and LuxNix recovery still invoke it; LuxNix retains a compatibility
+      rsync fallback. Do not run that recovery path with this release before its contract is reviewed.
+      The remaining pasted-failure lane reproduces 8 failures and 25 passes: two encrypted-training error
+      propagation mismatches, a stale decoder mock, two publication-readability failures, removed rebind_path_exports
+      in an ingestion fixture, and two removed-command tests. None was weakened or skipped. Tracker inbox,
+      lock acquisition, validate, and deployment_source_hygiene readiness commands are blocked by the
+      pre-existing invalid feature-tracking/lx-annotate-downtime-triggers.yml. No lock was acquired or
+      messages acknowledged.
+
+
+      Follow-up, 2026-09-21, codex-gc02-storage-20260921: privileged read-only inspection of the explicitly
+      selected local host gc-02 (site-client). This supersedes the earlier host-provenance and tracker-blocker
+      statements only. Web service active/running, MainPID 3488, user endoreg-service-user, production
+      settings. Read selected /proc/3488/environ entries without printing secret values: DJANGO_SALT,
+      DJANGO_SALT_FILE and LX_RUNTIME_ROOT absent; LX_ANNOTATE_ENCRYPTED_DATA_DIR=/var/lib/lx-annotate/data;
+      LX_ANNOTATE_MASTER_KEY_FILE=/etc/secrets/vault/lx_annotate_master_key. DJANGO_SECRET_KEY present
+      and not equal to literal default_salt. Installed endoreg_db/utils/hashs.py reads os.getenv(''DJANGO_SALT'',
+      ''default_salt''); this supports an active default identity-salt fallback, not media encryption
+      with that salt. No database identities were read or rehashed, so provenance of every historical
+      hash remains unverified.
+
+      A complete regular-file header walk of /var/lib/lx-annotate/data/storage counted 6973 files without
+      read errors: 66 LXENC01 files (155600574538 bytes), 5 ordinary MP4 signatures (29728590520 bytes),
+      6880 .ts segments, 21 playlists and one non-media dotfile marker. The 66 wrapped per-file data-encryption
+      keys authenticated successfully using the configured 32-byte master key and the installed encryption
+      implementation. First data chunks authenticated for all 64 nonempty encrypted files; two encrypted
+      files contained no data chunks. No plaintext or key bytes were printed or written. This is key association
+      and first-chunk verification, not a full-payload integrity audit or an atomic snapshot. The master
+      key differs from literal default_salt and the inline Django secret text; installed encryption loads
+      LX_ANNOTATE_MASTER_KEY[_FILE] and does not derive keys from DJANGO_SALT or DJANGO_SECRET_KEY.
+
+      All 21 HTTP Live Streaming playlists declare AES-128; none of the 6880 segment samples had MPEG
+      transport-stream synchronization at offsets 0, 188 and 376. This is consistent with encrypted segments
+      but does not prove segment key identity or integrity; segment decryption and database-wrapped streaming
+      keys were not inspected. Ordinary MP4 headers show these five files lack the LXENC01 envelope; their
+      complete internal format was not audited. findmnt -T /var/lib/lx-annotate/data/storage resolves
+      to Btrfs /dev/mapper/cryptroot[/root]; lsblk shows its backing partition is crypto_LUKS. Filesystem
+      encryption and application encryption are distinct protection layers.
+
+      With explicit user authorization, repaired the two malformed top-level definitions lx-annotate-downtime-triggers.yml
+      and lx-annotate-frame-queue-errors.yml. Each original report is preserved exactly as an assessment
+      note, proposals remain unverified, and no runtime code changed. Normal tracker inbox and feature-lock
+      acquisition now succeed. Earlier 288-pass/5-skip and eight-failure results are historical, not rerun
+      by this investigation. Removed migrate_data_dir recovery and reviewed identity migration remain
+      unresolved. No deployment, secret rotation, service restart, recovery, media write, database read
+      or database mutation was performed.'
+    assessed_by: codex-gc02-storage-20260921
+    assessed_at: '2026-09-21T15:34:16.758032Z'
 - id: release_0_9_53_wheel_consumption
   category: operations
   title: LuxNix consumes the verified LX-Annotate 0.9.53 wheel safely

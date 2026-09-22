@@ -495,14 +495,14 @@ class HubExportApiTests(TestCase):
         video = VideoFile.objects.create(
             center=self.center,
             state=video_state,
-            video_hash="eligible-video-hash",
+            raw_video_hash="eligible-video-hash",
             processed_video_hash=processed_hash,
             original_file_name="eligible-video.mp4",
             processed_file=ContentFile(processed_content, name="eligible-video.mp4"),
         )
         VideoFile.objects.create(
             center=self.center,
-            video_hash="ineligible-video-hash",
+            raw_video_hash="ineligible-video-hash",
             original_file_name="ineligible-video.mp4",
         )
 
@@ -551,7 +551,7 @@ class HubExportApiTests(TestCase):
         video = VideoFile.objects.create(
             center=self.center,
             state=video_state,
-            video_hash="retryable-video-hash",
+            raw_video_hash="retryable-video-hash",
             processed_video_hash=processed_hash,
             original_file_name="retryable-video.mp4",
             processed_file=ContentFile(processed_content, name="retryable-video.mp4"),
@@ -669,8 +669,10 @@ class HubExportApiTests(TestCase):
 
     def test_bulk_offload_and_overview_only_discover_allowed_centers(self):
         other_center = Center.objects.create(name="Other", center_key="other")
-        hidden = VideoFile.objects.create(center=other_center, video_hash="other-video")
-        own = VideoFile.objects.create(center=self.center, video_hash="own-video")
+        hidden = VideoFile.objects.create(
+            center=other_center, raw_video_hash="other-video"
+        )
+        own = VideoFile.objects.create(center=self.center, raw_video_hash="own-video")
         overview = self.client.get("/api/hub-export/overview/")
         self.assertEqual(overview.status_code, 200)
         video_ids = [

@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
 from django.utils import timezone
+from endoreg_db.utils.file_operations import ensure_directory
+from endoreg_db.utils.paths import get_runtime_paths
 
 from .storage_transfer_client import (
     PreparedStorageEnvelope,
@@ -63,18 +65,11 @@ class StorageBalanceWorkerConfig:
     staging_directory: Path
 
     @classmethod
-    def from_environment(
-        cls,
-        environment: Mapping[str, str] | None = None,
-    ) -> StorageBalanceWorkerConfig:
-        values = os.environ if environment is None else environment
-        staging = Path(str(values.get("HUB_STORAGE_STAGING_DIRECTORY", "")).strip())
-        if not staging.is_absolute():
-            raise ValueError("HUB_STORAGE_STAGING_DIRECTORY must be absolute")
-        staging.mkdir(parents=True, exist_ok=True, mode=0o700)
-        if staging.is_symlink() or not staging.is_dir():
+    def from_environment(cls) -> StorageBalanceWorkerConfig:
+        staging = get_runtime_paths().migration_staging / "hub-storage"
+        if staging.is_symlink():
             raise ValueError("hub storage staging must be a non-symlink directory")
-        os.chmod(staging, 0o700)
+        staging = ensure_directory(staging, dir_mode=0o700)
         return cls(staging_directory=staging)
 
 

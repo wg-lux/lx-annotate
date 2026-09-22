@@ -1,0 +1,28 @@
+schema_version: '1.0'
+assessor: codex-path-alignment-20260917
+feature: storage_optimization
+criterion: authoritative_storage_inventory
+scope: LX-Annotate canonical runtime path consumers and shared video/PDF migration
+changes:
+  - Runtime media, logs, monitoring, and recovery derive from get_runtime_paths.
+  - Removed redundant APP_DATA_DIR, APP_STORAGE_DIR, encrypted-root and lookup-directory settings aliases.
+  - Remote video/PDF materialization uses canonical filenames below transcoding; watcher frame extraction uses the same temporary boundary.
+  - Hub balancing staging derives from migration_staging; envelope staging validates against the canonical runtime root.
+  - Legacy migration script delegates to migrate_media_storage; recovery rejects a separate target and invokes shared reconciliation.
+  - Corrected the stale LuxNix runbook reference so tracker validation and locks work.
+verification:
+  application_pyright: 0 errors, 0 warnings
+  shared_path_filename_migration_pyright: 0 errors, 0 warnings
+  focused_application_tests: 175 passed, 2 failed
+  focused_failures: Existing settings_dev database sslmode=disable overrides configured PostgreSQL sslmode and adds OPTIONS to SQLite.
+  integration_tests: 64 passed
+  full_video_import: 1 passed
+  luxnix_migration_contract: 6 passed
+  lint: Focused changed-file Ruff F/I checks pass; concurrent settings_dev import ordering change is outside this result.
+  tracker: 52 feature definitions validate; storage_optimization remains not production ready, 0/12.
+  shared_backend_rerun: 72 setup errors and 9 skips; PostgreSQL rejects local admin connection via pg_hba.conf before test bodies execute.
+  sqlite_retry: No completed result; no pass claimed.
+limits:
+  - No deployment, database migration, live media migration, or source deletion performed.
+  - Migration approval gates and source retention remain in effect.
+  - Concurrent unrelated pytest suites were observed; no full suite was added.

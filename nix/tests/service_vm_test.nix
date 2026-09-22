@@ -1,7 +1,6 @@
 { lxAnnotate, lxAnnotateModule, ... }:
 let
   requiredServiceEnvironmentVariables = [
-    "DATA_DIR"
     "DJANGO_ALLOWED_HOSTS"
     "DJANGO_CORS_ALLOWED_ORIGINS"
     "DJANGO_CSRF_TRUSTED_ORIGINS"
@@ -15,20 +14,14 @@ let
     "DJANGO_SETTINGS_MODULE_PRODUCTION"
     "ENDOREG_DEPLOYMENT_ROLE"
     "ENFORCE_AUTH"
-    "LX_ANNOTATE_DATA_DIR"
-    "LX_ANNOTATE_ENCRYPTED_DATA_DIR"
-    "LX_ANNOTATE_STREAMABLE_VIDEO_PROCESSED_ROOT"
-    "LX_ANNOTATE_STREAMABLE_VIDEO_RAW_ROOT"
-    "LX_ANNOTATE_STREAMABLE_VIDEO_ROOT"
+    "LX_RUNTIME_ROOT"
     "LX_DTYPES_HOST_MODELS_MODULE"
     "LX_DTYPES_KB_REGISTRY"
     "LX_DTYPES_TERMINOLOGY_IMPORT_ROOT"
     "MEDIA_URL"
     "NGINX_PROTECTED_MEDIA_URL"
-    "PROTECTED_MEDIA_ROOT"
     "SERVE_WITH_NGINX"
     "STATIC_URL"
-    "STORAGE_DIR"
     "XDG_DATA_HOME"
   ];
 in
@@ -144,17 +137,11 @@ in
               description = "Exercise packaged LX-Annotate operational commands";
               wantedBy = [ "multi-user.target" ];
               environment = {
-                DATA_DIR = "/run/lx-annotate-command-contract/data";
                 DJANGO_DB_ENGINE = "django.db.backends.sqlite3";
                 DJANGO_DB_NAME = "/run/lx-annotate-command-contract/db.sqlite3";
                 DJANGO_SECRET_KEY = "vm-command-contract-secret-000000000000000000000000";
                 DJANGO_SETTINGS_MODULE = "lx_annotate.settings.settings_dev";
-                LOG_DIR = "/run/lx-annotate-command-contract/logs";
-                LX_ANNOTATE_DATA_DIR = "/run/lx-annotate-command-contract/data";
-                LX_ANNOTATE_ENCRYPTED_DATA_DIR = "/run/lx-annotate-command-contract/data";
-                MEDIA_ROOT = "/run/lx-annotate-command-contract/media";
-                PROTECTED_MEDIA_ROOT = "/run/lx-annotate-command-contract/data/storage";
-                STORAGE_DIR = "/run/lx-annotate-command-contract/data/storage";
+                LX_RUNTIME_ROOT = "/run/lx-annotate-command-contract/data";
                 XDG_DATA_HOME = "/run/lx-annotate-command-contract/xdg";
               };
               serviceConfig = {

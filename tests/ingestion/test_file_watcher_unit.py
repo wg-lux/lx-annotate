@@ -124,7 +124,7 @@ def test_prediction_pipeline_is_incomplete_before_required_state_flags() -> None
 
 def test_prediction_pipeline_fails_closed_when_state_resolution_fails() -> None:
     class BrokenVideo:
-        video_hash = "broken-state"
+        raw_video_hash = "broken-state"
 
         @property
         def state(self):

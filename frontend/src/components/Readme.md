@@ -13,4 +13,4 @@ Here, Users will validate if a video or pdf is fully anonymized.
 
 ## VideoExamination
 
-VideoExamination is related to the view where users can see a video and add annotations about segments.
+VideoExamination is the view where users can see a video and add annotations in segments. 

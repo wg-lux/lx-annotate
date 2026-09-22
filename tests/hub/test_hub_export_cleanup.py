@@ -46,7 +46,7 @@ class HubExportCleanupTests(TestCase):
         self.video = VideoFile.objects.create(
             center=self.center,
             state=state,
-            video_hash="video-resource-hash",
+            raw_video_hash="video-resource-hash",
             processed_video_hash=digest,
             processed_file=ContentFile(payload, name="cleanup-processed.mp4"),
         )

@@ -70,7 +70,7 @@ def test_sensitive_meta_rejects_identifiers_and_invalid_hashes(
 def test_negative_frame_annotation_cannot_leave_the_node() -> None:
     annotation = {
         "annotation_id": 1,
-        "video_hash": "video-hash",
+        "raw_video_hash": "video-hash",
         "frame_number": 4,
         "frame_relative_path": "frames/4.jpg",
         "label_name": "finding",
@@ -105,7 +105,7 @@ def _valid_segment() -> dict[str, object]:
     return {
         "source_node_key": "site-node",
         "source_segment_id": 1,
-        "video_hash": "video-hash",
+        "raw_video_hash": "video-hash",
         "start_frame_number": 2,
         "end_frame_number_exclusive": 5,
         "label_name": "finding",
@@ -119,7 +119,7 @@ def _valid_segment() -> dict[str, object]:
 @pytest.mark.parametrize(
     ("changes", "error"),
     [
-        ({"video_hash": "other-video"}, "video_hash must match"),
+        ({"raw_video_hash": "other-video"}, "raw_video_hash must match"),
         ({"start_frame_number": True}, "frame boundaries are invalid"),
         ({"end_frame_number_exclusive": 11}, "frame boundaries are invalid"),
         ({"model_name": "model-a"}, "model metadata must be supplied together"),
@@ -144,7 +144,7 @@ def test_video_segments_reject_inconsistent_identity_state_and_bounds(
     segment.update(changes)
 
     with pytest.raises(ValueError, match=error):
-        _validate_video_segment(segment, video_hash="video-hash", frame_count=10)
+        _validate_video_segment(segment, raw_video_hash="video-hash", frame_count=10)
 
 
 @pytest.mark.parametrize(
@@ -247,7 +247,7 @@ def test_video_hash_validation_requires_state(monkeypatch) -> None:
 def test_report_processed_hash_rejects_missing_or_inconsistent_metadata(
     monkeypatch, state
 ) -> None:
-    monkeypatch.setattr(hub_export_payloads, "sha256_file", lambda _file: "actual")
+    monkeypatch.setattr(hub_export_payloads, "get_file_hash", lambda _file: "actual")
     report = SimpleNamespace(processed_file=object())
 
     with pytest.raises(ValueError, match="hash metadata is inconsistent|must exist"):

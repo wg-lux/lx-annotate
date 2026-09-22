@@ -33,7 +33,7 @@ def video_and_actor():
     center = Center.objects.create(name="Transcode worker center")
     actor = User.objects.create_user(username="transcode-worker-operator")
     video = VideoFile.objects.create(
-        center=center, video_hash="transcode-worker-source"
+        center=center, raw_video_hash="transcode-worker-source"
     )
     return video, actor
 
@@ -78,7 +78,7 @@ def test_idempotency_key_cannot_be_reassigned_to_another_video(video_and_actor):
     video, actor = video_and_actor
     existing = job_for(video, actor)
     other = VideoFile.objects.create(
-        center=video.center, video_hash="another-transcode-source"
+        center=video.center, raw_video_hash="another-transcode-source"
     )
     with pytest.raises(IntegrityError), transaction.atomic():
         job_for(other, actor, idempotency_key=existing.idempotency_key)
@@ -90,20 +90,10 @@ def encrypted_video(video_and_actor, tmp_path, master_key, monkeypatch):
     from endoreg_db.services import streamable_media
     from endoreg_db.utils import paths
 
-    monkeypatch.setenv("LX_ANNOTATE_ENCRYPTED_DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("STORAGE_DIR", str(tmp_path / "storage"))
-    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
-    monkeypatch.setenv("PROTECTED_MEDIA_ROOT", str(tmp_path / "storage"))
-    monkeypatch.setattr(
-        paths,
-        "ANONYM_VIDEO_DIR",
-        paths.EndoregPathsModel.from_environment().anonym_video,
-    )
-    monkeypatch.setattr(
-        streamable_media,
-        "STREAMABLE_PROCESSED_VIDEO_ROOT",
-        tmp_path / "storage" / "streamable_videos" / "processed",
-    )
+    monkeypatch.setenv("LX_RUNTIME_ROOT", str(tmp_path))
+    paths.get_runtime_paths.cache_clear()
+    runtime_paths = paths.get_runtime_paths()
+    monkeypatch.setattr(streamable_media, "get_runtime_paths", lambda: runtime_paths)
     video, actor = video_and_actor
     storage = EncryptedStorage(location=str(tmp_path / "storage"))
     for name in ("raw_file", "processed_file"):
@@ -115,7 +105,8 @@ def encrypted_video(video_and_actor, tmp_path, master_key, monkeypatch):
     )
     video.processed_video_hash = hashlib.sha256(b"not a valid media stream").hexdigest()
     video.save()
-    return video, actor
+    yield video, actor
+    paths.get_runtime_paths.cache_clear()
 
 
 @pytest.mark.parametrize("status", ["completed", "skipped", "failed", "lost"])
@@ -426,7 +417,7 @@ def test_real_encoder_worker_persists_byte_results_and_preserves_raw(
     ).stdout
     video, actor = encrypted_video
     managed_paths = EndoregPathsModel.from_environment()
-    source_name = f"{video.video_hash}.mp4"
+    source_name = f"{video.raw_video_hash}.mp4"
     video.processed_file.save(source_name, ContentFile(encoded), save=False)
     assert Path(video.processed_file.path) == managed_paths.anonym_video / source_name
     video.processed_video_hash = hashlib.sha256(encoded).hexdigest()

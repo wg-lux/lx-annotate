@@ -10,6 +10,47 @@ from django.db import models
 User = get_user_model()
 
 
+class StudyCohort(models.Model):
+    """User-owned cohort definition with shared dataset references, not copied annotations."""
+
+    name = models.CharField(max_length=255)
+    hypothesis = models.TextField()
+    filters = models.JSONField(default=dict)
+    datasets = models.ManyToManyField(
+        "endoreg_db.AIDataSet", related_name="study_cohorts", blank=True
+    )
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        from pydantic import ValidationError as SchemaError
+
+        from lx_annotate.schemas.study_cohorts import CohortDefinition
+
+        super().clean()
+        try:
+            definition = CohortDefinition.model_validate(
+                {
+                    "name": self.name,
+                    "hypothesis": self.hypothesis,
+                    "filters": self.filters,
+                }
+            )
+        except SchemaError as error:
+            raise ValidationError("Invalid study cohort definition.") from error
+        self.name = definition.name
+        self.hypothesis = definition.hypothesis
+        self.filters = definition.filters.model_dump(mode="json")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    class Meta:
+        ordering = ["name", "pk"]
+
+
 class AIDatasetSplitPlan(models.Model):
     """Immutable, validated annotation membership snapshot."""
 
@@ -418,7 +459,7 @@ class OutboundHubTransferJob(models.Model):
                 ) from exc
 
             resource = self.video_file if has_video else self.raw_pdf_file
-            resource_hash_field = "video_hash" if has_video else "pdf_hash"
+            resource_hash_field = "raw_video_hash" if has_video else "pdf_hash"
             processed_hash = (
                 str(getattr(resource, "processed_video_hash", "") or "").strip()
                 if has_video

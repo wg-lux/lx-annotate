@@ -7,7 +7,7 @@ owners:
 - lx-annotate maintainers
 production_critical: true
 tracking:
-  state: done
+  state: active
   history:
   - action: done
     changed_by: codex-filtered-case-xlsx
@@ -53,6 +53,11 @@ tracking:
     changed_at: '2026-08-28T11:12:25.602185Z'
     note: Separate reviewed StudyCohortPage snapshot mode implemented on Export.vue with typed JSON POST,
       exact-ID backend validation, visible cohort metadata, and passing AAA/static verification.
+  - action: reopened
+    changed_by: codex-export-20260922
+    changed_at: '2026-09-22T10:25:09.674699Z'
+    note: Make cohort eligibility, empty results and reviewed dataset/export scope explicit; prevent stale
+      preview capture.
 source_documents:
 - path: docs/guides/ai-training-data-export.md
   disposition: reference
@@ -245,15 +250,15 @@ definition_of_done:
     instructions: Review the export component labels, workbook sheets, and response filename.
     timeout_seconds: 300
   assessment:
-    status: verified
+    status: in_progress
     evidence:
     - kind: review
       reference: frontend/src/views/Export.vue, frontend/src/components/Export/StudyCohortExcelExport.vue,
         and lx_annotate/views/study_export.py (reviewed 2026-08-28)
-    note: Reviewed the separate Studienkohorte mode, reviewed-filter summary, workbook cohort metadata,
-      exact-snapshot semantics, and distinct cohort filename.
-    assessed_by: codex-export-grouping-20260828
-    assessed_at: '2026-08-28T11:12:14.538827Z'
+    note: Make cohort eligibility, empty results and reviewed dataset/export scope explicit; prevent stale
+      preview capture.
+    assessed_by: codex-export-20260922
+    assessed_at: '2026-09-22T10:25:09.674699Z'
 - id: bounded_operation
   category: operations
   title: Workbook generation is bounded and leaves no server-side artifact

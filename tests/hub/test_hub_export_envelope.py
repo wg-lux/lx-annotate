@@ -270,7 +270,6 @@ def test_config_rejects_symlinked_staging_ancestor(tmp_path: Path) -> None:
     public_path, _private_key = _key_pair(protected_root)
 
     with override_settings(
-        LX_ANNOTATE_ENCRYPTED_DATA_DIR=str(protected_root),
         LX_ANNOTATE_HUB_EXPORT_ENVELOPE_STAGING_DIR=str(symlink_parent / "envelopes"),
         LX_ANNOTATE_HUB_EXPORT_RECIPIENT_PUBLIC_KEY_FILE=str(public_path),
     ):

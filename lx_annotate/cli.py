@@ -96,13 +96,11 @@ def export_frames(argv: Sequence[str] | None = None) -> int:
         arg == "--output-path" or arg.startswith("--output-path=") for arg in args
     )
     if not has_output_path:
-        storage_dir = os.environ.get("STORAGE_DIR") or os.path.join(
-            os.environ.get("LX_ANNOTATE_ENCRYPTED_DATA_DIR", "data"),
-            "storage",
-        )
+        from endoreg_db.utils.paths import get_runtime_paths
+
         output_dir = os.environ.get(
             "LX_ANNOTATE_EXPORT_FRAMES_OUTPUT_DIR",
-            os.path.join(storage_dir, "export", "frames"),
+            str(get_runtime_paths().frame_export),
         )
         args = ["--output-dir", output_dir, *args]
     return manage(["export_frame_annot", *args])

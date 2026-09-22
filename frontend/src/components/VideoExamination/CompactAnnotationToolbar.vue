@@ -82,24 +82,26 @@ watch(
 )
 const chooseLabel = (name: string): void => {
   emit('select', name)
+  emit('toggle')
   focusSelector()
 }
 defineExpose({ focusSelector })
 </script>
 <style scoped>
 .compact-annotation-toolbar {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  right: 64px;
+  position: relative;
+  z-index: 7;
+  flex: 0 0 auto;
   display: flex;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
-  pointer-events: none;
+  padding: 8px 12px;
+  background: #212529;
 }
 .compact-label-selector {
   position: relative;
-  width: min(280px, 45%);
+  width: min(240px, 100%);
 }
 button,
 .compact-label-options {
@@ -117,6 +119,9 @@ button {
 .compact-label-selector > button {
   width: 100%;
   text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 button:focus-visible {
   outline: 3px solid #4dabf7;
@@ -127,10 +132,10 @@ button:disabled {
 }
 .compact-label-options {
   position: absolute;
-  top: calc(100% + 4px);
+  bottom: calc(100% + 4px);
   left: 0;
   width: 100%;
-  max-height: calc(100dvh - 160px);
+  max-height: min(240px, calc(100dvh - 160px));
   overflow: auto;
   overscroll-behavior: contain;
 }

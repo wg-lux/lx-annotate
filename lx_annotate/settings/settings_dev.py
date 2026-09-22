@@ -5,6 +5,7 @@ Development settings.
 from __future__ import annotations
 
 import os
+from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
 
@@ -29,7 +30,30 @@ from .settings_base import (
     STORAGES,
     TEMPLATES,
 )
+from .settings_base import (
+    CELERY_BROKER_URL as CELERY_BROKER_URL,
+)
+from .settings_base import (
+    DJANGO_SALT as DJANGO_SALT,
+)
+from .settings_base import (
+    PROTECTED_MEDIA_ROOT as PROTECTED_MEDIA_ROOT,
+)
+from .settings_base import (
+    PROTECTED_MEDIA_URL as PROTECTED_MEDIA_URL,
+)
 from .settings_base import REPORTING_LLM as REPORTING_LLM
+from .settings_base import (
+    STREAMABLE_PROCESSED_VIDEO_ROOT as STREAMABLE_PROCESSED_VIDEO_ROOT,
+)
+from .settings_base import (
+    STREAMABLE_RAW_VIDEO_ROOT as STREAMABLE_RAW_VIDEO_ROOT,
+)
+from .settings_base import (
+    STREAMABLE_VIDEO_ROOT as STREAMABLE_VIDEO_ROOT,
+)
+
+base_settings = import_module("lx_annotate.settings.settings_base")
 
 LOGGING = cast(dict[str, Any], LOGGING)
 REST_FRAMEWORK = cast(dict[str, Any], REST_FRAMEWORK)
@@ -50,11 +74,22 @@ LX_DTYPES_HOST_MODELS_MODULE = cast(str, LX_DTYPES_HOST_MODELS_MODULE)
 # Keep development settings usable for packaged runtime tests and local service
 # deployments.  The base settings use a checkout-relative SQLite database by
 # default; honor explicit service-provided database settings when present.
-DATABASES = {name: config.copy() for name, config in DATABASES.items()}
-if database_engine := os.getenv("DJANGO_DB_ENGINE"):
-    DATABASES["default"]["ENGINE"] = database_engine
-if database_name := os.getenv("DJANGO_DB_NAME"):
-    DATABASES["default"]["NAME"] = database_name
+
+DATABASES = {name: database.copy() for name, database in DATABASES.items()}
+_database_config = base_settings.config
+if "db_engine" in _database_config.model_fields_set:
+    DATABASES["default"]["ENGINE"] = _database_config.db_engine
+if "db_name" in _database_config.model_fields_set:
+    DATABASES["default"]["NAME"] = _database_config.db_name
+if DATABASES["default"]["ENGINE"] != "django.db.backends.sqlite3":
+    DATABASES["default"].update(
+        USER=_database_config.db_user,
+        PASSWORD=_database_config.db_password,
+        HOST=_database_config.db_host,
+        PORT=_database_config.db_port,
+    )
+    if DATABASES["default"]["ENGINE"].startswith("django.db.backends.postgresql"):
+        DATABASES["default"]["OPTIONS"] = {"sslmode": _database_config.db_sslmode}
 
 # -----------------------------------------------------------------------------
 # 1. CORE OVERRIDES
@@ -75,8 +110,12 @@ CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = ["http://127.0.0.1:5173", "http://localhost:5173"]
 
-# 5. AUTHENTICATION TOGGLE (Dev Convenience)
+# 4. AUTHENTICATION TOGGLE (Dev Convenience)
 ENFORCE_AUTH = os.getenv("ENFORCE_AUTH", "0") == "1"
+
+# 5. TERMINOLOGY ROOT PROVISIONING
+TERMINOLOGY_AUTO_PROVISION = base_settings.TERMINOLOGY_AUTO_PROVISION
+TERMINOLOGY_ROOT = base_settings.TERMINOLOGY_ROOT
 
 if ENFORCE_AUTH:
     print("🔒 AUTH: ENFORCED (Keycloak Mock/Real)")

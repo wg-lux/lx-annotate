@@ -21,7 +21,7 @@ def center():
     return Center.objects.create(name="Post Validation Job Test Center")
 
 
-def _make_video(center, *, video_hash: str = "post-validation-video") -> VideoFile:
+def _make_video(center, *, raw_video_hash: str = "post-validation-video") -> VideoFile:
     state = VideoState.objects.create(
         frames_extracted=False,
         frames_initialized=False,
@@ -30,8 +30,8 @@ def _make_video(center, *, video_hash: str = "post-validation-video") -> VideoFi
     return VideoFile.objects.create(
         center=center,
         state=state,
-        video_hash=video_hash,
-        original_file_name=f"{video_hash}.mp4",
+        raw_video_hash=raw_video_hash,
+        original_file_name=f"{raw_video_hash}.mp4",
     )
 
 
@@ -46,7 +46,7 @@ def _make_history(video: VideoFile) -> VideoProcessingHistory:
 
 
 def test_legacy_validated_without_outside_cleanup_serializes_as_required(center):
-    video = _make_video(center, video_hash="legacy-premature-green")
+    video = _make_video(center, raw_video_hash="legacy-premature-green")
     state = video.get_or_create_state()
     state.segment_annotations_created = True
     state.segment_annotations_validated = True
@@ -64,7 +64,7 @@ def test_legacy_validated_without_outside_cleanup_serializes_as_required(center)
 
 
 def test_rebuild_success_marks_final_only_after_verification(center):
-    video = _make_video(center, video_hash="rebuild-success")
+    video = _make_video(center, raw_video_hash="rebuild-success")
     history = _make_history(video)
 
     with (
@@ -94,7 +94,7 @@ def test_rebuild_success_marks_final_only_after_verification(center):
 
 
 def test_rebuild_failure_keeps_final_flags_false(center):
-    video = _make_video(center, video_hash="rebuild-failure")
+    video = _make_video(center, raw_video_hash="rebuild-failure")
     history = _make_history(video)
 
     with (
@@ -124,7 +124,7 @@ def test_rebuild_failure_keeps_final_flags_false(center):
 
 
 def test_rebuild_failure_from_non_black_outside_frames_stays_visible(center):
-    video = _make_video(center, video_hash="rebuild-majority-non-black")
+    video = _make_video(center, raw_video_hash="rebuild-majority-non-black")
     history = _make_history(video)
     failure_details = (
         "Post-validation rebuild did not leave outside frames blackened: "
@@ -160,7 +160,7 @@ def test_rebuild_failure_from_non_black_outside_frames_stays_visible(center):
 
 
 def test_celery_dispatch_failure_does_not_fall_back_to_thread(monkeypatch, center):
-    video = _make_video(center, video_hash="celery-dispatch-failure")
+    video = _make_video(center, raw_video_hash="celery-dispatch-failure")
     monkeypatch.setenv("VIDEO_POST_VALIDATION_JOB_MODE", "celery")
 
     class FailingTask:

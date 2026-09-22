@@ -1,29 +1,27 @@
 from __future__ import annotations
 
 import importlib
+import subprocess
 import sys
 
 import pytest
 from django.test import Client, override_settings
-from django.urls import Resolver404, clear_url_caches, resolve, set_urlconf
-from ninja.main import NinjaAPI
+from django.urls import Resolver404, resolve
 
 
-def _fresh_urls_module(monkeypatch=None):
-    sys.modules.pop("lx_annotate.urls", None)
-    sys.modules.pop("lx_annotate.api_urls", None)
-    sys.modules.pop("lx_annotate.dtypes_api_urls", None)
-    sys.modules.pop("lx_dtypes.django.api.main", None)
-    sys.modules.pop("lx_dtypes.django.api.report_template_builder", None)
-    NinjaAPI._registry = []
+@override_settings(ROOT_URLCONF="lx_annotate.urls")
+def test_compatibility_api_has_unique_namespace():
+    from django.core.checks.urls import check_url_namespaces_unique
 
-    clear_url_caches()
-    set_urlconf(None)
-    return importlib.import_module("lx_annotate.urls")
+    assert check_url_namespaces_unique(None) == []
+    canonical = resolve("/endoreg-api/conf/")
+    legacy = resolve("/api/conf/")
+    assert canonical.func == legacy.func
+    assert legacy.namespaces == ["legacy_api", *canonical.namespaces]
 
 
-def test_root_urlpatterns_expose_only_canonical_dtypes_api(monkeypatch):
-    module = _fresh_urls_module(monkeypatch)
+def test_root_urlpatterns_expose_only_canonical_dtypes_api():
+    module = importlib.import_module("lx_annotate.urls")
 
     top_level_patterns = [str(pattern.pattern) for pattern in module.urlpatterns]
 
@@ -40,7 +38,7 @@ def test_root_urlpatterns_expose_only_canonical_dtypes_api(monkeypatch):
 
 
 @override_settings(ROOT_URLCONF="lx_annotate.urls")
-def test_spa_resolution_does_not_import_api_url_modules(monkeypatch):
+def test_spa_resolution_does_not_import_api_url_modules():
     lazy_modules = (
         "lx_annotate.api_urls",
         "lx_annotate.dtypes_api_urls",
@@ -49,17 +47,20 @@ def test_spa_resolution_does_not_import_api_url_modules(monkeypatch):
         "endoreg_db.views.misc.application_settings",
         "endoreg_db.utils.ai.model_training.config",
     )
-    for module_name in lazy_modules:
-        sys.modules.pop(module_name, None)
-
-    _fresh_urls_module(monkeypatch)
-    clear_url_caches()
-    set_urlconf("lx_annotate.urls")
-
-    assert resolve("/anonymisierung/uebersicht").url_name == "vue_spa"
-
-    for module_name in lazy_modules:
-        assert module_name not in sys.modules
+    # Check cold imports without dismantling the API shared by the test process.
+    subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import django, sys; django.setup(); "
+                "from django.urls import resolve; "
+                "assert resolve('/anonymisierung/uebersicht').url_name == 'vue_spa'; "
+                f"assert not set({lazy_modules!r}).intersection(sys.modules)"
+            ),
+        ],
+        check=True,
+    )
 
 
 @override_settings(ROOT_URLCONF="lx_annotate.urls")
@@ -105,10 +106,7 @@ def test_reporting_workflow_paths_resolve_to_vue_spa(spa_path: str):
     ROOT_URLCONF="lx_annotate.urls",
     ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"],
 )
-def test_canonical_api_urls_are_reachable_and_base_api_is_removed(monkeypatch):
-    _fresh_urls_module(monkeypatch)
-    clear_url_caches()
-    set_urlconf("lx_annotate.urls")
+def test_canonical_api_urls_are_reachable_and_base_api_is_removed():
     client = Client()
 
     dtypes_api_response = client.get(

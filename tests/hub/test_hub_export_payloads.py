@@ -4,6 +4,8 @@ from __future__ import annotations
 import base64
 import hashlib
 import os
+from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.core.files.base import ContentFile
@@ -24,6 +26,7 @@ from endoreg_db.models import (
     VideoState,
 )
 
+from lx_annotate.file_watcher import AutoProcessingHandler
 from lx_annotate.hub.hub_export_payloads import (
     build_transfer_payload,
     validate_transfer_payload,
@@ -82,7 +85,7 @@ class HubExportPayloadTests(TestCase):
             center=self.center,
             state=state,
             sensitive_meta=create_hub_sensitive_meta(center=self.center),
-            video_hash="video-hash-1",
+            raw_video_hash="video-hash-1",
             processed_video_hash=processed_hash,
             original_file_name="video-1.mp4",
             suffix=".mp4",
@@ -126,6 +129,38 @@ class HubExportPayloadTests(TestCase):
         self.assertEqual(validated["source_node"].node_key, "site-node")
         self.assertEqual(validated["target_node"].node_key, "hub-node")
 
+        # Reprocessing changes the exported artifact, never the import identity.
+        upload_job = SimpleNamespace(content_hash=video.raw_video_hash)
+        original_pk = video.pk
+        original_key = payload["transfer_key"]
+        video.processed_file.save("reprocessed.mp4", ContentFile(b"reprocessed-video"))
+        from endoreg_db.utils.hashs import get_file_hash
+
+        video.processed_video_hash = get_file_hash(video.processed_file)
+        video.save(update_fields=["processed_video_hash"])
+        state = video.get_or_create_state()
+        state.outside_segments_removed = True
+        state.save(update_fields=["outside_segments_removed"])
+        state.mark_ready_for_export(
+            processed_file_sha256=video.processed_video_hash,
+            ready_for_export_by="test-suite",
+        )
+        rebuilt = build_transfer_payload(outbound_job=job, source_node=self.site_node)
+        self._assert_transfer_payload_persists(rebuilt)
+        self.assertEqual(rebuilt["resource_hash"], video.raw_video_hash)
+        self.assertEqual(rebuilt["transfer_key"], original_key)
+        self.assertEqual(
+            rebuilt["resource_rows"]["video_file"]["raw_video_hash"],
+            video.raw_video_hash,
+        )
+        self.assertNotEqual(video.processed_video_hash, processed_hash)
+        resolved = AutoProcessingHandler._resolve_uploaded_video(
+            upload_job,
+            Path("original.mp4"),
+        )
+        self.assertIsNotNone(resolved)
+        self.assertEqual(resolved.pk, original_pk)
+
     def test_rejects_inconsistent_processed_video_hash_metadata(self):
         state = VideoState.objects.create(
             anonymized=True,
@@ -144,7 +179,7 @@ class HubExportPayloadTests(TestCase):
             center=self.center,
             state=state,
             sensitive_meta=create_hub_sensitive_meta(center=self.center),
-            video_hash="video-hash-inconsistent",
+            raw_video_hash="video-hash-inconsistent",
             processed_video_hash="b" * 64,
             original_file_name="video-inconsistent.mp4",
             suffix=".mp4",
@@ -188,7 +223,7 @@ class HubExportPayloadTests(TestCase):
             center=self.center,
             state=state,
             sensitive_meta=create_hub_sensitive_meta(center=self.center),
-            video_hash="video-hash-file-mismatch",
+            raw_video_hash="video-hash-file-mismatch",
             processed_video_hash=persisted_hash,
             original_file_name="video-file-mismatch.mp4",
             suffix=".mp4",
@@ -232,7 +267,7 @@ class HubExportPayloadTests(TestCase):
             center=self.center,
             state=state,
             sensitive_meta=create_hub_sensitive_meta(center=self.center),
-            video_hash="video-hash-unreadable",
+            raw_video_hash="video-hash-unreadable",
             processed_video_hash=processed_hash,
             original_file_name="video-unreadable.mp4",
             suffix=".mp4",
@@ -255,7 +290,7 @@ class HubExportPayloadTests(TestCase):
         )
 
         with patch(
-            "lx_annotate.hub.hub_export_state.sha256_file",
+            "lx_annotate.hub.hub_export_state.get_file_hash",
             side_effect=OSError("disappeared"),
         ):
             with self.assertRaisesMessage(ValueError, "media is unreadable"):
@@ -359,7 +394,7 @@ class HubExportPayloadTests(TestCase):
         video = VideoFile.objects.create(
             center=self.center,
             state=state,
-            video_hash="video-hash-2",
+            raw_video_hash="video-hash-2",
             processed_video_hash="processed-video-hash-2",
             original_file_name="video-2.mp4",
             processed_file=ContentFile(
@@ -400,7 +435,7 @@ class HubExportPayloadTests(TestCase):
             state=state,
             sensitive_meta=sensitive_meta,
             examination=sensitive_meta.pseudo_examination,
-            video_hash="video-hash-rows",
+            raw_video_hash="video-hash-rows",
             processed_video_hash=processed_hash,
             original_file_name="Patient_Max_Mustermann.mp4",
             suffix=".mp4",
@@ -501,7 +536,7 @@ class HubExportPayloadTests(TestCase):
             [
                 {
                     "annotation_id": positive.pk,
-                    "video_hash": "video-hash-rows",
+                    "raw_video_hash": "video-hash-rows",
                     "frame_number": 7,
                     "frame_relative_path": "frames/video-hash-rows/00000007.jpg",
                     "frame_timestamp": 0.28,
@@ -518,7 +553,7 @@ class HubExportPayloadTests(TestCase):
                 {
                     "source_node_key": "site-node",
                     "source_segment_id": segment.pk,
-                    "video_hash": "video-hash-rows",
+                    "raw_video_hash": "video-hash-rows",
                     "start_frame_number": 5,
                     "end_frame_number_exclusive": 10,
                     "label_name": "lesion_visible",

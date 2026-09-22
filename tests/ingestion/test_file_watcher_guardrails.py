@@ -347,7 +347,7 @@ def test_completed_video_cleanup_uses_typed_wrapper(monkeypatch, tmp_path):
     deleted = []
     handler = watcher.AutoProcessingHandler()
     video = SimpleNamespace(
-        video_hash="video-hash",
+        raw_video_hash="video-hash",
         pk=None,
         sensitive_meta=None,
         active_raw_file=None,

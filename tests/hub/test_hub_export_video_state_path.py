@@ -63,7 +63,7 @@ class HubExportVideoStatePathTests(TestCase):
         return VideoFile.objects.create(
             center=self.center,
             state=state,
-            video_hash=f"imported-video-{suffix}",
+            raw_video_hash=f"imported-video-{suffix}",
             original_file_name=f"imported-video-{suffix}.mp4",
             processed_file=ContentFile(
                 b"anonymized-processed-video",

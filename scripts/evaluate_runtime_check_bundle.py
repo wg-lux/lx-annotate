@@ -5,9 +5,12 @@ from __future__ import annotations
 
 import os
 import sys
-from collections.abc import Mapping
+import tempfile
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from uuid import uuid4
 
 from django.apps import AppConfig
 
@@ -27,8 +30,31 @@ class BundleEvaluationEndoregConfig(AppConfig):
     name = "endoreg_db"
 
 
+@contextmanager
+def _isolated_runtime_root() -> Iterator[None]:
+    """Keep schema evaluation independent of a developer or host runtime root."""
+    previous_root = os.environ.get("LX_RUNTIME_ROOT")
+    runtime_root = Path(tempfile.gettempdir()) / f"lx_bundle_check_{uuid4().hex}"
+    os.environ["LX_RUNTIME_ROOT"] = str(runtime_root)
+    try:
+        from endoreg_db.utils.file_operations import ensure_directory, safe_rmtree
+
+        ensure_directory(runtime_root, dir_mode=0o700)
+        try:
+            yield
+        finally:
+            safe_rmtree(runtime_root)
+    finally:
+        if previous_root is None:
+            os.environ.pop("LX_RUNTIME_ROOT", None)
+        else:
+            os.environ["LX_RUNTIME_ROOT"] = previous_root
+
+
 def find_contract_gaps(
-    *, required: SchemaContract, provided: SchemaContract,
+    *,
+    required: SchemaContract,
+    provided: SchemaContract,
 ) -> list[str]:
     """Return stable, human-readable gaps without duplicating missing tables."""
     gaps = [
@@ -42,7 +68,8 @@ def find_contract_gaps(
                 gaps.append(f"missing table: {table_name}")
             continue
         missing_columns = required_columns - provided.columns.get(
-            table_name, frozenset(),
+            table_name,
+            frozenset(),
         )
         gaps.extend(
             f"missing column: {table_name}.{column_name}"
@@ -55,7 +82,8 @@ def find_contract_gaps(
                 gaps.append(f"missing table: {table_name}")
             continue
         missing_constraints = required_constraints - provided.constraints.get(
-            table_name, frozenset(),
+            table_name,
+            frozenset(),
         )
         gaps.extend(
             f"missing constraint: {table_name}.{constraint_name}"
@@ -75,6 +103,8 @@ def _configure_django() -> None:
             "settings are configured.",
         )
 
+    from endoreg_db.utils.paths import get_runtime_paths
+
     settings.configure(
         DATABASES={
             "default": {
@@ -85,9 +115,10 @@ def _configure_django() -> None:
         INSTALLED_APPS=[
             "django.contrib.auth",
             "django.contrib.contenttypes",
+            "lx_dtypes.django",
             "scripts.evaluate_runtime_check_bundle.BundleEvaluationEndoregConfig",
         ],
-        MEDIA_ROOT=str(REPO_ROOT),
+        MEDIA_ROOT=str(get_runtime_paths().storage),
         USE_TZ=True,
     )
 
@@ -152,9 +183,10 @@ def _provided_contract() -> SchemaContract:
 def main() -> int:
     os.chdir(REPO_ROOT)
     try:
-        _configure_django()
-        required = _required_contract()
-        provided = _provided_contract()
+        with _isolated_runtime_root():
+            _configure_django()
+            required = _required_contract()
+            provided = _provided_contract()
     except Exception as exc:
         print(
             "Runtime-check bundle evaluation could not load the canonical "

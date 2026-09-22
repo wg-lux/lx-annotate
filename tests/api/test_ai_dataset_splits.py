@@ -118,7 +118,7 @@ def dataset(db):
         # Two videos per patient must always move together.
         for number in range(2):
             video = VideoFile.objects.create(
-                center=center, patient=patient, video_hash=f"split-{index}-{number}"
+                center=center, patient=patient, raw_video_hash=f"split-{index}-{number}"
             )
             frame = Frame.objects.create(video=video, frame_number=0, timestamp=0)
             annotation = ImageClassificationAnnotation.objects.create(

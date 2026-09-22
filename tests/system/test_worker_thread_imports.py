@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
+from endoreg_db.utils.file_operations import atomic_write_file
 
 pytestmark = pytest.mark.slow
 
@@ -186,17 +187,22 @@ def _build_worker_import_env(tmp_path: Path) -> dict[str, str]:
     runtime_root = tmp_path / "runtime"
     data_root = runtime_root / "data"
     storage_root = data_root / "storage"
+    salt_file = atomic_write_file(
+        destination=tmp_path / "identity-salt",
+        content=(b"worker-import-test-identity-salt",),
+        file_mode=0o600,
+    )
 
     env = os.environ.copy()
     env.update(
         {
-            "DATA_DIR": str(data_root),
             "CELERY_LLM_INFERENCE_QUEUE": "llm_inference",
             "DJANGO_CORS_ALLOWED_ORIGINS": "https://lx-annotate.local",
             "DJANGO_CSRF_TRUSTED_ORIGINS": "https://lx-annotate.local",
             "DJANGO_DB_PASSWORD": "worker-import-test-db-password",
             "DJANGO_KEYCLOAK_CLIENT_SECRET": "worker-import-test-keycloak-secret",
             "DJANGO_SECRET_KEY": "worker-import-test-secret-key-000000000000",
+            "DJANGO_SALT_FILE": str(salt_file),
             "DJANGO_SETTINGS_MODULE": "lx_annotate.settings.settings_test",
             "DJANGO_STATIC_ROOT": str(runtime_root / "staticfiles"),
             "HF_HUB_OFFLINE": "1",
@@ -205,17 +211,14 @@ def _build_worker_import_env(tmp_path: Path) -> dict[str, str]:
             "LLM_ENABLED": "true",
             "LLM_MODEL": "lx-gemma4-e2b-json",
             "LLM_PROVIDER": "ollama",
-            "LX_ANNOTATE_DATA_DIR": str(data_root),
-            "LX_ANNOTATE_ENCRYPTED_DATA_DIR": str(data_root),
+            "LX_RUNTIME_ROOT": str(data_root),
             "LX_ANNOTATE_IMPORT_SWEEP_RESULT_PREFIX": RESULT_PREFIX,
             "LX_ANNOTATE_IMPORT_SWEEP_WORKERS": json.dumps(
                 LUXNIX_WORKER_BASED_CELERY_PROFILES,
             ),
             "OIDC_RP_CLIENT_SECRET": "worker-import-test-keycloak-secret",
-            "PROTECTED_MEDIA_ROOT": str(storage_root),
             "RUN_AI_TESTS": "0",
             "RUN_VIDEO_TESTS": "0",
-            "STORAGE_DIR": str(storage_root),
             "TRANSFORMERS_OFFLINE": "1",
         },
     )

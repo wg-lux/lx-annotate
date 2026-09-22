@@ -57,18 +57,18 @@ def _source_timeline_meta(
 
 def _make_video(
     *,
-    video_hash: str,
+    raw_video_hash: str,
     timestamps: list[float | None],
     duration: float,
     variable_frame_rate: bool,
     with_timeline_meta: bool = True,
 ) -> VideoFile:
-    center = Center.objects.create(name=f"Timeline Center {video_hash}")
+    center = Center.objects.create(name=f"Timeline Center {raw_video_hash}")
     frame_count = len(timestamps)
     video = VideoFile.objects.create(
         center=center,
-        video_hash=video_hash,
-        original_file_name=f"{video_hash}.mp4",
+        raw_video_hash=raw_video_hash,
+        original_file_name=f"{raw_video_hash}.mp4",
         fps=25,
         duration=duration,
         frame_count=frame_count,
@@ -100,7 +100,7 @@ def _make_video(
 @pytest.fixture
 def vfr_video() -> VideoFile:
     return _make_video(
-        video_hash="irregular-pts",
+        raw_video_hash="irregular-pts",
         timestamps=[0.0, 0.04, 0.11, 0.16, 0.24],
         duration=0.29,
         variable_frame_rate=True,
@@ -132,7 +132,7 @@ def test_probed_vfr_timestamps_are_persisted_and_used_for_resolution(
     tmp_path: Path,
 ):
     video = _make_video(
-        video_hash="probed-irregular-pts",
+        raw_video_hash="probed-irregular-pts",
         timestamps=[None] * 5,
         duration=0.29,
         variable_frame_rate=True,
@@ -174,7 +174,7 @@ def test_probed_vfr_timestamps_are_persisted_and_used_for_resolution(
 
 def test_legacy_cfr_video_resolves_timestamps_without_frame_rows():
     video = _make_video(
-        video_hash="legacy-cfr",
+        raw_video_hash="legacy-cfr",
         timestamps=[None] * 5,
         duration=0.2,
         variable_frame_rate=False,
@@ -205,7 +205,7 @@ def test_frame_neighborhood_clamps_duration_to_last_display_frame(
 
 def test_vfr_video_fails_closed_when_a_required_pts_is_missing():
     video = _make_video(
-        video_hash="missing-vfr-pts",
+        raw_video_hash="missing-vfr-pts",
         timestamps=[0.0, 0.04, None, 0.16, 0.24],
         duration=0.29,
         variable_frame_rate=True,
@@ -217,7 +217,7 @@ def test_vfr_video_fails_closed_when_a_required_pts_is_missing():
 
 def test_vfr_video_rejects_non_monotonic_persisted_pts():
     video = _make_video(
-        video_hash="non-monotonic-vfr-pts",
+        raw_video_hash="non-monotonic-vfr-pts",
         timestamps=[0.0, 0.04, 0.11, 0.10, 0.24],
         duration=0.29,
         variable_frame_rate=True,

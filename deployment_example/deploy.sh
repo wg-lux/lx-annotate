@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 APP_DIR="${APP_DIR:-/home/lx-annotate/lx-annotate-wheel}"
-DATA_DIR="${DATA_DIR:-/var/lib/lx-annotate/data}"
+LX_RUNTIME_ROOT="${LX_RUNTIME_ROOT:-/var/lib/lx-annotate/data}"
 STATIC_ROOT="${STATIC_ROOT:-/var/lib/lx-annotate/staticfiles}"
 STATE_DIR="${STATE_DIR:-/var/lib/lx-annotate}"
 VENV_DIR="${VENV_DIR:-$APP_DIR/.venv}"
@@ -25,7 +25,7 @@ if [[ ! -f "$WHEEL_FILE" ]]; then
   exit 1
 fi
 
-mkdir -p "$APP_DIR" "$DATA_DIR" "$STATIC_ROOT" "$STATE_DIR"
+mkdir -p "$APP_DIR" "$LX_RUNTIME_ROOT" "$STATIC_ROOT" "$STATE_DIR"
 
 if [[ ! -d "$VENV_DIR" ]]; then
   python3 -m venv "$VENV_DIR"
@@ -43,9 +43,9 @@ fi
 
 export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-lx_annotate.settings.settings_prod}"
 export DJANGO_STATIC_ROOT="${DJANGO_STATIC_ROOT:-$STATIC_ROOT}"
-export LX_ANNOTATE_ENCRYPTED_DATA_DIR="${LX_ANNOTATE_ENCRYPTED_DATA_DIR:-$DATA_DIR}"
-export LX_DTYPES_KB_REGISTRY="${LX_DTYPES_KB_REGISTRY:-$LX_ANNOTATE_ENCRYPTED_DATA_DIR/terminology/registry.json}"
-export LX_DTYPES_TERMINOLOGY_IMPORT_ROOT="${LX_DTYPES_TERMINOLOGY_IMPORT_ROOT:-$LX_ANNOTATE_ENCRYPTED_DATA_DIR/terminology/packages}"
+export LX_RUNTIME_ROOT
+export LX_DTYPES_KB_REGISTRY="${LX_DTYPES_KB_REGISTRY:-$LX_RUNTIME_ROOT/terminology/registry.json}"
+export LX_DTYPES_TERMINOLOGY_IMPORT_ROOT="${LX_DTYPES_TERMINOLOGY_IMPORT_ROOT:-$LX_RUNTIME_ROOT/terminology}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$STATE_DIR}"
 export WORKING_DIR="${WORKING_DIR:-$APP_DIR}"
 export HOME_DIR="${HOME_DIR:-$APP_DIR}"
@@ -54,7 +54,7 @@ export PYTORCH_ALLOC_CONF="${PYTORCH_ALLOC_CONF:-expandable_segments:True}"
 
 mkdir -p \
   "$DJANGO_STATIC_ROOT" \
-  "$LX_ANNOTATE_ENCRYPTED_DATA_DIR" \
+  "$LX_RUNTIME_ROOT" \
   "$LX_DTYPES_TERMINOLOGY_IMPORT_ROOT" \
   "$(dirname "$LX_DTYPES_KB_REGISTRY")"
 

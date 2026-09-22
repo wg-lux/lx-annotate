@@ -37,7 +37,15 @@ export const useStudyCohortExportStore = defineStore('studyCohortExport', {
         hypothesis: normalizedHypothesis,
         schemaVersion: response.schemaVersion,
         filters: { ...response.filters },
-        summary: { ...response.summary },
+        summary: {
+          caseCount: response.cases.length,
+          patientCount: new Set(response.cases.map((row) => row.patientHash)).size,
+          reportCount: new Set(
+            response.cases.flatMap((row) => row.reports.map((report) => report.id))
+          ).size,
+          videoCount: new Set(response.cases.flatMap((row) => row.videos.map((video) => video.id)))
+            .size
+        },
         patientExaminationIds
       }
       return this.definition

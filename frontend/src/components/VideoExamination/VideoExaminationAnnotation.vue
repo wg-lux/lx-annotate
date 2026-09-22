@@ -3706,6 +3706,8 @@ const blackeningButtonLabel = computed(() =>
 }
 
 .video-container.compact-fullscreen {
+  display: flex;
+  flex-direction: column;
   position: fixed;
   inset: 0;
   width: 100vw;
@@ -3719,8 +3721,10 @@ const blackeningButtonLabel = computed(() =>
 }
 .video-container.compact-fullscreen .examination-video {
   display: block;
+  flex: 1 1 0;
+  min-height: 0;
   width: 100%;
-  height: 100%;
+  height: 0;
   max-height: none;
   object-fit: contain;
 }

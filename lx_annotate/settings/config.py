@@ -83,6 +83,35 @@ def _first_config_value(
     return None
 
 
+def load_runtime_environment(repo_root: Path) -> Path:
+    """Load the canonical root before EndoReg-DB resolves its cached topology.
+
+    An explicit process environment wins. No legacy path alias is accepted and
+    a missing production root remains an error in EndoReg-DB's path resolver.
+    """
+    raw_root = os.environ.get("LX_RUNTIME_ROOT", "").strip()
+    runtime_root = Path(raw_root).expanduser() if raw_root else None
+    is_dev = os.environ.get("DJANGO_SETTINGS_MODULE", "").endswith("settings_dev")
+    candidates: list[Path] = []
+    if is_dev:
+        candidates.append(repo_root / ".env")
+        if runtime_root is not None:
+            candidates.append(runtime_root / ".env")
+    else:
+        if runtime_root is not None and runtime_root.is_absolute():
+            if runtime_root.name == "data":
+                candidates.append(runtime_root.parent / ".env.systemd")
+            candidates.append(runtime_root / ".env.systemd")
+        candidates.append(repo_root / ".env.systemd")
+
+    env_file = next((path for path in candidates if path.is_file()), candidates[0])
+    if "LX_RUNTIME_ROOT" not in os.environ and env_file.is_file():
+        values = _parse_env_file(env_file)
+        if "LX_RUNTIME_ROOT" in values:
+            os.environ["LX_RUNTIME_ROOT"] = values["LX_RUNTIME_ROOT"]
+    return env_file
+
+
 def _coerce_debug(value: str) -> bool:
     normalized = value.strip().lower()
     return normalized in {"1", "true", "yes", "on", "y", "t"}
@@ -144,6 +173,7 @@ def _config_kwargs_from_sources(
         "db_host": ("DJANGO_DB_HOST",),
         "db_port": ("DJANGO_DB_PORT",),
         "db_sslmode": ("DJANGO_DB_SSLMODE",),
+        "celery_broker_url": ("CELERY_BROKER_URL",),
         "static_root": ("DJANGO_STATIC_ROOT",),
         "keycloak_server_url": ("DJANGO_KEYCLOAK_SERVER_URL",),
         "keycloak_client_id": ("DJANGO_KEYCLOAK_CLIENT_ID", "OIDC_RP_CLIENT_ID"),
@@ -188,17 +218,9 @@ def _default_static_root() -> Path:
     if configured:
         return Path(configured)
 
-    runtime_data_dir = (
-        os.getenv("LX_ANNOTATE_DATA_DIR", "").strip()
-        or os.getenv("LX_ANNOTATE_ENCRYPTED_DATA_DIR", "").strip()
-        or os.getenv("DATA_DIR", "").strip()
-    )
-    if runtime_data_dir:
-        data_path = Path(runtime_data_dir).expanduser()
-        runtime_root = data_path.parent if data_path.name == "data" else data_path
-        return runtime_root / "staticfiles"
+    from endoreg_db.utils.paths import get_runtime_paths
 
-    return Path("./staticfiles")
+    return get_runtime_paths().runtime_root / "staticfiles"
 
 
 def _default_allowed_hosts() -> list[str]:
@@ -245,6 +267,7 @@ class AppConfig(BaseSettings):
     db_host: str = os.getenv("DJANGO_DB_HOST", "localhost")
     db_port: str = os.getenv("DJANGO_DB_PORT", "5432")
     db_sslmode: str = "require"
+    celery_broker_url: str = ""
     static_root: Path = Field(default_factory=_default_static_root)
 
     keycloak_server_url: str = "https://keycloak-endoreg.net"

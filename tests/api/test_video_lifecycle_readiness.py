@@ -177,9 +177,9 @@ def test_repair_filters_bulk_and_hides_wrong_center_target(client, operator):
     _, center = operator
     other = Center.objects.create(name="other", center_key="other")
     own_video = VideoFile.objects.create(
-        center=center, video_hash="own", state=VideoState.objects.create()
+        center=center, raw_video_hash="own", state=VideoState.objects.create()
     )
-    other_video = VideoFile.objects.create(center=other, video_hash="other")
+    other_video = VideoFile.objects.create(center=other, raw_video_hash="other")
     denied = client.post(
         f"/api/runtime/videos/{other_video.pk}/repair/",
         {},
@@ -200,7 +200,7 @@ def test_metadata_only_repair_never_completes_failed_upload(client, operator):
     metadata = create_hub_sensitive_meta(center=center)
     video = VideoFile.objects.create(
         center=center,
-        video_hash="partial",
+        raw_video_hash="partial",
         sensitive_meta=metadata,
         state=VideoState.objects.create(),
     )
@@ -225,7 +225,7 @@ def test_raw_media_does_not_hide_missing_metadata(client, operator, master_key):
     _, center = operator
     video = VideoFile.objects.create(
         center=center,
-        video_hash="raw-only",
+        raw_video_hash="raw-only",
         raw_file=ContentFile(b"raw", name="raw.mp4"),
     )
     response = client.post(
@@ -294,14 +294,14 @@ def test_processed_repair_preserves_approval_and_other_center_jobs(
     other = Center.objects.create(name="same-hash-other", center_key="same-hash-other")
     video = VideoFile.objects.create(
         center=center,
-        video_hash="processed",
+        raw_video_hash="processed",
         state=VideoState.objects.create(),
         processed_file=ContentFile(b"processed", name="processed.mp4"),
     )
     jobs = [
         UploadJob.objects.create(
             source_center=source_center,
-            content_hash=video.video_hash,
+            content_hash=video.raw_video_hash,
             status="error",
             error_code="processing_failed",
         )

@@ -32,7 +32,7 @@ def repair_operator(tmp_path, master_key, monkeypatch):
     def create_video(target_center=center):
         video = VideoFile.objects.create(
             center=target_center,
-            video_hash=str(uuid4()),
+            raw_video_hash=str(uuid4()),
             processed_video_hash=uuid4().hex + uuid4().hex,
             original_file_name="repair.mp4",
         )
@@ -115,14 +115,14 @@ def test_failed_import_is_preserved_and_active_import_rejected(repair_operator):
     failed_video, active_video = create(), create()
     failed = UploadJob.objects.create(
         source_center=center,
-        content_hash=failed_video.video_hash,
+        content_hash=failed_video.raw_video_hash,
         status="error",
         error_code="processing_failed",
         error_detail="OCR deadline",
     )
     UploadJob.objects.create(
         source_center=center,
-        content_hash=active_video.video_hash,
+        content_hash=active_video.raw_video_hash,
         status="processing",
     )
     response = client.post(URL, body(), format="json")

@@ -90,7 +90,7 @@ def retained_video(
     video = VideoFile.objects.create(
         center=center,
         state=state,
-        video_hash=digest,
+        raw_video_hash=digest,
         processed_video_hash=digest,
         fps=25.0,
         frame_count=2,
@@ -339,31 +339,46 @@ def test_training_rejects_encrypted_media_damage_without_plaintext_leaks(
     assert set(Path("/tmp").glob("endoreg-fieldfile-*")) == before
 
 
-def test_training_plaintext_is_private_and_removed_after_decoder_error(
+def test_training_decoder_failure_closes_stream_without_plaintext_files(
     retained_video: tuple[VideoFile, AIDataSet, LabelSet, int],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    from urllib.error import URLError
+    from urllib.request import urlopen
+
     from endoreg_db.services.frames import training_images
+    from endoreg_db.utils import frame_stream
     from endoreg_db.utils.frame_stream import EncodedFrameSample
 
     _, _, _, annotation_id = retained_video
     frame = ImageClassificationAnnotation.objects.get(pk=annotation_id).frame
-    seen: list[Path] = []
+    before = set(Path("/tmp").glob("endoreg-fieldfile-*"))
+    seen: list[str] = []
 
     def fail_decoder(
-        path: Path,
+        source: str,
         *,
         frame_number: int,
         timestamp: float | None,
+        quality: int,
+        seekable_http: bool,
     ) -> EncodedFrameSample:
         assert frame_number == 0
         assert timestamp == 0.0
-        assert path.stat().st_mode & 0o777 == 0o600
-        assert not path.read_bytes().startswith(b"LXENC01")
-        seen.append(path)
+        assert seekable_http
+        assert quality == 2
+        with urlopen(source, timeout=2) as response:
+            plaintext = response.read()
+        assert plaintext and not plaintext.startswith(b"LXENC01")
+        assert set(Path("/tmp").glob("endoreg-fieldfile-*")) == before
+        seen.append(source)
         raise RuntimeError("decoder failure")
 
-    monkeypatch.setattr(training_images, "read_video_path_frame_jpeg", fail_decoder)
+    monkeypatch.setattr(frame_stream, "_read_video_input_frame_jpeg", fail_decoder)
     with pytest.raises(RuntimeError, match="decoder failure"):
         training_images.read_processed_training_image(frame)
-    assert seen and all(not path.exists() for path in seen)
+    assert seen
+    for source in seen:
+        with pytest.raises(URLError):
+            urlopen(source, timeout=2)
+    assert set(Path("/tmp").glob("endoreg-fieldfile-*")) == before

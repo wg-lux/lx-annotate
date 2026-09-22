@@ -2258,12 +2258,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /**
-         * @description Stream a single extracted frame image by video ID and frame number.
-         *
-         *     Endpoint:
-         *     - GET /api/media/videos/<video_id>/frames/<frame_number>/stream/ (Constructed from frame stream helper)
-         */
+        /** @description Legacy frame URL using the same in-memory processed-video decoder. */
         get: operations["media_videos_frames_stream_retrieve"];
         put?: never;
         post?: never;

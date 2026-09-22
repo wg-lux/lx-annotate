@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from types import SimpleNamespace
 
 import pytest
@@ -8,9 +7,7 @@ from django.core.checks import WARNING
 from django.core.checks.registry import registry
 from django.core.exceptions import ImproperlyConfigured
 from django.test import override_settings
-from lx_dtypes.models.interface.KnowledgeBaseResolver import (
-    clear_knowledge_base_resolver_caches,
-)
+from lx_dtypes.terminology.terminology_service import TerminologyService
 
 from lx_annotate import checks as checks_module
 
@@ -28,7 +25,8 @@ def test_environment_checks_report_missing_nginx_contract(monkeypatch):
         for message in messages
     )
     assert any(
-        message.id == "lx_annotate.protected_media_root_missing" for message in messages
+        message.id == "lx_annotate.protected_media_root_mismatch"
+        for message in messages
     )
 
 
@@ -75,49 +73,10 @@ def test_environment_checks_require_native_hls_state_machine(monkeypatch, tmp_pa
 )
 def test_environment_checks_accept_valid_lx_dtypes_runtime_contract(
     monkeypatch,
-    tmp_path,
+    packaged_registry,
 ):
-    kb_root = tmp_path / "knowledge-bases"
-    module_dir = kb_root / "verified_reporting"
-    module_dir.mkdir(parents=True)
-    (module_dir / "config.yaml").write_text(
-        "\n".join(
-            [
-                "name: verified_reporting",
-                "description: Verified test bundle",
-                "version: 2026.07.31",
-                "modules: []",
-                "depends_on: []",
-                "data:",
-                "  dirs: []",
-            ],
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-    registry_path = tmp_path / "terminology" / "registry.json"
-    registry_path.parent.mkdir()
-    registry_path.write_text(
-        json.dumps(
-            {
-                "active": {
-                    "module_name": "verified_reporting",
-                    "version": "2026.07.31",
-                },
-                "modules": {
-                    "verified_reporting": {
-                        "2026.07.31": {"input_dirs": [str(kb_root)]},
-                    },
-                },
-            },
-        ),
-        encoding="utf-8",
-    )
-    monkeypatch.setenv("LX_DTYPES_KB_REGISTRY", str(registry_path))
     monkeypatch.setenv("NGINX_PROTECTED_MEDIA_URL", "/protected_media/")
-    monkeypatch.setenv("PROTECTED_MEDIA_ROOT", str(tmp_path))
     monkeypatch.setattr(checks_module, "check_environment_readiness", lambda: [])
-    clear_knowledge_base_resolver_caches()
 
     messages = checks_module.lx_annotate_environment_checks(None)
 
@@ -128,7 +87,8 @@ def test_environment_checks_accept_valid_lx_dtypes_runtime_contract(
 
 @override_settings(MEDIA_ROOT="/tmp/media-root", LX_DTYPES_HOST_MODELS_MODULE="")
 def test_environment_checks_warn_for_missing_lx_dtypes_contract(monkeypatch, tmp_path):
-    monkeypatch.delenv("LX_DTYPES_KB_REGISTRY", raising=False)
+    service = TerminologyService(registry_path=tmp_path / "registry.json")
+    monkeypatch.setattr(checks_module, "get_terminology_service", lambda: service)
     monkeypatch.setenv("NGINX_PROTECTED_MEDIA_URL", "/protected_media/")
     monkeypatch.setenv("PROTECTED_MEDIA_ROOT", str(tmp_path))
     monkeypatch.setattr(checks_module, "check_environment_readiness", lambda: [])
@@ -142,7 +102,7 @@ def test_environment_checks_warn_for_missing_lx_dtypes_contract(monkeypatch, tmp
     registry_message = next(
         message
         for message in messages
-        if message.id == "lx_annotate.lx_dtypes_kb_registry_missing"
+        if message.id == "lx_annotate.lx_dtypes_kb_registry_invalid"
     )
     assert registry_message.level == WARNING
 

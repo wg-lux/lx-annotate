@@ -44,7 +44,7 @@ def center():
     return Center.objects.create(name="Outside Cleanup Test Center")
 
 
-def _make_video(center, *, video_hash: str = "outside-cleanup-video") -> VideoFile:
+def _make_video(center, *, raw_video_hash: str = "outside-cleanup-video") -> VideoFile:
     state = VideoState.objects.create(
         frames_extracted=True,
         frames_initialized=True,
@@ -53,8 +53,8 @@ def _make_video(center, *, video_hash: str = "outside-cleanup-video") -> VideoFi
     video = VideoFile.objects.create(
         center=center,
         state=state,
-        video_hash=video_hash,
-        original_file_name=f"{video_hash}.mp4",
+        raw_video_hash=raw_video_hash,
+        original_file_name=f"{raw_video_hash}.mp4",
     )
     Frame.objects.bulk_create(
         [
@@ -138,7 +138,7 @@ def test_bulk_validation_with_queued_cleanup_stays_non_final(api_client, center)
 def test_manual_segments_without_model_meta_create_frame_annotations(
     api_client, center
 ):
-    video = _make_video(center, video_hash="manual-no-model-meta")
+    video = _make_video(center, raw_video_hash="manual-no-model-meta")
     segment = _make_segment(video, label_name="polyp")
 
     response = api_client.post(
@@ -169,7 +169,7 @@ def test_manual_segments_without_model_meta_create_frame_annotations(
 def test_bulk_validation_annotation_expansion_failure_does_not_go_green(
     api_client, center
 ):
-    video = _make_video(center, video_hash="annotation-expansion-failure")
+    video = _make_video(center, raw_video_hash="annotation-expansion-failure")
     segment = _make_segment(video, label_name="outside")
 
     with patch(
@@ -199,7 +199,7 @@ def test_bulk_validation_annotation_expansion_failure_does_not_go_green(
 
 
 def test_bulk_validation_dispatch_failure_returns_503(api_client, center):
-    video = _make_video(center, video_hash="dispatch-failure")
+    video = _make_video(center, raw_video_hash="dispatch-failure")
     segment = _make_segment(video, label_name="outside")
 
     def failing_dispatch(*, video_id: int, only_validated: bool = False):
@@ -248,7 +248,7 @@ def test_bulk_validation_dispatch_failure_returns_503(api_client, center):
 
 
 def test_video_list_surfaces_failed_cleanup_job_for_frontend(api_client, center):
-    video = _make_video(center, video_hash="failed-cleanup-visible")
+    video = _make_video(center, raw_video_hash="failed-cleanup-visible")
     state = video.get_or_create_state()
     state.segment_annotations_created = True
     state.segment_annotations_validated = True
@@ -291,7 +291,7 @@ def test_video_list_surfaces_failed_cleanup_job_for_frontend(api_client, center)
 def test_blacken_outside_allows_rerun_after_failed_cleanup(
     api_client, center, monkeypatch
 ):
-    video = _make_video(center, video_hash="failed-cleanup-rerun")
+    video = _make_video(center, raw_video_hash="failed-cleanup-rerun")
     segment = _make_segment(video, label_name="outside")
     segment.mark_validated(
         is_validated=True,

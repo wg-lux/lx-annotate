@@ -39,7 +39,7 @@ def hub_transfer_status_payload(
     processing_decision: str,
 ) -> dict[str, str]:
     if str(job.resource_kind) == "video":
-        resource_hash = str(job.video_file.video_hash)
+        resource_hash = str(job.video_file.raw_video_hash)
         processed_media_hash = str(job.video_file.processed_video_hash)
     else:
         resource_hash = str(job.raw_pdf_file.pdf_hash)

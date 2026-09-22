@@ -202,10 +202,9 @@ def test_connection_cleanup_failure_does_not_duplicate_checks(healthy, monkeypat
     assert len({item.key for item in snapshot.checks}) == len(snapshot.checks)
 
 
-def test_packaged_resources_use_public_integrity_api(settings, monkeypatch):
+def test_packaged_resources_use_public_integrity_api(monkeypatch):
     import lx_dtypes.knowledge_bases as resources
 
-    settings.LX_DTYPES_KB_REGISTRY = ""
     descriptor = SimpleNamespace(
         module_name="star_upper_gi",
         version="1.0.0",
@@ -217,10 +216,9 @@ def test_packaged_resources_use_public_integrity_api(settings, monkeypatch):
     )
     service._verified_packaged_resources.cache_clear()
     try:
-        result = service.knowledge_base_check(timezone.now())
-        assert result.status == "ok"
+        result = service._verified_packaged_resources("", (0, 0), None, 0)
         descriptor.verified_resource_directory.assert_called_once_with()
-        assert result.metadata["selection"] == "packaged_defaults"
+        assert result["selection"] == "packaged_defaults"
     finally:
         service._verified_packaged_resources.cache_clear()
 
@@ -232,7 +230,13 @@ def test_custom_resource_configuration_is_not_reported_as_packaged_healthy(
 
     registry_file = tmp_path / "registry.json"
     registry_file.write_text("{}")
-    settings.LX_DTYPES_KB_REGISTRY = str(registry_file)
+    from lx_dtypes.terminology.terminology_service import TerminologyService
+
+    monkeypatch.setattr(
+        service,
+        "get_terminology_service",
+        lambda: TerminologyService(registry_path=registry_file),
+    )
     payload = registry.RegistryPayload.model_validate(
         {
             "active": {"module_name": "custom", "version": "1.0"},

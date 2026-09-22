@@ -23,6 +23,7 @@ from endoreg_db.utils.filesystem.file_operations import (
     atomic_create_file,
     safe_unlink_file,
 )
+from endoreg_db.utils.paths import get_runtime_paths
 from endoreg_db.utils.storage_streaming import field_file_size, iter_field_file_bytes
 from lx_dtypes.models.contracts.hub_media_envelope import HubMediaEnvelopeMetadata
 from pydantic import BaseModel, ConfigDict, Field
@@ -89,9 +90,7 @@ class HubExportEnvelopeConfig:
 
 
 def resolve_hub_export_envelope_config() -> HubExportEnvelopeConfig:
-    protected_root = Path(
-        str(getattr(settings, "LX_ANNOTATE_ENCRYPTED_DATA_DIR", "") or ""),
-    ).expanduser()
+    protected_root = get_runtime_paths().runtime_root
     configured_staging = Path(
         str(getattr(settings, "LX_ANNOTATE_HUB_EXPORT_ENVELOPE_STAGING_DIR", "") or ""),
     ).expanduser()
@@ -118,8 +117,7 @@ def resolve_hub_export_envelope_config() -> HubExportEnvelopeConfig:
         staging.relative_to(protected_root)
     except ValueError as exc:
         raise ValueError(
-            "Hub envelope staging directory must be inside "
-            "LX_ANNOTATE_ENCRYPTED_DATA_DIR.",
+            "Hub envelope staging directory must be inside LX_RUNTIME_ROOT.",
         ) from exc
     if staging.exists() and (staging.is_symlink() or not staging.is_dir()):
         raise ValueError("Hub envelope staging path must be a non-symlink directory.")

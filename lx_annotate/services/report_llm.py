@@ -237,13 +237,14 @@ def check_model(config: LlmConfig) -> None:
 
 
 def resolve_graph(reference: GraphReference) -> ExaminationReportingContext:
-    # Reuse the same governed loader and graph builder as the lx-dtypes API.
-    from lx_dtypes.django.api.main import _load_module_kb
+    from lx_dtypes.terminology.lookup_tracker import register_runtime_lookup_tracker
+    from lx_dtypes.terminology.terminology_loader import load_module_kb
 
-    kb = _load_module_kb(
+    kb = load_module_kb(
         reference.identity.knowledge_base_module,
         version=reference.identity.knowledge_base_version,
     )
+    register_runtime_lookup_tracker(kb)
     snapshot = build_knowledge_base_graph_snapshot(kb, identity=reference.identity)
     graph = build_examination_reporting_context(
         snapshot, examination_name=reference.examination_name

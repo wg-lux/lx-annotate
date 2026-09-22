@@ -16,12 +16,14 @@ from endoreg_db.config.env import (
     get_hub_transfer_recipient_private_key_files,
     get_hub_transfer_require_root_owned_private_keys,
 )
-from endoreg_db.utils.file_operations import ensure_directory
+from endoreg_db.config.identity_hashing import load_identity_salt
+from endoreg_db.utils.paths import get_runtime_paths
 from kombu import Exchange, Queue
 
-from lx_annotate.settings.config import load_config
+from lx_annotate.settings.config import load_config, load_runtime_environment
 
 logger = getLogger(__name__)
+DJANGO_SALT = load_identity_salt()
 
 # Share the deployed report-import provider contract and its existing defaults.
 REPORTING_LLM = {
@@ -52,142 +54,21 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 BASE_DIR = REPO_ROOT
 
 
-def _resolve_runtime_data_dir() -> Path:
-    encrypted_dir = os.getenv("LX_ANNOTATE_ENCRYPTED_DATA_DIR", "").strip()
-    logical_data_dir = os.getenv("LX_ANNOTATE_DATA_DIR", "").strip()
-    legacy_data_dir = os.getenv("DATA_DIR", "").strip()
-    xdg_home = Path(os.getenv("XDG_DATA_HOME", Path.home() / ".local" / "share"))
-    for raw_candidate in (encrypted_dir, logical_data_dir, legacy_data_dir):
-        if raw_candidate:
-            return Path(raw_candidate).expanduser().resolve()
-    return (xdg_home / "lx-annotate").expanduser().resolve()
-
-
-# XDG Data Logic -> Root Data Directory support
-XDG_DATA_HOME = Path(os.getenv("XDG_DATA_HOME", Path.home() / ".local" / "share"))
-APP_DATA_DIR = _resolve_runtime_data_dir()
-LX_ANNOTATE_ENCRYPTED_DATA_DIR = str(APP_DATA_DIR)
-ensure_directory(APP_DATA_DIR)
-APP_STORAGE_DIR = APP_DATA_DIR / "storage"
-ensure_directory(APP_STORAGE_DIR)
-
-LX_DTYPES_TERMINOLOGY_IMPORT_ROOT = (
-    Path(
-        os.getenv(
-            "LX_DTYPES_TERMINOLOGY_IMPORT_ROOT",
-            str(APP_DATA_DIR / "terminology" / "packages"),
-        ),
-    )
-    .expanduser()
-    .resolve()
-)
-ensure_directory(LX_DTYPES_TERMINOLOGY_IMPORT_ROOT)
-
-PROTECTED_MEDIA_URL = (
-    str(os.getenv("NGINX_PROTECTED_MEDIA_URL", "/protected_media/") or "").strip()
-    or "/protected_media/"
-)
-_configured_protected_media_root = str(
-    os.getenv("PROTECTED_MEDIA_ROOT", str(APP_STORAGE_DIR)) or "",
-).strip() or str(APP_STORAGE_DIR)
-PROTECTED_MEDIA_ROOT = Path(_configured_protected_media_root).expanduser().resolve()
-try:
-    PROTECTED_MEDIA_ROOT.relative_to(APP_DATA_DIR)
-except ValueError:
-    logger.warning(
-        "Configured PROTECTED_MEDIA_ROOT '%s' resolves outside protected root '%s'. "
-        "Falling back to '%s'.",
-        PROTECTED_MEDIA_ROOT,
-        APP_DATA_DIR,
-        APP_STORAGE_DIR,
-    )
-    PROTECTED_MEDIA_ROOT = APP_STORAGE_DIR.resolve()
-ensure_directory(PROTECTED_MEDIA_ROOT)
-
-STREAMABLE_VIDEO_ROOT = (
-    Path(
-        os.getenv(
-            "LX_ANNOTATE_STREAMABLE_VIDEO_ROOT",
-            str(APP_STORAGE_DIR / "streamable_videos"),
-        ),
-    )
-    .expanduser()
-    .resolve()
-)
-STREAMABLE_RAW_VIDEO_ROOT = (
-    Path(
-        os.getenv(
-            "LX_ANNOTATE_STREAMABLE_VIDEO_RAW_ROOT",
-            str(STREAMABLE_VIDEO_ROOT / "raw"),
-        ),
-    )
-    .expanduser()
-    .resolve()
-)
-STREAMABLE_PROCESSED_VIDEO_ROOT = (
-    Path(
-        os.getenv(
-            "LX_ANNOTATE_STREAMABLE_VIDEO_PROCESSED_ROOT",
-            str(STREAMABLE_VIDEO_ROOT / "processed"),
-        ),
-    )
-    .expanduser()
-    .resolve()
-)
-for _path in (
-    STREAMABLE_VIDEO_ROOT,
-    STREAMABLE_RAW_VIDEO_ROOT,
-    STREAMABLE_PROCESSED_VIDEO_ROOT,
-):
-    ensure_directory(_path)
-
-# Defaults for safe dev settings and fallback in case of non expected service deployment
-os.environ.setdefault("LX_ANNOTATE_DATA_DIR", str(APP_DATA_DIR))
-os.environ.setdefault("DATA_DIR", str(APP_DATA_DIR))
-os.environ.setdefault("LX_ANNOTATE_ENCRYPTED_DATA_DIR", str(APP_DATA_DIR))
-os.environ.setdefault("STORAGE_DIR", str(APP_STORAGE_DIR))
-os.environ.setdefault(
-    "LX_DTYPES_TERMINOLOGY_IMPORT_ROOT",
-    str(LX_DTYPES_TERMINOLOGY_IMPORT_ROOT),
-)
-os.environ.setdefault("NGINX_PROTECTED_MEDIA_URL", PROTECTED_MEDIA_URL)
-os.environ["PROTECTED_MEDIA_ROOT"] = str(PROTECTED_MEDIA_ROOT)
-os.environ.setdefault("LX_ANNOTATE_STREAMABLE_VIDEO_ROOT", str(STREAMABLE_VIDEO_ROOT))
-os.environ.setdefault(
-    "LX_ANNOTATE_STREAMABLE_VIDEO_RAW_ROOT",
-    str(STREAMABLE_RAW_VIDEO_ROOT),
-)
-os.environ.setdefault(
-    "LX_ANNOTATE_STREAMABLE_VIDEO_PROCESSED_ROOT",
-    str(STREAMABLE_PROCESSED_VIDEO_ROOT),
-)
-
-# Config Loading Strategy:
-# 1. Look in User Data Dir (~/.local/share/...)
-# 2. Look in Repo Root (.env)
-# 3. Fallback to Environment Variables
-
-
 _settings_module = os.getenv("DJANGO_SETTINGS_MODULE", "")
 _is_dev_settings = _settings_module.endswith("settings_dev")
-if not _is_dev_settings:
-    _env_candidates = []
-    if APP_DATA_DIR.name == "data":
-        _env_candidates.append(APP_DATA_DIR.parent / ".env.systemd")
-    _env_candidates.extend(
-        [
-            APP_DATA_DIR / ".env.systemd",
-            BASE_DIR / ".env.systemd",
-        ],
-    )
-    _env_path = next(
-        (candidate for candidate in _env_candidates if candidate.exists()),
-        _env_candidates[0],
-    )
-else:
-    _env_path = BASE_DIR / ".env"
-    if not _env_path.exists():
-        _env_path = APP_DATA_DIR / ".env"
+_env_path = load_runtime_environment(REPO_ROOT)
+_runtime_paths = get_runtime_paths()
+TERMINOLOGY_ROOT = _runtime_paths.terminology
+PROTECTED_MEDIA_ROOT = _runtime_paths.storage
+STREAMABLE_VIDEO_ROOT = _runtime_paths.streamable_videos_root
+STREAMABLE_RAW_VIDEO_ROOT = _runtime_paths.streamable_videos_raw_media
+STREAMABLE_PROCESSED_VIDEO_ROOT = _runtime_paths.streamable_videos_processed_media
+PROTECTED_MEDIA_URL = os.getenv("NGINX_PROTECTED_MEDIA_URL", "/protected_media/")
+_runtime_paths.ensure_directories()
+
+# Optional: the AppConfig implementation defaults this to True.
+TERMINOLOGY_AUTO_PROVISION = True
+
 
 config = load_config(env_file=Path(_env_path))
 
@@ -317,7 +198,7 @@ LX_ANNOTATE_HUB_EXPORT_RECIPIENT_PUBLIC_KEY_FILE = str(
 LX_ANNOTATE_HUB_EXPORT_ENVELOPE_STAGING_DIR = str(
     os.getenv(
         "LX_ANNOTATE_HUB_EXPORT_ENVELOPE_STAGING_DIR",
-        str(APP_DATA_DIR / "hub-export-envelopes"),
+        str(_runtime_paths.runtime_root / "hub-export-envelopes"),
     )
     or "",
 ).strip()
@@ -351,7 +232,7 @@ LX_ANNOTATE_HUB_EXPORT_LOCAL_CLEANUP_POLICY = str(
     )
     or "retain_processed_media",
 ).strip()
-CELERY_BROKER_URL = str(os.getenv("CELERY_BROKER_URL", "") or "").strip()
+CELERY_BROKER_URL = config.celery_broker_url.strip()
 CELERY_RESULT_BACKEND = None
 CELERY_TASK_IGNORE_RESULT = True
 _CELERY_MINIMUM_VISIBILITY_TIMEOUT_SECONDS = max(
@@ -844,7 +725,7 @@ TEMPLATES = [
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "NAME": _runtime_paths.runtime_root / "db.sqlite3",
     },
 }
 
@@ -856,7 +737,7 @@ STATIC_URL = "/static/"
 
 # DESTINATION: Where 'collectstatic' copies files TO (Production serving folder)
 # Keep as string because Django settings expect STATIC_ROOT to be a string.
-STATIC_ROOT = str(REPO_ROOT / "staticfiles")
+STATIC_ROOT = str(config.static_root)
 # SOURCES: Where Django looks for files to collect
 STATICFILES_DIRS = [
     # Root source directory so /static/* and /static/assets/* resolve correctly.
@@ -889,7 +770,7 @@ STORAGES = {
 }
 
 if _is_non_dev_central_hub_profile():
-    _require_env_var("LX_ANNOTATE_ENCRYPTED_DATA_DIR")
+    _require_env_var("LX_RUNTIME_ROOT")
     _require_env_var("DJANGO_DB_NAME", "DATABASE_URL")
 
 # -----------------------------------------------------------------------------

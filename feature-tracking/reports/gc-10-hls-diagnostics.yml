@@ -1,4 +1,54 @@
 schema_version: '1.0'
+overview_recovery_20260917:
+  assessor: astra-hls-recovery-20260917
+  host: gc-10
+  scope: User narrowed recovery to showing currently usable video 53 correctly; database writes explicitly authorized.
+  deployed_versions: {lx-annotate: 1.2.5, endoreg-db: 1.2.7}
+  root_cause: >-
+    Installed endoreg_db.serializers.misc.file_overview._current_overview_hls_artifacts selects
+    the latest updated_at per kind. Historical failed replacements 202 (processed) and 171 (raw)
+    were newer than valid published artifacts 75 and 55, respectively.
+  mutation:
+    operation: ORM save(update_fields=['updated_at']) after resolver verification, inside transaction.atomic with video and artifact row locks.
+    video_id: 53
+    artifacts:
+      - id: 75
+        kind: processed
+        unchanged_status: ready
+        segment_count: 908
+        before_updated_at: '2026-09-09T08:14:06.517562+00:00'
+        after_updated_at: '2026-09-17T09:31:46.023079+00:00'
+      - id: 55
+        kind: raw
+        unchanged_status: ready
+        segment_count: 727
+        before_updated_at: '2026-09-09T08:20:20.033657+00:00'
+        after_updated_at: '2026-09-17T09:31:46.024937+00:00'
+    preserved: Media, generations, failed-attempt history, annotations, video fields, and clinical validation decisions.
+    services_restarted: []
+    code_deployed: false
+  verification:
+    - Installed get_ready_hls_artifact passed current-source identity and generation path checks for both kinds before mutation and again under the transaction locks.
+    - No active replacement attempt existed for video 53 at mutation time.
+    - Installed FileOverviewSerializer._hls_materializations returned processed=ready and raw=ready after the updates.
+    - Full VideoFile serialization was unchanged within the transaction.
+    - A fresh read-only runtime process confirmed persisted overview statuses processed=ready (908 segments) and raw=ready (727 segments).
+    - Browser playback, seeking, and annotation persistence were not tested in this narrowed recovery.
+  protected_receipts: /var/lib/lx-annotate/data/operations/hls-recovery-20260917/video53-overview-20260917T093145Z-{before,after}.json
+  journal_tag: lx-annotate-hls-recovery
+  rollback: >-
+    In a transaction, lock video 53 and artifacts 75/55. Only if each updated_at still equals
+    the recorded after value, restore its recorded before value with a conditional ORM update.
+    Do not overwrite subsequent updates. This restores the incorrect overview selection as well.
+  permanent_fix_required: >-
+    Prefer a validated published generation matching the current source and required artifact kind
+    over historical/replacement failures through shared backend identity logic, without media scans
+    in overview GETs. The timestamp refresh is a temporary workaround and a later failed attempt can
+    mask readiness again. Prior local backend drafts remain untested and undeployed.
+  remaining:
+    - Videos 44 and 50 processed HLS failures are not repaired by this change.
+    - The backfill timer paused in the earlier investigation was already active again at the start of this narrowed task; it was not changed in this task.
+    - lx-annotate tracker inbox and readiness commands remain blocked by the unrelated invalid feature-tracking/lx-annotate-downtime-triggers.yml schema.
 incident: gc-10 web unresponsive and HLS materialization backlog
 observed_at: '2026-09-09T09:17:00+02:00'
 assessor: codex-gc10-hls-20260909

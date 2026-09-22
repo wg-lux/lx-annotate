@@ -39,7 +39,7 @@ class OutboundHubTransferJobTests(TestCase):
         self.user = User.objects.create(username="operator")
         self.video = VideoFile.objects.create(
             center=self.center,
-            video_hash="video-hash-1",
+            raw_video_hash="video-hash-1",
             original_file_name="video-1.mp4",
         )
         self.report = RawPdfFile.objects.create(

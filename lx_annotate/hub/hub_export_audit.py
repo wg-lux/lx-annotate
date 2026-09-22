@@ -65,7 +65,7 @@ def emit_hub_export_audit_event(event: str, **payload: Any) -> None:
         resource_hash = ""
         if outbound_job.video_file_id is not None:
             body.setdefault("resource_id", int(outbound_job.video_file_id))
-            resource_hash = str(outbound_job.video_file.video_hash or "")
+            resource_hash = str(outbound_job.video_file.raw_video_hash or "")
         if outbound_job.raw_pdf_file_id is not None:
             body.setdefault("resource_id", int(outbound_job.raw_pdf_file_id))
             resource_hash = str(outbound_job.raw_pdf_file.pdf_hash or "")

@@ -8,6 +8,113 @@ from lx_annotate.settings import config
 
 
 @pytest.mark.parametrize(
+    "engine", ["django.db.backends.postgresql", "django.db.backends.sqlite3"]
+)
+def test_dev_database_preserves_configured_connection(engine, tmp_path, monkeypatch):
+    import runpy
+
+    from lx_annotate.settings import settings_base
+
+    database_config = config.AppConfig(
+        db_engine=engine,
+        db_name="configured-database",
+        db_user="configured-user",
+        db_password="test-only-password",
+        db_host="db.example.test",
+        db_port="5434",
+        db_sslmode="verify-full",
+        static_root=tmp_path,
+    )
+    monkeypatch.setattr(settings_base, "config", database_config)
+    monkeypatch.setenv("ENFORCE_AUTH", "0")
+    module = runpy.run_module("lx_annotate.settings.settings_dev")
+    database = module["DATABASES"]["default"]
+    assert database["ENGINE"] == engine
+    assert database["NAME"] == "configured-database"
+    if engine == "django.db.backends.postgresql":
+        assert database["USER"] == "configured-user"
+        assert database["PASSWORD"] == "test-only-password"
+        assert database["HOST"] == "db.example.test"
+        assert database["PORT"] == "5434"
+        assert database["OPTIONS"] == {"sslmode": "verify-full"}
+    else:
+        assert "OPTIONS" not in database
+        assert "HOST" not in database
+
+
+def test_runtime_root_loaded_before_endoreg_path_resolution(tmp_path, monkeypatch):
+    from endoreg_db.utils.paths import clear_runtime_paths_cache, get_runtime_paths
+
+    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
+    monkeypatch.delenv("LX_RUNTIME_ROOT", raising=False)
+    root = tmp_path / "runtime"
+    env_file = tmp_path / ".env.systemd"
+    env_file.write_text(f'LX_RUNTIME_ROOT="{root}"\n', encoding="utf-8")
+    clear_runtime_paths_cache()
+    try:
+        assert config.load_runtime_environment(tmp_path) == env_file
+        assert get_runtime_paths().runtime_root == root
+        assert get_runtime_paths().storage == root / "storage"
+    finally:
+        clear_runtime_paths_cache()
+
+
+@pytest.mark.parametrize("value", ["relative/data", ""])
+def test_runtime_root_rejects_invalid_production_configuration(
+    tmp_path, monkeypatch, value
+):
+    from endoreg_db.config.env import EnvironmentValueError, get_runtime_root
+
+    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
+    monkeypatch.setenv("LX_RUNTIME_ROOT", value)
+    config.load_runtime_environment(tmp_path)
+    with pytest.raises(EnvironmentValueError, match="LX_RUNTIME_ROOT"):
+        get_runtime_root()
+
+
+def test_runtime_root_environment_wins_over_file_and_legacy_aliases(
+    tmp_path, monkeypatch
+):
+    from endoreg_db.config.env import get_runtime_root
+
+    root = tmp_path / "selected"
+    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_dev")
+    monkeypatch.setenv("LX_RUNTIME_ROOT", str(root))
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "legacy"))
+    monkeypatch.setenv("LX_ANNOTATE_ENCRYPTED_DATA_DIR", str(tmp_path / "legacy"))
+    (tmp_path / ".env").write_text(f"LX_RUNTIME_ROOT={tmp_path / 'other'}\n")
+    config.load_runtime_environment(tmp_path)
+    assert get_runtime_root() == root
+
+
+def test_legacy_root_does_not_supply_missing_production_root(tmp_path, monkeypatch):
+    from endoreg_db.config.env import EnvironmentValueError, get_runtime_root
+
+    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
+    monkeypatch.delenv("LX_RUNTIME_ROOT", raising=False)
+    monkeypatch.setenv("LX_ANNOTATE_ENCRYPTED_DATA_DIR", str(tmp_path))
+    config.load_runtime_environment(tmp_path)
+    with pytest.raises(EnvironmentValueError, match="LX_RUNTIME_ROOT"):
+        get_runtime_root()
+
+
+def test_django_runtime_paths_use_endoreg_topology() -> None:
+    from django.conf import settings
+    from endoreg_db.utils.paths import get_runtime_paths
+
+    paths = get_runtime_paths()
+    for setting, expected in {
+        "PROTECTED_MEDIA_ROOT": paths.storage,
+        "MEDIA_ROOT": paths.storage,
+        "TERMINOLOGY_ROOT": paths.terminology,
+        "STREAMABLE_VIDEO_ROOT": paths.streamable_videos_root,
+        "STREAMABLE_RAW_VIDEO_ROOT": paths.streamable_videos_raw_media,
+        "STREAMABLE_PROCESSED_VIDEO_ROOT": paths.streamable_videos_processed_media,
+    }.items():
+        assert getattr(settings, setting) == expected
+
+
+@pytest.mark.parametrize(
     ("raw", "expected"),
     [
         ("", []),
@@ -149,18 +256,20 @@ def test_default_allowed_hosts_honors_legacy_environment(monkeypatch) -> None:
     [
         ({"DJANGO_STATIC_ROOT": "/srv/explicit"}, Path("/srv/explicit")),
         (
-            {"LX_ANNOTATE_DATA_DIR": "/srv/runtime/data"},
-            Path("/srv/runtime/staticfiles"),
+            {"LX_RUNTIME_ROOT": "/srv/runtime/data"},
+            Path("/srv/runtime/data/staticfiles"),
         ),
-        ({"DATA_DIR": "/srv/runtime"}, Path("/srv/runtime/staticfiles")),
-        ({}, Path("staticfiles")),
+        ({"LX_RUNTIME_ROOT": "/srv/runtime"}, Path("/srv/runtime/staticfiles")),
     ],
 )
 def test_default_static_root_follows_runtime_path_precedence(
     monkeypatch, environment: dict[str, str], expected: Path
 ) -> None:
+    from endoreg_db.utils.paths import clear_runtime_paths_cache
+
     for name in (
         "DJANGO_STATIC_ROOT",
+        "LX_RUNTIME_ROOT",
         "LX_ANNOTATE_DATA_DIR",
         "LX_ANNOTATE_ENCRYPTED_DATA_DIR",
         "DATA_DIR",
@@ -169,4 +278,8 @@ def test_default_static_root_follows_runtime_path_precedence(
     for name, value in environment.items():
         monkeypatch.setenv(name, value)
 
-    assert config._default_static_root() == expected
+    clear_runtime_paths_cache()
+    try:
+        assert config._default_static_root() == expected
+    finally:
+        clear_runtime_paths_cache()

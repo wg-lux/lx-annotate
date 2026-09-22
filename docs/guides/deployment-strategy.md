@@ -118,14 +118,17 @@ The runtime split is deliberate:
 This keeps the patient-data boundary clean for encrypted storage and future
 mount-level access controls.
 
-The canonical host-owned runtime variable for that boundary is
-`LX_ANNOTATE_ENCRYPTED_DATA_DIR`. `LX_ANNOTATE_DATA_DIR` and `DATA_DIR` are
-app-owned compatibility aliases derived from that root for older code paths.
+The rewritten endoreg-db requires the host-owned `LX_RUNTIME_ROOT` to be an
+absolute path to that protected data root. LuxNix derives it from
+`runtime.encryptedDataDir`, alongside `LX_ANNOTATE_ENCRYPTED_DATA_DIR`.
+`LX_ANNOTATE_DATA_DIR` and `DATA_DIR` remain compatibility aliases for older
+code paths; they do not configure the current endoreg-db runtime root.
 
 The runtime path variables currently mean:
 
-- `LX_ANNOTATE_ENCRYPTED_DATA_DIR`: canonical protected runtime root. This is
-  the primary path boundary for patient data and service-managed runtime state.
+- `LX_RUNTIME_ROOT`: canonical protected runtime root consumed by endoreg-db.
+- `LX_ANNOTATE_ENCRYPTED_DATA_DIR`: deployment compatibility handle for the same
+  protected root; keep it equal to `LX_RUNTIME_ROOT`.
 - `LX_ANNOTATE_DATA_DIR`: compatibility alias for the same protected runtime
   root.
 - `DATA_DIR`: legacy compatibility alias for the protected runtime root. New
@@ -137,7 +140,8 @@ The runtime path variables currently mean:
 
 
 When documenting or wiring new deployment code, write
-`LX_ANNOTATE_ENCRYPTED_DATA_DIR` from the host and let lx-annotate derive
+`LX_RUNTIME_ROOT` and the matching `LX_ANNOTATE_ENCRYPTED_DATA_DIR` from the host
+and let lx-annotate derive
 `STORAGE_DIR`, `PROTECTED_MEDIA_ROOT`, and streamable-video roots instead of
 inventing independent roots.
 
@@ -466,37 +470,23 @@ module's `Diagnostics.md`.
 
 ## Data Recovery Unit
 
-Some deployments also run a one-shot `systemd` unit named
-`lx-annotate-data-recovery.service` before or during cutover from a legacy
-repo-local layout to the runtime state layout under `/var/lib/lx-annotate`.
+Runtime paths come from `endoreg_db.utils.paths.get_runtime_paths()` and the
+single `LX_RUNTIME_ROOT` setting. Video and PDF media share the central filename
+policy; temporary media stays below the model's `transcoding` directory.
 
-This repository does not currently ship that unit file directly, but the
-behavior matches `scripts/migrate_data_dir.py`:
+`scripts/migrate_data_dir.py` is a compatibility entrypoint for
+`manage.py migrate_media_storage`. It accepts that command's arguments, defaults
+to a dry run, and requires `--apply` plus the existing migration approvals for
+changes. Legacy `--target`, `--repo-root`, and `--allow-merge` arguments are removed.
+The command reconciles stored references and probable legacy filenames, rejects
+ambiguous content, and retains source files unless verified deletion is explicitly
+requested and permitted. The LuxNix streamable-migration service delegates to the
+same video/PDF command.
 
-- source tree: legacy repository-local `./data`, for example
-  `/var/endoreg-service-user/lx-annotate/data`
-- target tree: canonical runtime data directory, typically
-  `/var/lib/lx-annotate/data`
-- env handoff: target `.env.systemd` at `/var/lib/lx-annotate/.env.systemd`
-
-In `--allow-merge` mode, the migration script:
-
-- copies source entries that do not already exist in the target
-- skips target paths that already exist, logging a warning
-- leaves the existing target `.env.systemd` in place as the source of truth
-- does not delete the legacy source tree in that merge mode
-
-That matches journal lines such as:
-
-- `copying .../data/reports -> /var/lib/lx-annotate/data/reports`
-- `WARNING: destination already exists, skipping: .../sensitive_reports`
-- `target env file already exists, leaving as source of truth: /var/lib/lx-annotate/.env.systemd`
-
-If an operator-side wrapper also writes a marker such as
-`/var/lib/lx-annotate/data/logs/data_recovery_complete`, that marker is outside
-the Python migration script itself. The script shipped here writes its own
-completion marker at `DATA_DIR/.migration-complete` when it performs a full
-migration rather than an allow-merge recovery run.
+The separate `recover_runtime_data` command accepts legacy source trees, preserves
+existing destination files, and then invokes canonical media reconciliation.
+Its target must equal `LX_RUNTIME_ROOT`; completion markers live under the model's
+`logs` directory. Neither entrypoint establishes production migration approval.
 
 ## Reverse Proxy Strategy
 

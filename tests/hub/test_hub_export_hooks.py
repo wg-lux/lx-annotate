@@ -116,7 +116,7 @@ class HubExportHookTests(TestCase):
         video = VideoFile.objects.create(
             center=self.center,
             state=video_state,
-            video_hash="video-hash-1",
+            raw_video_hash="video-hash-1",
             original_file_name="video-1.mp4",
             processed_file=ContentFile(
                 b"processed-video",
@@ -168,7 +168,7 @@ class HubExportHookTests(TestCase):
         video = VideoFile.objects.create(
             center=self.center,
             state=video_state,
-            video_hash="video-hash-cleanup-pending",
+            raw_video_hash="video-hash-cleanup-pending",
             original_file_name="video-cleanup-pending.mp4",
             processed_file=ContentFile(
                 b"processed-video",
@@ -206,7 +206,7 @@ class HubExportHookTests(TestCase):
         video = VideoFile.objects.create(
             center=self.center,
             state=video_state,
-            video_hash="video-hash-missing-transfer-hashes",
+            raw_video_hash="video-hash-missing-transfer-hashes",
             original_file_name="video-missing-transfer-hashes.mp4",
             processed_file=ContentFile(
                 b"processed-video",
@@ -238,7 +238,7 @@ class HubExportHookTests(TestCase):
         video = VideoFile.objects.create(
             center=self.center,
             state=video_state,
-            video_hash="video-hash-transfer-ready",
+            raw_video_hash="video-hash-transfer-ready",
             processed_video_hash=processed_hash,
             original_file_name="video-transfer-ready.mp4",
             processed_file=ContentFile(
@@ -248,7 +248,7 @@ class HubExportHookTests(TestCase):
         )
 
         with patch(
-            "lx_annotate.hub.hub_export_state.sha256_file",
+            "lx_annotate.hub.hub_export_state.get_file_hash",
             side_effect=AssertionError("overview must not hash processed media"),
         ):
             overview = build_hub_export_overview(target_node=self.hub_node)
@@ -276,7 +276,7 @@ class HubExportHookTests(TestCase):
         video = VideoFile.objects.create(
             center=self.center,
             state=video_state,
-            video_hash="video-hash-metadata-mismatch-overview",
+            raw_video_hash="video-hash-metadata-mismatch-overview",
             processed_video_hash="b" * 64,
             original_file_name="video-metadata-mismatch-overview.mp4",
             processed_file=ContentFile(
@@ -316,7 +316,7 @@ class HubExportHookTests(TestCase):
         video = VideoFile.objects.create(
             center=self.center,
             state=video_state,
-            video_hash="video-hash-physical-mismatch-overview",
+            raw_video_hash="video-hash-physical-mismatch-overview",
             processed_video_hash=persisted_hash,
             original_file_name="video-physical-mismatch-overview.mp4",
             processed_file=ContentFile(
@@ -353,7 +353,7 @@ class HubExportHookTests(TestCase):
         video = VideoFile.objects.create(
             center=self.center,
             state=video_state,
-            video_hash="video-hash-not-ready",
+            raw_video_hash="video-hash-not-ready",
             original_file_name="video-not-ready.mp4",
         )
 

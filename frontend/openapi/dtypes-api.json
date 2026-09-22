@@ -1,6 +1,36 @@
 {
   "components": {
     "schemas": {
+      "ImportTerminologyBundleResponse": {
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "imported": {
+            "$ref": "#/components/schemas/TerminologyBundleVersion"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "revision",
+          "imported",
+          "counts"
+        ],
+        "title": "ImportTerminologyBundleResponse",
+        "type": "object"
+      },
       "PExamination": {
         "additionalProperties": false,
         "properties": {
@@ -1245,6 +1275,102 @@
         ],
         "title": "SelectTerminologyBundleRequest",
         "type": "object"
+      },
+      "SelectTerminologyBundleResponse": {
+        "properties": {
+          "active": {
+            "$ref": "#/components/schemas/TerminologyBundleVersion"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "revision",
+          "active",
+          "counts"
+        ],
+        "title": "SelectTerminologyBundleResponse",
+        "type": "object"
+      },
+      "TerminologyBundleListResponse": {
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TerminologyBundleVersion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bundles": {
+            "items": {
+              "$ref": "#/components/schemas/TerminologyBundleVersion"
+            },
+            "title": "Bundles",
+            "type": "array"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision",
+          "active",
+          "bundles"
+        ],
+        "title": "TerminologyBundleListResponse",
+        "type": "object"
+      },
+      "TerminologyBundleVersion": {
+        "properties": {
+          "is_active": {
+            "default": false,
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "medical_field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medical Field"
+          },
+          "module_name": {
+            "title": "Module Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "module_name",
+          "version"
+        ],
+        "title": "TerminologyBundleVersion",
+        "type": "object"
       }
     }
   },
@@ -1337,6 +1463,22 @@
             "schema": {
               "title": "Module Name",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "module_version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Module Version"
             }
           }
         ],
@@ -2336,6 +2478,15 @@
         "parameters": [],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response",
+                  "type": "object"
+                }
+              }
+            },
             "description": "OK"
           }
         },
@@ -2348,6 +2499,13 @@
         "parameters": [],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerminologyBundleListResponse"
+                }
+              }
+            },
             "description": "OK"
           }
         },
@@ -2381,6 +2539,13 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportTerminologyBundleResponse"
+                }
+              }
+            },
             "description": "OK"
           }
         },
@@ -2403,6 +2568,13 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SelectTerminologyBundleResponse"
+                }
+              }
+            },
             "description": "OK"
           }
         },
@@ -2434,6 +2606,15 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response",
+                  "type": "object"
+                }
+              }
+            },
             "description": "OK"
           }
         },

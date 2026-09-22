@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from django.conf import settings
+from endoreg_db.utils.paths import get_runtime_paths
 
 from .contracts import MonitoringConfiguration, StorageLocation
 
@@ -20,12 +21,11 @@ def load_configuration() -> tuple[MonitoringConfiguration, bool]:
         if len(content) > MAX_CONFIGURATION_BYTES:
             raise ValueError("Monitoring configuration exceeds its size limit")
         return MonitoringConfiguration.model_validate_json(content), True
+    paths = get_runtime_paths()
     return MonitoringConfiguration(
         storage=[
-            StorageLocation(key="protected_data", path=Path(settings.APP_DATA_DIR)),
-            StorageLocation(key="media", path=Path(settings.PROTECTED_MEDIA_ROOT)),
-            StorageLocation(
-                key="terminology", path=Path(settings.LX_DTYPES_TERMINOLOGY_IMPORT_ROOT)
-            ),
+            StorageLocation(key="protected_data", path=paths.runtime_root),
+            StorageLocation(key="media", path=paths.storage),
+            StorageLocation(key="terminology", path=paths.terminology),
         ]
     ), False

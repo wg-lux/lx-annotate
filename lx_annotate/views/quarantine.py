@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from django.conf import settings
 from django.utils import timezone
 from endoreg_db.authz.permissions import PolicyPermission
 from endoreg_db.models.hub.quarantine_item import QuarantineItem
 from endoreg_db.services.hub import resolve_allowed_center_id
+from endoreg_db.utils.paths import get_runtime_paths
 from endoreg_db.utils.permissions import EnvironmentAwarePermission
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -27,21 +26,12 @@ class QuarantineDirectory:
     path: Path
 
 
-def _configured_path(env_name: str, fallback: Path) -> Path:
-    configured = os.getenv(env_name, "").strip()
-    return Path(configured or fallback).expanduser().resolve(strict=False)
-
-
 def _quarantine_directories() -> list[QuarantineDirectory]:
-    app_data_dir = Path(settings.APP_DATA_DIR).expanduser().resolve(strict=False)
     return [
         QuarantineDirectory(
             key="lx_annotate_quarantine",
             label="lx-annotate quarantine",
-            path=_configured_path(
-                "LX_ANNOTATE_QUARANTINE_DIR",
-                app_data_dir / "quarantine",
-            ),
+            path=get_runtime_paths().quarantine,
         )
     ]
 

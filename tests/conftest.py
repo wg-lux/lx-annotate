@@ -6,6 +6,14 @@ import os
 import pytest
 
 
+@pytest.fixture(scope="session")
+def packaged_registry():
+    """Hydrate the test root configured before Django imports any API routes."""
+    from lx_dtypes.terminology.terminology_loader import hydrate_shipped_terminology
+
+    return hydrate_shipped_terminology()
+
+
 def pytest_configure(config):
     # This forces the environment variable to the test settings before
     # pytest-django starts looking for it.

@@ -2,22 +2,7 @@
 
 let
   pathString = value: toString value;
-  storageEnvironment =
-    dataDir:
-    let
-      dataRoot = pathString dataDir;
-      storageRoot = "${dataRoot}/storage";
-      streamableRoot = "${storageRoot}/streamable_videos";
-    in
-    {
-      DATA_DIR = dataRoot;
-      LX_ANNOTATE_DATA_DIR = dataRoot;
-      STORAGE_DIR = storageRoot;
-      PROTECTED_MEDIA_ROOT = storageRoot;
-      LX_ANNOTATE_STREAMABLE_VIDEO_ROOT = streamableRoot;
-      LX_ANNOTATE_STREAMABLE_VIDEO_RAW_ROOT = "${streamableRoot}/raw";
-      LX_ANNOTATE_STREAMABLE_VIDEO_PROCESSED_ROOT = "${streamableRoot}/processed";
-    };
+
 in
 {
   appOwnedEnvironmentVariables = [
@@ -26,13 +11,6 @@ in
     "DJANGO_ENV"
     "STATIC_URL"
     "MEDIA_URL"
-    "DATA_DIR"
-    "LX_ANNOTATE_DATA_DIR"
-    "STORAGE_DIR"
-    "PROTECTED_MEDIA_ROOT"
-    "LX_ANNOTATE_STREAMABLE_VIDEO_ROOT"
-    "LX_ANNOTATE_STREAMABLE_VIDEO_RAW_ROOT"
-    "LX_ANNOTATE_STREAMABLE_VIDEO_PROCESSED_ROOT"
     "NGINX_PROTECTED_MEDIA_URL"
     "SERVE_WITH_NGINX"
     "LX_DTYPES_HOST_MODELS_MODULE"
@@ -49,7 +27,7 @@ in
     "CONF_TEMPLATE_DIR"
     "WORKING_DIR"
     "ASSET_DIR"
-    "LX_ANNOTATE_ENCRYPTED_DATA_DIR"
+    "LX_RUNTIME_ROOT"
     "LX_ANNOTATE_MASTER_KEY_FILE"
     "XDG_DATA_HOME"
     "DJANGO_STATIC_ROOT"
@@ -68,6 +46,7 @@ in
     "DJANGO_CORS_ALLOWED_ORIGINS"
     "DJANGO_CSRF_TRUSTED_ORIGINS"
     "DJANGO_SECRET_KEY_FILE"
+    "DJANGO_SALT_FILE"
     "DJANGO_DB_PASSWORD_FILE"
     "DJANGO_KEYCLOAK_CLIENT_SECRET_FILE"
     "DJANGO_KEYCLOAK_CLIENT_ID"
@@ -136,9 +115,6 @@ in
     "LLM_BASE_URL"
     "LLM_MODEL"
     "LLM_TIMEOUT"
-    "WATCHER_VIDEO_DIR"
-    "WATCHER_REPORT_DIR"
-    "WATCHER_PREANONYMIZED_DIR"
     "FFMPEG_TRANSCODE_TIMEOUT_SECONDS"
     "TESSDATA_PREFIX"
     "PYTORCH_ALLOC_CONF"
@@ -157,8 +133,7 @@ in
       mediaUrl ? protectedMediaUrl,
       serveWithNginx ? "true",
     }:
-    storageEnvironment dataDir
-    // {
+    {
       DJANGO_SETTINGS_MODULE = settingsModule;
       DJANGO_SETTINGS_MODULE_PRODUCTION = "lx_annotate.settings.settings_prod";
       DJANGO_ENV = djangoEnv;
@@ -168,7 +143,7 @@ in
       SERVE_WITH_NGINX = serveWithNginx;
       LX_DTYPES_HOST_MODELS_MODULE = "endoreg_db.integrations.lx_dtypes_host_models";
       LX_DTYPES_KB_REGISTRY = "${pathString dataDir}/terminology/registry.json";
-      LX_DTYPES_TERMINOLOGY_IMPORT_ROOT = "${pathString dataDir}/terminology/packages";
+      LX_DTYPES_TERMINOLOGY_IMPORT_ROOT = "${pathString dataDir}/terminology";
     };
 
   mkHostOwnedEnvironment =
@@ -182,7 +157,7 @@ in
       extra ? { },
     }:
     {
-      LX_ANNOTATE_ENCRYPTED_DATA_DIR = pathString encryptedDataDir;
+      LX_RUNTIME_ROOT = pathString encryptedDataDir;
       DJANGO_HOST = host;
       DJANGO_PORT = toString port;
       ENDOREG_DEPLOYMENT_ROLE = deploymentRole;

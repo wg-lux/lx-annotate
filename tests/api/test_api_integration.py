@@ -437,7 +437,7 @@ class VideoLabelAPITests(APIIntegrationTestCase):
         self.video = VideoFile.objects.create(
             original_file_name="test_video.mp4",
             center=self.center,
-            video_hash="test_hash_456",
+            raw_video_hash="test_hash_456",
         )
 
         # Label erstellen
@@ -562,7 +562,7 @@ class VideoStreamingFixedTests(APIIntegrationTestCase):
         self.video = VideoFile.objects.create(
             original_file_name="stream_test.mp4",
             center=self.center,
-            video_hash="stream_hash_789",
+            raw_video_hash="stream_hash_789",
         )
 
     def test_video_stream_view_with_proper_error_handling(self):
@@ -614,7 +614,7 @@ class VideoFileFixedTests(APIIntegrationTestCase):
         self.video = VideoFile.objects.create(
             original_file_name="test_video.mp4",
             center=self.center,
-            video_hash="test_hash_123",
+            raw_video_hash="test_hash_123",
         )
 
     def test_video_metadata_endpoint_with_error_handling(self):

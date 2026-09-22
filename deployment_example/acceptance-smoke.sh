@@ -16,13 +16,13 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 export DJANGO_SETTINGS_MODULE
-export LX_ANNOTATE_ENCRYPTED_DATA_DIR="${LX_ANNOTATE_ENCRYPTED_DATA_DIR:-/var/lib/lx-annotate/data}"
+export LX_RUNTIME_ROOT="${LX_RUNTIME_ROOT:-/var/lib/lx-annotate/data}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$STATE_DIR}"
 export DJANGO_STATIC_ROOT="${DJANGO_STATIC_ROOT:-/var/lib/lx-annotate/staticfiles}"
 export WORKING_DIR="${WORKING_DIR:-$APP_DIR}"
 export HOME_DIR="${HOME_DIR:-$APP_DIR}"
 
-storage_dir="$LX_ANNOTATE_ENCRYPTED_DATA_DIR/storage"
+storage_dir="$LX_RUNTIME_ROOT/storage"
 streamable_video_root="$storage_dir/streamable_videos"
 
 mkdir -p \

@@ -15,6 +15,15 @@ import pytest
 pytestmark = [pytest.mark.django_db, pytest.mark.integration, pytest.mark.video]
 
 
+@pytest.fixture(autouse=True)
+def reset_runtime_paths():
+    from endoreg_db.utils.paths import clear_runtime_paths_cache
+
+    clear_runtime_paths_cache()
+    yield
+    clear_runtime_paths_cache()
+
+
 def _fsync_file(path: Path) -> None:
     with path.open("ab") as handle:
         handle.flush()
@@ -58,49 +67,19 @@ def _generate_ultrashort_mp4(path: Path) -> None:
 
 
 def _configure_isolated_runtime(monkeypatch, settings, tmp_path: Path):
-    protected_root = tmp_path / "protected"
-    storage_root = protected_root / "storage"
-    data_root = tmp_path / "runtime"
+    from endoreg_db.utils.paths import clear_runtime_paths_cache, get_runtime_paths
 
-    monkeypatch.setenv("LX_ANNOTATE_ENCRYPTED_DATA_DIR", str(protected_root))
-    monkeypatch.setenv("STORAGE_DIR", str(storage_root))
-    monkeypatch.setenv("DATA_DIR", str(data_root))
-    monkeypatch.setenv("PROTECTED_MEDIA_ROOT", str(storage_root))
-    streamable_root = storage_root / "streamable_videos"
-    streamable_raw_root = streamable_root / "raw"
-    streamable_processed_root = streamable_root / "processed"
-    monkeypatch.setenv("LX_ANNOTATE_STREAMABLE_VIDEO_ROOT", str(streamable_root))
-    monkeypatch.setenv(
-        "LX_ANNOTATE_STREAMABLE_VIDEO_RAW_ROOT", str(streamable_raw_root)
-    )
-    monkeypatch.setenv(
-        "LX_ANNOTATE_STREAMABLE_VIDEO_PROCESSED_ROOT",
-        str(streamable_processed_root),
-    )
+    monkeypatch.setenv("LX_RUNTIME_ROOT", str(tmp_path / "runtime"))
+    clear_runtime_paths_cache()
+    paths = get_runtime_paths()
+    paths.ensure_directories()
+    monkeypatch.setattr("endoreg_db.utils.paths.get_runtime_paths", lambda: paths)
     monkeypatch.setenv("WATCHER_STABLE_AFTER_SECONDS", "0")
     monkeypatch.setenv("WATCHER_POLL_INTERVAL_SECONDS", "0.01")
 
-    settings.MEDIA_ROOT = storage_root
-    settings.PROTECTED_MEDIA_ROOT = storage_root
+    settings.MEDIA_ROOT = paths.storage
+    settings.PROTECTED_MEDIA_ROOT = paths.storage
 
-    import endoreg_db.utils.paths as path_utils
-
-    paths = path_utils.EndoregPathsModel.from_environment()
-    path_utils.rebind_path_exports(paths)
-
-    from endoreg_db.services import streamable_media
-
-    monkeypatch.setattr(streamable_media, "STREAMABLE_VIDEO_ROOT", streamable_root)
-    monkeypatch.setattr(
-        streamable_media,
-        "STREAMABLE_RAW_VIDEO_ROOT",
-        streamable_raw_root,
-    )
-    monkeypatch.setattr(
-        streamable_media,
-        "STREAMABLE_PROCESSED_VIDEO_ROOT",
-        streamable_processed_root,
-    )
     return paths
 
 
@@ -230,7 +209,7 @@ def test_watcher_video_import_with_ultrashort_mp4_passes_integrity_checks(
     assert _run_video_upload_import_job(str(upload_job.id)) is True
 
     upload_job.refresh_from_db()
-    video = VideoFile.objects.get(video_hash=upload_job.content_hash)
+    video = VideoFile.objects.get(raw_video_hash=upload_job.content_hash)
 
     assert upload_job.status == UploadJob.Status.ANONYMIZED
     assert upload_job.sensitive_meta_id == video.sensitive_meta_id
@@ -242,8 +221,8 @@ def test_watcher_video_import_with_ultrashort_mp4_passes_integrity_checks(
     verified_events = _verified_source_events(caplog)
     assert len(verified_events) == 1
     verified_event = verified_events[0]
-    assert verified_event["video_hash"] == video.video_hash
-    assert verified_event["video_hash"] == upload_job.content_hash
+    assert verified_event["raw_video_hash"] == video.raw_video_hash
+    assert verified_event["raw_video_hash"] == upload_job.content_hash
     assert verified_event["size_bytes"] > 0
     assert verified_event["width"] == video.video_meta.width
     assert verified_event["height"] == video.video_meta.height

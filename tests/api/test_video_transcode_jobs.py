@@ -29,7 +29,7 @@ def operator(tmp_path, master_key, monkeypatch):
     monkeypatch.setattr(VideoFile._meta.get_field("processed_file"), "storage", storage)
     video = VideoFile.objects.create(
         center=center,
-        video_hash="api-transcode-source",
+        raw_video_hash="api-transcode-source",
         processed_video_hash="a" * 64,
         original_file_name="processed.mp4",
     )

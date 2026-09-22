@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -76,10 +77,10 @@ def test_capacity_accounting_without_inventory(free, available):
     )
     with (
         override_settings(PROTECTED_MEDIA_ROOT="/private/protected/media"),
-        patch(f"{MODULE}.Path.is_dir", return_value=True),
+        patch("pathlib.Path.is_dir", return_value=True),
         patch(f"{MODULE}.os.access", return_value=True),
         patch(f"{MODULE}.os.statvfs", return_value=usage) as statvfs,
-        patch(f"{MODULE}.Path.iterdir") as scan,
+        patch("pathlib.Path.iterdir") as scan,
     ):
         response = client.get(URL)
     assert response.status_code == 200
@@ -95,7 +96,9 @@ def test_capacity_accounting_without_inventory(free, available):
     )
     assert "observed_at" in payload
     assert "/private" not in response.content.decode()
-    statvfs.assert_called_once()
+    from endoreg_db.utils.paths import get_runtime_paths
+
+    statvfs.assert_called_once_with(get_runtime_paths().storage)
     scan.assert_not_called()
 
 
@@ -113,7 +116,7 @@ def test_invalid_accounting_is_unavailable(usage):
     client = authenticated_client()
     with (
         override_settings(PROTECTED_MEDIA_ROOT="/private/protected/media"),
-        patch(f"{MODULE}.Path.is_dir", return_value=True),
+        patch("pathlib.Path.is_dir", return_value=True),
         patch(f"{MODULE}.os.access", return_value=True),
         patch(f"{MODULE}.os.statvfs", return_value=usage),
     ):
@@ -137,8 +140,11 @@ def test_unavailable_root_does_not_observe_another_filesystem(
 ):
     client = authenticated_client()
     with (
-        override_settings(PROTECTED_MEDIA_ROOT=root),
-        patch(f"{MODULE}.Path.is_dir", return_value=directory),
+        patch(
+            f"{MODULE}.get_runtime_paths",
+            return_value=SimpleNamespace(storage=Path(root)),
+        ),
+        patch("pathlib.Path.is_dir", return_value=directory),
         patch(f"{MODULE}.os.access", return_value=accessible),
         patch(f"{MODULE}.os.statvfs") as statvfs,
     ):
@@ -152,7 +158,7 @@ def test_observation_failure_is_sanitized(caplog):
     client = authenticated_client()
     with (
         override_settings(PROTECTED_MEDIA_ROOT="/private/protected/media"),
-        patch(f"{MODULE}.Path.is_dir", return_value=True),
+        patch("pathlib.Path.is_dir", return_value=True),
         patch(f"{MODULE}.os.access", return_value=True),
         patch(
             f"{MODULE}.os.statvfs",

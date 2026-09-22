@@ -4,7 +4,8 @@
   lib,
   uvPackage,
   isDev ? false,
-  env
+  env,
+  stateDir
 }:
 let
 
@@ -18,7 +19,7 @@ let
   
 
   processes = import ./processes.nix { 
-    inherit pkgs lib env isDev; 
+    inherit pkgs lib env isDev stateDir;
   };
   
   environment = import ./environment.nix { 

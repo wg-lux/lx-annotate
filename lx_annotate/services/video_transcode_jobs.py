@@ -65,8 +65,8 @@ def has_active_import(video: VideoFile) -> bool:
     identity = Q()
     if video.sensitive_meta_id:
         identity |= Q(sensitive_meta_id=video.sensitive_meta_id)
-    if video.video_hash:
-        identity |= Q(content_hash=video.video_hash)
+    if video.raw_video_hash:
+        identity |= Q(content_hash=video.raw_video_hash)
     return (
         bool(identity)
         and UploadJob.objects.filter(

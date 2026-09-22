@@ -11,8 +11,10 @@ application is built in CI as a Python wheel with frontend staticfiles included.
 
 ## Published Dependencies
 
-The application pins published `endoreg-db==1.1.8` and `lx-dtypes==0.2.36`.
-These releases replace the local remote-session and JSON frame-range candidates.
+The current application declares `endoreg-db==1.3.1` and `lx-dtypes>=0.3.4`.
+Use `pyproject.toml` and the reviewed `uv.lock` for the release's exact dependency
+contract; an unconstrained wheel installation can select a newer lx-dtypes
+than the locally tested version.
 `uv sync --locked` consumes registry artifacts and hashes recorded in `uv.lock`.
 Local files under `vendor/wheels/` are ignored and excluded from distributions.
 
@@ -58,6 +60,7 @@ Create `/var/lib/lx-annotate/.env.systemd` from
 `deployment_example/.env.systemd.example` and set real values for:
 
 - `DJANGO_SECRET_KEY_FILE`
+- `DJANGO_SALT_FILE`
 - `DJANGO_DB_*`
 - `DJANGO_KEYCLOAK_CLIENT_SECRET_FILE`
 - host/origin values such as `BASE_URL`, `DJANGO_ALLOWED_HOSTS`,
@@ -65,8 +68,29 @@ Create `/var/lib/lx-annotate/.env.systemd` from
 
 Keep these runtime values explicitly defined:
 
+- `LX_RUNTIME_ROOT=/var/lib/lx-annotate/data`, equal to
+  `LX_ANNOTATE_ENCRYPTED_DATA_DIR`; endoreg-db no longer reads legacy data-root
+  aliases as its runtime root
 - `TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata`
 - `PYTORCH_ALLOC_CONF=expandable_segments:True`
+
+In LuxNix, set `services.luxnix.lxAnnotateLocal.runtime.identitySaltFile` to the
+provisioned file containing the **established** identity-hashing salt. The
+module exports that handle to service wrappers and both runtime environment
+files. Provision it before migration, bootstrap, web, and worker startup. It
+must be a regular file (not a symlink), readable by the service account, owned
+by that account or root, with no group or other permissions (normally `0600`).
+Its value must be one nonblank, non-default line. Inline `DJANGO_SALT` does not
+satisfy production startup. Do not generate a new salt to make an upgrade start:
+changing it changes identity hashes and requires an identity migration review.
+
+The previous backend silently used `default_salt` when `DJANGO_SALT` was absent.
+The new loader rejects that literal even inside a correctly provisioned file.
+Migration `0081_sensitive_meta_identity_fingerprint` adds empty fingerprint
+fields; it does not rehash or migrate legacy identities. A deployment that used
+the default is therefore blocked pending an explicit identity migration and
+review of preserved patient/examination links. Creating a fresh secret or
+copying the old default into a file does not provide a compatible upgrade.
 
 Set deployment role explicitly:
 
@@ -635,40 +659,30 @@ LuxNix gap identified by the audit:
 
 Operational recommendation:
 
-- keep `${STORAGE_DIR}` and `${LX_ANNOTATE_STREAMABLE_VIDEO_ROOT}` on the same
+- keep canonical storage and streamable-video directories on the same
   filesystem when atomic move semantics are expected
 - treat any missing import subtree as a failed deployment, not as a recoverable
   runtime surprise
 
 ## Data Recovery Behavior
 
-In environments migrating from an older repo-local deployment, operators may
-also install a one-shot `lx-annotate-data-recovery.service`.
+Runtime paths come from `endoreg_db.utils.paths.get_runtime_paths()` and the
+single `LX_RUNTIME_ROOT` setting. Video and PDF media share the central filename
+policy; temporary media stays below the model's `transcoding` directory.
 
-Its observed behavior matches
-`scripts/migrate_data_dir.py`
-running in merge mode:
+`scripts/migrate_data_dir.py` is a compatibility entrypoint for
+`manage.py migrate_media_storage`. It accepts that command's arguments, defaults
+to a dry run, and requires `--apply` plus the existing migration approvals for
+changes. Legacy `--target`, `--repo-root`, and `--allow-merge` arguments are removed.
+The command reconciles stored references and probable legacy filenames, rejects
+ambiguous content, and retains source files unless verified deletion is explicitly
+requested and permitted. The LuxNix streamable-migration service delegates to the
+same video/PDF command.
 
-- it treats the legacy repo-local `data/` tree as the source
-- it copies missing entries into `/var/lib/lx-annotate/data`
-- it skips paths already present in the target and logs warnings
-- it preserves `/var/lib/lx-annotate/.env.systemd` if that file already exists
-
-So a log like this:
-
-- `copying /var/endoreg-service-user/lx-annotate/data/reports -> /var/lib/lx-annotate/data/reports`
-- `WARNING: destination already exists, skipping: /var/lib/lx-annotate/data/sensitive_reports`
-- `target env file already exists, leaving as source of truth: /var/lib/lx-annotate/.env.systemd`
-
-means the recovery unit performed a non-destructive merge into the runtime data
-directory. It did not replace already-present target directories, and it did
-not treat the legacy tree as the current source of truth for environment
-configuration.
-
-The Python migration script in this repository writes `DATA_DIR/.migration-complete`
-for a full migration. If your host logs mention a different marker such as
-`data/logs/data_recovery_complete`, that marker comes from the host-side
-recovery wrapper or unit, not from the Python script itself.
+The separate `recover_runtime_data` command accepts legacy source trees, preserves
+existing destination files, and then invokes canonical media reconciliation.
+Its target must equal `LX_RUNTIME_ROOT`; completion markers live under the model's
+`logs` directory. Neither entrypoint establishes production migration approval.
 
 ## Failure Recovery
 

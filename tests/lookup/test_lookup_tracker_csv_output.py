@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 from django.conf import settings
 from django.http import HttpResponse
-from lx_dtypes.django.api.lookup_tracker import register_runtime_lookup_tracker
+from lx_dtypes.terminology.lookup_tracker import register_runtime_lookup_tracker
 
 import lx_annotate.middleware.lookup_tracker as lookup_tracker_module
 from lx_annotate.middleware.lookup_tracker import (
@@ -18,8 +18,12 @@ from lx_annotate.middleware.lookup_tracker import (
 
 
 @pytest.fixture(autouse=True)
-def use_default_lookup_tracker_directory(monkeypatch):
-    monkeypatch.setattr(settings, "KNOWLEDGE_BASE_LOOKUP_TRACKER_DIR", None)
+def use_default_lookup_tracker_directory(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        lookup_tracker_module,
+        "get_runtime_paths",
+        lambda: SimpleNamespace(logs=tmp_path / "logs"),
+    )
 
 
 def test_lookup_tracker_csv_output(tmp_path, monkeypatch):
@@ -44,7 +48,9 @@ def test_lookup_tracker_csv_output(tmp_path, monkeypatch):
 
     append_summary_to_study_csv(summary, request, module_name="demo_module")
 
-    csv_path = tmp_path / "study_data" / "knowledge_base_lookup_tracker.csv"
+    csv_path = (
+        tmp_path / "logs" / "lookup-tracker" / "knowledge_base_lookup_tracker.csv"
+    )
     assert csv_path.exists()
 
     with csv_path.open("r", encoding="utf-8", newline="") as csv_file:
@@ -61,12 +67,13 @@ def test_lookup_tracker_csv_output(tmp_path, monkeypatch):
     assert detail["edge_counts"][0]["target"] == "classification"
 
 
-def test_lookup_tracker_csv_uses_configured_directory(tmp_path, monkeypatch):
+def test_lookup_tracker_csv_ignores_legacy_directory(tmp_path, monkeypatch):
     configured_dir = tmp_path / "isolated-lookup-tracker"
     monkeypatch.setattr(
         settings,
         "KNOWLEDGE_BASE_LOOKUP_TRACKER_DIR",
         configured_dir,
+        raising=False,
     )
 
     append_summary_to_study_csv(
@@ -75,8 +82,13 @@ def test_lookup_tracker_csv_uses_configured_directory(tmp_path, monkeypatch):
         module_name="demo_module",
     )
 
-    assert (configured_dir / "knowledge_base_lookup_tracker.csv").exists()
-    assert (configured_dir / ".knowledge_base_lookup_tracker.csv.lock").exists()
+    assert not configured_dir.exists()
+    assert (
+        tmp_path / "logs" / "lookup-tracker" / "knowledge_base_lookup_tracker.csv"
+    ).exists()
+    assert (
+        tmp_path / "logs" / "lookup-tracker" / ".knowledge_base_lookup_tracker.csv.lock"
+    ).exists()
 
 
 def test_lookup_tracker_csv_uses_typed_directory_wrapper(tmp_path, monkeypatch):
@@ -100,7 +112,7 @@ def test_lookup_tracker_csv_uses_typed_directory_wrapper(tmp_path, monkeypatch):
         module_name="demo_module",
     )
 
-    assert ensured_paths == [tmp_path / "study_data"]
+    assert ensured_paths == [tmp_path / "logs" / "lookup-tracker"]
 
 
 def test_lookup_tracker_csv_uses_atomic_write_wrapper(tmp_path, monkeypatch):
@@ -125,7 +137,7 @@ def test_lookup_tracker_csv_uses_atomic_write_wrapper(tmp_path, monkeypatch):
     )
 
     assert written_paths == [
-        tmp_path / "study_data" / "knowledge_base_lookup_tracker.csv"
+        tmp_path / "logs" / "lookup-tracker" / "knowledge_base_lookup_tracker.csv"
     ]
 
 
@@ -153,7 +165,7 @@ def test_lookup_tracker_csv_uses_advisory_lock(tmp_path, monkeypatch):
     )
 
     assert locked_paths == [
-        tmp_path / "study_data" / ".knowledge_base_lookup_tracker.csv.lock"
+        tmp_path / "logs" / "lookup-tracker" / ".knowledge_base_lookup_tracker.csv.lock"
     ]
 
 
@@ -172,7 +184,9 @@ def test_lookup_tracker_csv_appends_one_header_and_multiple_rows(tmp_path, monke
         module_name="second_module",
     )
 
-    csv_path = tmp_path / "study_data" / "knowledge_base_lookup_tracker.csv"
+    csv_path = (
+        tmp_path / "logs" / "lookup-tracker" / "knowledge_base_lookup_tracker.csv"
+    )
     with csv_path.open("r", encoding="utf-8", newline="") as csv_file:
         rows = list(csv.DictReader(csv_file))
 
@@ -199,7 +213,7 @@ def test_lookup_tracker_csv_fails_when_directory_creation_fails(tmp_path, monkey
             module_name="demo_module",
         )
 
-    assert not (tmp_path / "study_data").exists()
+    assert not (tmp_path / "logs" / "lookup-tracker").exists()
 
 
 def test_lookup_tracker_csv_preserves_existing_file_when_atomic_write_fails(
@@ -212,7 +226,9 @@ def test_lookup_tracker_csv_preserves_existing_file_when_atomic_write_fails(
         request,
         module_name="existing_module",
     )
-    csv_path = tmp_path / "study_data" / "knowledge_base_lookup_tracker.csv"
+    csv_path = (
+        tmp_path / "logs" / "lookup-tracker" / "knowledge_base_lookup_tracker.csv"
+    )
     original_content = csv_path.read_bytes()
 
     def fail_atomic_write_file(**kwargs):
@@ -262,7 +278,9 @@ def test_lookup_tracker_middleware_tracks_request(tmp_path, monkeypatch):
     request = SimpleNamespace(path="/demo", method="POST")
     middleware.process_response(request, HttpResponse())
 
-    csv_path = tmp_path / "study_data" / "knowledge_base_lookup_tracker.csv"
+    csv_path = (
+        tmp_path / "logs" / "lookup-tracker" / "knowledge_base_lookup_tracker.csv"
+    )
     assert csv_path.exists()
     assert dummy_kb.reset_called
 

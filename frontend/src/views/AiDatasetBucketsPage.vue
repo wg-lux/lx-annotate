@@ -121,6 +121,7 @@
       </div>
     </section>
 
+    <DatasetStudyCohorts :dataset-id="selectedDatasetId" />
     <AiDatasetSplitBuilder :dataset-id="selectedDatasetId" />
 
     <section
@@ -312,6 +313,7 @@
 
 <script setup lang="ts">
 import AiDatasetSplitBuilder from '@/components/AiDataset/AiDatasetSplitBuilder.vue'
+import DatasetStudyCohorts from '@/components/AiDataset/DatasetStudyCohorts.vue'
 import DatasetLabelHistogram from '@/components/AiDataset/DatasetLabelHistogram.vue'
 import {
   attachAiDatasetAnnotations,

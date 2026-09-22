@@ -16,6 +16,7 @@ from pathlib import Path
 
 import django
 from django.core.management import call_command
+from endoreg_db.utils.paths import get_runtime_paths
 
 # Add project root to Python path
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -34,7 +35,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler(PROJECT_ROOT / "logs" / "storage_monitor.log"),
+        logging.FileHandler(get_runtime_paths().logs / "storage_monitor.log"),
         logging.StreamHandler(),
     ],
 )

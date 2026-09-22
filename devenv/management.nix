@@ -238,8 +238,8 @@ in
     "export-frames".exec = ''
       REPO_ROOT="${env.WORKING_DIR}"
       cd "$REPO_ROOT"
-      mkdir -p "${env.STORAGE_DIR}/export/frames/"
-      secretspec run --profile env python manage.py export_frame_annot --output-path "${env.STORAGE_DIR}/export/frames/"
+      mkdir -p "${env.LX_RUNTIME_ROOT}/export/frames/"
+      secretspec run --profile env python manage.py export_frame_annot --output-path "${env.LX_RUNTIME_ROOT}/export/frames/"
     '';
 
     "train-model".exec = ''

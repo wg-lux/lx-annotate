@@ -5,6 +5,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.utils import timezone
 from endoreg_db.models import Center, QuarantineItem, UploadJob
+from endoreg_db.utils.paths import EndoregPathsModel
 from rest_framework import status
 
 
@@ -19,10 +20,11 @@ def test_quarantine_overview_returns_empty_state_for_missing_directory(
     monkeypatch,
     tmp_path,
 ):
-    monkeypatch.delenv("LX_ANNOTATE_QUARANTINE_DIR", raising=False)
-
-    with override_settings(APP_DATA_DIR=tmp_path):
-        response = client.get("/api/runtime/quarantine/", secure=True)
+    monkeypatch.setattr(
+        "lx_annotate.views.quarantine.get_runtime_paths",
+        lambda: EndoregPathsModel.from_root(tmp_path),
+    )
+    response = client.get("/api/runtime/quarantine/", secure=True)
 
     assert response.status_code == status.HTTP_200_OK
     payload = response.json()
@@ -43,15 +45,16 @@ def test_quarantine_overview_lists_file_metadata_without_absolute_paths(
     monkeypatch,
     tmp_path,
 ):
-    monkeypatch.delenv("LX_ANNOTATE_QUARANTINE_DIR", raising=False)
-
     quarantine_dir = tmp_path / "quarantine"
     quarantine_dir.mkdir()
     quarantined_file = quarantine_dir / "NINJAU_S001_S001_T016.MOV"
     quarantined_file.write_bytes(b"partial video")
 
-    with override_settings(APP_DATA_DIR=tmp_path):
-        response = client.get("/api/runtime/quarantine/", secure=True)
+    monkeypatch.setattr(
+        "lx_annotate.views.quarantine.get_runtime_paths",
+        lambda: EndoregPathsModel.from_root(tmp_path),
+    )
+    response = client.get("/api/runtime/quarantine/", secure=True)
 
     assert response.status_code == status.HTTP_200_OK
     payload = response.json()
@@ -116,8 +119,11 @@ def test_quarantine_overview_enforces_center_scope(
         lambda _user: own_center.pk,
     )
 
-    with override_settings(APP_DATA_DIR=tmp_path):
-        response = client.get("/api/runtime/quarantine/", secure=True)
+    monkeypatch.setattr(
+        "lx_annotate.views.quarantine.get_runtime_paths",
+        lambda: EndoregPathsModel.from_root(tmp_path),
+    )
+    response = client.get("/api/runtime/quarantine/", secure=True)
 
     assert response.status_code == status.HTTP_200_OK
     payload = response.json()

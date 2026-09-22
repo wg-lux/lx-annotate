@@ -10,13 +10,25 @@ let
   appName = "lx_annotate";
   secret = name: default: config.secretspec.secrets.${name} or default;
   runtimeEnvironment = import ./nix/runtime-environment.nix { inherit lib; };
-  secretspecEncryptedDataDir = secret "LX_ANNOTATE_ENCRYPTED_DATA_DIR" "";
+  configuredRuntimeRoot = secret "LX_RUNTIME_ROOT" "";
   masterKeyFile = secret "LX_ANNOTATE_MASTER_KEY_FILE" "";
   djangoSecretKeyFile = secret "DJANGO_SECRET_KEY_FILE" "";
-  djangoDatabasePasswordFile = secret "DJANGO_DB_PASSWORD_FILE" "";
+  djangoSaltFile = secret "DJANGO_SALT_FILE" "";
+  configuredDatabasePasswordFile = secret "DJANGO_DB_PASSWORD_FILE" "";
+  djangoDatabasePasswordFile =
+    if configuredDatabasePasswordFile != "" then configuredDatabasePasswordFile
+    else if isDev then "${config.devenv.state}/secrets/django-db-password"
+    else "";
+  configuredDatabaseSslmode = secret "DJANGO_DB_SSLMODE" "";
+  configuredBrokerUrl = secret "CELERY_BROKER_URL" "";
   djangoKeycloakClientSecretFile = secret "DJANGO_KEYCLOAK_CLIENT_SECRET_FILE" "";
   runtimeDataDir =
-    if secretspecEncryptedDataDir == "" then secret "DATA_DIR" "data" else secretspecEncryptedDataDir;
+    if configuredRuntimeRoot == "" then
+      "${config.devenv.root}/data"
+    else if lib.hasPrefix "/" configuredRuntimeRoot then
+      configuredRuntimeRoot
+    else
+      throw "LX_RUNTIME_ROOT must be an absolute filesystem path";
 
 
   uvPackage = pkgs.uv;
@@ -50,7 +62,7 @@ let
       # --- Directories & Paths ---
       containerHost = "None";
       containerMode = false;
-      LX_ANNOTATE_ENCRYPTED_DATA_DIR = runtimeDataDir;
+      LX_RUNTIME_ROOT = runtimeDataDir;
       ASSET_DIR = secret "ASSET_DIR" "tests/assets";
       HOME_DIR = secret "HOME_DIR" ".";
       WORKING_DIR = secret "WORKING_DIR" ".";
@@ -72,12 +84,17 @@ let
       DJANGO_DB_ENGINE = secret "DJANGO_DB_ENGINE" "django.db.backends.postgresql";
       DEV_DB_ENGINE = secret "DEV_DB_ENGINE" "django.db.backends.postgresql";
       TEST_DB_ENGINE = secret "TEST_DB_ENGINE" "django.db.backends.postgresql";
-      DJANGO_DB_NAME = secret "DJANGO_DB_NAME" "lxAnnotateLocal";
-      DEV_DB_NAME = secret "DEV_DB_NAME" "lxAnnotateLocal";
+      DJANGO_DB_NAME = secret "DJANGO_DB_NAME" "endoregDbLocal";
+      DEV_DB_NAME = secret "DEV_DB_NAME" "endoregDbLocal";
       TEST_DB_NAME = secret "TEST_DB_NAME" "lxAnnotateTest";
-      DJANGO_DB_USER = secret "DJANGO_DB_USER" "lxAnnotateLocal";
-      DJANGO_DB_HOST = secret "DJANGO_DB_HOST" "localhost";
-      DJANGO_DB_PORT = secret "DJANGO_DB_PORT" "5432";
+      DJANGO_DB_USER = secret "DJANGO_DB_USER" "endoregDbLocal";
+      DJANGO_DB_HOST = secret "DJANGO_DB_HOST" "127.0.0.1";
+      DJANGO_DB_PORT = secret "DJANGO_DB_PORT" (if isDev then "5434" else "5432");
+      DJANGO_DB_SSLMODE = if configuredDatabaseSslmode != "" then configuredDatabaseSslmode
+        else if isDev && builtins.elem (secret "DJANGO_DB_HOST" "127.0.0.1") [ "127.0.0.1" "localhost" "::1" ]
+          then "disable" else "require";
+      CELERY_BROKER_URL = if configuredBrokerUrl != "" then configuredBrokerUrl
+        else if isDev then "redis://127.0.0.1:6380/0" else "";
 
       # --- Django Core ---
       DJANGO_SETTINGS_MODULE_DEVELOPMENT = secret "DJANGO_SETTINGS_MODULE_DEVELOPMENT" "lx_annotate.settings.settings_dev";
@@ -133,6 +150,9 @@ let
     // lib.optionalAttrs (djangoSecretKeyFile != "") {
       DJANGO_SECRET_KEY_FILE = djangoSecretKeyFile;
     }
+    // lib.optionalAttrs (djangoSaltFile != "") {
+      DJANGO_SALT_FILE = djangoSaltFile;
+    }
     // lib.optionalAttrs (djangoDatabasePasswordFile != "") {
       DJANGO_DB_PASSWORD_FILE = djangoDatabasePasswordFile;
     }
@@ -146,6 +166,7 @@ let
     uvPackage = uvPackage;
     isDev = isDev;
     env = baseEnv;
+    stateDir = config.devenv.state;
   };
 
   commonShellHook = ''
@@ -281,7 +302,7 @@ in
 
 
 
-    mkdir -p "${baseEnv.STORAGE_DIR}"
+    mkdir -p "${baseEnv.LX_RUNTIME_ROOT}"
     mkdir -p "${baseEnv.ASSET_DIR}"
     mkdir -p "${baseEnv.HOME_DIR}"
     mkdir -p "${baseEnv.WORKING_DIR}"

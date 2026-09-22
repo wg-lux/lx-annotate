@@ -30,7 +30,7 @@ from endoreg_db.models import (
     VideoState,
 )
 from endoreg_db.serializers.hub.transfer_job import TransferJobCreateSerializer
-from endoreg_db.utils.file_operations import sha256_file
+from endoreg_db.utils.hashs import get_file_hash
 from lx_dtypes.models.contracts.hub_media_envelope import (
     HubMediaEnvelopeMetadata,
     HubMediaEnvelopeReceipt,
@@ -57,7 +57,11 @@ class HubExportEndToEndTests(TestCase):
     """Exercise sender/receiver contracts without pretending one DB is two nodes."""
 
     def setUp(self) -> None:
-        self.envelope_tempdir = tempfile.TemporaryDirectory()
+        from endoreg_db.utils.paths import get_runtime_paths
+
+        self.envelope_tempdir = tempfile.TemporaryDirectory(
+            dir=get_runtime_paths().runtime_root
+        )
         self.addCleanup(self.envelope_tempdir.cleanup)
         envelope_root = Path(self.envelope_tempdir.name)
         recipient_key = X25519PrivateKey.generate()
@@ -78,7 +82,6 @@ class HubExportEndToEndTests(TestCase):
             ),
         )
         settings_override = self.settings(
-            LX_ANNOTATE_ENCRYPTED_DATA_DIR=str(envelope_root),
             LX_ANNOTATE_HUB_EXPORT_ENVELOPE_STAGING_DIR=str(
                 envelope_root / "sender-envelopes",
             ),
@@ -551,7 +554,7 @@ class HubExportEndToEndTests(TestCase):
         )
         self.assertEqual(lost_ack_result.retry_count, 1)
         self.assertEqual(
-            sha256_file(report.processed_file),
+            get_file_hash(report.processed_file),
             hashlib.sha256(b"%PDF-1.4\nprocessed-real\n%%EOF\n").hexdigest(),
         )
         self.assertEqual(len(transmitted_wire_uploads), 1)
@@ -751,7 +754,7 @@ class HubExportEndToEndTests(TestCase):
             center=self.center,
             state=video_state,
             sensitive_meta=create_hub_sensitive_meta(center=self.center),
-            video_hash="video-hash-1",
+            raw_video_hash="video-hash-1",
             processed_video_hash=processed_hash,
             original_file_name="video-1.mp4",
             suffix=".mp4",
@@ -846,7 +849,7 @@ class HubExportEndToEndTests(TestCase):
         )
         self.assertIsNotNone(receiver_job.target_object_id)
         receiver_video = VideoFile.objects.get(pk=receiver_job.target_object_id)
-        self.assertEqual(receiver_video.video_hash, video.video_hash)
+        self.assertEqual(receiver_video.raw_video_hash, video.raw_video_hash)
         self.assertEqual(
             receiver_job.resource_rows["video_file"]["processed_video_hash"],
             processed_hash,

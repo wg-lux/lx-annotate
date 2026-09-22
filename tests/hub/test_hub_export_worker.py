@@ -47,7 +47,11 @@ os.environ.setdefault("LX_ANNOTATE_MASTER_KEY", TEST_MASTER_KEY)
 @override_settings(LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS=False)
 class HubExportWorkerTests(TestCase):
     def setUp(self) -> None:
-        self.envelope_tempdir = tempfile.TemporaryDirectory()
+        from endoreg_db.utils.paths import get_runtime_paths
+
+        self.envelope_tempdir = tempfile.TemporaryDirectory(
+            dir=get_runtime_paths().runtime_root
+        )
         self.addCleanup(self.envelope_tempdir.cleanup)
         envelope_root = Path(self.envelope_tempdir.name)
         recipient_key = X25519PrivateKey.generate()
@@ -59,7 +63,6 @@ class HubExportWorkerTests(TestCase):
             ),
         )
         settings_override = self.settings(
-            LX_ANNOTATE_ENCRYPTED_DATA_DIR=str(envelope_root),
             LX_ANNOTATE_HUB_EXPORT_ENVELOPE_STAGING_DIR=str(
                 envelope_root / "envelopes",
             ),

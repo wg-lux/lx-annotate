@@ -8,6 +8,79 @@
       </p>
     </header>
 
+    <section
+      class="card p-3 mb-3"
+      data-test="cohort-eligibility"
+    >
+      <h2 class="h5">Wann wird ein Patient aufgenommen?</h2>
+      <ul class="mb-2">
+        <li>
+          Es gibt eine zugeordnete Patientenuntersuchung mit pseudonymisiertem Patienten und
+          Patientenhash.
+        </li>
+        <li>
+          Mindestens ein zugeordneter Bericht oder ein Video hat eine bestätigte Anonymisierung,
+          eine verarbeitete Datei und eine gespeicherte Integritätsprüfsumme.
+        </li>
+        <li>
+          Die verarbeitete Datei muss lokal vorhanden und nicht leer sein, damit der Patient
+          angezeigt wird.
+        </li>
+        <li>
+          Alle gesetzten Filter müssen auf dieselbe Untersuchung passen. Ein Annotationslabel
+          verlangt eine positive Frame-Annotation; ein KI-Segment allein genügt nicht.
+        </li>
+        <li>
+          Verknüpfte Datensätze liefern gemeinsam die Kandidaten. Leere Datensätze oder Videos ohne
+          Untersuchungszuordnung fügen keine Patienten hinzu.
+        </li>
+      </ul>
+      <p class="mb-0 small">
+        Ohne Datensatzverknüpfung werden alle berechtigten Untersuchungen geprüft. Studienname und
+        Hypothese dokumentieren die Auswahl; sie sind keine Suchbegriffe. Es werden keine Patienten
+        neu angelegt und keine Annotationen kopiert. Gespeicherte Kohorten gehören Ihrem
+        Benutzerkonto.
+      </p>
+    </section>
+    <section class="card p-3 mb-3">
+      <label
+        for="saved-cohort"
+        class="form-label"
+        >Gespeicherte Kohorte</label
+      >
+      <select
+        id="saved-cohort"
+        v-model="selectedCohortId"
+        class="form-select"
+        data-test="saved-cohort"
+        :disabled="saving"
+        @change="selectCohort"
+      >
+        <option value="">Neue Kohorte</option>
+        <option
+          v-for="cohort in savedCohorts"
+          :key="cohort.id"
+          :value="String(cohort.id)"
+        >
+          {{ cohort.name }}
+        </option>
+      </select>
+      <button
+        type="button"
+        class="btn btn-link mb-0"
+        :disabled="saving || loading"
+        @click="loadSavedOptions"
+      >
+        Gespeicherte Kohorten und Datensätze neu laden
+      </button>
+      <p
+        v-if="savedMessage"
+        role="status"
+        class="mb-0"
+      >
+        {{ savedMessage }}
+      </p>
+    </section>
     <form
       class="d-grid gap-4"
       @submit.prevent="previewCohort"
@@ -273,7 +346,45 @@
             {{ errorMessage }}
           </div>
 
-          <div class="d-flex justify-content-end mt-3">
+          <div
+            class="mt-3"
+            data-test="cohort-datasets"
+          >
+            <label
+              for="cohort-datasets"
+              class="form-label"
+              >Datensätze dieser Kohorte (Mehrfachauswahl)</label
+            >
+            <select
+              id="cohort-datasets"
+              v-model="selectedDatasetIds"
+              multiple
+              class="form-select"
+              data-test="cohort-dataset-select"
+            >
+              <option
+                v-for="dataset in datasetOptions"
+                :key="dataset.id"
+                :value="dataset.id"
+              >
+                {{ dataset.label }}
+              </option>
+            </select>
+            <small
+              >Die Vereinigung der zugeordneten Untersuchungen wird mit den Einschlussfiltern
+              geprüft. Verknüpfungen werden erst mit „Kohorte speichern“ gespeichert.</small
+            >
+          </div>
+          <div class="d-flex justify-content-end gap-2 mt-3">
+            <button
+              type="button"
+              class="btn btn-outline-primary mb-0"
+              :disabled="saving || loading"
+              data-test="save-cohort"
+              @click="saveCohort"
+            >
+              {{ saving ? 'Wird gespeichert …' : 'Kohorte speichern' }}
+            </button>
             <button
               class="btn btn-primary mb-0"
               type="submit"
@@ -294,6 +405,30 @@
     </form>
 
     <template v-if="preview">
+      <div
+        class="alert alert-info mt-3"
+        data-test="cohort-selection-scope"
+      >
+        {{ preview.summary.patientCount }} Patienten erfüllen die Datenbankkriterien.
+        {{ preview.cases.length }} Patienten werden mit lokal verfügbaren Medien angezeigt und für
+        den Excel-Export übernommen. Die Vorschau ist auf {{ preview.filters.limit }} Patienten
+        begrenzt. Größere Trefferzahlen erfordern engere Filter oder ein höheres Limit (maximal
+        500).
+        <template v-if="preview.eligibility">
+          <div>
+            {{ preview.eligibility.candidateExaminationCount }} Kandidaten-Untersuchungen, davon
+            {{ preview.eligibility.pseudonymousExaminationCount }} mit pseudonymisiertem Patienten
+            und Hash.
+          </div>
+          <div v-if="preview.eligibility.datasetCount">
+            {{ preview.eligibility.datasetCount }} Datensätze mit
+            {{ preview.eligibility.datasetVideoCount }} Videos;
+            {{ preview.eligibility.missingExaminationVideoCount }} ohne Untersuchungszuordnung,
+            {{ preview.eligibility.conflictingPatientVideoCount }} mit widersprüchlicher
+            Patientenzuordnung.
+          </div>
+        </template>
+      </div>
       <section
         class="row g-3 mt-1"
         aria-label="Kohortenzusammenfassung"
@@ -344,7 +479,11 @@
             class="text-muted"
             data-test="cohort-empty"
           >
-            Für diese Filter wurden keine Fälle gefunden.
+            Keine exportierbaren Patienten in dieser Vorschau. Prüfen Sie zuerst die
+            Datensatz-Annotationen und Untersuchungszuordnung, dann Patientenhash,
+            Anonymisierungsfreigabe, Integritätsprüfsumme und lokale verarbeitete Datei. Entfernen
+            Sie anschließend unnötige Filter und berechnen Sie die Vorschau erneut. „Kein Bericht“
+            und „Kein Video“ zusammen schließen alle Fälle aus.
           </div>
           <div
             v-else
@@ -478,19 +617,28 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { type StudyCohortPreviewFilters, type StudyCohortPreviewResponse } from '@/api/studyApi'
+import { fetchAiDatasetOptions, type AiDatasetOption } from '@/api/aiDatasetApi'
 import {
-  fetchStudyCohortPreview,
-  type StudyCohortPreviewFilters,
-  type StudyCohortPreviewResponse
-} from '@/api/studyApi'
+  fetchStudyCohorts,
+  previewStudyCohort,
+  saveStudyCohort,
+  type SavedStudyCohort
+} from '@/api/studyCohortApi'
 import { useStudyCohortExportStore } from '@/stores/studyCohortExportStore'
 
 const router = useRouter()
 const cohortExportStore = useStudyCohortExportStore()
 const studyName = ref('')
 const hypothesis = ref('')
+const savedCohorts = ref<SavedStudyCohort[]>([])
+const datasetOptions = ref<AiDatasetOption[]>([])
+const selectedCohortId = ref('')
+const selectedDatasetIds = ref<number[]>([])
+const saving = ref(false)
+const savedMessage = ref('')
 const hasReportFilter = ref<'' | 'true' | 'false'>('')
 const hasVideoFilter = ref<'' | 'true' | 'false'>('')
 const filters = reactive({
@@ -530,13 +678,14 @@ const summaryMetrics = computed(() => {
 })
 
 watch(
-  [studyName, hypothesis, hasReportFilter, hasVideoFilter, filters],
+  [studyName, hypothesis, hasReportFilter, hasVideoFilter, filters, selectedDatasetIds],
   () => {
-    if (!preview.value) {
-      return
-    }
+    activeController?.abort()
+    activeController = null
+    loading.value = false
     preview.value = null
     cohortExportStore.clear()
+    savedMessage.value = ''
   },
   { deep: true }
 )
@@ -582,16 +731,19 @@ function readableError(error: unknown): string {
   return 'Kohortenvorschau konnte nicht geladen werden.'
 }
 
-async function previewCohort(): Promise<void> {
-  errorMessage.value = ''
+function previewValidationError(): string {
   if (!studyName.value.trim() || !hypothesis.value.trim()) {
-    errorMessage.value = 'Bitte Studienname und Hypothese formulieren.'
-    return
+    return 'Bitte Studienname und Hypothese formulieren.'
   }
   if (filters.dateFrom && filters.dateTo && filters.dateFrom > filters.dateTo) {
-    errorMessage.value = 'Das Startdatum darf nicht nach dem Enddatum liegen.'
-    return
+    return 'Das Startdatum darf nicht nach dem Enddatum liegen.'
   }
+  return ''
+}
+
+async function previewCohort(): Promise<void> {
+  errorMessage.value = previewValidationError()
+  if (errorMessage.value) return
 
   cohortExportStore.clear()
   preview.value = null
@@ -599,9 +751,20 @@ async function previewCohort(): Promise<void> {
   const controller = new AbortController()
   activeController = controller
   loading.value = true
+  const name = studyName.value
+  const description = hypothesis.value
   try {
-    const result = await fetchStudyCohortPreview(requestFilters())
-    cohortExportStore.capture(studyName.value, hypothesis.value, result)
+    const result = await previewStudyCohort(
+      {
+        name,
+        hypothesis: description,
+        filters: requestFilters(),
+        datasetIds: [...selectedDatasetIds.value]
+      },
+      controller.signal
+    )
+    if (controller.signal.aborted || activeController !== controller) return
+    cohortExportStore.capture(name, description, result)
     preview.value = result
   } catch (error) {
     if (!controller.signal.aborted) {
@@ -614,6 +777,70 @@ async function previewCohort(): Promise<void> {
     }
   }
 }
+
+async function loadSavedOptions(): Promise<void> {
+  try {
+    const [cohorts, datasets] = await Promise.all([fetchStudyCohorts(), fetchAiDatasetOptions()])
+    savedCohorts.value = cohorts
+    datasetOptions.value = datasets
+    if (selectedCohortId.value) selectCohort()
+  } catch (error) {
+    errorMessage.value = readableError(error)
+  }
+}
+
+function selectCohort(): void {
+  const cohort = savedCohorts.value.find((row) => String(row.id) === selectedCohortId.value)
+  studyName.value = cohort?.name ?? ''
+  hypothesis.value = cohort?.hypothesis ?? ''
+  selectedDatasetIds.value = [...(cohort?.datasetIds ?? [])]
+  applySavedFilters(cohort?.filters ?? {})
+}
+
+function booleanFilter(value: boolean | null | undefined): '' | 'true' | 'false' {
+  if (value == null) return ''
+  return value ? 'true' : 'false'
+}
+
+function applySavedFilters(saved: StudyCohortPreviewFilters): void {
+  filters.dateFrom = saved.dateFrom ?? ''
+  filters.dateTo = saved.dateTo ?? ''
+  filters.centerKey = saved.centerKey ?? ''
+  filters.examinationName = saved.examinationName ?? ''
+  filters.documentType = saved.documentType ?? ''
+  filters.finding = saved.finding ?? ''
+  filters.annotationLabel = saved.annotationLabel ?? ''
+  filters.limit = saved.limit ?? 100
+  hasReportFilter.value = booleanFilter(saved.hasReport)
+  hasVideoFilter.value = booleanFilter(saved.hasVideo)
+}
+
+async function saveCohort(): Promise<void> {
+  if (saving.value) return
+  saving.value = true
+  errorMessage.value = ''
+  try {
+    const cohort = await saveStudyCohort(
+      {
+        name: studyName.value,
+        hypothesis: hypothesis.value,
+        filters: requestFilters(),
+        datasetIds: [...selectedDatasetIds.value]
+      },
+      selectedCohortId.value ? Number(selectedCohortId.value) : undefined
+    )
+    savedCohorts.value = [...savedCohorts.value.filter((row) => row.id !== cohort.id), cohort]
+    selectedCohortId.value = String(cohort.id)
+    savedMessage.value =
+      'Kohorte und Datensatzverknüpfungen gespeichert. Patienten werden bei jeder Vorschau erneut geprüft.'
+  } catch (error) {
+    errorMessage.value = readableError(error)
+  } finally {
+    saving.value = false
+  }
+}
+
+onMounted(loadSavedOptions)
 
 async function openCohortExport(): Promise<void> {
   if (!preview.value?.cases.length || !cohortExportStore.definition) {

@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
+from endoreg_db.utils.file_operations import atomic_write_file
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -22,6 +23,11 @@ def _production_settings_environment(tmp_path: Path) -> dict[str, str]:
     static_root.mkdir(parents=True)
     secret_root = tmp_path / "hub-secrets"
     secret_root.mkdir(parents=True)
+    salt_file = atomic_write_file(
+        destination=secret_root / "identity-salt",
+        content=(b"production-routing-test-identity-salt",),
+        file_mode=0o600,
+    )
     client_cert_file = secret_root / "hub-client-cert.pem"
     client_key_file = secret_root / "hub-client-key.pem"
     ca_file = secret_root / "hub-ca.pem"
@@ -49,7 +55,6 @@ def _production_settings_environment(tmp_path: Path) -> dict[str, str]:
             "CELERY_DEFAULT_QUEUE": "default",
             "CELERY_HUB_TRANSFER_QUEUE": "hub_transfer",
             "CELERY_VISIBILITY_TIMEOUT_SECONDS": "93600",
-            "DATA_DIR": str(data_root),
             "DJANGO_ALLOWED_HOSTS": "localhost,127.0.0.1",
             "DJANGO_CORS_ALLOWED_ORIGINS": "http://127.0.0.1",
             "DJANGO_CSRF_TRUSTED_ORIGINS": "http://127.0.0.1",
@@ -66,13 +71,13 @@ def _production_settings_environment(tmp_path: Path) -> dict[str, str]:
                 "production-routing-test-secret-key-00000000000000000000"
             ),
             "DJANGO_SETTINGS_MODULE": "lx_annotate.settings.settings_prod",
+            "DJANGO_SALT_FILE": str(salt_file),
             "DJANGO_STATIC_ROOT": str(static_root),
             "ENDOREG_DEPLOYMENT_ROLE": "site_node",
             "ENDOREG_HUB_MODE": "false",
             "ENFORCE_AUTH": "0",
             "FFMPEG_TRANSCODE_TIMEOUT_SECONDS": "86400",
-            "LX_ANNOTATE_DATA_DIR": str(data_root),
-            "LX_ANNOTATE_ENCRYPTED_DATA_DIR": str(data_root),
+            "LX_RUNTIME_ROOT": str(data_root),
             "LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE": "false",
             "LX_ANNOTATE_HUB_EXPORT_CA_FILE": str(ca_file),
             "LX_ANNOTATE_HUB_EXPORT_CLIENT_CERT_FILE": str(client_cert_file),
@@ -90,11 +95,39 @@ def _production_settings_environment(tmp_path: Path) -> dict[str, str]:
             "LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS": "25200",
             "LX_ANNOTATE_HUB_SOURCE_NODE_SECRET_FILE": str(source_node_secret_file),
             "OIDC_RP_CLIENT_SECRET": ("production-routing-test-keycloak-secret"),
-            "PROTECTED_MEDIA_ROOT": str(storage_root),
-            "STORAGE_DIR": str(storage_root),
         },
     )
     return env
+
+
+@pytest.mark.parametrize("salt_mode", ["missing", "public", "blank"])
+def test_production_settings_reject_unusable_identity_salt(
+    tmp_path: Path,
+    salt_mode: str,
+) -> None:
+    env = _production_settings_environment(tmp_path)
+    salt_file = Path(env["DJANGO_SALT_FILE"])
+    if salt_mode == "missing":
+        env.pop("DJANGO_SALT_FILE")
+        env["DJANGO_SALT"] = "inline-test-salt-must-not-enable-production"
+    else:
+        atomic_write_file(
+            destination=salt_file,
+            content=(b"" if salt_mode == "blank" else b"test-identity-salt",),
+            file_mode=0o644 if salt_mode == "public" else 0o600,
+        )
+    result = subprocess.run(
+        [sys.executable, "-c", "import lx_annotate.settings.settings_prod"],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=60,
+    )
+    assert result.returncode != 0
+    assert "ImproperlyConfigured" in result.stderr
+    assert "salt" in result.stderr.lower()
+    assert "inline-test-salt-must-not-enable-production" not in result.stderr
 
 
 def test_production_settings_export_hub_transfer_routes(tmp_path: Path) -> None:
@@ -202,7 +235,7 @@ def test_production_settings_export_hub_transfer_configuration(
         }
         assert missing_settings == set()
 
-        assert settings_prod.LX_ANNOTATE_ENCRYPTED_DATA_DIR.endswith(
+        assert str(settings_prod.get_runtime_paths().runtime_root).endswith(
             "/runtime-data"
         )
         assert settings_prod.PROTECTED_MEDIA_ROOT.as_posix().endswith(

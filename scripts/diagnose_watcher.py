@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import logging
 import subprocess
-from pathlib import Path
 
+from endoreg_db.utils.paths import get_runtime_paths
 from watchdog.observers import Observer  # type: ignore[import-not-found]
 
 
@@ -88,11 +88,11 @@ def estimate_event_volume():
     """Estimate potential event volume from storage directories."""
     print("\n🔍 Estimating Event Volume:")
 
-    project_root = Path(__file__).parent.parent
+    paths = get_runtime_paths()
     storage_paths = [
-        project_root / "storage",
-        project_root / "data" / "videos",
-        project_root / "endoreg-db" / "storage",
+        paths.watcher_video_drop,
+        paths.watcher_report_drop,
+        paths.watcher_preanonymized_drop,
     ]
 
     for storage_path in storage_paths:
@@ -150,8 +150,7 @@ def check_log_files():
     """Analyze recent log files for event volume."""
     print("\n🔍 Checking Log Files:")
 
-    project_root = Path(__file__).parent.parent
-    log_file = project_root / "logs" / "file_watcher.log"
+    log_file = get_runtime_paths().logs / "file_watcher.log"
 
     if log_file.exists():
         print(f"   📄 {log_file}:")

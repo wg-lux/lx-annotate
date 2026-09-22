@@ -93,13 +93,7 @@ in
           "$contract_root/xdg"
         export DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_dev
         export DJANGO_SECRET_KEY=package-contract-secret-000000000000000000000000
-        export DATA_DIR="$contract_root/data"
-        export LX_ANNOTATE_DATA_DIR="$contract_root/data"
-        export LX_ANNOTATE_ENCRYPTED_DATA_DIR="$contract_root/data"
-        export STORAGE_DIR="$contract_root/data/storage"
-        export PROTECTED_MEDIA_ROOT="$contract_root/data/storage"
-        export MEDIA_ROOT="$contract_root/media"
-        export LOG_DIR="$contract_root/logs"
+        export LX_RUNTIME_ROOT="$contract_root/data"
         export XDG_DATA_HOME="$contract_root/xdg"
 
         for command in \

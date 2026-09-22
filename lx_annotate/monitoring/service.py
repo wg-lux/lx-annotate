@@ -9,9 +9,9 @@ from pathlib import Path
 from typing import Callable
 
 from django.apps import apps
-from django.conf import settings
 from django.db import DatabaseError
 from django.utils import timezone
+from lx_dtypes.terminology.terminology_loader import get_terminology_service
 from packaging.version import Version
 from pydantic import JsonValue
 
@@ -104,12 +104,12 @@ def _verified_packaged_resources(
 
 
 def knowledge_base_check(now: datetime) -> MonitoringCheck:
-    registry = str(getattr(settings, "LX_DTYPES_KB_REGISTRY", "") or "").strip()
-    stat = Path(registry).stat() if registry else None
+    registry_path = get_terminology_service().registry_path
+    stat = registry_path.stat()
     try:
         metadata = _verified_packaged_resources(
-            registry,
-            (stat.st_mtime_ns, stat.st_size) if stat else (0, 0),
+            str(registry_path),
+            (stat.st_mtime_ns, stat.st_size),
             installed_version("lx-dtypes"),
             int(time.monotonic() // 300),
         )

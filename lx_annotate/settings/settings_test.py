@@ -14,14 +14,20 @@ import tempfile
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, cast
+from uuid import uuid4
 
 # The base settings fail closed when no deployment secret is configured.
 # Tests supply their explicitly isolated, non-production key before importing base.
 os.environ.setdefault("DJANGO_SECRET_KEY", "test-insecure-key-do-not-use-00000000")
+os.environ["LX_RUNTIME_ROOT"] = str(
+    Path(tempfile.gettempdir()) / f"lx_test_runtime_{uuid4().hex}"
+)
 
 # Import everything from base
 from . import settings_base as base
 from .settings_base import *  # noqa: F403
+
+DJANGO_SALT = "test-identity-salt-not-for-production"
 
 # -----------------------------------------------------------------------------
 # 1. SETUP MUTABLE COPIES
@@ -89,11 +95,7 @@ MIGRATION_MODULES = cast(Any, DisableMigrations())
 # 4. PATHS & ASSETS
 # -----------------------------------------------------------------------------
 
-# Use temp directories for Media/Static so we don't pollute the real user data dir
-MEDIA_ROOT = Path(tempfile.mkdtemp(prefix="lx_test_media_"))
-STATIC_ROOT = str(tempfile.mkdtemp(prefix="lx_test_static_"))
-KNOWLEDGE_BASE_LOOKUP_TRACKER_DIR = MEDIA_ROOT / "lookup-tracker"
-os.environ["LX_ANNOTATE_ENCRYPTED_DATA_DIR"] = str(base.APP_DATA_DIR)
+# Base settings derive media, terminology and logs from the isolated runtime root.
 
 # Test Assets (Videos/JSONs) should live in the CODE repository, not the data dir.
 # BASE_DIR from settings_base now correctly points to the repo root.

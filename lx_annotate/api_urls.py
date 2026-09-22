@@ -35,11 +35,33 @@ from lx_annotate.views.hub_export import (
 from lx_annotate.views.monitoring import monitoring_snapshot
 from lx_annotate.views.quarantine import quarantine_overview
 from lx_annotate.views.report_llm import report_llm_generate, report_llm_status
+from lx_annotate.views.study_cohorts import (
+    dataset_study_cohorts,
+    study_cohort_detail,
+    study_cohort_preview,
+    study_cohorts,
+)
 from lx_annotate.views.study_export import study_export_options, study_export_xlsx
 from lx_annotate.views.video_state_repair import VideoStateRepairView
 from lx_annotate.views.video_transcode_jobs import VideoTranscodeJobsView
 
 urlpatterns = [
+    path("media/studies/cohorts/", study_cohorts, name="study-cohorts"),
+    path(
+        "media/studies/cohorts/preview/",
+        study_cohort_preview,
+        name="saved-study-cohort-preview",
+    ),
+    path(
+        "media/studies/cohorts/<int:cohort_id>/",
+        study_cohort_detail,
+        name="study-cohort-detail",
+    ),
+    path(
+        "settings/application/ai_datasets/<int:dataset_id>/study_cohorts/",
+        dataset_study_cohorts,
+        name="dataset-study-cohorts",
+    ),
     path(
         "media/videos/transcode-jobs/",
         VideoTranscodeJobsView.as_view(),

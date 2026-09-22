@@ -34,8 +34,7 @@ print_error() {
 }
 
 bootstrap_path_env() {
-    export DATA_DIR="${DATA_DIR:-${LX_ANNOTATE_DATA_DIR:-$HOME_DIR/data}}"
-    export STORAGE_DIR="${STORAGE_DIR:-$DATA_DIR}"
+    : "${LX_RUNTIME_ROOT:?Set LX_RUNTIME_ROOT to the absolute runtime directory}"
 }
 
 bootstrap_pythonpath() {
@@ -43,33 +42,13 @@ bootstrap_pythonpath() {
 }
 
 resolve_ingest_directories() {
-    if python - <<'PY' >/dev/null 2>&1
-from endoreg_db.utils.paths import IMPORT_PREANONYMIZED_DIR
-PY
-    then
-        python - <<'PY'
-from endoreg_db.utils.paths import (
-    IMPORT_PREANONYMIZED_DIR,
-    IMPORT_REPORT_DIR,
-    IMPORT_VIDEO_DIR,
-)
+    python - <<'PY'
+from endoreg_db.utils.paths import get_runtime_paths
 
-for path in (IMPORT_VIDEO_DIR, IMPORT_REPORT_DIR, IMPORT_PREANONYMIZED_DIR):
+paths = get_runtime_paths()
+for path in (paths.import_video, paths.import_report, paths.import_preanonymized):
     print(path)
 PY
-        return
-    fi
-
-    python manage.py shell -c '
-from endoreg_db.utils.paths import (
-    IMPORT_PREANONYMIZED_DIR,
-    IMPORT_REPORT_DIR,
-    IMPORT_VIDEO_DIR,
-)
-
-for path in (IMPORT_VIDEO_DIR, IMPORT_REPORT_DIR, IMPORT_PREANONYMIZED_DIR):
-    print(path)
-'
 }
 
 # Check if running as root for service installation
@@ -104,20 +83,13 @@ create_directories() {
     bootstrap_path_env
     bootstrap_pythonpath
 
-    mapfile -t ingest_dirs < <(
-        resolve_ingest_directories
-    )
+    python - <<'PY'
+from endoreg_db.utils.paths import get_runtime_paths
 
-    for ingest_dir in "${ingest_dirs[@]}"; do
-        mkdir -p "$ingest_dir"
-    done
-    mkdir -p "$HOME_DIR/logs"
-    
-    print_status "Directories created:"
-    for ingest_dir in "${ingest_dirs[@]}"; do
-        echo "  - $ingest_dir"
-    done
-    echo "  - $HOME_DIR/logs"
+get_runtime_paths().ensure_directories()
+PY
+    print_status "Runtime directories created under $LX_RUNTIME_ROOT"
+
 }
 
 # Test file watcher

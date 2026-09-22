@@ -25,10 +25,7 @@ source_documents:
 - path: docs/guides/hub-storage-load-balancing.md
   disposition: reference
   note: Existing typed placement, envelope transfer, lease, reconciliation, and cleanup contracts.
-- path: /home/admin/dev/luxnix/docs/deployment-guide.md
-  disposition: reference
-  note: LuxNix deployment and host verification workflow.
-- path: /home/admin/dev/luxnix/docs/vault-setup.md
+- path: /home/admin/luxnix/docs/vault-setup.md
   disposition: reference
   note: Canonical admin-password import, rotation, export, and validation workflow.
 definition_of_done:
@@ -103,6 +100,12 @@ definition_of_done:
   category: requirements
   title: Runtime bytes have typed identity, provenance, lifecycle, and reclaimability
   acceptance:
+  - LX-Annotate resolves application-owned runtime paths through endoreg_db.utils.paths.get_runtime_paths;
+    settings adapters derive from that model and no legacy root environment alias controls media routing.
+  - Video and PDF remote materialization use canonical filenames and the model's transcoding directory;
+    storage monitoring, logs, recovery, and migration use the same runtime root.
+  - The legacy migration entrypoint delegates to migrate_media_storage without restoring separate filename
+    rules, deleting sources implicitly, or bypassing migration approval gates.
   - endoreg-db is the source of truth for each managed artifact's stable identity, content hash, size,
     storage mode, local and remote placement, source generation, retention state, active leases, and last
     verification.
@@ -145,20 +148,10 @@ definition_of_done:
     - kind: review
       reference: Existing hub placement/reconciliation models cover remote reservation, placement, receipt
         and reconciliation separately; unified lifecycle inventory remains outstanding
-    note: 'endoreg-db already owns typed per-video byte accounting for raw, processed, streamable, and
-      HLS artifacts, cleanup readiness, normalization evidence, references, and missing references. The
-      normalization inventory is now bounded before filesystem traversal with a default batch of 100,
-      hard maximum 1000, and stable primary-key resume cursor. HLS byte routing now converts persisted
-      values into the existing typed enum and rejects unknown kinds instead of silently omitting them.
-      Each HLS artifact traversal is also limited to 20,000 filesystem entries. Reaching the cap no longer
-      aborts read-only inventory: it emits an explicit incomplete/unreconciled scan result, forces reclaimable
-      bytes to zero, and blocks apply and cleanup before mutation. This ceiling affects metadata traversal
-      only; video and HLS media are never truncated, rewritten, moved, or partially stored. Full authoritative
-      status remains open because local inventory is not yet unified with remote placement, transferability,
-      corrupt/ambiguous/LOST classification, hashes, retention state, and last-verification timestamps
-      in one model-bound view.'
-    assessed_by: codex-storage-optimization-20260824
-    assessed_at: '2026-08-25T09:10:28Z'
+    - kind: document
+      reference: feature-tracking/reports/canonical-runtime-paths-20260922.yml
+    assessed_by: codex-path-alignment-20260917
+    assessed_at: '2026-09-22T08:44:17.345530Z'
 - id: safe_anonymized_transfer
   category: security
   title: Eligible processed media can be transferred without weakening security or integrity
@@ -340,14 +333,22 @@ definition_of_done:
     - kind: test
       reference: LuxNix focused storage/wheel/provenance tests 8 passed; evaluated wheel digest matches
         active 1.0.4; host derivation evaluated without build
+    - kind: test
+      reference: '2026-09-21: source integration using PYTHONPATH=/home/admin/endoreg-db: transcode worker/API/bulk
+        repair and access management: 90 passed; frontend transcode panel/API: 23 passed. Removed retired
+        DJANGO_NAME_SALT import that blocked API route loading; configured DJANGO_SALT preserves examiner
+        hash and missing salt fails closed. Focused Pyright: 0 errors. Installed Endoreg package lacks
+        config.identity_hashing; installed-runtime acceptance remains blocked. Full registry validation
+        also fails on the pre-existing lx-annotate-downtime-triggers.yml report schema; the tracker public
+        API acquired the normal conflict-checked lock and atomically updates this valid feature only.'
     note: 'Ownership remains correctly split: endoreg-db owns typed HLS lifecycle, bounded inventory,
       cleanup and dispatch; LX-Annotate owns authenticated playback/operator contracts; LuxNix owns host
       thresholds, mount gating, immutable wheel selection, staging and password policy. Focused database,
       type, lint, Nix evaluation and contract tests pass sequentially. Full compatibility remains open
       until a coordinated wheel containing these endoreg changes is released, the dirty LuxNix source
       is reviewed, and production-like transfer/eager-HLS acceptance passes.'
-    assessed_by: codex-storage-optimization-20260824
-    assessed_at: '2026-08-25T08:25:27.424323Z'
+    assessed_by: codex-downsize-20260921
+    assessed_at: '2026-09-21T14:53:50.095625Z'
 - id: sequential_verification_and_service_continuity
   category: testing
   title: Relevant tests pass sequentially without full-system rebuilds or service interruption
@@ -453,15 +454,13 @@ definition_of_done:
       reference: '2026-09-07 gc-05 read-only SSH diagnostics after VPN restoration: services, import/HLS
         state, queue counts, package versions, OIDC scope, findmnt/lsblk/by-id, HTTPS302'
     - kind: command
-      reference: '2026-09-07 gc-10 read-only SSH verification at172.16.255.110: active system
-        /nix/store/xhb4icbnsfzw62jfrl3kzziha9kljfsk-nixos-system-gc-10-25.11.20260125.1cd347b;
-        installed lx-annotate0.9.51/endoreg-db1.0.8.0/lx-dtypes0.2.8; installed migrations0056,
-        database0076; HLS model omits two required database columns. Web/nginx/PostgreSQL/Redis
-        active, HTTPS302; web/preflight fragments under /run/systemd/system.control are temporary.
-        Archive mount and HLS backfill failed; processing workers inactive; FFmpeg queue46;
-        storage27GiBfree97%. Upload jobs error2473/lost10/anonymized25; HLS ready51/queued43/
-        materializing1 and failures24 materialization,19 stale attempt,2 validation. These aggregate
-        failures are not all attributed to the downgrade. No host mutation performed.'
+      reference: '2026-09-07 gc-10 read-only SSH verification at172.16.255.110: active system /nix/store/xhb4icbnsfzw62jfrl3kzziha9kljfsk-nixos-system-gc-10-25.11.20260125.1cd347b;
+        installed lx-annotate0.9.51/endoreg-db1.0.8.0/lx-dtypes0.2.8; installed migrations0056, database0076;
+        HLS model omits two required database columns. Web/nginx/PostgreSQL/Redis active, HTTPS302; web/preflight
+        fragments under /run/systemd/system.control are temporary. Archive mount and HLS backfill failed;
+        processing workers inactive; FFmpeg queue46; storage27GiBfree97%. Upload jobs error2473/lost10/anonymized25;
+        HLS ready51/queued43/ materializing1 and failures24 materialization,19 stale attempt,2 validation.
+        These aggregate failures are not all attributed to the downgrade. No host mutation performed.'
     note: 'User restored VPN on September 7; gc-05 inventory SSH address is reachable. Read-only live
       check: web/nginx/PostgreSQL/Redis active and HTTPS302; runtime lx-annotate1.2.1/endoreg-db1.1.6/lx-dtypes0.2.35,
       scopes openid email profile, user martin locally has rbk_stuttgart plus endoregdb_user. FFmpeg/pipeline/inference/frame-extraction/maintenance
@@ -471,9 +470,9 @@ definition_of_done:
       Current deployed mount service lacks HDD_ID. Canonical LuxNix now persists verified gc05 identity
       and fails closed on stale binding; no live repair/restart/deployment performed. Reviewed candidate
       rollout, controlled stale-mount recovery, queue recovery, fresh browser login and human validation
-      remain required. Additional gc10 signal establishes an incompatible code/database downgrade;
-      restoring schema-compatible packages and durable startup configuration precedes any job replay.
-      Temporary frontend availability does not establish worker, archive, reboot, or capacity acceptance.'
+      remain required. Additional gc10 signal establishes an incompatible code/database downgrade; restoring
+      schema-compatible packages and durable startup configuration precedes any job replay. Temporary
+      frontend availability does not establish worker, archive, reboot, or capacity acceptance.'
     assessed_by: codex-remote-review-20260907
     assessed_at: '2026-09-07T09:20:51.828673Z'
 - id: admin_password_rotation_runbook
@@ -498,7 +497,7 @@ definition_of_done:
   required: true
   verification:
     kind: manual
-    instructions: 'Follow /home/admin/dev/luxnix/docs/vault-setup.md without placing the secret on a command
+    instructions: 'Follow /home/admin/luxnix/docs/vault-setup.md without placing the secret on a command
       line: update the ignored admin-password mapping, run vault-bootstrap with host-scoped export, run
       validate-admin-passwords, deploy the managed hash, open a fresh login, verify sudo, perform a subsequent
       Nix activation, and confirm the legacy fallback hash and password hint are absent from evaluated
@@ -508,7 +507,7 @@ definition_of_done:
     status: in_progress
     evidence:
     - kind: document
-      reference: /home/admin/dev/luxnix/docs/vault-setup.md
+      reference: /home/admin/luxnix/docs/vault-setup.md
     - kind: code
       reference: /home/admin/dev/luxnix/modules/nixos/admin/admin.nix
     note: LuxNix documentation now describes managed password rotation through the ignored admin-passwords.yml

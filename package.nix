@@ -92,11 +92,7 @@ stdenvNoCC.mkDerivation {
 
         export HOME="$TMPDIR/home"
         export XDG_DATA_HOME="$TMPDIR/xdg"
-        export LX_ANNOTATE_ENCRYPTED_DATA_DIR="$TMPDIR/app-data"
-        export LX_ANNOTATE_DATA_DIR="$TMPDIR/app-data"
-        export DATA_DIR="$TMPDIR/app-data"
-        export STORAGE_DIR="$TMPDIR/app-data/storage"
-        export PROTECTED_MEDIA_ROOT="$TMPDIR/app-data/storage"
+        export LX_RUNTIME_ROOT="$TMPDIR/app-data"
         export DJANGO_STATIC_ROOT="$static_root"
         export DJANGO_SETTINGS_MODULE="lx_annotate.settings.settings_prod"
         export DJANGO_SECRET_KEY="nix-build-secret-key-00000000000000000000000000000000"
@@ -115,7 +111,7 @@ stdenvNoCC.mkDerivation {
         export LD_LIBRARY_PATH="${runtimeLibraryPath}"
         export TESSDATA_PREFIX="${tesseract}/share/tessdata"
 
-        mkdir -p "$HOME" "$XDG_DATA_HOME" "$LX_ANNOTATE_ENCRYPTED_DATA_DIR"
+        mkdir -p "$HOME" "$XDG_DATA_HOME" "$LX_RUNTIME_ROOT"
         chmod -R u+w "$app_dir"
         ${python.interpreter} "$app_dir/manage.py" collectstatic --noinput --clear
         # Vite owns the frontend asset graph. Copy its dist output into the

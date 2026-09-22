@@ -517,7 +517,7 @@ def _video_processed_file(
         resource_kind=HubExportResourceKind.VIDEO,
         resource_id=int(video.pk),
         filename=_processed_filename(video),
-        resource_hash=video.video_hash,
+        resource_hash=video.raw_video_hash,
         processed_file_hash=processed_file_hash,
         center_key=video.center.center_key,
         center_name=video.center.name,
@@ -589,7 +589,7 @@ def _collect_video_overview(
         video_job = jobs_by_key.get(("video", video_id))
         marked_for_upload = video_job is not None
         source_center_key = video.center.center_key if video.center else None
-        filename = video.original_file_name or video.video_hash
+        filename = video.original_file_name or video.raw_video_hash
         processed_media_present = readiness.processed_media_present
         _append_privacy_record(
             privacy_records,
@@ -1023,7 +1023,7 @@ def _validate_failed_job_for_operator_retry(
                 "The failed video transfer is no longer eligible for hub export: "
                 f"{readiness.blocked_reason}.",
             )
-        resource_hash = str(job.video_file.video_hash)
+        resource_hash = str(job.video_file.raw_video_hash)
     elif job.resource_kind == OutboundHubTransferJob.ResourceKind.REPORT:
         if job.raw_pdf_file_id is None or not is_report_hub_export_eligible(
             job.raw_pdf_file,
@@ -1158,7 +1158,7 @@ def _mark_video_for_hub_upload(
             "transfer_key": build_transfer_key(
                 source_node_key=source_node.node_key,
                 resource_kind="video",
-                resource_hash=video.video_hash,
+                resource_hash=video.raw_video_hash,
             ),
         },
     )

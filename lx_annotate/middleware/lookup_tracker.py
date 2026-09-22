@@ -7,10 +7,8 @@ import io
 import json
 import logging
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
-from django.conf import settings
 from django.http import HttpRequest, HttpResponse
 from django.utils.deprecation import MiddlewareMixin
 from endoreg_db.utils.file_operations import (
@@ -18,12 +16,12 @@ from endoreg_db.utils.file_operations import (
     atomic_write_file,
     ensure_directory,
 )
-from lx_dtypes.django.api.lookup_tracker import consume_runtime_lookup_trackers
+from endoreg_db.utils.paths import get_runtime_paths
 from lx_dtypes.models.interface.KnowledgeBase import KnowledgeBase
+from lx_dtypes.terminology.lookup_tracker import consume_runtime_lookup_trackers
 
 logger = logging.getLogger(__name__)
 
-_STUDY_DATA_DIR = Path("study_data")
 _CSV_FILE_NAME = "knowledge_base_lookup_tracker.csv"
 _CSV_HEADERS = [
     "timestamp",
@@ -104,12 +102,7 @@ def append_summary_to_study_csv(
     request: HttpRequest,
     module_name: str,
 ) -> None:
-    configured_study_dir = getattr(settings, "KNOWLEDGE_BASE_LOOKUP_TRACKER_DIR", None)
-    study_dir = (
-        Path(configured_study_dir)
-        if configured_study_dir
-        else Path(settings.BASE_DIR) / _STUDY_DATA_DIR
-    )
+    study_dir = get_runtime_paths().logs / "lookup-tracker"
     ensure_directory(study_dir)
     csv_path = study_dir / _CSV_FILE_NAME
     lock_path = study_dir / f".{_CSV_FILE_NAME}.lock"

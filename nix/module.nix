@@ -883,7 +883,7 @@ in
       "d ${effectiveEncryptedDataDirString}/logs 0750 ${cfg.user} ${cfg.group} - -"
       "d ${effectiveEncryptedDataDirString}/media 0750 ${cfg.user} ${cfg.group} - -"
       "d ${effectiveEncryptedDataDirString}/terminology 0750 ${cfg.user} ${cfg.group} - -"
-      "d ${effectiveEncryptedDataDirString}/terminology/packages 0750 ${cfg.user} ${cfg.group} - -"
+      "d ${effectiveEncryptedDataDirString}/terminology 0750 ${cfg.user} ${cfg.group} - -"
       "f ${effectiveEncryptedDataDirString}/terminology/registry.json 0640 ${cfg.user} ${cfg.group} - {\"modules\":{}}"
     ]
     ++ lib.optionals cfg.sapImport.enable [

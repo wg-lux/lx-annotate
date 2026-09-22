@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
-from django.core.management.base import BaseCommand, CommandError, CommandParser
+from django.core.management.base import BaseCommand, CommandParser
+from endoreg_db.utils.paths import get_runtime_paths
 
 from lx_annotate.operational_support import (
     boolean_option,
-    configured_path,
     environment_boolean,
     optional_path,
     path_list,
@@ -25,9 +24,7 @@ class Command(BaseCommand):
             type=Path,
             default=None,
             metavar="PATH",
-            help=(
-                "Encrypted runtime data root. Overrides LX_ANNOTATE_ENCRYPTED_DATA_DIR."
-            ),
+            help=("Runtime data root. Defaults to the canonical LX_RUNTIME_ROOT."),
         )
         parser.add_argument(
             "--state-file",
@@ -63,12 +60,7 @@ class Command(BaseCommand):
 
     def handle(self, *args: object, **options: object) -> None:
         _ = args
-        target = optional_path(options, "target") or configured_path(
-            os.environ.get("LX_ANNOTATE_ENCRYPTED_DATA_DIR"),
-            "LX_ANNOTATE_ENCRYPTED_DATA_DIR",
-        )
-        if target is None:
-            raise CommandError("--target or LX_ANNOTATE_ENCRYPTED_DATA_DIR is required")
+        target = optional_path(options, "target") or get_runtime_paths().runtime_root
 
         skip_repair = boolean_option(options, "skip_repair")
         RuntimeRecoveryService(self.stdout.write).run(

@@ -3,16 +3,7 @@ from __future__ import annotations
 import json
 
 from django.test import Client, override_settings
-from django.urls import clear_url_caches, resolve, set_urlconf
-
-from tests.api.test_base_api_mount import _reload_urls_with_dtypes_api
-
-
-def _assert_builder_route_is_mounted() -> None:
-    clear_url_caches()
-    set_urlconf("lx_annotate.urls")
-    match = resolve("/dtypes-api/report-templates/builder/templates")
-    assert "lx_dtypes_api" in match.namespaces
+from django.urls import resolve
 
 
 @override_settings(
@@ -20,11 +11,10 @@ def _assert_builder_route_is_mounted() -> None:
     ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"],
 )
 def test_report_template_builder_rejects_invalid_findings_sections(
-    monkeypatch,
-    tmp_path,
+    packaged_registry,
 ):
-    _reload_urls_with_dtypes_api(monkeypatch, tmp_path)
-    _assert_builder_route_is_mounted()
+    match = resolve("/dtypes-api/report-templates/builder/templates")
+    assert "lx_dtypes_api" in match.namespaces
 
     client = Client()
     response = client.post(

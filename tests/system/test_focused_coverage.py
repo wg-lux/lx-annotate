@@ -521,6 +521,14 @@ def test_settings_dev_import_uses_static_vite_manifest_and_allow_any(monkeypatch
 
 
 def test_settings_prod_import_uses_static_vite_manifest(monkeypatch, tmp_path):
+    from endoreg_db.utils.file_operations import atomic_write_file
+
+    salt_file = atomic_write_file(
+        destination=tmp_path / "identity-salt",
+        content=(b"production-probe-test-salt",),
+        file_mode=0o600,
+    )
+    monkeypatch.setenv("DJANGO_SALT_FILE", str(salt_file))
     import lx_annotate.settings.settings_base as base
 
     dummy_config = SimpleNamespace(
@@ -562,6 +570,14 @@ def test_settings_prod_import_reads_luxnix_style_service_environment(
     monkeypatch,
     tmp_path,
 ):
+    from endoreg_db.utils.file_operations import atomic_write_file
+
+    salt_file = atomic_write_file(
+        destination=tmp_path / "identity-salt",
+        content=(b"production-probe-test-salt",),
+        file_mode=0o600,
+    )
+    monkeypatch.setenv("DJANGO_SALT_FILE", str(salt_file))
     app_data_dir = tmp_path / "lx-annotate-data"
     app_data_dir.mkdir(parents=True, exist_ok=True)
     static_root = tmp_path / "static-root"

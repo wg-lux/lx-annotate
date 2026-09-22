@@ -3,12 +3,13 @@ from __future__ import annotations
 import uuid
 from typing import Any, Literal, Protocol, cast
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist
 from django.db import models, transaction
 from endoreg_db.models import Center, Examiner, PortalUserInfo
 from endoreg_db.models.state.audit_ledger import AuditLedger
-from endoreg_db.utils import DJANGO_NAME_SALT, get_examiner_hash
+from endoreg_db.utils import get_examiner_hash
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from lx_annotate.permissions import user_has_global_center_scope_admin
@@ -165,7 +166,7 @@ def _create_portal_examiner(*, target_user: Any, center: Center) -> Examiner:
         first_name=identity_seed,
         last_name=username,
         center_name=str(center.center_key),
-        salt=DJANGO_NAME_SALT,
+        salt=settings.DJANGO_SALT,
     )
     return Examiner.objects.create(
         first_name="Portal",

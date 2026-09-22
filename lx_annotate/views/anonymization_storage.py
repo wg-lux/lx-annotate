@@ -3,11 +3,10 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime
-from pathlib import Path
 from typing import Literal
 
-from django.conf import settings
 from django.utils import timezone
+from endoreg_db.utils.paths import get_runtime_paths
 from pydantic import BaseModel, ConfigDict, Field
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -44,10 +43,7 @@ class AnonymizationStorageSnapshot(BaseModel):
 def observe_storage_capacity() -> AnonymizationStorageSnapshot:
     # Match monitoring.runtime.storage_check's bounded statvfs observation. It
     # cannot supply f_bfree, which is needed to distinguish use from reserves.
-    configured_root = getattr(settings, "PROTECTED_MEDIA_ROOT", None)
-    if not configured_root:
-        raise ValueError("Protected media storage is not configured.")
-    root = Path(configured_root)
+    root = get_runtime_paths().storage
     if not root.is_absolute() or not root.is_dir():
         raise ValueError("Protected media storage is unavailable.")
     if not os.access(root, os.R_OK | os.X_OK, effective_ids=True):

@@ -28,7 +28,15 @@ urlpatterns = [
     # Canonical, explicit mount for endoreg_db plus lx-annotate local API routes.
     lazy_urlconf("endoreg-api/", "lx_annotate.api_urls"),
     # Legacy compatibility alias. Prefer endoreg-api/ for new frontend code.
-    lazy_urlconf("api/", "lx_annotate.api_urls"),
+    lazy_urlconf(
+        "api/", "lx_annotate.api_urls", app_name="legacy_api", namespace="legacy_api"
+    ),
+    lazy_urlconf(
+        "dtypes-api/",
+        "lx_annotate.dtypes_api_urls",
+        app_name="ninja",
+        namespace="lx_dtypes_api",
+    ),
     path("oidc/", include("mozilla_django_oidc.urls")),
     path(
         "favicon.ico",
@@ -38,15 +46,6 @@ urlpatterns = [
         name="favicon",
     ),
 ]
-
-urlpatterns.append(
-    lazy_urlconf(
-        "dtypes-api/",
-        "lx_annotate.dtypes_api_urls",
-        app_name="ninja",
-        namespace="lx_dtypes_api",
-    )
-)
 
 # Catch-all Vue SPA
 urlpatterns.append(

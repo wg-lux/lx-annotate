@@ -47,7 +47,7 @@ def test_environment_variables():
     required_vars = [
         "DJANGO_HOST",
         "DJANGO_PORT",
-        "STORAGE_DIR",
+        "LX_RUNTIME_ROOT",
         "CONF_DIR",
         "DJANGO_MODULE",
     ]

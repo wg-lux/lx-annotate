@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 from collections.abc import Mapping
 from importlib import import_module
@@ -13,7 +12,10 @@ from django.core.exceptions import ImproperlyConfigured
 from django.db import DEFAULT_DB_ALIAS, connections
 from django.db.utils import OperationalError, ProgrammingError
 from endoreg_db.services.environment_readiness import check_environment_readiness
+from endoreg_db.utils.paths import get_runtime_paths
 from endoreg_db.utils.rust_backend import has_native_capability
+from lx_dtypes.terminology.terminology_loader import get_terminology_service
+from lx_dtypes.terminology.terminology_service import TerminologyError
 
 from lx_annotate.migration_history_safety import (
     MigrationHistorySafetyError,
@@ -405,21 +407,12 @@ def _protected_media_url_messages() -> list[CheckMessage]:
 
 
 def _protected_media_root_messages() -> list[CheckMessage]:
-    protected_root = str(os.environ.get("PROTECTED_MEDIA_ROOT", "") or "").strip()
-    if not protected_root:
-        return [
-            Critical(
-                "PROTECTED_MEDIA_ROOT must be set for Nginx protected media routing.",
-                id="lx_annotate.protected_media_root_missing",
-            ),
-        ]
-
-    protected_root_path = Path(protected_root).expanduser().resolve()
+    protected_root_path = get_runtime_paths().storage
     expected_media_root = Path(settings.MEDIA_ROOT).expanduser().resolve()
     if not protected_root_path.exists():
         return [
             Critical(
-                f"PROTECTED_MEDIA_ROOT does not exist: {protected_root_path}",
+                f"Canonical protected storage does not exist: {protected_root_path}",
                 id="lx_annotate.protected_media_root_not_found",
                 obj=str(protected_root_path),
             ),
@@ -427,7 +420,7 @@ def _protected_media_root_messages() -> list[CheckMessage]:
     if protected_root_path != expected_media_root:
         return [
             Warning(
-                "PROTECTED_MEDIA_ROOT does not match Django MEDIA_ROOT. "
+                "Canonical protected storage does not match Django MEDIA_ROOT. "
                 "Verify Nginx alias and X-Accel-Redirect expectations.",
                 id="lx_annotate.protected_media_root_mismatch",
                 obj=f"{protected_root_path} != {expected_media_root}",
@@ -462,70 +455,17 @@ def _host_models_module_messages() -> list[CheckMessage]:
 
 
 def _knowledge_base_registry_messages() -> list[CheckMessage]:
-    configured_path = str(
-        getattr(settings, "LX_DTYPES_KB_REGISTRY", "")
-        or os.environ.get("LX_DTYPES_KB_REGISTRY", ""),
-    ).strip()
-    if not configured_path:
-        return [
-            Warning(
-                "LX_DTYPES_KB_REGISTRY must identify the governed knowledge-base registry.",
-                id="lx_annotate.lx_dtypes_kb_registry_missing",
-            ),
-        ]
-
-    registry_path = Path(configured_path).expanduser().resolve()
     try:
-        payload = json.loads(registry_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        service = get_terminology_service()
+        identity = service.active_identity()
+        if identity is None:
+            raise TerminologyError(409, "No active knowledge-base bundle is selected.")
+        service.load(*identity)
+    except (TerminologyError, ImproperlyConfigured) as exc:
         return [
             Warning(
-                f"LX_DTYPES_KB_REGISTRY is not readable valid JSON: {type(exc).__name__}.",
+                f"The configured terminology cannot be loaded: {exc}",
                 id="lx_annotate.lx_dtypes_kb_registry_invalid",
-            ),
-        ]
-    if not isinstance(payload, dict) or not isinstance(payload.get("modules"), dict):
-        return [
-            Warning(
-                "LX_DTYPES_KB_REGISTRY must contain a modules object.",
-                id="lx_annotate.lx_dtypes_kb_registry_schema_invalid",
-            ),
-        ]
-    active = payload.get("active")
-    if not isinstance(active, dict):
-        return [
-            Warning(
-                "LX_DTYPES_KB_REGISTRY must contain an explicit active bundle identity.",
-                id="lx_annotate.lx_dtypes_kb_registry_active_missing",
-            ),
-        ]
-    module_name = active.get("module_name")
-    version = active.get("version")
-    versions = payload["modules"].get(module_name, {})
-    if (
-        not isinstance(module_name, str)
-        or not module_name.strip()
-        or not isinstance(version, str)
-        or not version.strip()
-        or not isinstance(versions, dict)
-        or version not in versions
-    ):
-        return [
-            Warning(
-                "The active knowledge-base identity is not registered in LX_DTYPES_KB_REGISTRY.",
-                id="lx_annotate.lx_dtypes_kb_registry_active_invalid",
-            ),
-        ]
-
-    try:
-        from lx_dtypes.models.interface.KnowledgeBaseResolver import load_knowledge_base
-
-        load_knowledge_base(module_name, version=version)
-    except Exception as exc:
-        return [
-            Warning(
-                f"The active registered knowledge base cannot be loaded: {type(exc).__name__}.",
-                id="lx_annotate.lx_dtypes_kb_registry_active_unloadable",
             ),
         ]
     return []

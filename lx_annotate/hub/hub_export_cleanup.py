@@ -9,7 +9,8 @@ from django.utils import timezone
 from endoreg_db.models import VideoFile
 from endoreg_db.models.media.operation_lease import MediaOperationLease
 from endoreg_db.models.media.video.video_processing import VideoProcessingHistory
-from endoreg_db.utils.file_operations import safe_delete_field_file, sha256_file
+from endoreg_db.utils.file_operations import safe_delete_field_file
+from endoreg_db.utils.hashs import get_file_hash
 from endoreg_db.utils.storage_streaming import field_file_size
 from lx_dtypes.models.contracts.hub_media_envelope import HubMediaEnvelopeReceipt
 
@@ -172,7 +173,7 @@ def _validate_local_processed_video(
         raise HubExportCleanupBlocked(
             "Local processed-video size changed after transfer.",
         )
-    if sha256_file(field_file) != receipt.plaintext_sha256:
+    if get_file_hash(field_file) != receipt.plaintext_sha256:
         raise HubExportCleanupBlocked(
             "Local processed-video digest changed after transfer.",
         )
@@ -258,7 +259,7 @@ def cleanup_verified_local_processed_video(
                 raise HubExportCleanupBlocked(
                     "Local processed-video size changed while cleanup was pending.",
                 )
-            if sha256_file(field_file) != receipt.plaintext_sha256:
+            if get_file_hash(field_file) != receipt.plaintext_sha256:
                 raise HubExportCleanupBlocked(
                     "Local processed-video digest changed while cleanup was pending.",
                 )

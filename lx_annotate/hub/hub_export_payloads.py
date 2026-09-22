@@ -17,7 +17,7 @@ from endoreg_db.models import (
     VideoFile,
 )
 from endoreg_db.models.state.anonymization import AnonymizationState
-from endoreg_db.utils.file_operations import sha256_file
+from endoreg_db.utils.hashs import get_file_hash
 from lx_dtypes.models.contracts import (
     JsonValue,
     validate_hub_transfer_report_payload,
@@ -33,7 +33,7 @@ from .hub_export_state import (
 
 
 class VideoFilePayload(TypedDict, total=False):
-    video_hash: str
+    raw_video_hash: str
     processed_video_hash: str
     suffix: str | None
     fps: float | None
@@ -77,7 +77,7 @@ class SensitiveMetaPayload(TypedDict, total=False):
 
 class FrameAnnotationPayload(TypedDict, total=False):
     annotation_id: int
-    video_hash: str
+    raw_video_hash: str
     frame_number: int
     frame_relative_path: str
     frame_timestamp: float | None
@@ -90,7 +90,7 @@ class FrameAnnotationPayload(TypedDict, total=False):
 class VideoSegmentPayload(TypedDict, total=False):
     source_node_key: str
     source_segment_id: int
-    video_hash: str
+    raw_video_hash: str
     start_frame_number: int
     end_frame_number_exclusive: int
     label_name: str
@@ -206,7 +206,7 @@ def _video_file_payload(
     processed_video_hash: str,
 ) -> VideoFilePayload:
     return {
-        "video_hash": video.video_hash,
+        "raw_video_hash": video.raw_video_hash,
         "processed_video_hash": processed_video_hash,
         "suffix": Path(str(video.suffix or ".mp4")).suffix or ".mp4",
         "fps": _require_value(video.fps, field_name="VideoFile.fps"),
@@ -263,7 +263,7 @@ def _build_video_rows(video: VideoFile, *, source_node_key: str) -> dict[str, An
 
 
 def _validated_report_processed_hash(report: RawPdfFile, *, state: Any) -> str:
-    actual_processed_hash = sha256_file(report.processed_file)
+    actual_processed_hash = get_file_hash(report.processed_file)
     state_processed_hash = str(
         getattr(state, "processed_file_sha256", "") or "",
     ).strip()
@@ -378,10 +378,10 @@ def _build_frame_annotation_rows(video: VideoFile) -> list[FrameAnnotationPayloa
         rows.append(
             {
                 "annotation_id": int(annotation.pk),
-                "video_hash": video.video_hash,
+                "raw_video_hash": video.raw_video_hash,
                 "frame_number": int(frame.frame_number),
                 "frame_relative_path": (
-                    f"frames/{video.video_hash}/{int(frame.frame_number):08d}.jpg"
+                    f"frames/{video.raw_video_hash}/{int(frame.frame_number):08d}.jpg"
                 ),
                 "frame_timestamp": frame.timestamp,
                 "label_name": annotation.label.name,
@@ -432,7 +432,7 @@ def _add_segment_model_metadata(
 def _build_video_segment_row(
     segment: LabelVideoSegment,
     *,
-    video_hash: str,
+    raw_video_hash: str,
     source_node_key: str,
 ) -> VideoSegmentPayload:
     segment_id, label_name = _segment_identity(segment)
@@ -443,7 +443,7 @@ def _build_video_segment_row(
     row: VideoSegmentPayload = {
         "source_node_key": source_node_key,
         "source_segment_id": segment_id,
-        "video_hash": video_hash,
+        "raw_video_hash": raw_video_hash,
         "start_frame_number": int(segment.start_frame_number),
         "end_frame_number_exclusive": int(segment.end_frame_number),
         "label_name": label_name,
@@ -477,7 +477,7 @@ def _build_video_segment_rows(
         rows.append(
             _build_video_segment_row(
                 segment,
-                video_hash=video.video_hash,
+                raw_video_hash=video.raw_video_hash,
                 source_node_key=source_node_key,
             ),
         )
@@ -531,7 +531,7 @@ def build_transfer_payload(
             video,
             source_node_key=source_node.node_key,
         )
-        resource_hash = video.video_hash
+        resource_hash = video.raw_video_hash
     else:
         report = outbound_job.raw_pdf_file
         if report is None:
@@ -625,7 +625,7 @@ def _validated_resource_hash(
     resource_rows: dict[str, Any],
 ) -> str:
     nested_row_name, nested_hash_name = {
-        TransferJob.ResourceKind.VIDEO.value: ("video_file", "video_hash"),
+        TransferJob.ResourceKind.VIDEO.value: ("video_file", "raw_video_hash"),
         TransferJob.ResourceKind.REPORT.value: ("raw_pdf_file", "pdf_hash"),
     }[resource_kind]
     resource_hash = str(payload.get("resource_hash") or "").strip()
@@ -810,7 +810,7 @@ def _validate_video_resource_rows(resource_rows: dict[str, Any]) -> None:
     _require_exact_keys(
         video_file,
         allowed={
-            "video_hash",
+            "raw_video_hash",
             "processed_video_hash",
             "suffix",
             "fps",
@@ -819,7 +819,7 @@ def _validate_video_resource_rows(resource_rows: dict[str, Any]) -> None:
             "width",
             "height",
         },
-        required={"video_hash", "processed_video_hash"},
+        required={"raw_video_hash", "processed_video_hash"},
         field_name="resource_rows.video_file",
     )
     _require_sha256(
@@ -919,7 +919,7 @@ def _validate_frame_annotations(resource_rows: dict[str, Any]) -> None:
             annotation_payload,
             allowed={
                 "annotation_id",
-                "video_hash",
+                "raw_video_hash",
                 "frame_number",
                 "frame_relative_path",
                 "frame_timestamp",
@@ -930,7 +930,7 @@ def _validate_frame_annotations(resource_rows: dict[str, Any]) -> None:
             },
             required={
                 "annotation_id",
-                "video_hash",
+                "raw_video_hash",
                 "frame_number",
                 "frame_relative_path",
                 "label_name",
@@ -1013,7 +1013,7 @@ def _validate_segment_enums(segment_payload: dict[str, Any]) -> None:
 def _validate_video_segment(
     segment: Any,
     *,
-    video_hash: str,
+    raw_video_hash: str,
     frame_count: Any,
 ) -> None:
     if not isinstance(segment, dict):
@@ -1024,7 +1024,7 @@ def _validate_video_segment(
         allowed={
             "source_node_key",
             "source_segment_id",
-            "video_hash",
+            "raw_video_hash",
             "start_frame_number",
             "end_frame_number_exclusive",
             "label_name",
@@ -1038,7 +1038,7 @@ def _validate_video_segment(
         required={
             "source_node_key",
             "source_segment_id",
-            "video_hash",
+            "raw_video_hash",
             "start_frame_number",
             "end_frame_number_exclusive",
             "label_name",
@@ -1049,8 +1049,8 @@ def _validate_video_segment(
         },
         field_name="resource_rows.video_segments",
     )
-    if segment_payload.get("video_hash") != video_hash:
-        raise ValueError("video segment video_hash must match video_file.")
+    if segment_payload.get("raw_video_hash") != raw_video_hash:
+        raise ValueError("video segment raw_video_hash must match video_file.")
     _validate_segment_frame_bounds(segment_payload, frame_count=frame_count)
     _validate_segment_provenance(segment_payload)
     _validate_segment_model_metadata(segment_payload)
@@ -1058,8 +1058,10 @@ def _validate_video_segment(
 
 
 def _validate_video_segments(resource_rows: dict[str, Any]) -> None:
-    video_hash = str(
-        cast(dict[str, Any], resource_rows.get("video_file", {})).get("video_hash", ""),
+    raw_video_hash = str(
+        cast(dict[str, Any], resource_rows.get("video_file", {})).get(
+            "raw_video_hash", ""
+        ),
     ).strip()
     frame_count = cast(dict[str, Any], resource_rows.get("video_file", {})).get(
         "frame_count",
@@ -1067,7 +1069,7 @@ def _validate_video_segments(resource_rows: dict[str, Any]) -> None:
     for segment in resource_rows.get("video_segments", []):
         _validate_video_segment(
             segment,
-            video_hash=video_hash,
+            raw_video_hash=raw_video_hash,
             frame_count=frame_count,
         )
 

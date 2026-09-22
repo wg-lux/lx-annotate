@@ -76,6 +76,15 @@ export interface StudyCohortPreviewResponse {
   summary: StudyCohortSummary
   cases: StudyCohortCase[]
   options: StudyCohortOptions
+  eligibility?: {
+    datasetCount: number
+    datasetVideoCount: number
+    missingExaminationVideoCount: number
+    conflictingPatientVideoCount: number
+    candidateExaminationCount: number
+    pseudonymousExaminationCount: number
+    displayedPatientCount: number
+  }
 }
 
 export interface StudyCohortPreviewQuery {

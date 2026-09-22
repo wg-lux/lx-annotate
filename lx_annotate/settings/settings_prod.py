@@ -9,12 +9,14 @@ from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
 
+from endoreg_db.config.identity_hashing import load_identity_salt
+from endoreg_db.utils.paths import get_runtime_paths
+
 from lx_annotate.settings import config as config_module
 from lx_annotate.settings.config import AppConfig
 from lx_annotate.settings.oidc import oidc_scopes_with_center_groups
 
 from .settings_base import (
-    APP_DATA_DIR,
     BASE_DIR,
     INSTALLED_APPS,
     LOGGING,
@@ -40,6 +42,8 @@ base_settings = import_module("lx_annotate.settings.settings_base")
 for _base_setting_name in dir(base_settings):
     if _base_setting_name.isupper():
         globals()[_base_setting_name] = getattr(base_settings, _base_setting_name)
+
+DJANGO_SALT = load_identity_salt(required=True, allow_inline=False)
 
 LOGGING = cast(dict[str, Any], LOGGING)
 REST_FRAMEWORK = cast(dict[str, Any], REST_FRAMEWORK)
@@ -193,7 +197,7 @@ if not config.keycloak_client_secret:
     )
 
 # 4. LOGGING (File based)
-LOG_FILE = APP_DATA_DIR / "logs" / "production.log"
+LOG_FILE = get_runtime_paths().logs / "production.log"
 
 # 5. Database
 
@@ -220,6 +224,9 @@ if not DATABASES["default"]["PASSWORD"]:
     )
 
 ENFORCE_AUTH = os.getenv("ENFORCE_AUTH", "1") == "1"  # default OFF
+
+TERMINOLOGY_AUTO_PROVISION = base_settings.TERMINOLOGY_AUTO_PROVISION
+TERMINOLOGY_ROOT = base_settings.TERMINOLOGY_ROOT
 
 try:
     from endoreg_db.config.settings import keycloak as KEYCLOAK

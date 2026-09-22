@@ -19,6 +19,8 @@
       </button>
     </section>
 
+    <DatasetStudyCohorts :dataset-id="selectedDatasetId" />
+
     <div class="settings-layout">
       <section class="settings-panel">
         <div class="panel-heading">
@@ -359,6 +361,7 @@
 </template>
 
 <script setup lang="ts">
+import DatasetStudyCohorts from '@/components/AiDataset/DatasetStudyCohorts.vue'
 import {
   attachAiDatasetAnnotations,
   buildAiDatasetTrainingManifest,

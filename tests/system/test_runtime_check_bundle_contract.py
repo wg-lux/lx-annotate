@@ -1,6 +1,53 @@
 from __future__ import annotations
 
-from scripts.evaluate_runtime_check_bundle import SchemaContract, find_contract_gaps
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+from scripts.evaluate_runtime_check_bundle import (
+    SchemaContract,
+    _isolated_runtime_root,
+    find_contract_gaps,
+)
+
+
+def test_bundle_runtime_cleanup_and_environment_restore_after_failure():
+    previous_root = os.environ["LX_RUNTIME_ROOT"]
+    with pytest.raises(RuntimeError, match="schema probe failed"):
+        with _isolated_runtime_root():
+            isolated_root = Path(os.environ["LX_RUNTIME_ROOT"])
+            assert isolated_root.is_dir()
+            assert isolated_root.stat().st_mode & 0o777 == 0o700
+            raise RuntimeError("schema probe failed")
+    assert not isolated_root.exists()
+    assert os.environ["LX_RUNTIME_ROOT"] == previous_root
+
+
+@pytest.mark.parametrize("configured_root", [None, "relative-host-root"])
+def test_bundle_evaluation_isolates_runtime_from_production_environment(
+    tmp_path: Path,
+    configured_root: str | None,
+):
+    env = os.environ.copy()
+    env.update({"DJANGO_ENV": "production", "TMPDIR": str(tmp_path)})
+    if configured_root is None:
+        env.pop("LX_RUNTIME_ROOT", None)
+    else:
+        env["LX_RUNTIME_ROOT"] = configured_root
+    result = subprocess.run(
+        [sys.executable, "scripts/evaluate_runtime_check_bundle.py"],
+        cwd=Path(__file__).resolve().parents[2],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Runtime-check bundle contract passed" in result.stdout
+    assert not list(tmp_path.glob("lx_bundle_check_*"))
 
 
 def test_bundle_contract_reports_each_missing_schema_requirement():

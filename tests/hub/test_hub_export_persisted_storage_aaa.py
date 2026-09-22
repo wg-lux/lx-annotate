@@ -13,10 +13,10 @@ from lx_annotate.hub.hub_export_contracts import (
 from lx_annotate.hub.hub_export_state import resolve_video_hub_export_state
 
 
-def _finished_video(*, video_hash: str, state_hash: str) -> SimpleNamespace:
+def _finished_video(*, processed_hash: str, state_hash: str) -> SimpleNamespace:
     return SimpleNamespace(
         processed_file=object(),
-        processed_video_hash=video_hash,
+        processed_video_hash=processed_hash,
         state=SimpleNamespace(
             ready_for_export=True,
             processed_file_sha256=state_hash,
@@ -38,7 +38,7 @@ def test_matching_persisted_hash_evidence_marks_finished_video_verified(
 ) -> None:
     # Arrange
     digest = "a" * 64
-    video = _finished_video(video_hash=digest, state_hash=digest)
+    video = _finished_video(processed_hash=digest, state_hash=digest)
 
     # Act
     readiness = resolve_video_hub_export_state(video)  # type: ignore[arg-type]
@@ -62,7 +62,7 @@ def test_mismatched_persisted_hash_evidence_fails_closed(
     _segment_status,
 ) -> None:
     # Arrange
-    video = _finished_video(video_hash="a" * 64, state_hash="b" * 64)
+    video = _finished_video(processed_hash="a" * 64, state_hash="b" * 64)
 
     # Act
     readiness = resolve_video_hub_export_state(video)  # type: ignore[arg-type]

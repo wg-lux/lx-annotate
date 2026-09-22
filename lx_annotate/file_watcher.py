@@ -15,7 +15,6 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator, Set
 
-import endoreg_db.utils.paths as path_utils
 import requests
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
@@ -42,6 +41,7 @@ from endoreg_db.services.video_files._imports import (
     check_storage_capacity,
 )
 from endoreg_db.utils.file_operations import ensure_directory, safe_unlink_file
+from endoreg_db.utils.paths import get_runtime_paths
 from endoreg_db.utils.storage import ensure_local_file
 from watchdog.events import (  # type: ignore[import-not-found]
     DirCreatedEvent,
@@ -52,18 +52,19 @@ from watchdog.events import (  # type: ignore[import-not-found]
 )
 from watchdog.observers import Observer  # type: ignore[import-not-found]
 
-LOG_DIR = path_utils.LOG_DIR
+_runtime_paths = get_runtime_paths()
+LOG_DIR = _runtime_paths.logs
 ensure_directory(LOG_DIR)
-MANAGED_VAULT_ROOT = path_utils.STORAGE_DIR.resolve()
+MANAGED_VAULT_ROOT = _runtime_paths.storage.resolve()
 
-INTAKE_VIDEO_DIR = path_utils.WATCHER_VIDEO_DROP_DIR
-INTAKE_REPORT_DIR = path_utils.WATCHER_REPORT_DROP_DIR
-INTAKE_PREANONYMIZED_DIR = path_utils.WATCHER_PREANONYMIZED_DROP_DIR
+INTAKE_VIDEO_DIR = _runtime_paths.watcher_video_drop
+INTAKE_REPORT_DIR = _runtime_paths.watcher_report_drop
+INTAKE_PREANONYMIZED_DIR = _runtime_paths.watcher_preanonymized_drop
 
 
-storage_root_global = path_utils.STORAGE_DIR
-storage_root_report_sensitive = path_utils.SENSITIVE_REPORT_DIR
-storage_root_video_sensitive = path_utils.SENSITIVE_VIDEO_DIR
+storage_root_global = _runtime_paths.storage
+storage_root_report_sensitive = _runtime_paths.sensitive_report
+storage_root_video_sensitive = _runtime_paths.sensitive_video
 
 
 def _setup_ffmpeg() -> None:
@@ -219,7 +220,7 @@ def _has_prediction_segments(video_file: VideoFile) -> bool:
     except Exception as exc:
         logger.warning(
             "Could not check prediction segments for video %s: %s",
-            getattr(video_file, "video_hash", video_pk),
+            getattr(video_file, "raw_video_hash", video_pk),
             exc,
         )
         return False
@@ -246,7 +247,7 @@ def _prediction_pipeline_complete(video_file: VideoFile) -> bool:
             except Exception as exc:
                 logger.warning(
                     "Could not resolve video state for %s: %s",
-                    getattr(video_file, "video_hash", "<unknown>"),
+                    getattr(video_file, "raw_video_hash", "<unknown>"),
                     exc,
                 )
                 return False
@@ -265,14 +266,16 @@ def _prediction_pipeline_complete(video_file: VideoFile) -> bool:
     if has_prediction_ranges is False:
         logger.info(
             "Video %s completed prediction with no segment ranges to materialize.",
-            getattr(video_file, "video_hash", getattr(video_file, "pk", "<unknown>")),
+            getattr(
+                video_file, "raw_video_hash", getattr(video_file, "pk", "<unknown>")
+            ),
         )
         return True
 
     logger.warning(
         "Video %s has lvs_created=True but no prediction LabelVideoSegment rows. "
         "Treating prediction pipeline as incomplete so pipe_1 can materialize rows for the KI segment view.",
-        getattr(video_file, "video_hash", getattr(video_file, "pk", "<unknown>")),
+        getattr(video_file, "raw_video_hash", getattr(video_file, "pk", "<unknown>")),
     )
     return False
 
@@ -619,9 +622,9 @@ class AutoProcessingHandler(FileSystemEventHandler):
 
     @staticmethod
     def _video_hash_from_upload_job(upload_job: UploadJob) -> str:
-        video_hash = str(getattr(upload_job, "content_hash", "") or "").strip()
-        if video_hash:
-            return video_hash
+        raw_video_hash = str(getattr(upload_job, "content_hash", "") or "").strip()
+        if raw_video_hash:
+            return raw_video_hash
         provenance: UploadProvenance = (
             getattr(upload_job, "processing_provenance", None) or {}
         )
@@ -632,10 +635,10 @@ class AutoProcessingHandler(FileSystemEventHandler):
         upload_job: UploadJob,
         video_path: Path,
     ) -> VideoFile | None:
-        video_hash = AutoProcessingHandler._video_hash_from_upload_job(upload_job)
+        raw_video_hash = AutoProcessingHandler._video_hash_from_upload_job(upload_job)
         video_file = (
-            VideoFile.objects.filter(video_hash=video_hash).first()
-            if video_hash
+            VideoFile.objects.filter(raw_video_hash=raw_video_hash).first()
+            if raw_video_hash
             else None
         )
         if video_file is None:
@@ -657,12 +660,12 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 "SensitiveMeta was created for upload job %s but is not "
                 "linked to VideoFile %s",
                 upload_job.id,
-                video_file.video_hash,
+                video_file.raw_video_hash,
             )
             return
         logger.warning(
             "Video imported but no SensitiveMeta created: %s",
-            video_file.video_hash,
+            video_file.raw_video_hash,
         )
 
     def _import_video(self, video_path: Path) -> VideoFile | None:
@@ -709,7 +712,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
             self._log_missing_sensitive_meta(upload_job, video_file)
             logger.info(
                 "Video imported through shared hub ingest: %s",
-                video_file.video_hash,
+                video_file.raw_video_hash,
             )
             return video_file
         except WatcherFileNotReadyError as not_ready_error:
@@ -739,7 +742,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
         self,
         *,
         video_file: VideoFile,
-        video_hash: str,
+        raw_video_hash: str,
         video_path: Path,
     ) -> bool:
         if not getattr(video_file, "pk", None):
@@ -749,13 +752,13 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 logger.info(
                     "Video %s already has completed prediction segments. "
                     "Bypassing AI pipeline.",
-                    video_hash,
+                    raw_video_hash,
                 )
                 return False
             logger.info(
                 "Watcher source for video %s was cleaned up after ingest; "
                 "queuing AI pipeline.",
-                video_hash,
+                raw_video_hash,
             )
         try:
             from endoreg_db.models import AiModel
@@ -774,7 +777,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
             logger.info(
                 "Video segmentation queued for %s on %s queue: "
                 "task=%s history=%s status=%s",
-                video_file.video_hash,
+                video_file.raw_video_hash,
                 dispatch_result.queue,
                 dispatch_result.task_id,
                 dispatch_result.history_id,
@@ -820,10 +823,10 @@ class AutoProcessingHandler(FileSystemEventHandler):
             video_file = self._import_video(video_path)
             if video_file is None:
                 return
-            video_hash = video_file.video_hash
+            raw_video_hash = video_file.raw_video_hash
             if not self._queue_video_segmentation(
                 video_file=video_file,
-                video_hash=video_hash,
+                raw_video_hash=raw_video_hash,
                 video_path=video_path,
             ):
                 return

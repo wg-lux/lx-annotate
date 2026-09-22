@@ -565,6 +565,18 @@ export type paths = {
 export type webhooks = Record<string, never>;
 export type components = {
     schemas: {
+        /** ImportTerminologyBundleResponse */
+        ImportTerminologyBundleResponse: {
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+            imported: components["schemas"]["TerminologyBundleVersion"];
+            /** Ok */
+            ok: boolean;
+            /** Revision */
+            revision: string;
+        };
         /** PExamination */
         PExamination: {
             /**
@@ -987,6 +999,40 @@ export type components = {
             /** Version */
             version: string;
         };
+        /** SelectTerminologyBundleResponse */
+        SelectTerminologyBundleResponse: {
+            active: components["schemas"]["TerminologyBundleVersion"];
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+            /** Ok */
+            ok: boolean;
+            /** Revision */
+            revision: string;
+        };
+        /** TerminologyBundleListResponse */
+        TerminologyBundleListResponse: {
+            active: components["schemas"]["TerminologyBundleVersion"] | null;
+            /** Bundles */
+            bundles: components["schemas"]["TerminologyBundleVersion"][];
+            /** Revision */
+            revision: string;
+        };
+        /** TerminologyBundleVersion */
+        TerminologyBundleVersion: {
+            /**
+             * Is Active
+             * @default false
+             */
+            is_active: boolean;
+            /** Medical Field */
+            medical_field?: string | null;
+            /** Module Name */
+            module_name: string;
+            /** Version */
+            version: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -1022,7 +1068,9 @@ export interface operations {
     };
     lx_dtypes_django_api_findings_routes_core_concepts_by_module: {
         parameters: {
-            query?: never;
+            query?: {
+                module_version?: string | null;
+            };
             header?: never;
             path: {
                 module_name: string;
@@ -1635,7 +1683,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
             };
         };
     };
@@ -1653,7 +1705,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["TerminologyBundleListResponse"];
+                };
             };
         };
     };
@@ -1681,7 +1735,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ImportTerminologyBundleResponse"];
+                };
             };
         };
     };
@@ -1703,7 +1759,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["SelectTerminologyBundleResponse"];
+                };
             };
         };
     };
@@ -1724,7 +1782,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
             };
         };
     };

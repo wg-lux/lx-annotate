@@ -1,53 +1,14 @@
 from __future__ import annotations
 
-import importlib
 import json
-import sys
-from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 from django.test import Client, override_settings
-from django.urls import clear_url_caches, set_urlconf
 from endoreg_db.models import Examination, Finding
-from lx_dtypes.knowledge_bases import (
-    BUILTIN_KNOWLEDGE_BASE_PROVIDER,
-    get_packaged_knowledge_base,
-)
-from lx_dtypes.models.interface.KnowledgeBaseResolver import (
-    clear_knowledge_base_resolver_caches,
-)
-from lx_dtypes.scripts.kb_registry import main as kb_registry_main
-from ninja.main import NinjaAPI
+from lx_dtypes.terminology.terminology_loader import get_terminology_service
 
-
-def _mount_canonical_dtypes_api(monkeypatch, registry_path: Path) -> None:
-    monkeypatch.setenv("LX_DTYPES_KB_REGISTRY", str(registry_path))
-    clear_knowledge_base_resolver_caches()
-
-    for module_name in (
-        "lx_annotate.urls",
-        "lx_annotate.dtypes_api_urls",
-        "lx_dtypes.django.api.main",
-        "lx_dtypes.django.api.report_template_builder",
-    ):
-        sys.modules.pop(module_name, None)
-
-    NinjaAPI._registry = []
-    clear_url_caches()
-    set_urlconf(None)
-    importlib.import_module("lx_annotate.urls")
-    clear_url_caches()
-    set_urlconf("lx_annotate.urls")
-
-
-@pytest.fixture(autouse=True)
-def _isolate_dtypes_runtime_state() -> Iterator[None]:
-    clear_knowledge_base_resolver_caches()
-    yield
-    clear_knowledge_base_resolver_caches()
-    clear_url_caches()
-    set_urlconf(None)
+from lx_annotate.services.report_llm import GraphReference, resolve_graph
 
 
 @override_settings(
@@ -56,40 +17,11 @@ def _isolate_dtypes_runtime_state() -> Iterator[None]:
 )
 @pytest.mark.django_db
 def test_packaged_dgvs_bundle_resolves_through_canonical_host_api(
-    monkeypatch,
-    tmp_path: Path,
+    packaged_registry: Path,
 ) -> None:
-    registry_path = tmp_path / "terminology" / "registry.json"
+    registry_path = packaged_registry
+    assert get_terminology_service().registry_path == registry_path
 
-    assert (
-        kb_registry_main(
-            [
-                "bootstrap",
-                "--registry",
-                str(registry_path),
-                "--module",
-                "dgvs_reporting",
-            ],
-        )
-        == 0
-    )
-
-    registry = json.loads(registry_path.read_text(encoding="utf-8"))
-    assert registry["active"] == {
-        "module_name": "dgvs_reporting",
-        "version": "0.1.0",
-    }
-    descriptor = get_packaged_knowledge_base("dgvs_reporting", "0.1.0")
-    assert registry["modules"]["dgvs_reporting"]["0.1.0"]["sources"] == [
-        {
-            "kind": "provider",
-            "provider": BUILTIN_KNOWLEDGE_BASE_PROVIDER,
-            "content_sha256": descriptor.content_sha256,
-        },
-    ]
-    assert "input_dirs" not in registry["modules"]["dgvs_reporting"]["0.1.0"]
-
-    _mount_canonical_dtypes_api(monkeypatch, registry_path)
     client = Client()
 
     examination = Examination.objects.create(name="colonoscopy")
@@ -114,12 +46,7 @@ def test_packaged_dgvs_bundle_resolves_through_canonical_host_api(
 
     assert bundles_response.status_code == 200, bundles_response.content.decode()
     bundles = bundles_response.json()
-    assert bundles["active"] == {
-        "module_name": "dgvs_reporting",
-        "version": "0.1.0",
-        "medical_field": "gastroenterology",
-        "is_active": True,
-    }
+    assert bundles == get_terminology_service().list_bundles().model_dump(mode="json")
     assert {
         (bundle["module_name"], bundle["version"]) for bundle in bundles["bundles"]
     } >= {
@@ -135,6 +62,10 @@ def test_packaged_dgvs_bundle_resolves_through_canonical_host_api(
         "knowledge_base_version": "0.1.0",
     }
     assert context["examination_name"] == "colonoscopy"
+    assert (
+        resolve_graph(GraphReference.model_validate(context)).model_dump(mode="json")
+        == context
+    )
     assert {template["name"] for template in context["report_templates"]} == {
         "colonoscopy_training_basic",
     }

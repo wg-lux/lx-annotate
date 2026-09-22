@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AiDatasetSettingsPage from '../AiDatasetSettingsPage.vue'
 
+vi.mock('@/api/studyCohortApi', () => ({ fetchStudyCohorts: hoisted.fetchStudyCohorts }))
+
 const hoisted = vi.hoisted(() => ({
+  fetchStudyCohorts: vi.fn(),
   fetchAiDatasetOptions: vi.fn(),
   fetchAiDatasetLabelSets: vi.fn(),
   createAiDataset: vi.fn(),
@@ -22,6 +25,7 @@ vi.mock('@/api/aiDatasetApi', () => ({
 describe('AiDatasetSettingsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    hoisted.fetchStudyCohorts.mockResolvedValue([])
     hoisted.fetchAiDatasetOptions.mockResolvedValue([
       {
         id: 7,

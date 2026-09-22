@@ -8,6 +8,7 @@ from pathlib import Path
 
 from django.core.management import call_command
 from django.utils import timezone as django_timezone
+from endoreg_db.utils.paths import get_runtime_paths
 
 from lx_annotate.operational_support import render_operational_event
 
@@ -60,8 +61,11 @@ class RuntimeRecoveryService:
     ) -> None:
         from endoreg_db.utils.file_operations import ensure_directory
 
-        ensure_directory(target, dir_mode=0o750)
-        log_dir = ensure_directory(target / "logs", dir_mode=0o750)
+        paths = get_runtime_paths()
+        if target.resolve() != paths.runtime_root:
+            raise ValueError("Recovery target must match LX_RUNTIME_ROOT")
+        ensure_directory(paths.runtime_root, dir_mode=0o750)
+        log_dir = ensure_directory(paths.logs, dir_mode=0o750)
         ensure_directory(state_file.parent, dir_mode=0o750)
         recovery_marker = log_dir / "data_recovery_complete"
         repair_marker = log_dir / f"managed_payload_repair_{REPAIR_REVISION}"
@@ -125,9 +129,9 @@ class RuntimeRecoveryService:
             resolved = source.expanduser().resolve()
             if resolved == target or not resolved.is_dir():
                 continue
-            call_command("migrate_data_dir", str(resolved))
             self._copy_missing_overlay(source=resolved, target=target)
             migrated_sources.append(str(resolved))
+        call_command("migrate_media_storage", apply=True, fail_fast=True)
         call_command("migration_mark_eligible", apply=True)
         updated = self._mark_quarantined_upload_jobs_eligible()
         call_command("reap_upload_job_sources")

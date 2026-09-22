@@ -330,6 +330,8 @@ definition_of_done:
   - Fullscreen defaults to a compact label selector and one stateful start/finish button, using the
     existing selection and store draft. Wheel and arrow selection apply immediately; boundary keys
     preserve draft identity and mutation permissions. The management panel remains in normal view.
+  - Fullscreen label controls reserve a compact bar below the video. The label menu opens upward,
+    scrolls within a 240px height limit constrained by the viewport, and closes after selection.
   - Native fullscreen and its viewport fallback retain the mounted video and draft. The video uses
     object-fit contain without the normal 400px height cap; fallback exit restores body scrolling.
   - Zoom centers the current playback position on zoom, playback, seek and resize, clamped to track edges.
@@ -344,12 +346,20 @@ definition_of_done:
       playback and press -. Verify one committed segment and unchanged draft label when selecting
       another label mid-marking. Exit fullscreen and verify state continuity. Check native failure
       fallback and browser-initiated exits. Browser layout acceptance remains pending.
+      Verify the control bar remains visible below native playback controls, and the label menu
+      stays usable on short and narrow fullscreen viewports.
       Drag the bottom timeline handle and use its keyboard controls; verify additional rows become
       visible, overflow remains scrollable, and pointer cancellation or page exit ends resizing.
     timeout_seconds: 600
   assessment:
     status: in_progress
     evidence:
+    - kind: test
+      reference: '2026-09-22 codex-fullscreen-labels-20260922: fullscreen toolbar moved into a
+        reserved flex row below the video; upward menu capped at 240px and closes on selection.
+        VideoExaminationAnnotation.functionality.spec.ts and VideoExaminationAnnotation.dropdown.test.ts:
+        44 tests passed. ESLint for both changed Vue components and vue-tsc --noEmit -p
+        tsconfig.app.json passed. Browser fullscreen visual verification remains outstanding.'
     - kind: test
       reference: '2026-09-15 codex-compact-fullscreen-20260915: annotation component suites plus
         videoStore.segmentDraft.test.ts — 87 tests passed across 8 files, including all 16 functionality

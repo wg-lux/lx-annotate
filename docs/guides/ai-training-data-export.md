@@ -52,7 +52,7 @@ current fields are:
 
 - `annotation_id`
 - `video_id`
-- `video_hash`
+- `raw_video_hash`
 - `frame_id`
 - `frame_number`
 - `frame_relative_path`

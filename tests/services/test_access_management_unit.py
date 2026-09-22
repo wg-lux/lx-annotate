@@ -17,6 +17,30 @@ from lx_annotate.services.access_management import (
 )
 
 
+@pytest.mark.django_db
+def test_portal_examiner_uses_configured_identity_salt(settings):
+    from django.contrib.auth import get_user_model
+    from django.core.exceptions import ImproperlyConfigured
+    from endoreg_db.models import Center, Examiner
+    from endoreg_db.utils import get_examiner_hash
+
+    user = get_user_model().objects.create_user(username="portal-salt-contract")
+    center = Center.objects.create(name="portal-salt-contract")
+    examiner = access_management._create_portal_examiner(
+        target_user=user, center=center
+    )
+    assert examiner.hash == get_examiner_hash(
+        first_name=f"oidc-user-{user.pk}",
+        last_name=user.username,
+        center_name=str(center.center_key),
+        salt=settings.DJANGO_SALT,
+    )
+    settings.DJANGO_SALT = ""
+    with pytest.raises(ImproperlyConfigured):
+        access_management._create_portal_examiner(target_user=user, center=center)
+    assert Examiner.objects.count() == 1
+
+
 class _Groups:
     def __init__(self, names: set[str]) -> None:
         self.names = names

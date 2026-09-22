@@ -291,7 +291,7 @@ def test_handler_process_video_delegates_to_shared_hub_ingest(monkeypatch, tmp_p
         processing_provenance={"content_hash": "video-hash"},
     )
     video_file = SimpleNamespace(
-        video_hash="video-hash",
+        raw_video_hash="video-hash",
         sensitive_meta=None,
         active_raw_file=None,
         pipe_1=lambda **kwargs: True,
@@ -331,7 +331,9 @@ def test_scripts_file_watcher_compatibility_exports_handoff_helpers():
 @pytest.mark.django_db
 def test_prediction_pipeline_complete_requires_materialized_prediction_segments():
     center = Center.objects.create(name="Watcher Prediction Center")
-    video = VideoFile.objects.create(center=center, video_hash="watcher-pred-ranges")
+    video = VideoFile.objects.create(
+        center=center, raw_video_hash="watcher-pred-ranges"
+    )
     state = video.get_or_create_state()
     state.initial_prediction_completed = True
     state.lvs_created = True
@@ -358,7 +360,7 @@ def test_prediction_pipeline_complete_requires_materialized_prediction_segments(
 @pytest.mark.django_db
 def test_prediction_pipeline_complete_allows_empty_prediction_result():
     center = Center.objects.create(name="Watcher Empty Prediction Center")
-    video = VideoFile.objects.create(center=center, video_hash="watcher-pred-empty")
+    video = VideoFile.objects.create(center=center, raw_video_hash="watcher-pred-empty")
     state = video.get_or_create_state()
     state.initial_prediction_completed = True
     state.lvs_created = True
