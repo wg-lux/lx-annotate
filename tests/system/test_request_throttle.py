@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import fcntl
 import socket
+from collections.abc import AsyncIterator, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -154,7 +155,9 @@ def test_stream_completion_or_disconnect(admission, consume):
     server.result(timeout=3)
     assert active(directory)
     if consume:
-        assert list(response.streaming_content) == [b"first", b"second"]
+        content = response.streaming_content
+        assert isinstance(content, Iterator)
+        assert list(content) == [b"first", b"second"]
     response.close()
     assert not active(directory)
 
@@ -177,7 +180,9 @@ def test_async_stream_lifetime(admission):
     server.result(timeout=3)
 
     async def consume():
-        return [chunk async for chunk in response.streaming_content]
+        content = response.streaming_content
+        assert isinstance(content, AsyncIterator)
+        return [chunk async for chunk in content]
 
     assert asyncio.run(consume()) == [b"first", b"second"]
     assert not active(directory)

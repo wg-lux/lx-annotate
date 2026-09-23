@@ -108,11 +108,19 @@ definition_of_done:
       reference: 'LuxNix gc-02 direct nix eval: requestTimeoutSeconds=21600, staleAfterSeconds=25200,
         both exported to lx-annotate-celery-hub-transfer-worker; broader selected eval tests 1 passed
         and 2 failed later on pre-existing host-provisioning/envelope-preflight assertions.'
-    note: Observed registration failure was synchronous HTTP timeout while the hub imported 35,786 annotations,
-      not Redis. Sender and proxy budgets now align at 21,600 seconds and stale recovery at 25,200 seconds;
-      live installed-wheel mTLS acceptance remains outstanding.
-    assessed_by: codex-hub-large-transfer-20260828
-    assessed_at: '2026-08-28T07:48:13.335350Z'
+    - kind: command
+      reference: '2026-09-23: pytest tests/hub/test_hub_export_{api,end_to_end,hooks,payloads,post_processing,reconciliation,worker}.py
+        tests/system/test_request_throttle.py tests/contracts/test_frontend_backend_api_contract.py tests/system/test_openapi_type_generation.py
+        -q --tb=short: 103 passed in 34.90s'
+    - kind: command
+      reference: '.devenv/state/venv/bin/pytest tests/hub tests/system/test_request_throttle.py -q --tb=short:
+        238 passed in 28.38s, 2026-09-23'
+    note: 'Valid PDF fixtures restore endoreg-db 1.3.6 parser contract without weakening production integrity.
+      Large PDF remains at least 3 MiB. Final complete hub plus throttle suite: 238 passed in 28.38s;
+      initial focused contract/schema suite: 103 passed in 34.90s. Project and changed-test Pyright: 0
+      errors; Ruff passed. Live installed-wheel deployment acceptance remains outstanding.'
+    assessed_by: codex-hub-diagnosis-20260923
+    assessed_at: '2026-09-23T14:14:30.685614Z'
 - id: fail_closed_security_boundary
   category: security
   title: Hub transfer remains fail closed across hostile internal networks

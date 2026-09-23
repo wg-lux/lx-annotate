@@ -13,7 +13,7 @@ from endoreg_db.services.raw_pdf_files import (
 
 
 def hub_report_pdf_bytes(text: str, *, attachment_size: int = 0) -> bytes:
-    """Build deterministic, parseable PDF bytes for report transfer tests."""
+    """Build parseable PDF fixtures without random document identifiers."""
     if attachment_size < 0:
         raise ValueError("attachment_size must be non-negative")
     with pymupdf.open() as document:
