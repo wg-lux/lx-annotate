@@ -17,6 +17,7 @@ from lx_annotate.hub.hub_export_reconciliation import (
 )
 from lx_annotate.models import OutboundHubTransferJob
 from tests.hub_payload_helpers import (
+    hub_report_pdf_bytes,
     hub_transfer_status_payload,
     verify_hub_report_artifact,
 )
@@ -55,9 +56,9 @@ class HubExportReconciliationTests(TestCase):
             center=self.center,
             state=self.report_state,
             pdf_hash="report-hash-1",
-            file=ContentFile(b"%PDF-1.4\nraw\n%%EOF\n", name="report-1.pdf"),
+            file=ContentFile(hub_report_pdf_bytes("raw"), name="report-1.pdf"),
             processed_file=ContentFile(
-                b"%PDF-1.4\nprocessed\n%%EOF\n",
+                hub_report_pdf_bytes("processed"),
                 name="report-1-processed.pdf",
             ),
         )
@@ -217,9 +218,9 @@ class HubExportReconciliationTests(TestCase):
                 anonymization_validated=True,
             ),
             pdf_hash="report-hash-exhausted",
-            file=ContentFile(b"%PDF-1.4\nraw2\n%%EOF\n", name="raw2.pdf"),
+            file=ContentFile(hub_report_pdf_bytes("raw2"), name="raw2.pdf"),
             processed_file=ContentFile(
-                b"%PDF-1.4\nprocessed2\n%%EOF\n", name="processed2.pdf"
+                hub_report_pdf_bytes("processed2"), name="processed2.pdf"
             ),
         )
         exhausted = OutboundHubTransferJob.objects.create(

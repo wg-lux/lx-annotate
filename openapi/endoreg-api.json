@@ -1056,6 +1056,13 @@
               }
             ]
           },
+          "attached_findings": {
+            "items": {
+              "$ref": "#/components/schemas/SegmentAttachedFindingSchema"
+            },
+            "title": "Attached Findings",
+            "type": "array"
+          },
           "controls": {
             "$ref": "#/components/schemas/SegmentFrameControlsSchema"
           },
@@ -4308,7 +4315,7 @@
     },
     "/endoreg-api/patient-examination-reports/": {
       "get": {
-        "operationId": "endoreg_db_views_report_patient_examination_report_list_reports",
+        "operationId": "endoreg_db_views_patient_report_patient_examination_report_list_reports",
         "parameters": [
           {
             "in": "query",
@@ -4399,7 +4406,7 @@
     },
     "/endoreg-api/patient-examination-reports/frame-candidates": {
       "get": {
-        "operationId": "endoreg_db_views_report_patient_examination_report_get_report_frame_candidates",
+        "operationId": "endoreg_db_views_patient_report_patient_examination_report_get_report_frame_candidates",
         "parameters": [
           {
             "in": "query",
@@ -4473,7 +4480,7 @@
     },
     "/endoreg-api/patient-examination-reports/history-context": {
       "get": {
-        "operationId": "endoreg_db_views_report_patient_examination_report_history_context",
+        "operationId": "endoreg_db_views_patient_report_patient_examination_report_history_context",
         "parameters": [
           {
             "in": "query",
@@ -4519,7 +4526,7 @@
     },
     "/endoreg-api/patient-examination-reports/make-report": {
       "post": {
-        "operationId": "endoreg_db_views_report_patient_examination_report_make_report",
+        "operationId": "endoreg_db_views_patient_report_patient_examination_report_make_report",
         "parameters": [],
         "responses": {
           "200": {
@@ -4571,7 +4578,7 @@
     },
     "/endoreg-api/patient-examination-reports/save-submission": {
       "post": {
-        "operationId": "endoreg_db_views_report_patient_examination_report_save_submission",
+        "operationId": "endoreg_db_views_patient_report_patient_examination_report_save_submission",
         "parameters": [],
         "responses": {
           "200": {
@@ -4607,7 +4614,7 @@
     },
     "/endoreg-api/patient-examination-reports/segment-frame-selector": {
       "get": {
-        "operationId": "endoreg_db_views_report_patient_examination_report_get_segment_frame_selector",
+        "operationId": "endoreg_db_views_patient_report_patient_examination_report_get_segment_frame_selector",
         "parameters": [],
         "responses": {
           "200": {
@@ -4627,7 +4634,7 @@
         ]
       },
       "patch": {
-        "operationId": "endoreg_db_views_report_patient_examination_report_patch_segment_frame_selector",
+        "operationId": "endoreg_db_views_patient_report_patient_examination_report_patch_segment_frame_selector",
         "parameters": [],
         "responses": {
           "200": {
@@ -4645,11 +4652,31 @@
         "tags": [
           "patient-examination-reports"
         ]
+      },
+      "post": {
+        "operationId": "endoreg_db_views_patient_report_patient_examination_report_post_segment_frame_selector",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SegmentFrameSelectorResponseSchema"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Post Segment Frame Selector",
+        "tags": [
+          "patient-examination-reports"
+        ]
       }
     },
     "/endoreg-api/patient-examination-reports/{report_id}": {
       "get": {
-        "operationId": "endoreg_db_views_report_patient_examination_report_get_report",
+        "operationId": "endoreg_db_views_patient_report_patient_examination_report_get_report",
         "parameters": [
           {
             "in": "path",

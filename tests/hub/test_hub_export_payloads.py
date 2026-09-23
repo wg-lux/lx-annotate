@@ -5,7 +5,6 @@ import base64
 import hashlib
 import os
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.core.files.base import ContentFile
@@ -22,6 +21,7 @@ from endoreg_db.models import (
     PatientExaminationReport,
     RawPdfFile,
     RawPdfState,
+    UploadJob,
     VideoFile,
     VideoState,
 )
@@ -34,6 +34,7 @@ from lx_annotate.hub.hub_export_payloads import (
 from lx_annotate.models import OutboundHubTransferJob
 from tests.hub_payload_helpers import (
     create_hub_sensitive_meta,
+    hub_report_pdf_bytes,
     verify_hub_report_artifact,
 )
 
@@ -130,7 +131,7 @@ class HubExportPayloadTests(TestCase):
         self.assertEqual(validated["target_node"].node_key, "hub-node")
 
         # Reprocessing changes the exported artifact, never the import identity.
-        upload_job = SimpleNamespace(content_hash=video.raw_video_hash)
+        upload_job = UploadJob(content_hash=video.raw_video_hash)
         original_pk = video.pk
         original_key = payload["transfer_key"]
         video.processed_file.save("reprocessed.mp4", ContentFile(b"reprocessed-video"))
@@ -158,7 +159,7 @@ class HubExportPayloadTests(TestCase):
             upload_job,
             Path("original.mp4"),
         )
-        self.assertIsNotNone(resolved)
+        assert resolved is not None
         self.assertEqual(resolved.pk, original_pk)
 
     def test_rejects_inconsistent_processed_video_hash_metadata(self):
@@ -313,9 +314,9 @@ class HubExportPayloadTests(TestCase):
             sensitive_meta=create_hub_sensitive_meta(center=other_center),
             pdf_hash="report-hash-other-center",
             anonymized_text="Anonymized report text",
-            file=ContentFile(b"%PDF-1.4\nraw\n%%EOF\n", name="other-center.pdf"),
+            file=ContentFile(hub_report_pdf_bytes("raw"), name="other-center.pdf"),
             processed_file=ContentFile(
-                b"%PDF-1.4\nprocessed\n%%EOF\n",
+                hub_report_pdf_bytes("processed"),
                 name="other-center-processed.pdf",
             ),
         )
@@ -346,9 +347,9 @@ class HubExportPayloadTests(TestCase):
             pdf_hash="report-hash-1",
             text="Max Mustermann raw report text",
             anonymized_text="Anonymized report text",
-            file=ContentFile(b"%PDF-1.4\nraw\n%%EOF\n", name="report-1.pdf"),
+            file=ContentFile(hub_report_pdf_bytes("raw"), name="report-1.pdf"),
             processed_file=ContentFile(
-                b"%PDF-1.4\nprocessed\n%%EOF\n",
+                hub_report_pdf_bytes("processed"),
                 name="report-1-processed.pdf",
             ),
         )
@@ -377,7 +378,7 @@ class HubExportPayloadTests(TestCase):
         )
         self.assertEqual(
             rows["raw_pdf_state"]["processed_file_sha256"],
-            hashlib.sha256(b"%PDF-1.4\nprocessed\n%%EOF\n").hexdigest(),
+            hashlib.sha256(hub_report_pdf_bytes("processed")).hexdigest(),
         )
 
         validated = self._assert_transfer_payload_persists(payload)

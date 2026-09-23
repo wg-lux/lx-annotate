@@ -2,12 +2,28 @@ from __future__ import annotations
 
 import hashlib
 from datetime import date, datetime, timezone
+from random import Random
 from typing import Any
 
+import pymupdf
 from endoreg_db.models import Center, RawPdfFile, SensitiveMeta
 from endoreg_db.services.raw_pdf_files import (
     verify_and_persist_processed_report_sha256,
 )
+
+
+def hub_report_pdf_bytes(text: str, *, attachment_size: int = 0) -> bytes:
+    """Build deterministic, parseable PDF bytes for report transfer tests."""
+    if attachment_size < 0:
+        raise ValueError("attachment_size must be non-negative")
+    with pymupdf.open() as document:
+        document.new_page().insert_text((72, 72), text)
+        if attachment_size:
+            # Incompressible fixture data keeps the streaming test above its byte budget.
+            document.embfile_add(
+                "fixture-padding.bin", Random(0).randbytes(attachment_size)
+            )
+        return document.tobytes(no_new_id=True)
 
 
 def create_hub_sensitive_meta(

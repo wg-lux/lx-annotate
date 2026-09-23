@@ -282,6 +282,109 @@ describe('AnonymizationValidationComponent', () => {
     })
   })
 
+  it.each([
+    [' Max ', ' Mustermann '],
+    ['MAX', 'MUSTERMANN'],
+    ['Max  Peter', 'Mustermann'],
+    ['Max\u00a0Peter', 'Mustermann'],
+    ['Mxa', 'Musterman']
+  ])('submits name spelling unchanged: %s / %s', async (first_name, last_name) => {
+    // Arrange
+    hoisted.axiosPost.mockResolvedValue(
+      apiResponse({ case_resolution: { patient_examination_id: 42 } })
+    )
+    const wrapper = mountComponent()
+    await flushPromises()
+    const name_inputs = wrapper.findAll('input[type="text"]')
+    await requireDefined(name_inputs[0], 'First name input').setValue(first_name)
+    await requireDefined(name_inputs[1], 'Last name input').setValue(last_name)
+
+    // Act
+    await wrapper.find('button.btn.btn-success').trigger('click')
+    await flushPromises()
+
+    // Assert
+    expect(hoisted.axiosPost).toHaveBeenCalledWith(
+      'anonymization/5/validate/',
+      expect.objectContaining({ patient_first_name: first_name, patient_last_name: last_name })
+    )
+    wrapper.unmount()
+  })
+
+  it.each([
+    [' 21.03.1994 ', '21.03.1994'],
+    ['1994-03-21', '21.03.1994'],
+    ['21.03.1994', '21.03.1994'],
+    ['12.10.1994', '12.10.1994'],
+    ['10.12.1994', '10.12.1994'],
+    ['21.03.1995', '21.03.1995']
+  ])('normalizes birth date format but preserves valid date edits: %s', async (input, expected) => {
+    // Arrange
+    hoisted.axiosPost.mockResolvedValue(
+      apiResponse({ case_resolution: { patient_examination_id: 42 } })
+    )
+    const wrapper = mountComponent()
+    await flushPromises()
+    const dob_input = wrapper.find('input[autocomplete="bday"]')
+    await dob_input.setValue(input)
+
+    // Act
+    await dob_input.trigger('blur')
+    await wrapper.find('button.btn.btn-success').trigger('click')
+    await flushPromises()
+
+    // Assert
+    expect(hoisted.axiosPost).toHaveBeenCalledWith(
+      'anonymization/5/validate/',
+      expect.objectContaining({ patient_dob: expected })
+    )
+    wrapper.unmount()
+  })
+
+  it.each(['31.02.1994', '29.02.1993', 'not-a-date', '   '])(
+    'blocks approval for an invalid birth date: %s',
+    async (input) => {
+      // Arrange
+      const wrapper = mountComponent()
+      await flushPromises()
+      const dob_input = wrapper.find('input[autocomplete="bday"]')
+
+      // Act
+      await dob_input.setValue(input)
+      await dob_input.trigger('blur')
+      await wrapper.find('button.btn.btn-success').trigger('click')
+      await flushPromises()
+
+      // Assert
+      expect(wrapper.find('button.btn.btn-success').attributes('disabled')).toBeDefined()
+      expect(hoisted.axiosPost).not.toHaveBeenCalled()
+      wrapper.unmount()
+    }
+  )
+
+  it('submits an invalid examination date as empty for backend rejection', async () => {
+    // Arrange
+    hoisted.axiosPost.mockRejectedValue({
+      response: { data: { examination_date: ['Invalid date'] } }
+    })
+    const wrapper = mountComponent()
+    await flushPromises()
+    const examination_input = wrapper.find('input[autocomplete="off"]')
+
+    // Act
+    await examination_input.setValue('31.02.2024')
+    await examination_input.trigger('blur')
+    await wrapper.find('button.btn.btn-success').trigger('click')
+    await flushPromises()
+
+    // Assert
+    expect(hoisted.axiosPost).toHaveBeenCalledWith(
+      'anonymization/5/validate/',
+      expect.objectContaining({ examination_date: '' })
+    )
+    wrapper.unmount()
+  })
+
   it('blocks pdf approval when no document type is selected', async () => {
     requireAnonymizationStore().current = buildPdfItem({ documentType: '' })
 
@@ -293,6 +396,45 @@ describe('AnonymizationValidationComponent', () => {
     expect(wrapper.text()).toContain('Bitte wählen Sie einen Dokumenttyp für die PDF-Validierung.')
   })
 
+  it.each(['pending', 'failed', 'unavailable', 'review_not_required'])(
+    'keeps video approval available when artifact lookup is %s',
+    async (lookup_state) => {
+      requireMediaStore().isPdf = false
+      requireMediaStore().isVideo = true
+      hoisted.axiosGet.mockImplementation((url: string) => {
+        if (url === 'media/videos/video-correction/5/anonymization/') {
+          if (lookup_state === 'pending') return new Promise<AxiosResponse<unknown>>(() => {})
+          if (lookup_state === 'failed') return Promise.reject(new Error('Lookup unavailable'))
+          return resolvedApiResponse({
+            selectedStrategy: 'detector_assisted',
+            ocrEngines: [],
+            reviewRequired: lookup_state !== 'review_not_required',
+            processedArtifact: { available: lookup_state !== 'unavailable' },
+            latestRun: null
+          })
+        }
+        return resolvedApiResponse({})
+      })
+      hoisted.axiosPost.mockResolvedValue(apiResponse({}))
+      const wrapper = mountComponent({ fileId: 5, mediaType: 'video' })
+      await flushPromises()
+
+      const approve_button = wrapper.find('button.btn.btn-success')
+      expect(approve_button.attributes('disabled')).toBeUndefined()
+      expect(wrapper.text()).toContain('blockiert die Bestätigung nicht')
+      if (lookup_state === 'pending')
+        expect(wrapper.text()).toContain('Release-Artefakt wird geprüft')
+      if (lookup_state === 'failed') expect(wrapper.text()).toContain('Lookup unavailable')
+      await approve_button.trigger('click')
+      await flushPromises()
+      expect(hoisted.axiosPost).toHaveBeenCalledWith(
+        'anonymization/5/validate/',
+        expect.objectContaining({})
+      )
+      wrapper.unmount()
+    }
+  )
+
   it('renders the source file id in the validation header', async () => {
     requireAnonymizationStore().current = buildPdfItem({ id: 99 })
 
@@ -301,6 +443,24 @@ describe('AnonymizationValidationComponent', () => {
 
     expect(wrapper.text()).toContain('PDF-ID: 5')
     expect(wrapper.text()).not.toContain('PDF-ID: 99')
+  })
+
+  it('still requires valid patient fields while artifact lookup is pending', async () => {
+    requireMediaStore().isPdf = false
+    requireMediaStore().isVideo = true
+    requireAnonymizationStore().current = buildPdfItem({ patientFirstName: '' })
+    hoisted.axiosGet.mockImplementation((url: string) =>
+      url === 'media/videos/video-correction/5/anonymization/'
+        ? new Promise<AxiosResponse<unknown>>(() => {})
+        : resolvedApiResponse({})
+    )
+    const wrapper = mountComponent({ fileId: 5, mediaType: 'video' })
+    await flushPromises()
+
+    expect(wrapper.find('button.btn.btn-success').attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('Bitte korrigieren Sie: Vorname')
+    expect(hoisted.axiosPost).not.toHaveBeenCalled()
+    wrapper.unmount()
   })
 
   it('disables Skip and Reject until the submitted approval completes', async () => {

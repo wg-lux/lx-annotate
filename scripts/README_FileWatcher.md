@@ -32,7 +32,7 @@ The watcher skips in-progress names ending in `.tmp`, `.part`, `.partial`,
 When the temp file is renamed to a final media name, the move event is processed.
 
 Python producers should use
-`endoreg_db.utils.filesystem.file_operations.atomic_handoff_file(...)` so the
+`endoreg_db.utils.file_operations.atomic_handoff_file(...)` so the
 temporary file, file fsync, directory fsync, and atomic rename behavior stay
 consistent with endoreg-db ingest.
 

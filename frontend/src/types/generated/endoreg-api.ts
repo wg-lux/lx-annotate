@@ -2276,7 +2276,7 @@ export type paths = {
             cookie?: never;
         };
         /** List Reports */
-        get: operations["endoreg_db_views_report_patient_examination_report_list_reports"];
+        get: operations["endoreg_db_views_patient_report_patient_examination_report_list_reports"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2293,7 +2293,7 @@ export type paths = {
             cookie?: never;
         };
         /** Get Report Frame Candidates */
-        get: operations["endoreg_db_views_report_patient_examination_report_get_report_frame_candidates"];
+        get: operations["endoreg_db_views_patient_report_patient_examination_report_get_report_frame_candidates"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2310,7 +2310,7 @@ export type paths = {
             cookie?: never;
         };
         /** History Context */
-        get: operations["endoreg_db_views_report_patient_examination_report_history_context"];
+        get: operations["endoreg_db_views_patient_report_patient_examination_report_history_context"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2329,7 +2329,7 @@ export type paths = {
         get?: never;
         put?: never;
         /** Make Report */
-        post: operations["endoreg_db_views_report_patient_examination_report_make_report"];
+        post: operations["endoreg_db_views_patient_report_patient_examination_report_make_report"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2346,7 +2346,7 @@ export type paths = {
         get?: never;
         put?: never;
         /** Save Submission */
-        post: operations["endoreg_db_views_report_patient_examination_report_save_submission"];
+        post: operations["endoreg_db_views_patient_report_patient_examination_report_save_submission"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2361,14 +2361,15 @@ export type paths = {
             cookie?: never;
         };
         /** Get Segment Frame Selector */
-        get: operations["endoreg_db_views_report_patient_examination_report_get_segment_frame_selector"];
+        get: operations["endoreg_db_views_patient_report_patient_examination_report_get_segment_frame_selector"];
         put?: never;
-        post?: never;
+        /** Post Segment Frame Selector */
+        post: operations["endoreg_db_views_patient_report_patient_examination_report_post_segment_frame_selector"];
         delete?: never;
         options?: never;
         head?: never;
         /** Patch Segment Frame Selector */
-        patch: operations["endoreg_db_views_report_patient_examination_report_patch_segment_frame_selector"];
+        patch: operations["endoreg_db_views_patient_report_patient_examination_report_patch_segment_frame_selector"];
         trace?: never;
     };
     "/endoreg-api/patient-examination-reports/{report_id}": {
@@ -2379,7 +2380,7 @@ export type paths = {
             cookie?: never;
         };
         /** Get Report */
-        get: operations["endoreg_db_views_report_patient_examination_report_get_report"];
+        get: operations["endoreg_db_views_patient_report_patient_examination_report_get_report"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3551,6 +3552,8 @@ export type components = {
         /** SegmentFrameSelectorItemSchema */
         SegmentFrameSelectorItemSchema: {
             attached_finding: components["schemas"]["SegmentAttachedFindingSchema"] | null;
+            /** Attached Findings */
+            attached_findings?: components["schemas"]["SegmentAttachedFindingSchema"][];
             controls: components["schemas"]["SegmentFrameControlsSchema"];
             /** End Frame Number */
             end_frame_number: number;
@@ -6174,7 +6177,7 @@ export interface operations {
             };
         };
     };
-    endoreg_db_views_report_patient_examination_report_list_reports: {
+    endoreg_db_views_patient_report_patient_examination_report_list_reports: {
         parameters: {
             query?: {
                 patient_examination_id?: number | null;
@@ -6199,7 +6202,7 @@ export interface operations {
             };
         };
     };
-    endoreg_db_views_report_patient_examination_report_get_report_frame_candidates: {
+    endoreg_db_views_patient_report_patient_examination_report_get_report_frame_candidates: {
         parameters: {
             query: {
                 patient_examination_id: number;
@@ -6224,7 +6227,7 @@ export interface operations {
             };
         };
     };
-    endoreg_db_views_report_patient_examination_report_history_context: {
+    endoreg_db_views_patient_report_patient_examination_report_history_context: {
         parameters: {
             query: {
                 patient_examination_id: number;
@@ -6249,7 +6252,7 @@ export interface operations {
             };
         };
     };
-    endoreg_db_views_report_patient_examination_report_make_report: {
+    endoreg_db_views_patient_report_patient_examination_report_make_report: {
         parameters: {
             query?: never;
             header?: never;
@@ -6293,7 +6296,7 @@ export interface operations {
             };
         };
     };
-    endoreg_db_views_report_patient_examination_report_save_submission: {
+    endoreg_db_views_patient_report_patient_examination_report_save_submission: {
         parameters: {
             query?: never;
             header?: never;
@@ -6326,7 +6329,7 @@ export interface operations {
             };
         };
     };
-    endoreg_db_views_report_patient_examination_report_get_segment_frame_selector: {
+    endoreg_db_views_patient_report_patient_examination_report_get_segment_frame_selector: {
         parameters: {
             query?: never;
             header?: never;
@@ -6346,7 +6349,7 @@ export interface operations {
             };
         };
     };
-    endoreg_db_views_report_patient_examination_report_patch_segment_frame_selector: {
+    endoreg_db_views_patient_report_patient_examination_report_post_segment_frame_selector: {
         parameters: {
             query?: never;
             header?: never;
@@ -6366,7 +6369,27 @@ export interface operations {
             };
         };
     };
-    endoreg_db_views_report_patient_examination_report_get_report: {
+    endoreg_db_views_patient_report_patient_examination_report_patch_segment_frame_selector: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SegmentFrameSelectorResponseSchema"];
+                };
+            };
+        };
+    };
+    endoreg_db_views_patient_report_patient_examination_report_get_report: {
         parameters: {
             query?: never;
             header?: never;

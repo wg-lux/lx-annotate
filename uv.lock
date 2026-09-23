@@ -732,6 +732,28 @@ wheels = [
 ]
 
 [[package]]
+name = "cython"
+version = "3.3.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a9/d8/4981ef716ad0e3ff0d3ef383aefc6b03c4a88dee33b272bf8e0d833001ca/cython-3.3.0.tar.gz", hash = "sha256:eed0d93fbca7087f143b42c34b05a825849bdf17f101572c2105acfa49aa88b8", size = 3727515, upload-time = "2026-08-22T05:16:39.493Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/da/0f/95bad838a80ac52c9e982dad00bd9a0b2bad57fb4c688e5f53ac3ef65ff0/cython-3.3.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:03bc5333932f5dda3ba9315298ecdd21daa1b58410bb1f8ce04c78ec8337130a", size = 3143472, upload-time = "2026-08-22T05:17:07.956Z" },
+    { url = "https://files.pythonhosted.org/packages/91/8b/53d4a84de853b39940a0e35a6a2a9ed5f54cb05468daee95bc0fd1c2a178/cython-3.3.0-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:7e321ae700995a16dc3055ada06ffb8d61e1a7434e5d0e811547a45ac1015ebd", size = 3258974, upload-time = "2026-08-22T05:17:09.908Z" },
+    { url = "https://files.pythonhosted.org/packages/6a/4e/6b1c5a4e6bbe1726104de007aa2fdf01a3e2e386b4ec93c7be5f5085d53f/cython-3.3.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:428fafed98ea26927000a287b4dfc9ef07339f56656a5329a34eaa593f79a4f8", size = 3412225, upload-time = "2026-08-22T05:17:12.281Z" },
+    { url = "https://files.pythonhosted.org/packages/f4/9b/cd724d91c500116769bdb853450a2197ba3d640dbbe3b02fc54ebdfdbd1b/cython-3.3.0-cp312-cp312-win_amd64.whl", hash = "sha256:333449cc0350baedee5a6af27929eac8a71eac4ec59333c45ff476b33c6c660d", size = 2872123, upload-time = "2026-08-22T05:17:14.322Z" },
+    { url = "https://files.pythonhosted.org/packages/14/59/bc1a84b434cb5bebb0cd6f50da8f239d35a5c141b20fdeafc2817fd87778/cython-3.3.0-cp39-abi3-macosx_10_9_x86_64.whl", hash = "sha256:e0d2713d2b292c826bc21dc8732bd9e47628103aa3764180c881e04b3fef95dc", size = 3063660, upload-time = "2026-08-22T05:17:40.923Z" },
+    { url = "https://files.pythonhosted.org/packages/ba/6d/542e32908fb421d88354f327ed6450e14240f9825d25393065bc65f4723f/cython-3.3.0-cp39-abi3-manylinux1_i686.manylinux_2_28_i686.manylinux_2_5_i686.whl", hash = "sha256:169e56fd411f4cd5bba51c82f8239421d547a846099db2b261e4aed48ba9f51f", size = 3358395, upload-time = "2026-08-22T05:17:43.036Z" },
+    { url = "https://files.pythonhosted.org/packages/9c/7c/ddaf197bc65b581e1891657940bc4f7cb1f740e822115e828920b3a119ce/cython-3.3.0-cp39-abi3-manylinux2014_armv7l.manylinux_2_17_armv7l.manylinux_2_31_armv7l.whl", hash = "sha256:29f38ebafdf23e3da2516f40c4d065da38bfe002181bf93e2b8cf1262449aba6", size = 3041760, upload-time = "2026-08-22T05:17:44.907Z" },
+    { url = "https://files.pythonhosted.org/packages/19/a7/ae5ec3e34d43da846ed4c425734752d83aae0dae49feb929f09c90fc9afa/cython-3.3.0-cp39-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:75c4ae8a6d3a5ccf3cdaba8ab32e6a8d0cd38e3a476aa7ac12df8f8171a8d570", size = 3156152, upload-time = "2026-08-22T05:17:46.884Z" },
+    { url = "https://files.pythonhosted.org/packages/31/44/c60b601fc43f0b08e9d6f14b94e0dd02eb0ca8d60f46e242ace7191ac1be/cython-3.3.0-cp39-abi3-musllinux_1_2_armv7l.whl", hash = "sha256:b94fb5613b9fe34c27d13ec9972dc0dcd2a2155db2902e93921cadc162610a38", size = 3046690, upload-time = "2026-08-22T05:17:48.731Z" },
+    { url = "https://files.pythonhosted.org/packages/b0/9e/d735c26ed907563d3365534006acb263651c2d3b87fee804f7a483dd1714/cython-3.3.0-cp39-abi3-musllinux_1_2_i686.whl", hash = "sha256:c4558ba85849ab65dc57e10fd0efb13fabd9d3c09981a2566e18dec7cf47586a", size = 3373534, upload-time = "2026-08-22T05:17:50.7Z" },
+    { url = "https://files.pythonhosted.org/packages/e0/e8/aa7b4f3a28d6e8117c76e2cf78a0df7a503486cdf7243c5b53200c9533a1/cython-3.3.0-cp39-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:311a016369adfd1e0015c4f9819168fc0e518451d7efb4435c30d65a3a26d52b", size = 3265110, upload-time = "2026-08-22T05:17:52.577Z" },
+    { url = "https://files.pythonhosted.org/packages/9c/66/37892a8999d6bbd3f92d691a9701cb720c8ddd6171e16f5148eee6e8cb7f/cython-3.3.0-cp39-abi3-win32.whl", hash = "sha256:90869072e50b7c8904fe1dd7810321ae901fd5637a6eec6646ed9c57f9eb1081", size = 2587733, upload-time = "2026-08-22T05:17:54.547Z" },
+    { url = "https://files.pythonhosted.org/packages/19/a2/5f4d305cbd4489d21570e5491ad5c483c478cdab032853e2125c280e3bd5/cython-3.3.0-cp39-abi3-win_arm64.whl", hash = "sha256:dce56c26d388f00a19426371b6926bf2f77c5c03b71d5273e4556c68be98c2dd", size = 2608078, upload-time = "2026-08-22T05:17:56.386Z" },
+    { url = "https://files.pythonhosted.org/packages/bf/77/67b0b24e45073a699610e50f00c18474ff9b09ea29ecc95083bdf5e60acd/cython-3.3.0-py3-none-any.whl", hash = "sha256:9b24b5c8cd536946b62086fcafee6d5509d3f549f72d553d2336af87ffbe0da1", size = 1349151, upload-time = "2026-08-22T05:16:36.741Z" },
+]
+
+[[package]]
 name = "daphne"
 version = "4.2.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1079,12 +1101,13 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "1.3.5"
+version = "1.3.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery", extra = ["redis"] },
     { name = "celery-types" },
     { name = "cryptography" },
+    { name = "cython" },
     { name = "decord" },
     { name = "django" },
     { name = "django-bootstrap5" },
@@ -1146,9 +1169,9 @@ dependencies = [
     { name = "whitenoise" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f3/6a/af52f9761171f86a03c57b37a924dd321bba7a8f56750ce7e1a46157f892/endoreg_db-1.3.5.tar.gz", hash = "sha256:059cf8d15a5d34ca258035fe79aa7bd7c2fed7a36d7d2f4e451a451197bb0146", size = 1324607, upload-time = "2026-09-22T10:42:08.212Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e2/08/2b15b714b221ed2586dccdabfea9bc236a2dbc0f2cbe0e5c943faeaac087/endoreg_db-1.3.6.tar.gz", hash = "sha256:72069a25b8fe542d148487facb3be676a232ebd98bb0fd31fd88a965601340c2", size = 1328902, upload-time = "2026-09-23T13:51:15.838Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/28/3a/8727ff627c8e5d85080823eb12dfa26e25df137ab231690d0b33e083841e/endoreg_db-1.3.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:11c4df1472e77c03bfed45469d6e6021bef589ff6dd9a00c108adb5fca4c30cc", size = 2317713, upload-time = "2026-09-22T10:42:05.966Z" },
+    { url = "https://files.pythonhosted.org/packages/91/68/1bd119dfc865e9ba7ef9cece5b92a326a3c5a402c567ec9a0ee49ce4ebc7/endoreg_db-1.3.6-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1d618c1c9f48fc9e32b4b66434961b3f6b012f656454c2cdda73a7d82d87ecb6", size = 2322602, upload-time = "2026-09-23T13:51:13.358Z" },
 ]
 
 [[package]]
@@ -1998,7 +2021,7 @@ requires-dist = [
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "djangorestframework-types", marker = "extra == 'dev'", specifier = ">=0.9.0" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==1.3.5" },
+    { name = "endoreg-db", specifier = "==1.3.6" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
@@ -2051,7 +2074,7 @@ provides-extras = ["dev", "docs"]
 
 [[package]]
 name = "lx-anonymizer"
-version = "1.0.0"
+version = "1.0.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -2085,9 +2108,9 @@ dependencies = [
     { name = "verovio" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/46/37/c8b8427a68a37a84158dd812f89ce0c46b831a63c8280ef4dae8cba6de9d/lx_anonymizer-1.0.0.tar.gz", hash = "sha256:cfc6477e02a196a8045942652e389280b728cc8368578dfee74a2396cf674362", size = 16216711, upload-time = "2026-09-21T15:05:17.038Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/df/84/a6c75b792abc4cddae809239683375dc41dd9b44421a61023dc0e506c9c3/lx_anonymizer-1.0.3.tar.gz", hash = "sha256:908a874e388971da46ad842e00c5ed95473f3ded8692c55f0283aee4c6e6551e", size = 16228127, upload-time = "2026-09-23T11:51:26.191Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3b/b9/e422ac4502527a0f45d43788b7fbb1da970e3c6294dfe9d6f0170f08f3c8/lx_anonymizer-1.0.0-cp312-abi3-manylinux_2_34_x86_64.whl", hash = "sha256:ee7afea1005eea69aca57fcdb349ab443695e4151c09ee1232d800b256e015b2", size = 16173031, upload-time = "2026-09-21T15:05:12.873Z" },
+    { url = "https://files.pythonhosted.org/packages/e7/3a/d2f4eae256d9d0d53ab95414f88214aafb6dbb8a126693349d9f34c5d8fd/lx_anonymizer-1.0.3-cp312-abi3-manylinux_2_34_x86_64.whl", hash = "sha256:e7955e49510a5a31d0ba61e76e4c2c086a0c0640876e0e4c3b3d5ca9bef85cac", size = 16176056, upload-time = "2026-09-23T11:51:00.832Z" },
 ]
 
 [package.optional-dependencies]
@@ -2100,7 +2123,7 @@ gpu = [
 
 [[package]]
 name = "lx-dtypes"
-version = "0.3.6"
+version = "0.3.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bibtexparser" },
@@ -2124,9 +2147,9 @@ dependencies = [
     { name = "scipy" },
     { name = "types-pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e6/8c/d276c73f145751a012b138935c282a3e26299b136bb44950ba72f7db2d00/lx_dtypes-0.3.6.tar.gz", hash = "sha256:0e7df444734d6c5e1d36eeea921f6098afdd40f93baa1a4af4d132ecd8fb83a0", size = 2704691, upload-time = "2026-09-21T14:34:13.792Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e2/80/56e3d8f4e141e027fcddb4eb325a61efeffbc4987f64990e57978e0bc19d/lx_dtypes-0.3.7.tar.gz", hash = "sha256:157b4ebac6471b28cda7ed9fe421ff50e5a5cc9a596abc64e7eefa8c5de844df", size = 2697703, upload-time = "2026-09-23T09:10:56.746Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/25/7d/ce1b0fe802b0b52be0ee7153619708e95bf405630d204480250e68bdbcb3/lx_dtypes-0.3.6-py3-none-any.whl", hash = "sha256:1caa9b5ed9ded7439c36e8fc657612c5f3d64cdf07469191c3780ecb987b1cbb", size = 893046, upload-time = "2026-09-21T14:34:11.549Z" },
+    { url = "https://files.pythonhosted.org/packages/18/7b/13070dd12e020e6a41029f71ed5977cd3be2fbe4494cab7f0672c7dfdd92/lx_dtypes-0.3.7-py3-none-any.whl", hash = "sha256:0814bdb0f15870a49fa72b5a97d3e6391c4dfd3caaf19dc100d304d3f925cd21", size = 893582, upload-time = "2026-09-23T09:10:54.478Z" },
 ]
 
 [[package]]

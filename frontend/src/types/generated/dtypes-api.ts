@@ -850,6 +850,8 @@ export type components = {
             classifications?: components["schemas"]["PatientFindingClassificationInput"][];
             /** Finding */
             finding: number;
+            /** Instance Id */
+            instance_id?: string | null;
             /** Patient Examination */
             patient_examination: number;
         };

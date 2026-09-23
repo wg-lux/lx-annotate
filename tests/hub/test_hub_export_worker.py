@@ -35,6 +35,7 @@ from lx_annotate.hub.hub_export_worker import (
 from lx_annotate.models import OutboundHubTransferJob
 from tests.hub_payload_helpers import (
     create_hub_sensitive_meta,
+    hub_report_pdf_bytes,
     hub_transfer_status_payload,
     verify_hub_report_artifact,
 )
@@ -99,9 +100,9 @@ class HubExportWorkerTests(TestCase):
             sensitive_meta=create_hub_sensitive_meta(center=self.center),
             pdf_hash="report-hash-1",
             anonymized_text="Anonymized report text",
-            file=ContentFile(b"%PDF-1.4\nraw\n%%EOF\n", name="report-1.pdf"),
+            file=ContentFile(hub_report_pdf_bytes("raw"), name="report-1.pdf"),
             processed_file=ContentFile(
-                b"%PDF-1.4\nprocessed\n%%EOF\n",
+                hub_report_pdf_bytes("processed"),
                 name="report-1-processed.pdf",
             ),
         )
@@ -399,7 +400,7 @@ class HubExportWorkerTests(TestCase):
             headers["X-Hub-Media-Envelope"],
         )
         self.assertEqual(envelope.transfer_key, self.job.transfer_key)
-        self.assertNotIn(b"%PDF-1.4\nprocessed\n%%EOF\n", body)
+        self.assertNotIn(hub_report_pdf_bytes("processed"), body)
 
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
     def test_large_report_logs_safe_dimensions_and_streams_bounded_media_chunks(
@@ -408,7 +409,10 @@ class HubExportWorkerTests(TestCase):
     ) -> None:
         # Arrange
         large_anonymized_text = ("Anonymized clinical text. " * 100_000).strip()
-        large_processed_pdf = b"%PDF-1.4\n" + (b"x" * (3 * 1024 * 1024)) + b"\n%%EOF\n"
+        large_processed_pdf = hub_report_pdf_bytes(
+            "large processed report", attachment_size=3 * 1024 * 1024
+        )
+        self.assertGreaterEqual(len(large_processed_pdf), 3 * 1024 * 1024)
         self.report.anonymized_text = large_anonymized_text
         self.report.processed_file.save(
             "large-report-processed.pdf",

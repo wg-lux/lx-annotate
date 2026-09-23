@@ -182,6 +182,7 @@ def test_reporting_methods_and_trailing_slashes_match_ninja_routes() -> None:
         "/endoreg-api/patient-examination-reports/segment-frame-selector": {
             "GET",
             "PATCH",
+            "POST",
         },
         "/endoreg-api/patient-examination-reports/history-context": {"GET"},
         "/endoreg-api/patient-examination-reports/1": {"GET"},

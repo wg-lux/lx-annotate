@@ -25,7 +25,7 @@ from endoreg_db.models import (
 )
 
 from lx_annotate.models import OutboundHubTransferJob
-from tests.hub_payload_helpers import verify_hub_report_artifact
+from tests.hub_payload_helpers import hub_report_pdf_bytes, verify_hub_report_artifact
 
 TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
 User = cast(Any, get_user_model())
@@ -68,9 +68,9 @@ class HubExportApiTests(TestCase):
             center=self.center,
             state=self.report_state,
             pdf_hash="report-hash-1",
-            file=ContentFile(b"%PDF-1.4\nraw\n%%EOF\n", name="report-1.pdf"),
+            file=ContentFile(hub_report_pdf_bytes("raw"), name="report-1.pdf"),
             processed_file=ContentFile(
-                b"%PDF-1.4\nprocessed\n%%EOF\n",
+                hub_report_pdf_bytes("processed"),
                 name="report-1-processed.pdf",
             ),
         )

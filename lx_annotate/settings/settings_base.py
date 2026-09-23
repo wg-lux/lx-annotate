@@ -20,6 +20,7 @@ from endoreg_db.config.identity_hashing import load_identity_salt
 from endoreg_db.utils.paths import get_runtime_paths
 from kombu import Exchange, Queue
 
+from lx_annotate.middleware.request_throttle import parse_request_throttle_directory
 from lx_annotate.settings.config import load_config, load_runtime_environment
 
 logger = getLogger(__name__)
@@ -682,6 +683,7 @@ MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    "lx_annotate.middleware.request_throttle.FrontendRequestThrottleMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -694,6 +696,10 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "lx_annotate.urls"
 WSGI_APPLICATION = "lx_annotate.wsgi.application"
+
+LX_ANNOTATE_REQUEST_THROTTLE_DIRECTORY = parse_request_throttle_directory(
+    os.getenv("LX_ANNOTATE_REQUEST_THROTTLE_DIRECTORY", "")
+)
 
 # -----------------------------------------------------------------------------
 # 3. TEMPLATES & FRONTEND

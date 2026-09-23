@@ -933,6 +933,18 @@
             "title": "Finding",
             "type": "integer"
           },
+          "instance_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instance Id"
+          },
           "patient_examination": {
             "title": "Patient Examination",
             "type": "integer"

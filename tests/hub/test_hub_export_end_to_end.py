@@ -44,6 +44,7 @@ from lx_annotate.hub.hub_export_worker import (
 from lx_annotate.models import OutboundHubTransferJob
 from tests.hub_payload_helpers import (
     create_hub_sensitive_meta,
+    hub_report_pdf_bytes,
     hub_transfer_status_payload,
     verify_hub_report_artifact,
 )
@@ -310,9 +311,9 @@ class HubExportEndToEndTests(TestCase):
             sensitive_meta=create_hub_sensitive_meta(center=self.center),
             pdf_hash="report-hash-1",
             anonymized_text="Anonymized report text",
-            file=ContentFile(b"%PDF-1.4\nraw\n%%EOF\n", name="report-1.pdf"),
+            file=ContentFile(hub_report_pdf_bytes("raw"), name="report-1.pdf"),
             processed_file=ContentFile(
-                b"%PDF-1.4\nprocessed\n%%EOF\n",
+                hub_report_pdf_bytes("processed"),
                 name="report-1-processed.pdf",
             ),
         )
@@ -384,8 +385,8 @@ class HubExportEndToEndTests(TestCase):
             processing_started=True,
             anonymization_validated=True,
         )
-        raw_plaintext = b"%PDF-1.4\nraw-mtls-denied\n%%EOF\n"
-        processed_plaintext = b"%PDF-1.4\nprocessed-mtls-denied\n%%EOF\n"
+        raw_plaintext = hub_report_pdf_bytes("raw-mtls-denied")
+        processed_plaintext = hub_report_pdf_bytes("processed-mtls-denied")
         report = RawPdfFile.objects.create(
             center=self.center,
             state=report_state,
@@ -472,9 +473,9 @@ class HubExportEndToEndTests(TestCase):
             sensitive_meta=create_hub_sensitive_meta(center=self.center),
             pdf_hash="report-hash-real-receiver",
             anonymized_text="Anonymized report text",
-            file=ContentFile(b"%PDF-1.4\nraw\n%%EOF\n", name="report-real.pdf"),
+            file=ContentFile(hub_report_pdf_bytes("raw"), name="report-real.pdf"),
             processed_file=ContentFile(
-                b"%PDF-1.4\nprocessed-real\n%%EOF\n",
+                hub_report_pdf_bytes("processed-real"),
                 name="report-real-processed.pdf",
             ),
         )
@@ -491,9 +492,9 @@ class HubExportEndToEndTests(TestCase):
         outbound_job = OutboundHubTransferJob.objects.get(raw_pdf_file=report)
         lose_upload_ack = True
         transmitted_wire_uploads: list[bytes] = []
-        processed_plaintext = b"%PDF-1.4\nprocessed-real\n%%EOF\n"
+        processed_plaintext = hub_report_pdf_bytes("processed-real")
         forbidden_wire_values = (
-            b"%PDF-1.4\nraw\n%%EOF\n",
+            hub_report_pdf_bytes("raw"),
             processed_plaintext,
             TEST_MASTER_KEY.encode("ascii"),
             b"super-secret",
@@ -547,7 +548,7 @@ class HubExportEndToEndTests(TestCase):
         )
         self._assert_transfer_ledger_excludes(
             receiver_job,
-            b"%PDF-1.4\nraw\n%%EOF\n",
+            hub_report_pdf_bytes("raw"),
             processed_plaintext,
             TEST_MASTER_KEY.encode("ascii"),
             b"super-secret",
@@ -555,7 +556,7 @@ class HubExportEndToEndTests(TestCase):
         self.assertEqual(lost_ack_result.retry_count, 1)
         self.assertEqual(
             get_file_hash(report.processed_file),
-            hashlib.sha256(b"%PDF-1.4\nprocessed-real\n%%EOF\n").hexdigest(),
+            hashlib.sha256(hub_report_pdf_bytes("processed-real")).hexdigest(),
         )
         self.assertEqual(len(transmitted_wire_uploads), 1)
 
@@ -617,11 +618,11 @@ class HubExportEndToEndTests(TestCase):
             pdf_hash="report-hash-mismatch",
             anonymized_text="Anonymized hash mismatch report",
             file=ContentFile(
-                b"%PDF-1.4\nraw-hash-mismatch\n%%EOF\n",
+                hub_report_pdf_bytes("raw-hash-mismatch"),
                 name="report-hash-mismatch.pdf",
             ),
             processed_file=ContentFile(
-                b"%PDF-1.4\nprocessed-hash-mismatch\n%%EOF\n",
+                hub_report_pdf_bytes("processed-hash-mismatch"),
                 name="report-hash-mismatch-processed.pdf",
             ),
         )

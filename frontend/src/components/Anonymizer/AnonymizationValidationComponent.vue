@@ -535,51 +535,51 @@
                   v-else-if="isVideo"
                   class="dual-video-container"
                 >
-                  <div
-                    class="alert mb-3"
-                    :class="videoAnonymizationReady ? 'alert-warning' : 'alert-danger'"
-                    role="status"
-                  >
-                    <div
-                      v-if="isLoadingVideoAnonymization"
-                      class="d-flex align-items-center gap-2"
-                    >
-                      <span
-                        class="spinner-border spinner-border-sm"
-                        role="status"
-                      ></span>
-                      Release-Artefakt wird geprüft...
-                    </div>
-                    <template v-else-if="videoAnonymizationStatus">
-                      <div class="d-flex flex-wrap justify-content-between gap-2">
-                        <div>
-                          <strong>{{ videoStrategyLabel }}</strong>
-                          <div class="small mt-1">
-                            Modell: {{ videoModelDisplay }}<br />
-                            Verfügbare OCR-Kaskade:
-                            {{ videoOcrEnginesLabel }}<br />
-                            <span class="text-muted">
-                              {{ videoOcrScopeLabel }}
-                            </span>
-                          </div>
-                        </div>
-                        <div class="text-end">
-                          <span
-                            class="badge"
-                            :class="videoArtifactPresentation.badgeClass"
-                          >
-                            {{ videoArtifactPresentation.label }}
-                          </span>
-                          <div class="small mt-1">
-                            {{ videoReviewLabel }}
-                          </div>
-                        </div>
+                  <details class="mb-3 border rounded p-3">
+                    <summary>Hinweise zur Release-Artefakt-Prüfung</summary>
+                    <div class="mt-3" role="status">
+                      <p class="small mb-2">Zusätzliche Artefaktprüfung – blockiert die Bestätigung nicht.</p>
+                      <div
+                        v-if="isLoadingVideoAnonymization"
+                        class="d-flex align-items-center gap-2"
+                      >
+                        <span
+                          class="spinner-border spinner-border-sm"
+                          role="status"
+                        ></span>
+                        Release-Artefakt wird geprüft...
                       </div>
-                    </template>
-                    <template v-else>
-                      {{ anonymizationErrorLabel }}
-                    </template>
-                  </div>
+                      <template v-else-if="videoAnonymizationStatus">
+                        <div class="d-flex flex-wrap justify-content-between gap-2">
+                          <div>
+                            <strong>{{ videoStrategyLabel }}</strong>
+                            <div class="small mt-1">
+                              Modell: {{ videoModelDisplay }}<br />
+                              Verfügbare OCR-Kaskade:
+                              {{ videoOcrEnginesLabel }}<br />
+                              <span class="text-muted">
+                                {{ videoOcrScopeLabel }}
+                              </span>
+                            </div>
+                          </div>
+                          <div class="text-end">
+                            <span
+                              class="badge"
+                              :class="videoArtifactPresentation.badgeClass"
+                            >
+                              {{ videoArtifactPresentation.label }}
+                            </span>
+                            <div class="small mt-1">
+                              {{ videoReviewLabel }}
+                            </div>
+                          </div>
+                        </div>
+                      </template>
+                      <template v-else>
+                        {{ anonymizationErrorLabel }}
+                      </template>
+                    </div>
+                  </details>
                   <div class="row">
                     <!-- Raw Video (Original) -->
                     <div class="col-md-6">
@@ -1051,12 +1051,6 @@ const videoAnonymizationStatus = ref<VideoAnonymizationStatus | null>(null)
 const isLoadingVideoAnonymization = ref(false)
 const videoAnonymizationError = ref('')
 
-const videoAnonymizationReady = computed(
-  () =>
-    videoAnonymizationStatus.value?.processedArtifact.available === true &&
-    videoAnonymizationStatus.value.reviewRequired
-)
-
 const videoStrategyLabel = computed(() =>
   videoAnonymizationStatus.value?.selectedStrategy === 'processor_region'
     ? 'Prozessorregion'
@@ -1486,7 +1480,7 @@ const canApprove = computed(
     dataOk.value &&
     hasValidDocumentType.value &&
     hasValidPatientExaminationSelection.value &&
-    (!isVideo.value || (videoAnonymizationReady.value && !shouldShowOutsideTimeline.value))
+    (!isVideo.value || !shouldShowOutsideTimeline.value)
 )
 
 /**
@@ -1504,22 +1498,6 @@ function invalidPatientFieldLabels(): string[] {
 }
 
 function videoApprovalBlockReason(): string {
-  if (isLoadingVideoAnonymization.value) {
-    return 'Das anonymisierte Release-Artefakt wird noch geprüft.'
-  }
-
-  if (!videoAnonymizationStatus.value) {
-    return videoAnonymizationError.value || 'Der Anonymisierungsstatus konnte nicht geprüft werden.'
-  }
-
-  if (!videoAnonymizationStatus.value.processedArtifact.available) {
-    return 'Es ist noch keine anonymisierte Video-Fassung verfügbar.'
-  }
-
-  if (!videoAnonymizationStatus.value.reviewRequired) {
-    return 'Das Artefakt ist nicht als verpflichtend menschlich zu prüfende Fassung gekennzeichnet.'
-  }
-
   if (shouldShowOutsideTimeline.value) {
     const remaining = totalOutsideSegments.value - outsideSegmentsValidated.value
     return `Bitte validieren Sie zuerst alle Outside-Segmente (${String(remaining)} verbleibend)`

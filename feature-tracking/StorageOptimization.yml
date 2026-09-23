@@ -29,6 +29,40 @@ source_documents:
   disposition: reference
   note: Canonical admin-password import, rotation, export, and validation workflow.
 definition_of_done:
+- id: frontend_request_priority
+  category: functionality
+  title: API requests reserve foreground resource priority
+  acceptance:
+  - When configured, canonical and compatibility API requests acquire a process-safe activity lock and
+    wait for host throttle acknowledgement before processing.
+  - Concurrent requests, exceptions, streaming completion, disconnect and process termination release
+    only their own activity; controller restart must not lose active locks.
+  - The local protocol contains no query, URL, user or clinical data; unavailable configured control returns
+    an explicit retryable response without executing the view.
+  - Empty local configuration disables integration; malformed nonempty configuration fails startup.
+  required: true
+  verification:
+    kind: command
+    command:
+    - .devenv/state/venv/bin/pytest
+    - tests/system/test_request_throttle.py
+    - -q
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: tests/system/test_request_throttle.py
+    - kind: code
+      reference: lx_annotate/middleware/request_throttle.py
+    note: '2026-09-23: 79 focused and integration tests passed (19 request-priority tests, environment
+      contract, configuration, settings, environment checks and ASGI cancellation). Focused Pyright: 0
+      errors; Ruff passed. Real Unix socket admission and shared locks cover response delivery, concurrent
+      requests, synchronous/asynchronous streams, controller failure and real Django ASGI disconnects.
+      Packaged environment allowlist and examples updated. Local application contract verified; no wheel
+      publication or gc-10 activation claimed.'
+    assessed_by: codex-gc10-hls-20260923
+    assessed_at: '2026-09-23T07:16:48.072778Z'
 - id: emergency_capacity_recovery
   category: operations
   title: A conservative cleanup restores working headroom before build or test work
