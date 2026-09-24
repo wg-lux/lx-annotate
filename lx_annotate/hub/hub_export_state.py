@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from cryptography.exceptions import InvalidTag
+
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
@@ -211,7 +213,7 @@ def resolve_video_hub_export_state(
     else:
         try:
             actual_processed_file_sha256 = get_file_hash(video.processed_file)
-        except (OSError, RuntimeError, TypeError, ValueError):
+        except (InvalidTag, OSError, RuntimeError, TypeError, ValueError):
             integrity_status = HubExportIntegrityStatus.PROCESSED_MEDIA_UNREADABLE
         else:
             integrity_status = (
@@ -294,7 +296,7 @@ def report_hub_export_blocked_reason(
     if verify_processed_media:
         try:
             actual_digest = get_file_hash(report.processed_file)
-        except (OSError, RuntimeError, TypeError, ValueError):
+        except (InvalidTag, OSError, RuntimeError, TypeError, ValueError):
             return "processed media unreadable"
         if actual_digest != processed_file_sha256:
             return "processed media hash mismatch"

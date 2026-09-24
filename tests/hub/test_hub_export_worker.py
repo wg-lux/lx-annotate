@@ -12,6 +12,7 @@ from typing import cast
 from unittest.mock import MagicMock, patch
 
 import requests
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 from django.core.files.base import ContentFile
@@ -681,6 +682,29 @@ class HubExportWorkerTests(TestCase):
         post_mock: MagicMock,
         iter_field_file_bytes_mock: MagicMock,
     ) -> None:
+        self._assert_unreadable_processed_media(
+            post_mock,
+            iter_field_file_bytes_mock,
+            OSError("protected media unavailable"),
+        )
+
+    @patch("lx_annotate.hub.hub_export_envelope.iter_field_file_bytes")
+    @patch("lx_annotate.hub.hub_export_worker.requests.post")
+    def test_wrong_key_during_streaming_is_recorded_without_retry(
+        self,
+        post_mock: MagicMock,
+        iter_field_file_bytes_mock: MagicMock,
+    ) -> None:
+        self._assert_unreadable_processed_media(
+            post_mock, iter_field_file_bytes_mock, InvalidTag()
+        )
+
+    def _assert_unreadable_processed_media(
+        self,
+        post_mock: MagicMock,
+        iter_field_file_bytes_mock: MagicMock,
+        error: Exception,
+    ) -> None:
         register_response = MagicMock()
         register_response.json.return_value = self._remote_status(
             transfer_status="awaiting_media",
@@ -688,7 +712,7 @@ class HubExportWorkerTests(TestCase):
         )
         register_response.raise_for_status.return_value = None
         post_mock.return_value = register_response
-        iter_field_file_bytes_mock.side_effect = OSError("protected media unavailable")
+        iter_field_file_bytes_mock.side_effect = error
 
         with self.assertLogs("lx_annotate.hub_export.audit", level="INFO") as logs:
             result = run_outbound_transfer_job(
@@ -703,6 +727,26 @@ class HubExportWorkerTests(TestCase):
         event = json.loads(logs.records[-1].getMessage())
         self.assertEqual(event["failure_class"], "configuration_rejection")
         post_mock.assert_called_once()
+
+    @patch(
+        "lx_annotate.hub.hub_export_payloads.get_file_hash", side_effect=InvalidTag()
+    )
+    @patch("lx_annotate.hub.hub_export_worker.requests.post")
+    def test_wrong_key_during_payload_hashing_blocks_registration(
+        self,
+        post_mock: MagicMock,
+        hash_mock: MagicMock,
+    ) -> None:
+        result = run_outbound_transfer_job(
+            outbound_job_id=str(self.job.id),
+            source_node_key=self.site_node.node_key,
+            source_secret="super-secret",
+        )
+        assert result.local_status == OutboundHubTransferJob.LocalStatus.FAILED
+        assert result.retry_count == 0
+        assert "payload rejected" in result.last_error
+        hash_mock.assert_called_once()
+        post_mock.assert_not_called()
 
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
     def test_run_outbound_transfer_job_encrypts_without_localizing_plaintext(

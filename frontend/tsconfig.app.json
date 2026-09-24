@@ -20,9 +20,8 @@
     /* speed */
     "skipLibCheck": true,
 
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
+      "@/*": ["./src/*"],
       "vue-filepond": ["./src/types/vue-filepond-shim.d.ts"]
     }
   }

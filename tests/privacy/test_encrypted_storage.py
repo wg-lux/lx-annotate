@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import os
+from pathlib import Path
 
 import pytest
 from django.core.files.base import ContentFile
@@ -75,14 +76,24 @@ def test_encrypted_storage_uses_chunked_ciphertext_records(tmp_path, master_key)
     assert payload not in ciphertext
 
 
-def test_master_key_file_is_supported(tmp_path, monkeypatch):
+@pytest.mark.parametrize("file_mode", [0o600, 0o644])
+def test_master_key_file_is_supported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, file_mode: int
+) -> None:
+    from endoreg_db.utils.file_operations import atomic_write_file
+
     key_bytes = os.urandom(32)
     key_file = tmp_path / "master.key"
-    key_file.write_text(
-        base64.urlsafe_b64encode(key_bytes).decode("ascii"),
-        encoding="utf-8",
+    atomic_write_file(
+        destination=key_file,
+        content=(base64.urlsafe_b64encode(key_bytes),),
+        file_mode=file_mode,
     )
     monkeypatch.delenv("LX_ANNOTATE_MASTER_KEY", raising=False)
     monkeypatch.setenv("LX_ANNOTATE_MASTER_KEY_FILE", str(key_file))
 
-    assert load_master_key() == key_bytes
+    if file_mode == 0o600:
+        assert load_master_key() == key_bytes
+    else:
+        with pytest.raises(RuntimeError, match="private regular files"):
+            load_master_key()

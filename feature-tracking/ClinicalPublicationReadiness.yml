@@ -73,11 +73,15 @@ definition_of_done:
     - kind: test
       reference: '11 passed: tests/hub/test_publication_readiness_aaa.py. Includes failed-state matrix,
         marking, replacement, retry identity, polling and read failure.'
-    note: Reproduced stale-validation eligibility and marking failures (2 failed, 11 passed initially);
-      then independently reproduced changed-content marking (1 failed, 6 passed). Fixed using canonical
-      anonymization status plus action-boundary hashing; overview remains metadata-only.
-    assessed_by: codex-infrastructure-manuscript-20260910
-    assessed_at: '2026-09-10T07:49:45.265085Z'
+    - kind: test
+      reference: 'Publication readiness 15 cases, video state path 8 cases, and worker 25 cases passed,
+        including wrong-key hashing and streaming. Logs: .devenv/state/endoreg-integration-tests.log and
+        endoreg-integration-worker-final.log.'
+    note: Installed endoreg-db 1.3.8 authentication failures block report and video export as unreadable
+      media. Worker records hashing/streaming authentication failures without retry or upload; integrity
+      proofs remain unchanged.
+    assessed_by: codex-overview-20260924-a
+    assessed_at: '2026-09-24T12:24:06.623956Z'
 - id: existing_workflow_regressions
   category: testing
   title: Existing approval, integrity and transfer regressions pass
@@ -108,16 +112,20 @@ definition_of_done:
     - --show-capture=no
     timeout_seconds: 300
   assessment:
-    status: blocked
+    status: verified
     evidence:
     - kind: test
       reference: 'Final command stored under verification: 112 passed, 19 failed in 9.83s. All 19 failures
         originate from lx_annotate/services/report_llm.py:17 ImportError for ReportVerbosity.'
-    note: 'Final 131-case run: 112 passed and 19 API tests failed before endpoint execution. Existing
-      report_llm imports ReportVerbosity, absent from installed lx-dtypes 0.3.1. No import fallback, test
-      skip or dependency contract weakening was introduced.'
-    assessed_by: codex-infrastructure-manuscript-20260910
-    assessed_at: '2026-09-10T07:49:46.937297Z'
+    - kind: test
+      reference: '161 distinct backend cases passed across focused runs: initial 57 passed plus Node PATH
+        failure resolved in expanded 90-pass run; final worker/envelope/privacy run 41 passed. Logs: .devenv/state/endoreg-integration-tests.log,
+        endoreg-integration-expanded.log, endoreg-integration-worker-final.log. No skipped cases.'
+    note: Prior ReportVerbosity blocker is absent with lx-dtypes 0.3.7 and endoreg-db 1.3.8. All listed
+      workflow regression files passed across focused runs; private secret-file permissions and fail-closed
+      encryption remain enforced.
+    assessed_by: codex-overview-20260924-a
+    assessed_at: '2026-09-24T12:24:08.081763Z'
 - id: release_metadata_and_splits
   category: requirements
   title: Public release schema and patient-disjoint split policy are implemented

@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import importlib.util
 import os
 import sys
 from pathlib import Path
@@ -49,30 +48,13 @@ def _select_settings_module(argv: list[str]) -> str:
     return PROD_SETTINGS_MODULE
 
 
-def _ensure_required_runtime_packages() -> None:
-    if importlib.util.find_spec("endoreg_db") is None:
-        raise ImportError(
-            "Required package 'endoreg_db' is not installed in the active Python "
-            "environment. Install the packaged dependency instead of relying on a "
-            "repo-local checkout.",
-        )
-
-
 os.environ["DJANGO_SETTINGS_MODULE"] = _select_settings_module(sys.argv)
 
 
-def main():
+def main() -> None:
     """Run administrative tasks."""
-    try:
-        _ensure_required_runtime_packages()
-        from django.core.management import execute_from_command_line
+    from django.core.management import execute_from_command_line
 
-    except ImportError as exc:
-        raise ImportError(
-            "Failed to start management command because a required runtime "
-            "dependency is missing. Ensure Django and endoreg_db are installed "
-            "in the active environment rather than imported from a repo-local checkout.",
-        ) from exc
     execute_from_command_line(sys.argv)
 
 

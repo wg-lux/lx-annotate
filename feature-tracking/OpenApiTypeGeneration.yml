@@ -34,6 +34,17 @@ tracking:
     changed_at: '2026-09-23T14:11:41.674175Z'
     note: Root/frontend OpenAPI and TypeScript regenerated; all 5 generation tests passed, including freshness.
       Frontend vue-tsc and ESLint passed.
+  - action: reopened
+    changed_by: codex-overview-20260924-a
+    changed_at: '2026-09-24T12:13:10.279011Z'
+    note: 'Reported regression: manage.py exits successfully without executing the requested management
+      command; restore dispatch and verify installed endoreg-db API contracts.'
+  - action: done
+    changed_by: codex-overview-20260924-a
+    changed_at: '2026-09-24T12:24:34.856319Z'
+    note: Repaired management dispatch and frontend alias configuration; installed package schemas, generated
+      types, regression tests and frontend compilation/lint pass. This records local verification, not
+      deployment.
 source_documents:
 - path: docs/guides/openapi-type-generation.md
   disposition: reference
@@ -61,10 +72,13 @@ definition_of_done:
     evidence:
     - kind: command
       reference: 'tests/system/test_openapi_type_generation.py: 4 passed'
-    note: Offline command deterministically exports separately prefixed endoreg-api and dtypes-api schemas
-      using atomic writes.
-    assessed_by: codex-openapi-typegen-20260825
-    assessed_at: '2026-08-25T12:40:25.071056Z'
+    - kind: test
+      reference: All 5 tests/system/test_openapi_type_generation.py tests passed with Node from .devenv/profile/bin
+        in the expanded 90-pass run.
+    note: Restored manage.py command dispatch while preserving settings selection. All OpenAPI command
+      and freshness tests pass against installed endoreg-db 1.3.8.
+    assessed_by: codex-overview-20260924-a
+    assessed_at: '2026-09-24T12:24:09.752204Z'
 - id: generated_types
   category: functionality
   title: OpenAPI documents compile into TypeScript contracts
@@ -88,10 +102,13 @@ definition_of_done:
       reference: npm --prefix frontend run typegen:check (exit 0)
     - kind: command
       reference: '2026-09-23: npm --prefix frontend run type-check:source: exit 0'
-    note: Installed dependency schemas regenerated through npm run typegen; committed artifact freshness
-      test passed, npm --prefix frontend run type-check:source passed (vue-tsc and ESLint).
-    assessed_by: codex-hub-diagnosis-20260923
-    assessed_at: '2026-09-23T14:11:38.559183Z'
+    - kind: command
+      reference: Schema freshness passed; final npm --prefix frontend run type-check:source exit 0 (.devenv/state/endoreg-integration-frontend-verified.log).
+        Targeted mypy passed for 3 production files; Ruff passed.
+    note: Root/frontend schemas and types are current. Made @/* target explicitly relative, preserving
+      baseUrl removal; vue-tsc and ESLint passed.
+    assessed_by: codex-overview-20260924-a
+    assessed_at: '2026-09-24T12:24:11.324199Z'
 - id: generation_tests
   category: testing
   title: Export and generated-file freshness are regression tested

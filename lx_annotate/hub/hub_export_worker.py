@@ -7,6 +7,7 @@ from typing import Any, Literal, TypedDict, cast
 from urllib.parse import urljoin, urlparse
 
 import requests
+from cryptography.exceptions import InvalidTag
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
@@ -677,7 +678,7 @@ def run_outbound_transfer_job(
         )
         validate_transfer_payload(payload)
         registration_url = hub_transfer_url(outbound_job.target_node)
-    except (NetworkNode.DoesNotExist, OSError, ValueError) as exc:
+    except (NetworkNode.DoesNotExist, InvalidTag, OSError, ValueError) as exc:
         return mark_outbound_job_failure(
             outbound_job,
             error_message=f"Hub transfer configuration or payload rejected: {exc}",
@@ -928,7 +929,7 @@ def run_outbound_transfer_job(
             source_node_key=source_node.node_key,
             failure_class="transient_retry",
         )
-    except (OSError, ValueError) as exc:
+    except (InvalidTag, OSError, ValueError) as exc:
         if prepared is not None:
             prepared.cleanup()
         return mark_outbound_job_failure(

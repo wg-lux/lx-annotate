@@ -174,6 +174,31 @@ class HubExportVideoStatePathTests(TestCase):
         assert readiness.processed_video_hash == readiness.actual_processed_file_sha256
         assert cast(VideoState, video.state).ready_for_export_by == self.user.username
 
+    def test_wrong_key_blocks_video_export_without_rewriting_integrity_proof(
+        self,
+    ) -> None:
+        from endoreg_db.utils.encryption.encrypted import EncryptedStorage
+
+        video = self._promote_ready_for_export(
+            self._finish_segment_cleanup(
+                self._validate_anonymization(
+                    self._finish_import_processing(self._imported_video())
+                )
+            )
+        )
+        digest = cast(VideoState, video.state).processed_file_sha256
+        video.processed_file.storage = EncryptedStorage(
+            location=video.processed_file.storage.path(""), master_key=b"1" * 32
+        )
+        readiness = hub_export_state.resolve_video_hub_export_state(
+            video, verify_processed_media=True
+        )
+        assert not readiness.transfer_eligible
+        assert readiness.blocked_reason == "processed media unreadable"
+        assert (
+            cast(VideoState, self._reload(video).state).processed_file_sha256 == digest
+        )
+
     def test_segment_change_revokes_reached_transfer_eligibility(self) -> None:
         video = self._promote_ready_for_export(
             self._finish_segment_cleanup(
