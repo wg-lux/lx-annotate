@@ -612,6 +612,22 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/endoreg-api/media-management/force-remove/{media_type}/{file_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["media_management_force_remove_destroy_2"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/endoreg-api/media-management/reset-status/{file_id}/": {
         parameters: {
             query?: never;
@@ -2383,7 +2399,8 @@ export type paths = {
         get: operations["endoreg_db_views_patient_report_patient_examination_report_get_report"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete Draft */
+        delete: operations["endoreg_db_views_patient_report_patient_examination_report_delete_draft"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3419,8 +3436,8 @@ export type components = {
          * PatientExaminationReportSchema
          * @description Response schema for PatientExaminationReport.
          *
-         *     This replaces the old DRF ModelSerializer and exposes the previously sourced
-         *     patient_examination.dtypes_record fields through Ninja resolvers.
+         *     The dtypes fields are the report's persisted snapshot, independent of later
+         *     examination edits or terminology migrations.
          */
         PatientExaminationReportSchema: {
             /**
@@ -4406,6 +4423,27 @@ export interface operations {
             header?: never;
             path: {
                 file_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    media_management_force_remove_destroy_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_id: number;
+                media_type: string;
             };
             cookie?: never;
         };
@@ -6181,6 +6219,7 @@ export interface operations {
         parameters: {
             query?: {
                 patient_examination_id?: number | null;
+                patient_id?: number | null;
                 status?: string | null;
                 template_name?: string | null;
                 is_active?: boolean | null;
@@ -6408,6 +6447,28 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PatientExaminationReportSchema"];
                 };
+            };
+        };
+    };
+    endoreg_db_views_patient_report_patient_examination_report_delete_draft: {
+        parameters: {
+            query: {
+                expected_version: number;
+            };
+            header?: never;
+            path: {
+                report_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

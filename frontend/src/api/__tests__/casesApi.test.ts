@@ -42,6 +42,24 @@ describe('casesApi', () => {
     vi.clearAllMocks()
   })
 
+  it.each([
+    { results: [patientCase], next: '/cases/?page=2' },
+    { results: [patientCase], count: 2 },
+    [{ ...patientCase, isClosed: true }],
+    [{ ...patientCase, isDeleted: true }]
+  ])('rejects incomplete or contradictory case state %#', async (data) => {
+    hoisted.axios.get.mockResolvedValue({ data })
+    await expect(fetchPatientCases({})).rejects.toThrow(TypeError)
+  })
+
+  it.each([{ patientId: 9 }, { patientExaminationId: 99 }])(
+    'rejects case responses outside the requested scope %#',
+    async (params) => {
+      hoisted.axios.get.mockResolvedValue({ data: [patientCase] })
+      await expect(fetchPatientCases(params)).rejects.toThrow('requested patient or examination')
+    }
+  )
+
   it('fetches cases using the snake_case query contract', async () => {
     hoisted.axios.get.mockResolvedValue({ data: { results: [patientCase] } })
 

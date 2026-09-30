@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   fetchStudyCohorts,
+  fetchStudyDefinition,
   linkDatasetStudyCohort,
   previewStudyCohort,
   saveStudyCohort
@@ -55,5 +56,60 @@ describe('saved cohort API', () => {
       '/endoreg-api/settings/application/ai_datasets/7/study_cohorts/',
       { cohort_id: 3, linked: false }
     )
+  })
+
+  it('downloads YAML as a blob with DRF-compatible content negotiation', async () => {
+    const blob = new Blob(['schema_version: "1.0"'], { type: 'application/yaml' })
+    axios.get.mockResolvedValue({ data: blob })
+    expect(await fetchStudyDefinition(3)).toBe(blob)
+    expect(axios.get).toHaveBeenCalledWith('/endoreg-api/media/studies/cohorts/3/definition/', {
+      responseType: 'blob',
+      headers: { Accept: 'application/json' }
+    })
+  })
+
+  it('serializes protocol metadata without losing zero, null or version alternatives', async () => {
+    await saveStudyCohort({
+      ...definition,
+      studyMetadata: {
+        participatingCenters: [{ centerKey: 'center-a', name: 'Center A' }],
+        ageGroups: [{ name: 'All ages', minimumAge: 0, maximumAge: null }],
+        terminologyRequirements: [
+          { module: 'research', version: '1.0.0' },
+          { module: 'research', version: '2.0.0' }
+        ],
+        inclusionCriteria: [
+          {
+            name: 'Finding',
+            description: '',
+            concepts: [
+              { module: 'research', version: '1.0.0', kind: 'finding', name: 'polyp' },
+              { module: 'research', version: '2.0.0', kind: 'finding', name: 'polyp' }
+            ]
+          }
+        ]
+      }
+    })
+    expect(axios.post).toHaveBeenCalledWith('/endoreg-api/media/studies/cohorts/', {
+      ...payload,
+      study_metadata: {
+        participating_centers: [{ center_key: 'center-a', name: 'Center A' }],
+        age_groups: [{ name: 'All ages', minimum_age: 0, maximum_age: null }],
+        terminology_requirements: [
+          { module: 'research', version: '1.0.0' },
+          { module: 'research', version: '2.0.0' }
+        ],
+        inclusion_criteria: [
+          {
+            name: 'Finding',
+            description: '',
+            concepts: [
+              { module: 'research', version: '1.0.0', kind: 'finding', name: 'polyp' },
+              { module: 'research', version: '2.0.0', kind: 'finding', name: 'polyp' }
+            ]
+          }
+        ]
+      }
+    })
   })
 })

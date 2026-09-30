@@ -13,6 +13,7 @@ import type { ReportTemplatePayload } from '@/types/reportTemplate'
 import type { UseAuthenticatedVideoStreamOptions } from '@/composables/useAuthenticatedVideoStream'
 import type { StreamableVideoFileType } from '@/utils/mediaUrls'
 import { reportTemplateLifecycleContextKey } from '../reportTemplateLifecycleContext'
+import { useReportTemplateSelection } from '../reportTemplateSelectionContext'
 type UseAuthenticatedVideoStream =
   typeof import('@/composables/useAuthenticatedVideoStream').useAuthenticatedVideoStream
 
@@ -48,6 +49,7 @@ const hoisted = vi.hoisted(() => {
     },
     axiosApi: {
       get: vi.fn<(url: string, ...args: unknown[]) => unknown>(),
+      patch: vi.fn<(url: string, payload: unknown) => unknown>(),
       post: vi.fn<(url: string, payload: unknown) => unknown>()
     },
     findingsApi: {
@@ -97,6 +99,7 @@ const hoisted = vi.hoisted(() => {
     },
     timelineApi: {
       fetchPatientTimelineLatest: vi.fn(),
+      fetchPatientTimeline: vi.fn(),
       pickPreferredStream: vi.fn((options: Array<{ type: string; url: string }>) => {
         return options.find((option) => option.type === 'processed')?.url ?? null
       })
@@ -167,6 +170,7 @@ vi.mock('vue-router', async () => {
 vi.mock('@/api/axiosInstance', () => ({
   default: {
     get: hoisted.axiosApi.get,
+    patch: hoisted.axiosApi.patch,
     post: hoisted.axiosApi.post
   },
   r: (value: string) => value
@@ -204,8 +208,10 @@ vi.mock('@/api/reportingLanguagesApi', () => ({
   fetchReportingLanguages: hoisted.reportingLanguagesApi.fetchReportingLanguages
 }))
 
-vi.mock('@/api/reportingTimelineApi', () => ({
+vi.mock('@/api/reportingTimelineApi', async (original) => ({
+  ...(await original<typeof import('@/api/reportingTimelineApi')>()),
   fetchPatientTimelineLatest: hoisted.timelineApi.fetchPatientTimelineLatest,
+  fetchPatientTimeline: hoisted.timelineApi.fetchPatientTimeline,
   pickPreferredStream: hoisted.timelineApi.pickPreferredStream
 }))
 
@@ -294,6 +300,7 @@ function buildFlowStore() {
       delete flow.runtimeDraftsByPatientExaminationId['314']
     }),
     clearTemplateSectionDrafts: vi.fn(),
+    setRenderedReportText: vi.fn(),
     flushDraftAutosave: vi.fn().mockResolvedValue(undefined),
     setLastTemplateValidation: vi.fn(),
     setRuntimeDraft: vi.fn((payload: ReportingRuntimeDraft) => {
@@ -306,6 +313,7 @@ function buildFlowStore() {
       flow.draftPersistenceError = null
     }),
     setMediaPreloadLoading: vi.fn(() => {
+      flow.mediaPreload = null
       flow.mediaPreloadStatus = 'loading'
       flow.mediaPreloadError = null
     }),
@@ -330,6 +338,7 @@ function buildFlowStore() {
       flow.mediaPreloadError = null
     }),
     setMediaPreloadError: vi.fn((message: string) => {
+      flow.mediaPreload = null
       flow.mediaPreloadStatus = 'error'
       flow.mediaPreloadError = message
     }),
@@ -387,12 +396,38 @@ function hasMutableArtifactKind(
 }
 
 describe('ReportingShell media preload', () => {
+  const ReportingContextChild = defineComponent({
+    setup() {
+      const lifecycleContext = inject(reportTemplateLifecycleContextKey)
+      if (!lifecycleContext) throw new Error('Missing report-template lifecycle context.')
+      return {
+        ...useReportTemplateSelection(),
+        activeExaminationName: lifecycleContext.activeExaminationName,
+        notifyPublished: () =>
+          lifecycleContext.notifyLifecycleChanged({
+            moduleName: 'report_template_examples',
+            moduleVersion: '1.0.0',
+            templateName: 'newly_published',
+            examination: 'colonoscopy',
+            lifecycleStatus: 'published'
+          })
+      }
+    },
+    template: `<div>
+      <span data-testid="active-examination">{{ activeExaminationName }}</span>
+      <button data-testid="notify-published" @click="notifyPublished">publish</button>
+      <button data-testid="inline-template" @click="selectTemplate('replacement_template')">Switch template</button>
+    </div>`
+  })
+
   afterEach(() => {
     for (const wrapper of mountedShells.splice(0)) wrapper.unmount()
+    vi.restoreAllMocks()
   })
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
       value: vi.fn(() => 'blob:preview')
@@ -411,6 +446,17 @@ describe('ReportingShell media preload', () => {
       reportTemplates: [],
       concepts: { examination: [] }
     })
+    hoisted.timelineApi.fetchPatientTimeline
+      .mockReset()
+      .mockResolvedValue({ patient: { id: 42 }, count: 0, results: [] })
+    hoisted.timelineApi.fetchPatientTimelineLatest
+      .mockReset()
+      .mockResolvedValue({
+        patient: { id: 42 },
+        latestReport: null,
+        latestVideo: null,
+        latestFrames: []
+      })
     hoisted.routeRef.current = reactive({
       path: '/reporting/314/findings',
       params: { patient_examination_id: '314' }
@@ -529,6 +575,12 @@ describe('ReportingShell media preload', () => {
               examination: { id: 10, name: 'gastroscopy', nameDe: 'Gastroskopie' },
               patientData: { id: 42 },
               dateStart: '2026-03-11'
+            },
+            {
+              id: 316,
+              examination: { id: 11, name: 'dermatology', nameDe: 'Dermatologie' },
+              patientData: { id: 42 },
+              dateStart: '2026-03-12'
             }
           ],
           documents: [],
@@ -574,6 +626,12 @@ describe('ReportingShell media preload', () => {
                 examination: { id: 10, name: 'gastroscopy', name_de: 'Gastroskopie' },
                 patient: { id: 42 },
                 date_start: '2026-03-11'
+              },
+              {
+                id: 316,
+                examination: { id: 11, name: 'dermatology', name_de: 'Dermatologie' },
+                patient: { id: 42 },
+                date_start: '2026-03-12'
               }
             ]
           }
@@ -629,10 +687,121 @@ describe('ReportingShell media preload', () => {
     await flushPromises()
 
     expect(hoisted.timelineApi.fetchPatientTimelineLatest).toHaveBeenCalledWith({
-      patientId: 42,
-      patientExaminationId: 314
+      patientId: 42
     })
     expect(hoisted.flowRef.current.setMediaPreload).toHaveBeenCalled()
+    expect(hoisted.timelineApi.fetchPatientTimeline).toHaveBeenCalledWith(42)
+  })
+
+  it('loads text-only reports and videos from earlier examinations for a new examination', async () => {
+    const report = {
+      id: 7,
+      mediaType: 'full_report',
+      rawPdfId: null,
+      patientExaminationId: 10,
+      anonymizedText: 'Vorbericht',
+      streamOptions: []
+    }
+    const video = {
+      id: 8,
+      mediaType: 'video',
+      patientExaminationId: 11,
+      streamOptions: [{ type: 'processed', url: '/video/8' }]
+    }
+    hoisted.timelineApi.fetchPatientTimelineLatest.mockResolvedValue({
+      patient: { id: 42 },
+      latestReport: report,
+      latestVideo: video,
+      latestFrames: []
+    })
+    hoisted.timelineApi.fetchPatientTimeline.mockResolvedValue({
+      patient: { id: 42 },
+      count: 2,
+      results: [report, video]
+    })
+    mountShell()
+    await flushPromises()
+    expect(hoisted.flowRef.current.mediaPreload?.latestReport?.anonymizedText).toBe('Vorbericht')
+    expect(hoisted.flowRef.current.mediaPreload?.availableMedia).toEqual([report, video])
+    expect(hoisted.flowRef.current.patientExaminationId).toBe(314)
+    expect(hoisted.timelineApi.fetchPatientTimelineLatest).toHaveBeenCalledWith({ patientId: 42 })
+    expect(hoisted.timelineApi.fetchPatientTimeline).toHaveBeenCalledWith(42)
+  })
+
+  it.each(['patient', 'case', 'unmount'])(
+    'discards an in-flight history after changing %s',
+    async (change) => {
+      const pending = deferred<TimelineLatestPayload>()
+      hoisted.timelineApi.fetchPatientTimelineLatest.mockReturnValue(pending.promise)
+      const wrapper = mountShell()
+      await flushPromises()
+      if (change === 'patient') {
+        Object.assign(hoisted.routeRef.current, {
+          path: '/reporting',
+          params: { patient_examination_id: '' },
+          query: { patient_id: '43' }
+        })
+        hoisted.flowRef.current.patientExaminationId = null
+        hoisted.flowRef.current.caseId = null
+        hoisted.flowRef.current.selectedPatientId = 43
+      } else if (change === 'case') hoisted.flowRef.current.caseId = null
+      else wrapper.unmount()
+      await flushPromises()
+      const previousWrites = hoisted.flowRef.current.setMediaPreload.mock.calls.length
+      pending.resolve({
+        patient: {
+          id: 42,
+          firstName: 'Test',
+          lastName: 'Patient',
+          dob: null,
+          isRealPerson: false,
+          patientHash: null
+        },
+        latestReport: null,
+        latestVideo: null,
+        latestFrames: []
+      })
+      await flushPromises()
+      expect(hoisted.flowRef.current.mediaPreload).toBeNull()
+      expect(hoisted.flowRef.current.setMediaPreload.mock.calls).toHaveLength(previousWrites)
+    }
+  )
+
+  it('clears the preview if the complete patient history cannot be loaded', async () => {
+    hoisted.timelineApi.fetchPatientTimelineLatest.mockResolvedValue({
+      patient: { id: 42 },
+      latestReport: null,
+      latestVideo: null,
+      latestFrames: []
+    })
+    const wrapper = mountShell()
+    await flushPromises()
+    hoisted.timelineApi.fetchPatientTimeline.mockRejectedValueOnce(new Error('History unavailable'))
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Medien aktualisieren'))
+      ?.trigger('click')
+    await flushPromises()
+    expect(hoisted.flowRef.current.mediaPreloadStatus).toBe('error')
+    expect(hoisted.flowRef.current.mediaPreload).toBeNull()
+  })
+
+  it('keeps patient and examination as editable defaults for a new study', async () => {
+    const wrapper = mountShell()
+    await flushPromises()
+    const patientId = hoisted.flowRef.current.selectedPatientId
+    const examinationId = hoisted.flowRef.current.selectedExaminationId
+    const button = requireDefined(
+      wrapper.findAll('button').find((entry) => entry.text() === 'Neue Patientenuntersuchung'),
+      'new study button'
+    )
+    await button.trigger('click')
+    await flushPromises()
+    expect(hoisted.flowRef.current.setCaseSelection).toHaveBeenCalledWith({
+      selectedPatientId: patientId,
+      selectedExaminationId: examinationId
+    })
+    expect(hoisted.routerRef.current.push).toHaveBeenCalledWith('/reporting')
   })
 
   it('maps 404 timeline errors to actionable UI message', async () => {
@@ -646,6 +815,151 @@ describe('ReportingShell media preload', () => {
     expect(hoisted.flowRef.current.setMediaPreloadError).toHaveBeenCalledWith(
       expect.stringContaining('404')
     )
+  })
+
+  it('assigns a missing examination on the existing record and preserves the draft', async () => {
+    const originalGet = requireDefined(
+      hoisted.axiosApi.get.getMockImplementation(),
+      'default GET implementation'
+    )
+    let examination: string | null = null
+    const detail = () => ({
+      id: 314,
+      examination,
+      examinationName: examination || '',
+      patient: { id: 42 },
+      knowledgeBaseModule: 'report_template_examples',
+      knowledgeBaseVersion: '1.0.0'
+    })
+    hoisted.axiosApi.get.mockImplementation((url, ...args) =>
+      url === 'patient-examinations/314/'
+        ? Promise.resolve({ data: detail() })
+        : originalGet(url, ...args)
+    )
+    hoisted.axiosApi.patch.mockImplementation(() => {
+      examination = 'colonoscopy'
+      return Promise.resolve({ data: detail() })
+    })
+    const wrapper = mountShell()
+    await flushPromises()
+    const originalDraft = hoisted.flowRef.current.currentRuntimeDraft
+    expect(originalDraft?.payload.examination).toBe('')
+    expect(wrapper.find('[data-testid="resolved-patient-examination"]').exists()).toBe(false)
+    await wrapper.get('#reporting-recovery-examination').setValue('9')
+    await wrapper.get('[data-testid="examination-recovery"] button').trigger('click')
+    await flushPromises()
+    expect(hoisted.axiosApi.patch).toHaveBeenCalledWith('patient-examinations/314/', {
+      examination: 'colonoscopy'
+    })
+    expect(hoisted.flowRef.current.patientExaminationId).toBe(314)
+    expect(hoisted.flowRef.current.currentRuntimeDraft?.payload).toEqual({
+      ...originalDraft?.payload,
+      examination: 'colonoscopy'
+    })
+    expect(hoisted.flowRef.current.clearRuntimeDraft).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="examination-recovery"]').exists()).toBe(false)
+    expect(
+      wrapper.get('[data-testid="report-template-select"]').attributes('disabled')
+    ).toBeUndefined()
+  })
+
+  it('keeps examination recovery available when persistence fails', async () => {
+    const originalGet = requireDefined(
+      hoisted.axiosApi.get.getMockImplementation(),
+      'default GET implementation'
+    )
+    hoisted.axiosApi.get.mockImplementation((url, ...args) =>
+      url === 'patient-examinations/314/'
+        ? Promise.resolve({
+            data: {
+              id: 314,
+              examination: null,
+              patient: { id: 42 },
+              knowledgeBaseModule: 'report_template_examples',
+              knowledgeBaseVersion: '1.0.0'
+            }
+          })
+        : originalGet(url, ...args)
+    )
+    hoisted.axiosApi.patch.mockRejectedValue(new Error('Speichern fehlgeschlagen'))
+    const wrapper = mountShell()
+    await flushPromises()
+    await wrapper.get('#reporting-recovery-examination').setValue('9')
+    await wrapper.get('[data-testid="examination-recovery"] button').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="examination-recovery"]').text()).toContain(
+      'Speichern fehlgeschlagen'
+    )
+    expect(hoisted.flowRef.current.currentRuntimeDraft?.payload.examination).toBe('')
+  })
+
+  it('does not replace an examination assigned since the page was loaded', async () => {
+    const originalGet = requireDefined(
+      hoisted.axiosApi.get.getMockImplementation(),
+      'default GET implementation'
+    )
+    let examination: string | null = null
+    hoisted.axiosApi.get.mockImplementation((url, ...args) =>
+      url === 'patient-examinations/314/'
+        ? Promise.resolve({
+            data: {
+              id: 314,
+              examination,
+              patient: { id: 42 },
+              knowledgeBaseModule: 'report_template_examples',
+              knowledgeBaseVersion: '1.0.0'
+            }
+          })
+        : originalGet(url, ...args)
+    )
+    const wrapper = mountShell()
+    await flushPromises()
+    examination = 'gastroscopy'
+    await wrapper.get('#reporting-recovery-examination').setValue('9')
+    await wrapper.get('[data-testid="examination-recovery"] button').trigger('click')
+    await flushPromises()
+    expect(hoisted.axiosApi.patch).not.toHaveBeenCalled()
+    expect(wrapper.get('[data-testid="examination-recovery"]').text()).toContain(
+      'inzwischen zugeordnet'
+    )
+  })
+
+  it('ignores a completed examination repair after navigating to another record', async () => {
+    const originalGet = requireDefined(
+      hoisted.axiosApi.get.getMockImplementation(),
+      'default GET implementation'
+    )
+    const pendingPatch = deferred<{ data: Record<string, unknown> }>()
+    hoisted.axiosApi.get.mockImplementation((url, ...args) =>
+      url === 'patient-examinations/314/'
+        ? Promise.resolve({
+            data: {
+              id: 314,
+              examination: null,
+              patient: { id: 42 },
+              knowledgeBaseModule: 'report_template_examples',
+              knowledgeBaseVersion: '1.0.0'
+            }
+          })
+        : originalGet(url, ...args)
+    )
+    hoisted.axiosApi.patch.mockReturnValue(pendingPatch.promise)
+    const wrapper = mountShell()
+    await flushPromises()
+    await wrapper.get('#reporting-recovery-examination').setValue('9')
+    await wrapper.get('[data-testid="examination-recovery"] button').trigger('click')
+    await flushPromises()
+    expect(hoisted.axiosApi.patch).toHaveBeenCalledTimes(1)
+    hoisted.routeRef.current.path = '/reporting/315/report-editor'
+    hoisted.routeRef.current.params.patient_examination_id = '315'
+    await flushPromises()
+    hoisted.flowRef.current.setCaseSelection.mockClear()
+    pendingPatch.resolve({ data: { id: 314, examination: 'colonoscopy' } })
+    await flushPromises()
+    expect(hoisted.flowRef.current.setCaseSelection).not.toHaveBeenCalledWith({
+      selectedExaminationId: 9
+    })
+    expect(hoisted.flowRef.current.currentRuntimeDraft?.patientExaminationId).not.toBe(314)
   })
 
   it('shows patient examination options and navigates on selection', async () => {
@@ -664,6 +978,7 @@ describe('ReportingShell media preload', () => {
 
     expect(optionTexts).toContain('Koloskopie · 10.3.2026')
     expect(optionTexts).toContain('Gastroskopie · 11.3.2026')
+    expect(optionTexts).toContain('Dermatologie · 12.3.2026')
     expect(optionTexts.join(' ')).not.toContain('#314')
 
     const caseOptionTexts = wrapper
@@ -686,6 +1001,69 @@ describe('ReportingShell media preload', () => {
     })
     expect(hoisted.routerRef.current.push).toHaveBeenCalledWith('/reporting/315/findings')
   })
+
+  it.each([undefined, 'second-case', 'foreign-case'])(
+    'requires an unambiguous case for a shared examination (%s)',
+    async (caseId) => {
+      const originalGet = requireDefined(
+        hoisted.axiosApi.get.getMockImplementation(),
+        'default GET implementation'
+      )
+      const first: PatientCase = {
+        id: 1,
+        caseId: 'first-case',
+        patient: 42,
+        admissionDate: '2026-03-10',
+        leaveDate: null,
+        isActive: true,
+        isClosed: false,
+        isDeleted: false,
+        patientExaminations: [{ id: 314 }],
+        documents: [],
+        patientMedications: [],
+        patientMedicationSchedules: [],
+        patientLabSamples: [],
+        patientLabValues: []
+      }
+      hoisted.axiosApi.get.mockImplementation((url, ...args) =>
+        url === 'cases/'
+          ? Promise.resolve({ data: [first, { ...first, id: 2, caseId: 'second-case' }] })
+          : originalGet(url, ...args)
+      )
+      Object.assign(hoisted.routeRef.current, { query: caseId ? { case_id: caseId } : {} })
+      const wrapper = mountShell()
+      await flushPromises()
+      expect(hoisted.flowRef.current.caseId).toBe(caseId === 'second-case' ? 'second-case' : null)
+      if (caseId !== 'second-case') {
+        expect(wrapper.text()).toContain('Fallzuordnung nicht eindeutig')
+        expect(hoisted.timelineApi.fetchPatientTimeline).not.toHaveBeenCalled()
+        await wrapper.get('[data-testid="case-select"]').setValue('second-case')
+        await flushPromises()
+        expect(hoisted.flowRef.current.caseId).toBe('second-case')
+      }
+      Object.assign(hoisted.routeRef.current, { query: {} })
+      await flushPromises()
+      expect(hoisted.flowRef.current.caseId).toBe('second-case')
+    }
+  )
+
+  it.each(['case-uuid-314', 'foreign-case'])(
+    'resolves a board case link before an examination is selected (%s)',
+    async (caseId) => {
+      hoisted.routeRef.current = reactive({
+        path: '/reporting',
+        params: { patient_examination_id: '' }
+      })
+      Object.assign(hoisted.routeRef.current, { query: { patient_id: '42', case_id: caseId } })
+      hoisted.flowRef.current.caseId = null
+      hoisted.flowRef.current.patientExaminationId = null
+      const wrapper = mountShell()
+      await flushPromises()
+      expect(hoisted.flowRef.current.caseId).toBe(caseId === 'case-uuid-314' ? caseId : null)
+      if (caseId === 'foreign-case')
+        expect(wrapper.text()).toContain('gehört nicht zu diesem Patienten')
+    }
+  )
 
   it('discards a late bootstrap response after a rapid examination switch', async () => {
     const delayedFirstDetail = deferred<{ data: Record<string, unknown> }>()
@@ -981,27 +1359,7 @@ describe('ReportingShell media preload', () => {
   })
 
   it('refreshes published templates when the nested builder changes lifecycle state', async () => {
-    const LifecycleChild = defineComponent({
-      setup() {
-        const lifecycleContext = inject(reportTemplateLifecycleContextKey)
-        if (!lifecycleContext) throw new Error('Missing report-template lifecycle context.')
-        return {
-          activeExaminationName: lifecycleContext.activeExaminationName,
-          notifyPublished: () =>
-            lifecycleContext.notifyLifecycleChanged({
-              moduleName: 'report_template_examples',
-              moduleVersion: '1.0.0',
-              templateName: 'newly_published',
-              examination: 'colonoscopy',
-              lifecycleStatus: 'published'
-            })
-        }
-      },
-      template:
-        '<div><span data-testid="active-examination">{{ activeExaminationName }}</span><button data-testid="notify-published" @click="notifyPublished">publish</button></div>'
-    })
-
-    const wrapper = mountShell(LifecycleChild)
+    const wrapper = mountShell(ReportingContextChild)
     await flushPromises()
     expect(wrapper.get('[data-testid="active-examination"]').text()).toBe('colonoscopy')
     hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockClear()
@@ -1678,8 +2036,7 @@ describe('ReportingShell media preload', () => {
     await flushPromises()
 
     expect(hoisted.timelineApi.fetchPatientTimelineLatest).toHaveBeenLastCalledWith({
-      patientId: 42,
-      patientExaminationId: 314
+      patientId: 42
     })
     expect(streamOptions.videoId.value).toBe(101)
     expect(streamOptions.artifactKind.value).toBe('processed')
@@ -1790,8 +2147,7 @@ describe('ReportingShell media preload', () => {
     await flushPromises()
 
     expect(hoisted.timelineApi.fetchPatientTimelineLatest).toHaveBeenCalledWith({
-      patientId: 42,
-      patientExaminationId: 314
+      patientId: 42
     })
   })
 
@@ -1927,9 +2283,14 @@ describe('ReportingShell media preload', () => {
     expect(wrapper.text()).toContain('save unavailable')
   })
 
-  it('keeps the current draft when an explicitly selected template was depublished', async () => {
+  it.each([
+    { source: 'shell', depublished: true },
+    { source: 'inline', depublished: true },
+    { source: 'shell', depublished: false },
+    { source: 'inline', depublished: false }
+  ])('uses the shared switch workflow from $source (depublished: $depublished)', async ({ source, depublished }) => {
     hoisted.flowRef.current.selectedTemplateName = 'current_template'
-    hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValueOnce([
+    hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([
       {
         name: 'current_template',
         examination: 'colonoscopy',
@@ -1949,16 +2310,33 @@ describe('ReportingShell media preload', () => {
         }
       }
     ])
-    const wrapper = mountShell()
+    const wrapper = mountShell(ReportingContextChild)
     await flushPromises()
     const draftBeforeSwitch = hoisted.flowRef.current.currentRuntimeDraft
-    hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValueOnce([])
+    hoisted.flowRef.current.clearTemplateSectionDrafts.mockClear()
+    hoisted.flowRef.current.setRenderedReportText.mockClear()
+    if (depublished) {
+      hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValueOnce([])
+    }
 
-    await wrapper.get('[data-testid="report-template-select"]').setValue('replacement_template')
+    if (source === 'inline') {
+      await wrapper.get('[data-testid="inline-template"]').trigger('click')
+    } else {
+      await wrapper.get('[data-testid="report-template-select"]').setValue('replacement_template')
+    }
     await flushPromises()
 
-    expect(hoisted.flowRef.current.currentRuntimeDraft).toBe(draftBeforeSwitch)
-    expect(wrapper.text()).toContain('veröffentlichte Berichtsvorlage')
+    if (depublished) {
+      expect(hoisted.flowRef.current.currentRuntimeDraft).toBe(draftBeforeSwitch)
+      expect(hoisted.flowRef.current.selectedTemplateName).toBe('current_template')
+      expect(hoisted.flowRef.current.clearTemplateSectionDrafts).not.toHaveBeenCalled()
+      expect(hoisted.flowRef.current.setRenderedReportText).not.toHaveBeenCalled()
+      expect(wrapper.text()).toContain('veröffentlichte Berichtsvorlage')
+    } else {
+      expect(hoisted.flowRef.current.currentRuntimeDraft?.templateName).toBe('replacement_template')
+      expect(hoisted.flowRef.current.clearTemplateSectionDrafts).toHaveBeenCalledTimes(1)
+      expect(hoisted.flowRef.current.setRenderedReportText).toHaveBeenCalledWith('', 'generated')
+    }
   })
 
   it('imports multiple ZIPs from local or cloud-backed file pickers', async () => {
@@ -2015,7 +2393,7 @@ describe('ReportingShell media preload', () => {
     hoisted.terminologyStore.activeModuleName = ''
     hoisted.terminologyStore.activeBundleKey = ''
     hoisted.terminologyStore.bundles = backendActiveNullBundles
-    hoisted.terminologyStore.filteredBundles = backendActiveNullBundles
+    hoisted.terminologyStore.filteredBundles = backendActiveNullBundles.slice(0, 1)
     hoisted.terminologyStore.loadBundles.mockResolvedValue(undefined)
 
     const wrapper = mountShell()
@@ -2198,6 +2576,15 @@ describe('ReportingShell media preload', () => {
     const initial = mountShell()
     await flushPromises()
     const initialBundleSelect = initial.get('[data-testid="terminology-bundle-select"]')
+    expect(initialBundleSelect.attributes('disabled')).toBeUndefined()
+    const confirmSwitch = vi.spyOn(window, 'confirm').mockReturnValueOnce(false)
+    await initialBundleSelect.setValue('gastro_v2@@2.0.0')
+    await flushPromises()
+    expect(confirmSwitch).toHaveBeenCalledWith(
+      'Sind Sie sicher? Erstellen Sie zuerst eine neue Untersuchung.'
+    )
+    expect(hoisted.terminologyStore.selectBundle).not.toHaveBeenCalled()
+    expect((initialBundleSelect.element as HTMLSelectElement).value).toBe('gastro_legacy@@1.0.0')
     await initialBundleSelect.setValue('gastro_v2@@2.0.0')
     await flushPromises()
 
@@ -2318,7 +2705,7 @@ describe('ReportingShell media preload', () => {
 
     const bundleSelect = wrapper.get('[data-testid="terminology-bundle-select"]')
     const templateSelect = wrapper.get('[data-testid="report-template-select"]')
-    expect(bundleSelect.attributes('disabled')).toBeDefined()
+    expect(bundleSelect.attributes('disabled')).toBeUndefined()
     expect(templateSelect.attributes('disabled')).toBeDefined()
     expect(wrapper.text()).toContain('Keine aktive Terminologie')
     expect(wrapper.text()).toContain(

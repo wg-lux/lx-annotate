@@ -60,6 +60,7 @@ _is_dev_settings = _settings_module.endswith("settings_dev")
 _env_path = load_runtime_environment(REPO_ROOT)
 _runtime_paths = get_runtime_paths()
 TERMINOLOGY_ROOT = _runtime_paths.terminology
+CONFIG_ROOT = _runtime_paths.runtime_root / "config"
 PROTECTED_MEDIA_ROOT = _runtime_paths.storage
 STREAMABLE_VIDEO_ROOT = _runtime_paths.streamable_videos_root
 STREAMABLE_RAW_VIDEO_ROOT = _runtime_paths.streamable_videos_raw_media
@@ -72,6 +73,11 @@ TERMINOLOGY_AUTO_PROVISION = True
 
 
 config = load_config(env_file=Path(_env_path))
+
+# Local intake is independent of study activation and clinical fixture loading.
+# An empty key permits legacy CENTER_NAME deployments to retain their identity.
+LX_ANNOTATE_DEFAULT_CENTER = os.getenv("LX_ANNOTATE_DEFAULT_CENTER", "").strip()
+CENTER_NAME = os.getenv("CENTER_NAME", "Local Center").strip() or "Local Center"
 
 
 def _module_available(module_path: str) -> bool:

@@ -1,17 +1,21 @@
 from __future__ import annotations
 
 import json
+from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
 import requests
+from django.conf import settings
 from django.http import Http404
+from django.middleware.csrf import get_token
 from lx_dtypes.models.contracts.knowledge_base_graph import (
     KnowledgeBaseIdentity,
     build_examination_reporting_context,
     build_knowledge_base_graph_snapshot,
 )
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from lx_annotate.services import report_llm as service
@@ -19,7 +23,11 @@ from lx_annotate.views import report_llm as views
 
 
 @pytest.fixture
-def configured(settings):
+def configured(settings, monkeypatch):
+    # Test settings disable authenticators; exercise the deployed session/CSRF path.
+    monkeypatch.setattr(
+        views.report_llm_generate.cls, "authentication_classes", [SessionAuthentication]
+    )
     settings.REPORTING_LLM = {
         "enabled": "true",
         "provider": "ollama",
@@ -75,12 +83,16 @@ def payload(graph):
     }
 
 
-def request(method, data=None, authenticated=True):
-    factory = APIRequestFactory()
+def request(method, data=None, authenticated=True, session=False):
+    factory = APIRequestFactory(enforce_csrf_checks=session)
     result = (
         factory.get("/") if method == "GET" else factory.post("/", data, format="json")
     )
-    if authenticated:
+    if session:
+        result.user = SimpleNamespace(is_authenticated=True, is_active=True)
+        result.META[settings.CSRF_HEADER_NAME] = get_token(result)
+        result.COOKIES[settings.CSRF_COOKIE_NAME] = result.META["CSRF_COOKIE"]
+    elif authenticated:
         force_authenticate(
             result, user=SimpleNamespace(is_authenticated=True, is_active=True)
         )
@@ -100,7 +112,75 @@ def test_status_model_missing_returns_safe_failure(configured, monkeypatch):
     response = views.report_llm_status(request("GET"))
     assert response.status_code == 503
     assert response.data["code"] == "model_missing"
-    assert response["Cache-Control"] == "no-store"
+    assert "no-store" in response["Cache-Control"]
+
+
+@pytest.mark.parametrize("session", [False, True])
+def test_generation_rejects_oversized_json_before_network(
+    configured, monkeypatch, session
+):
+    probe = Mock()
+    monkeypatch.setattr(views, "check_model", probe)
+    response = views.report_llm_generate(
+        request("POST", {"padding": "x" * 1_000_000}, session=session)
+    )
+    assert response.status_code == 413
+    assert response.data["code"] == "input_too_large"
+    assert response.data["ready"] is False
+    assert "no-store" in response["Cache-Control"]
+    probe.assert_not_called()
+
+
+@pytest.mark.parametrize("extra_bytes", [0, 1])
+def test_report_parser_enforces_actual_byte_boundary(extra_bytes):
+    # Whitespace counts toward the wire limit, independently of parsed JSON size.
+    body = b"{}" + b" " * (1_000_000 - 2 + extra_bytes)
+    stream = BytesIO(body)
+    parser = views.ReportJSONParser()
+    if extra_bytes:
+        with pytest.raises(views.ReportRequestTooLarge):
+            parser.parse(stream)
+    else:
+        assert parser.parse(stream) == {}
+
+
+def test_report_parser_bounds_read_and_ignores_declared_length():
+    stream = BytesIO(b" " * 1_000_010)
+    with pytest.raises(views.ReportRequestTooLarge):
+        views.ReportJSONParser().parse(
+            stream,
+            parser_context={"request": SimpleNamespace(META={"CONTENT_LENGTH": "2"})},
+        )
+    assert stream.tell() == 1_000_001
+
+
+def test_generation_still_rejects_missing_csrf_token(configured, graph, monkeypatch):
+    probe = Mock()
+    monkeypatch.setattr(views, "check_model", probe)
+    incoming = request("POST", payload(graph), session=True)
+    del incoming.META[settings.CSRF_HEADER_NAME]
+    response = views.report_llm_generate(incoming)
+    assert response.status_code == 403
+    probe.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "body,content_type,status_code",
+    [(b'{"incomplete":', "application/json", 400), (b"x=y", "text/plain", 415)],
+)
+def test_generation_rejects_invalid_request_encoding(
+    configured, monkeypatch, body, content_type, status_code
+):
+    probe = Mock()
+    monkeypatch.setattr(views, "check_model", probe)
+    incoming = APIRequestFactory().post("/", body, content_type=content_type)
+    force_authenticate(
+        incoming, user=SimpleNamespace(is_authenticated=True, is_active=True)
+    )
+    response = views.report_llm_generate(incoming)
+    assert response.status_code == status_code
+    assert "no-store" in response["Cache-Control"]
+    probe.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -301,8 +381,9 @@ def test_missing_examination_type_never_contacts_llm(configured, graph, monkeypa
     probe.assert_not_called()
 
 
+@pytest.mark.parametrize("session", [False, True])
 def test_generation_returns_editable_text_and_graph_provenance(
-    configured, graph, monkeypatch
+    configured, graph, monkeypatch, session
 ):
     scope_examination(monkeypatch)
     monkeypatch.setattr(views, "check_model", lambda _: None)
@@ -310,9 +391,11 @@ def test_generation_returns_editable_text_and_graph_provenance(
     monkeypatch.setattr(
         views, "generate_report", lambda *_: "Befund: dokumentierte Erosion."
     )
-    response = views.report_llm_generate(request("POST", payload(graph)))
-    assert response.status_code == 200
+    response = views.report_llm_generate(
+        request("POST", payload(graph), session=session)
+    )
+    assert response.status_code == 200, response.data
     assert response.data["text"] == "Befund: dokumentierte Erosion."
     assert response.data["graph_context_id"] == graph.context_id
     assert response.data["prompt_version"] == service.PROMPT_VERSION
-    assert response["Cache-Control"] == "no-store"
+    assert "no-store" in response["Cache-Control"]

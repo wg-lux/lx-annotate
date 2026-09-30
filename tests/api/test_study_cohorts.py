@@ -10,11 +10,13 @@ from endoreg_db.models import (
     AIDataSet,
     Center,
     Examination,
+    Finding,
     Frame,
     ImageClassificationAnnotation,
     Label,
     Patient,
     PatientExamination,
+    PatientFinding,
     PortalUserInfo,
     VideoFile,
     VideoState,
@@ -206,3 +208,282 @@ def test_empty_dataset_scope_does_not_expose_other_centers(setup_cohorts):
     assert [row["patient_examination_id"] for row in response.data["cases"]] == [
         expected.pk
     ]
+
+
+def test_definition_download_round_trips_shared_yaml_and_stays_outside_terminology(
+    setup_cohorts, settings, tmp_path
+):
+    from lx_dtypes.utils.study_setup_yaml import parse_study_setup_yaml
+
+    settings.CONFIG_ROOT = tmp_path / "config"
+    settings.TERMINOLOGY_ROOT = tmp_path / "terminology"
+    client, user, _, datasets = setup_cohorts
+    response = client.post(BASE, definition([datasets[0].pk]), format="json")
+    assert response.status_code == 201, response.data
+    cohort_id = response.data["id"]
+    artifacts = list(settings.CONFIG_ROOT.rglob("*.yml"))
+    assert len(artifacts) == 1
+    response = client.get(f"{BASE}{cohort_id}/definition/")
+    assert response.status_code == 200
+    assert response.content == artifacts[0].read_bytes()
+    parsed = parse_study_setup_yaml(response.content.decode())
+    assert parsed.cohorts[0].name == definition()["name"]
+    assert parsed.cohorts[0].dataset_refs == [parsed.datasets[0].definition_id]
+    assert not settings.TERMINOLOGY_ROOT.exists()
+    other = User.objects.create_user(username="definition-non-owner")
+    client.force_authenticate(other)
+    assert client.get(f"{BASE}{cohort_id}/definition/").status_code == 404
+
+
+def test_definition_write_failure_rolls_back_cohort(setup_cohorts, monkeypatch):
+    def fail(**kwargs):
+        raise OSError("configuration volume unavailable")
+
+    monkeypatch.setattr(
+        "lx_annotate.services.study_definitions.atomic_write_file", fail
+    )
+    client, _, _, _ = setup_cohorts
+    with pytest.raises(OSError, match="configuration volume unavailable"):
+        client.post(BASE, definition(), format="json")
+    assert not StudyCohort.objects.exists()
+
+
+def test_saved_definition_revisions_and_metadata_are_stable(setup_cohorts):
+    from lx_dtypes.utils.study_setup_yaml import parse_study_setup_yaml
+
+    client, _, center, datasets = setup_cohorts
+    data = definition([datasets[0].pk])
+    data["study_metadata"] = {
+        "participating_centers": [
+            {"center_key": center.center_key, "name": center.name}
+        ],
+        "age_groups": [{"name": "Adults", "minimum_age": 18, "maximum_age": 65}],
+    }
+    created = client.post(BASE, data, format="json")
+    assert created.status_code == 201, created.data
+    url = f"{BASE}{created.data['id']}/"
+    initial = client.get(f"{url}definition/").content
+    parsed = parse_study_setup_yaml(initial.decode())
+    assert parsed.cohorts[0].study_metadata.age_groups[0].minimum_age == 18
+    assert parsed.definition_version == "1.0.0"
+    datasets[0].name = "Renamed after study saved"
+    datasets[0].save()
+    assert client.get(f"{url}definition/").content == initial
+    assert client.put(url, data, format="json").status_code == 200
+    revised = parse_study_setup_yaml(client.get(f"{url}definition/").content.decode())
+    assert revised.definition_version == "1.0.1"
+    assert revised.datasets[0].name == datasets[0].name
+    assert client.put(url, data, format="json").status_code == 200
+    assert (
+        parse_study_setup_yaml(client.get(f"{url}definition/").content.decode())
+        == revised
+    )
+
+
+def add_eligible_media(case):
+    return VideoFile.objects.create(
+        center=case.patient.center,
+        patient=case.patient,
+        examination=case,
+        state=VideoState.objects.create(
+            anonymization_validated=True,
+            processed_file_sha256="b" * 64,
+        ),
+        raw_video_hash=f"eligibility-video-{case.pk}",
+        processed_file=SimpleUploadedFile("eligibility.mp4", b"processed test video"),
+    )
+
+
+def test_preview_enforces_age_at_examination_and_participating_center(setup_cohorts):
+    client, _, center, _ = setup_cohorts
+    examination = Examination.objects.create(name="age-study-examination")
+    expected = []
+    for i, (dob, start, accepted) in enumerate(
+        [
+            (date(2008, 6, 15), date(2026, 6, 14), False),
+            (date(2008, 6, 15), date(2026, 6, 15), True),
+            (date(1960, 6, 15), date(2026, 6, 14), True),
+            (date(1960, 6, 15), date(2026, 6, 15), False),
+            (None, date(2026, 6, 15), False),
+            (date(2000, 1, 1), None, False),
+            (date(2030, 1, 1), date(2026, 1, 1), False),
+            (date(2008, 2, 29), date(2026, 2, 28), False),
+            (date(2008, 2, 29), date(2026, 3, 1), True),
+        ]
+    ):
+        patient = Patient.objects.create(
+            first_name="Study",
+            last_name="Age",
+            dob=dob,
+            center=center,
+            is_real_person=False,
+            patient_hash=f"age-boundary-{i}",
+        )
+        case = PatientExamination.objects.create(
+            patient=patient, examination=examination, date_start=start
+        )
+        add_eligible_media(case)
+        if accepted:
+            expected.append(case.pk)
+    data = definition()
+    data["study_metadata"] = {
+        "participating_centers": [
+            {"center_key": center.center_key, "name": center.name}
+        ],
+        "age_groups": [{"name": "18 through 65", "minimum_age": 18, "maximum_age": 65}],
+    }
+    result = client.post(f"{BASE}preview/", data, format="json")
+    assert result.status_code == 200, result.data
+    assert {row["patient_examination_id"] for row in result.data["cases"]} == set(
+        expected
+    )
+    data["study_metadata"]["participating_centers"][0]["center_key"] = "other-center"
+    assert client.post(f"{BASE}preview/", data, format="json").data["cases"] == []
+
+
+def test_versioned_criteria_use_all_criteria_any_exact_reference_and_active_findings(
+    setup_cohorts, monkeypatch
+):
+    from types import SimpleNamespace
+
+    client, _, center, _ = setup_cohorts
+    examination = Examination.objects.create(name="versioned-examination")
+    finding = Finding.objects.create(name="versioned-finding")
+    loaded = []
+
+    def load(module, *, version):
+        loaded.append((module, version))
+        return SimpleNamespace(
+            get_examination=lambda name: {examination.name: examination}[name],
+            get_finding=lambda name: {finding.name: finding}[name],
+        )
+
+    monkeypatch.setattr("lx_annotate.services.study_eligibility.load_module_kb", load)
+    expected = []
+    for i, (version, active) in enumerate(
+        [
+            ("1.0.0", True),
+            ("2.0.0", True),
+            ("3.0.0", True),
+            ("", True),
+            ("1.0.0", False),
+        ]
+    ):
+        patient = Patient.objects.create(
+            first_name="Study",
+            last_name="Versions",
+            center=center,
+            is_real_person=False,
+            patient_hash=f"versioned-{i}",
+        )
+        case = PatientExamination.objects.create(
+            patient=patient,
+            examination=examination,
+            date_start=date(2026, 1, 1),
+            knowledge_base_module="research" if version else "",
+            knowledge_base_version=version,
+        )
+        if active:
+            PatientFinding.objects.create(patient_examination=case, finding=finding)
+        add_eligible_media(case)
+        if version in ("1.0.0", "2.0.0") and active:
+            expected.append(case.pk)
+    versions = ("1.0.0", "2.0.0")
+    data = definition()
+    data["study_metadata"] = {
+        "terminology_requirements": [
+            {"module": "research", "version": v} for v in versions
+        ],
+        "inclusion_criteria": [
+            {
+                "name": kind,
+                "concepts": [
+                    {"module": "research", "version": v, "kind": kind, "name": name}
+                    for v in versions
+                ],
+            }
+            for kind, name in (
+                ("examination", examination.name),
+                ("finding", finding.name),
+            )
+        ],
+    }
+    result = client.post(f"{BASE}preview/", data, format="json")
+    assert result.status_code == 200, result.data
+    assert set(loaded) == {("research", v) for v in versions}
+    assert {row["patient_examination_id"] for row in result.data["cases"]} == set(
+        expected
+    )
+    data["study_metadata"]["inclusion_criteria"][0]["concepts"][0]["name"] = "missing"
+    assert client.post(f"{BASE}preview/", data, format="json").status_code == 400
+    assert client.post(BASE, data, format="json").status_code == 400
+    assert not StudyCohort.objects.exists()
+
+
+def test_unavailable_terminology_fails_before_save_or_preview(setup_cohorts):
+    client, _, _, _ = setup_cohorts
+    data = definition()
+    data["study_metadata"] = {
+        "terminology_requirements": [
+            {"module": "missing-study-package", "version": "9.0.0"}
+        ]
+    }
+    assert client.post(BASE, data, format="json").status_code == 400
+    assert client.post(f"{BASE}preview/", data, format="json").status_code == 400
+    assert not StudyCohort.objects.exists()
+
+
+def test_real_packaged_terminology_resolves_and_round_trips_in_download(
+    setup_cohorts, tmp_path, monkeypatch
+):
+    from lx_dtypes.knowledge_bases import get_packaged_knowledge_base
+    from lx_dtypes.terminology import terminology_loader
+    from lx_dtypes.terminology.terminology_loader import load_module_kb
+    from lx_dtypes.terminology.terminology_service import TerminologyService
+    from lx_dtypes.utils.study_setup_yaml import parse_study_setup_yaml
+
+    descriptor = get_packaged_knowledge_base("coloreg", "0.1.0")
+    service = TerminologyService(tmp_path / "registry.json")
+    service.register_local(
+        "coloreg", "0.1.0", input_dirs=[descriptor.installed_data_root()]
+    )
+    monkeypatch.setattr(terminology_loader, "get_terminology_service", lambda: service)
+    package = load_module_kb("coloreg", version="0.1.0")
+    name = next(iter(package.examination))
+    client, _, _, _ = setup_cohorts
+    data = definition()
+    data["study_metadata"] = {
+        "terminology_requirements": [{"module": "coloreg", "version": "0.1.0"}],
+        "inclusion_criteria": [
+            {
+                "name": "Required examination",
+                "concepts": [
+                    {
+                        "module": "coloreg",
+                        "version": "0.1.0",
+                        "kind": "examination",
+                        "name": name,
+                    }
+                ],
+            }
+        ],
+    }
+    response = client.post(BASE, data, format="json")
+    assert response.status_code == 201, response.data
+    download = client.get(f"{BASE}{response.data['id']}/definition/")
+    parsed = parse_study_setup_yaml(download.content.decode())
+    concept = parsed.cohorts[0].study_metadata.inclusion_criteria[0].concepts[0]
+    assert (concept.module, concept.version, concept.name) == ("coloreg", "0.1.0", name)
+
+
+@pytest.mark.parametrize("snapshot", [[], None, False, {"schema_version": "unknown"}])
+def test_invalid_persisted_definition_snapshot_rejected(setup_cohorts, snapshot):
+    _, user, _, _ = setup_cohorts
+    with pytest.raises(ValidationError):
+        StudyCohort.objects.create(
+            created_by=user,
+            name="Study",
+            hypothesis="Why",
+            filters={"limit": 100},
+            definition_snapshot=snapshot,
+        )

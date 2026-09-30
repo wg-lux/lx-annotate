@@ -216,6 +216,9 @@ describe('AnonymizationCorrectionComponent PDF rendering', () => {
     expect(form.get('client_source_sha256')).toBe('a'.repeat(64))
     expect(form.get('redaction_manifest')).toBe(JSON.stringify(manifest))
     expect(wrapper.text()).toContain('Erneute Anonymisierungsprüfung erforderlich')
+    expect(wrapper.text()).toContain(
+      'nach Bestätigung bleibt diese PDF für den Hub-Transfer erhalten'
+    )
     const stream = hoisted.useAuthenticatedVideoStream.mock.calls[0]?.[0] as {
       videoId: { value: number | null }
     }

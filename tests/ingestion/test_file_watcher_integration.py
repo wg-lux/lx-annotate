@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from django.test import override_settings
 from endoreg_db.models import (
     Center,
     InformationSource,
@@ -39,6 +40,19 @@ def make_handler(monkeypatch):
     executor = RecordingExecutor()
     monkeypatch.setattr(handler, "executor", executor)
     return handler, executor
+
+
+@pytest.mark.django_db
+def test_watcher_provisions_configured_center_without_study(monkeypatch):
+    with override_settings(
+        LX_ANNOTATE_DEFAULT_CENTER="standalone", CENTER_NAME="Local Site"
+    ):
+        handler, _ = make_handler(monkeypatch)
+        assert not Center.objects.filter(center_key="standalone").exists()
+        center = handler._resolve_default_center()
+        assert center.center_key == "standalone"
+        assert center.name == "Local Site"
+        assert handler._resolve_default_center() == center
 
 
 def test_duplicate_create_and_move_events_submit_only_once(monkeypatch, tmp_path):
@@ -237,7 +251,7 @@ def test_handler_process_report_delegates_to_shared_hub_ingest(monkeypatch, tmp_
     center = SimpleNamespace(center_key=handler.default_center_key)
     upload_job = SimpleNamespace(is_successful=True, id="job-1")
 
-    monkeypatch.setattr(file_watcher, "_resolve_center_by_key", lambda key: center)
+    monkeypatch.setattr(handler, "_resolve_default_center", lambda: center)
     monkeypatch.setattr(
         file_watcher,
         "process_watcher_file",
@@ -262,7 +276,7 @@ def test_handler_process_report_defers_not_ready_source(monkeypatch):
     report_path.write_bytes(b"%PDF-1.4 partial report")
     center = SimpleNamespace(center_key=handler.default_center_key)
 
-    monkeypatch.setattr(file_watcher, "_resolve_center_by_key", lambda key: center)
+    monkeypatch.setattr(handler, "_resolve_default_center", lambda: center)
     monkeypatch.setattr(
         file_watcher,
         "process_watcher_file",
@@ -297,7 +311,7 @@ def test_handler_process_video_delegates_to_shared_hub_ingest(monkeypatch, tmp_p
         pipe_1=lambda **kwargs: True,
     )
 
-    monkeypatch.setattr(file_watcher, "_resolve_center_by_key", lambda key: center)
+    monkeypatch.setattr(handler, "_resolve_default_center", lambda: center)
     monkeypatch.setattr(
         file_watcher,
         "process_watcher_file",

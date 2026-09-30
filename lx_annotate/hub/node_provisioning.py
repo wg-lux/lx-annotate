@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Literal, TypedDict
 
 from django.db import transaction
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 
 class HubNodeProvisionEvent(TypedDict):
@@ -35,12 +35,26 @@ class HubNodeSpec(BaseModel):
         default="", validation_alias=AliasChoices("base_url", "baseUrl")
     )
     center_key: str | None = Field(
-        default=None, validation_alias=AliasChoices("center_key", "centerKey")
+        default=None,
+        min_length=1,
+        max_length=255,
+        validation_alias=AliasChoices("center_key", "centerKey"),
     )
+    center_name: str | None = Field(default=None, min_length=1, max_length=255)
     shared_secret_file: Path | None = Field(
         default=None,
         validation_alias=AliasChoices("shared_secret_file", "sharedSecretFile"),
     )
+
+    @field_validator("center_key", "center_name")
+    @classmethod
+    def normalize_center_identity(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            raise ValueError("Configured center identity must not be blank")
+        return value
 
 
 def provision_hub_nodes(specs: list[HubNodeSpec]) -> list[HubNodeProvisionEvent]:
@@ -57,13 +71,17 @@ def provision_hub_nodes(specs: list[HubNodeSpec]) -> list[HubNodeProvisionEvent]
                     f"Unsupported NetworkNode role for {spec.node_key}: {spec.role}"
                 )
 
+            if spec.center_name and not spec.center_key:
+                raise ValueError("center_name requires a stable center_key")
             center = None
             if spec.center_key:
-                center = Center.objects.filter(center_key=spec.center_key).first()
-                if center is None:
-                    raise ValueError(
-                        f"Required Center.center_key is missing: {spec.center_key}"
-                    )
+                # This is trusted operator provisioning, not a transfer payload.
+                # Remote source centers must not depend on study/fixture loading
+                # and must never be substituted with the receiver's local center.
+                center, _ = Center.objects.get_or_create(
+                    center_key=spec.center_key,
+                    defaults={"name": spec.center_name or spec.center_key},
+                )
 
             node, created = NetworkNode.objects.update_or_create(
                 node_key=spec.node_key,

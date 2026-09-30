@@ -886,7 +886,24 @@ export const useAnonymizationStore = defineStore('anonymization', {
       }
     },
 
-    /** Annotation-safe repair; reports when operator re-import is unavoidable. */
+    async resumeVideoMetadataImport(fileId: number, missing: string[]): Promise<boolean> {
+      if (
+        !missing.length ||
+        missing.some((reason) => reason !== 'sensitive_metadata' && reason !== 'technical_metadata')
+      ) {
+        this.error = `Video ${String(fileId)} muss neu importiert werden (${missing.join(', ')}). Annotationen wurden nicht gelöscht.`
+        return false
+      }
+      await axiosInstance.post(r(endpoints.media.videoReimport(fileId)), {
+        refresh_predictions: false
+      })
+      this.error = null
+      await this.fetchOverview()
+      this.startPolling(fileId)
+      return true
+    },
+
+    /** Repair state, or resume metadata import through the existing pipeline. */
     async reimportVideo(fileId: number) {
       const file = this.overview.find((f) => f.id === fileId)
       if (!file) {
@@ -918,8 +935,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
           return false
         }
         if (item.status === 'reimport_required') {
-          this.error = `Video ${String(fileId)} muss neu importiert werden (${item.missing.join(', ')}). Annotationen wurden nicht gelöscht.`
-          return false
+          return await this.resumeVideoMetadataImport(fileId, item.missing)
         }
         await this.fetchOverview()
         return true

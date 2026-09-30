@@ -128,6 +128,48 @@ describe('anonymizationStore video reimport', () => {
     expect(file.anonymizationStatus).toBe('failed')
     expect(file.annotationStatus).toBe('validated')
     expect(store.error).toContain('muss neu importiert werden')
+    expect(hoisted.post).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([['sensitive_metadata'], ['technical_metadata', 'sensitive_metadata']])(
+    'resumes missing metadata through the existing import pipeline: %s',
+    async (...missing) => {
+      hoisted.post
+        .mockResolvedValueOnce({
+          data: {
+            items: [{ status: 'reimport_required', missing }]
+          }
+        })
+        .mockResolvedValueOnce({ status: 202 })
+      hoisted.get.mockResolvedValue({ data: [] })
+      const store = useAnonymizationStore()
+      const file = buildVideoFile({ annotationStatus: 'validated' })
+      store.overview = [file]
+      const poll = vi.spyOn(store, 'startPolling').mockImplementation(() => undefined)
+
+      expect(await store.reimportVideo(42)).toBe(true)
+      expect(hoisted.post).toHaveBeenNthCalledWith(2, 'api/media/videos/42/reimport/', {
+        refresh_predictions: false
+      })
+      expect(file.annotationStatus).toBe('validated')
+      expect(store.error).toBeNull()
+      expect(poll).toHaveBeenCalledWith(42)
+    }
+  )
+
+  it('reports rejected metadata reimports without claiming success', async () => {
+    hoisted.post
+      .mockResolvedValueOnce({
+        data: {
+          items: [{ status: 'reimport_required', missing: ['sensitive_metadata'] }]
+        }
+      })
+      .mockRejectedValueOnce(new Error('Raw source unavailable'))
+    const store = useAnonymizationStore()
+    store.overview = [buildVideoFile()]
+    expect(await store.reimportVideo(42)).toBe(false)
+    expect(store.error).toContain('Raw source unavailable')
+    expect(hoisted.get).not.toHaveBeenCalled()
   })
 
   it('does not report a blocked repair as a successful reimport', async () => {

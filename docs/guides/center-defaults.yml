@@ -1,0 +1,41 @@
+schema_version: '1.0'
+readiness:
+  repository: wg-lux/endoreg-db
+  feature: feature-tracking/CenterAccess.yml
+  criterion: local_center_defaults
+purpose: Configure local intake independently of studies and clinical fixture loading.
+settings:
+  CENTER_NAME:
+    default: Local Center
+    meaning: Local center name; compatibility lookup when no stable key is configured.
+  LX_ANNOTATE_DEFAULT_CENTER:
+    default: ''
+    meaning: Stable local center key; an existing legacy center name is also accepted.
+resolution:
+  - Explicit import or study center remains authoritative.
+  - Otherwise use the center selected in Application Settings.
+  - Otherwise reuse or lazily provision the configured local center after schema migrations.
+  - Without configuration, provision Local Center with key local-center.
+  - Never select an unrelated center by database row order.
+examples:
+  standalone:
+    CENTER_NAME: Local Center
+    LX_ANNOTATE_DEFAULT_CENTER: local-center
+  configured_site:
+    CENTER_NAME: Research Site A
+    LX_ANNOTATE_DEFAULT_CENTER: research-site-a
+  studies:
+    behavior: Studies may reference separately provisioned center identities; study activation is optional for intake.
+transfer:
+  - Incoming transfers use authenticated NetworkNode.owning_center, never the recipient local default.
+  - Provision each remote node with its distinct source center identity independently of study activation.
+  - The provision_hub_nodes command creates missing centers from trusted operator center_key and optional center_name fields, in the node provisioning transaction; existing centers retain their names and IDs.
+  - A generic local-center key is only a local intake default, not a globally unique hub source identity.
+  - Unknown or conflicting explicit identities and unauthenticated nodes remain errors.
+  - Changing a local default does not reassign existing records or grant center access.
+deployment:
+  - Set Django settings directly or configure the two existing environment variables.
+  - Environment values are converted in settings_base after runtime environment loading.
+  - Django setting overrides take precedence over process environment values.
+  - Install matching endoreg-db and lx-annotate versions before restarting API and workers.
+  - Database schema migrations remain required; no study, employee list, or clinical fixture loader is needed to create the center.

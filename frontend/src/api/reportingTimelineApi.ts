@@ -47,14 +47,18 @@ export type TimelineLatestPayload = {
   latestReport: TimelineLatestReport | null
   latestVideo: TimelineLatestVideo | null
   latestFrames: TimelineLatestFrame[]
+  /** Reporting combines the latest preview with the complete patient history. */
+  availableMedia?: PatientTimelineItem[]
 }
 
 export type PatientTimelineItem = {
   mediaType: string
   id: number
+  rawPdfId?: number | null
   timestamp: string | null
   examinationDate: string | null
   documentType: string | null
+  anonymizedText?: string | null
   fileName: string | null
   processedFileName?: string | null
   patientExaminationId: number | null
@@ -169,6 +173,7 @@ function requireTimelineLatestPayload(value: unknown): TimelineLatestPayload {
 function hasPatientTimelineItemText(value: Record<string, unknown>): boolean {
   return (
     isNullableString(value.timestamp) &&
+    isOptionalNullableString(value.anonymizedText) &&
     isNullableString(value.examinationDate) &&
     isNullableString(value.documentType) &&
     isNullableString(value.fileName) &&
@@ -181,6 +186,7 @@ function isPatientTimelineItem(value: unknown): value is PatientTimelineItem {
     isRecord(value) &&
     typeof value.mediaType === 'string' &&
     isInteger(value.id) &&
+    isOptionalNullableInteger(value.rawPdfId) &&
     hasPatientTimelineItemText(value) &&
     isNullableInteger(value.patientExaminationId) &&
     (value.streamOptions === undefined || isTimelineStreamOptions(value.streamOptions))
@@ -232,7 +238,10 @@ export async function fetchPatientTimelineLatest(params: {
     }
   )
 
-  return requireTimelineLatestPayload(response.data)
+  const payload = requireTimelineLatestPayload(response.data)
+  if (payload.patient.id !== params.patientId)
+    throw new TypeError('Timeline patient identity mismatch')
+  return payload
 }
 
 export async function fetchPatientTimeline(
@@ -242,5 +251,9 @@ export async function fetchPatientTimeline(
   const response = await axiosInstance.get<unknown>(r(endpoints.media.patientTimeline(patientId)), {
     params: patientExaminationId ? { patient_examination_id: patientExaminationId } : undefined
   })
-  return requirePatientTimelinePayload(response.data)
+  const payload = requirePatientTimelinePayload(response.data)
+  if (payload.patient.id !== patientId || payload.count !== payload.results.length) {
+    throw new TypeError('Patient timeline identity or completeness could not be verified')
+  }
+  return payload
 }

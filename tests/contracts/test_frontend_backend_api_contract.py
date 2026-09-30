@@ -185,7 +185,7 @@ def test_reporting_methods_and_trailing_slashes_match_ninja_routes() -> None:
             "POST",
         },
         "/endoreg-api/patient-examination-reports/history-context": {"GET"},
-        "/endoreg-api/patient-examination-reports/1": {"GET"},
+        "/endoreg-api/patient-examination-reports/1": {"GET", "DELETE"},
     }
     for path, methods in expected_methods.items():
         response = client.options(path, secure=True)

@@ -15,12 +15,6 @@
           <div class="small text-muted mt-1">
             {{ getFileIdLabel(file) }}
           </div>
-          <div
-            v-if="file.quarantined"
-            class="small text-warning mt-1 quarantine-file-note"
-          >
-            Import blockiert: Datei liegt in Quarantäne.
-          </div>
         </div>
       </div>
     </td>
@@ -95,7 +89,56 @@
         </button>
       </div>
     </td>
+    <td class="validation-action-column">
+      <div class="d-flex flex-column gap-1">
+        <!-- State 1: Ready for Validation / Annotation -->
+        <template v-if="file.anonymizationStatus === 'done_processing_anonymization'">
+          <button
+            class="btn btn-success btn-sm"
+            :disabled="!readyForValidation"
+            @click="emit('validate', file)"
+          >
+            <i class="ni ni-user-run me-1"></i>
+            Anonymisierung validieren
+          </button>
 
+          <button
+            v-if="file.mediaType.toUpperCase() === 'VIDEO'"
+            class="btn btn-outline-primary btn-sm"
+            :disabled="!readyForValidation"
+            @click="emit('annotate', file)"
+          >
+            <i class="ni ni-tag me-1"></i>
+            Segmentannotation
+          </button>
+        </template>
+
+        <!-- State 2: Already Validated -->
+        <template v-else-if="file.anonymizationStatus === 'validated'">
+          <span class="badge bg-success">
+            <i class="ni ni-check-bold me-1"></i>
+            Anonymisierung validiert
+          </span>
+        </template>
+
+        <!-- State 3: Processing Failed -->
+        <template v-else-if="file.anonymizationStatus === 'failed'">
+          <button
+            class="btn btn-outline-danger btn-sm"
+            title="Zur Korrektur öffnen"
+            @click="emit('correct', file)"
+          >
+            <i class="ni ni-settings-gear-65 me-1"></i>
+            Korrektur
+          </button>
+        </template>
+
+        <!-- State 4: Default / Pending -->
+        <template v-else>
+          <span class="text-muted small">Bitte abwarten</span>
+        </template>
+      </div>
+    </td>
     <!-- Upload Job Status -->
     <td>
       <div
@@ -180,7 +223,7 @@
             v-if="materialization.status === 'failed'"
             class="small text-danger upload-job-text"
           >
-            HLS-Erzeugung fehlgeschlagen. Details sind im Server-Log verfügbar.
+            Stream-Erzeugung (HLS) fehlgeschlagen. Details sind im Server-Log verfügbar.
           </div>
         </div>
       </div>
@@ -230,31 +273,6 @@
       >
         {{ getStatusText(file.annotationStatus) }}
       </span>
-    </td>
-
-    <!-- Validation Action -->
-    <td class="validation-action-column">
-      <button
-        v-if="file.anonymizationStatus === 'done_processing_anonymization'"
-        class="btn btn-success btn-sm"
-        :disabled="!readyForValidation"
-        @click="emit('validate', file)"
-      >
-        <i class="ni ni-user-run me-1"></i>
-        Validieren
-      </button>
-      <span
-        v-else-if="file.anonymizationStatus === 'validated'"
-        class="badge bg-success"
-      >
-        <i class="ni ni-check-bold me-1"></i>
-        Validiert
-      </span>
-      <span
-        v-else
-        class="text-muted"
-        >-</span
-      >
     </td>
 
     <!-- Original File Cleanup -->
@@ -321,7 +339,8 @@ const props = defineProps<{
   mediaTypeBadgeClass: string
 }>()
 
-const emit = defineEmits<(event: OverviewActionIntent | 'validate', file: FileItem) => void>()
+// script setup
+const emit = defineEmits<(event: OverviewActionIntent | 'validate' | 'annotate' | 'correct', file: FileItem) => void>()
 const actions = computed(() => getOverviewActions(props.file))
 </script>
 
@@ -331,11 +350,11 @@ const actions = computed(() => getOverviewActions(props.file))
   background-color: #fff;
 }
 .overview-resource-row:hover > * {
-  background-color: var(--bs-table-hover-bg, #f8f9fa);
+  background-color: #f8f9fa;
 }
 .overview-resource-row:hover .sticky-filename-column,
 .overview-resource-row:hover .validation-action-column {
-  background: var(--bs-table-hover-bg, #f8f9fa);
+  background-color: #f8f9fa;
 }
 .filename-cell-content,
 .filename-details {
@@ -388,7 +407,7 @@ const actions = computed(() => getOverviewActions(props.file))
   width: 22rem;
   min-width: 18rem;
   max-width: 22rem;
-  background: #fff;
+  --bs-table-bg: #fff;
   box-shadow: 0.25rem 0 0.75rem rgba(0, 0, 0, 0.04);
   z-index: 2;
 }
@@ -396,7 +415,7 @@ const actions = computed(() => getOverviewActions(props.file))
   position: sticky;
   right: 0;
   min-width: 9rem;
-  background: #fff;
+  --bs-table-bg: #fff;
   box-shadow: -0.25rem 0 0.75rem rgba(0, 0, 0, 0.06);
   z-index: 2;
 }

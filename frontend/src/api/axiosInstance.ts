@@ -34,11 +34,43 @@ function shouldSuppressErrorToast(url: string, explicitlySuppressed: boolean): b
   return url.includes('/dtypes-api/') || url.startsWith('dtypes-api/')
 }
 
-function getResponseErrorMessage(err: AxiosError): string {
-  const data = err.response?.data
+const HTTP_ERROR_MESSAGES: Readonly<Partial<Record<number, string>>> = {
+  403: 'Sie haben keine Berechtigung für diese Aktion.',
+  404: 'Die angeforderte Ressource ist nicht verfügbar. Bitte aktualisieren Sie die Ansicht.',
+  409: 'Die Daten wurden zwischenzeitlich geändert. Bitte prüfen Sie den aktuellen Stand, bevor Sie fortfahren.',
+  429: 'Es wurden zu viele Anfragen gesendet. Bitte warten Sie, bevor Sie es erneut versuchen.'
+}
+
+function getValidationErrorMessage(data: unknown): string {
   const detail = isPlainJsonObject(data) && typeof data.detail === 'string' ? data.detail : ''
   const apiError = isPlainJsonObject(data) && typeof data.error === 'string' ? data.error : ''
-  return detail || apiError || err.message || 'Unbekannter Netzwerk- oder Serverfehler'
+  return detail.trim() || apiError.trim() || 'Bitte prüfen Sie Ihre Eingaben.'
+}
+
+function getConnectionErrorMessage(code: string | undefined): string {
+  if (code === AxiosError.ECONNABORTED || code === AxiosError.ETIMEDOUT) {
+    return 'Die Anfrage hat zu lange gedauert. Bitte prüfen Sie den aktuellen Stand, bevor Sie die Aktion erneut ausführen.'
+  }
+  return 'Die Verbindung zum Server ist unterbrochen. Bitte prüfen Sie Ihre Verbindung und den aktuellen Stand der Aktion.'
+}
+
+function getResponseErrorMessage(err: AxiosError): string {
+  const status = err.response?.status
+  if (status === undefined) {
+    return getConnectionErrorMessage(err.code)
+  }
+  if (status >= 500) {
+    return 'Der Server konnte die Anfrage nicht abschließen. Bitte prüfen Sie den aktuellen Stand, bevor Sie die Aktion erneut ausführen.'
+  }
+  // Preserve actionable validation feedback without copying infrastructure
+  // error bodies or raw exception messages into the shared notification.
+  if (status === 400 || status === 422) {
+    return getValidationErrorMessage(err.response?.data)
+  }
+  return (
+    HTTP_ERROR_MESSAGES[status] ??
+    'Die Anfrage konnte nicht abgeschlossen werden. Bitte prüfen Sie den aktuellen Stand.'
+  )
 }
 
 function normalizeResponseError(error: unknown): AxiosError {

@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { reactive, ref } from 'vue'
 import { AxiosHeaders, type AxiosResponse } from 'axios'
 
+import { useAnonymizationValidationDraftStore } from '@/stores/anonymizationValidationDraftStore'
+import { useAuthKcStore } from '@/stores/auth_kc'
 import AnonymizationValidationComponent from '../AnonymizationValidationComponent.vue'
 
 interface AnonymizationStoreFixture {
@@ -282,6 +284,114 @@ describe('AnonymizationValidationComponent', () => {
     })
   })
 
+  function field(wrapper: ReturnType<typeof mountComponent>, label: string) {
+    const group = wrapper.findAll('.mb-3').find((entry) => entry.find('label').exists() && entry.find('label').text() === label)
+    return requireDefined(group, label).find('input, textarea, select')
+  }
+
+  async function open_correction(wrapper: ReturnType<typeof mountComponent>) {
+    const button = wrapper.findAll('button').find((entry) => /(?:PDF|Video)-Korrektur/.test(entry.text()))
+    await requireDefined(button, 'Correction button').trigger('click')
+    await flushPromises()
+  }
+
+  it.each(['pdf', 'video'])('preserves all entered %s fields across correction and backend reload', async (media_type) => {
+    requireMediaStore().isPdf = media_type === 'pdf'
+    requireMediaStore().isVideo = media_type === 'video'
+    const props = { fileId: 5, mediaType: media_type }
+    const wrapper = mountComponent(props)
+    await flushPromises()
+    const edits = [
+      ['Vorname:', 'Edited name'], ['Nachname:', ''], ['Geschlecht:', 'male'],
+      ['Geburtsdatum:', '12.10.1994'], ['Fallnummer:', 'CASE-EDIT'],
+      ['Untersuchungsdatum:', '01.02.2024'], ['Anonymisierter Text:', 'Edited report'],
+      ['Externe ID:', 'EXT-EDIT'], ['Untersucher:', 'Examiner edit'],
+      ['Quelle der Daten:', 'Source edit'], ['Zentrum:', 'Center edit'],
+      ['Validierungsnotiz:', 'Review note']
+    ] as const
+    for (const [label, value] of edits) await field(wrapper, label).setValue(value)
+    await wrapper.find('input[placeholder="Eigenen Tag eingeben"]').setValue('Unfinished tag')
+    const tag = wrapper.findAll('button').find((entry) => entry.text() === 'Ausgeschlossen')
+    await requireDefined(tag, 'Tag button').trigger('click')
+    await wrapper.find('#noMoreNamesConfirmation').setValue('not_confirmed')
+    if (media_type === 'pdf') {
+      await field(wrapper, 'Dokumenttyp:').setValue('')
+      await field(wrapper, 'Befund-Fall (PatientExamination):').setValue('__manual__')
+      await wrapper.find('input[type="number"]').setValue('42')
+    }
+    await open_correction(wrapper)
+    expect(hoisted.axiosPost).not.toHaveBeenCalled()
+    expect(hoisted.routerPush).toHaveBeenCalledWith({
+      name: 'Anonymisierung Korrektur', params: { fileId: '5' }, query: { mediaType: media_type }
+    })
+    wrapper.unmount()
+    // Correction reloads server metadata; it must not replace the local draft.
+    requireAnonymizationStore().current = buildPdfItem({ id: 99, patientFirstName: 'Server value' })
+    const returned = mountComponent(props)
+    await flushPromises()
+    for (const [label, value] of edits) {
+      expect((field(returned, label).element as HTMLInputElement).value).toBe(value)
+    }
+    expect((returned.find('input[placeholder="Eigenen Tag eingeben"]').element as HTMLInputElement).value).toBe('Unfinished tag')
+    expect(returned.findAll('.badge').some((badge) => badge.text().includes('Ausgeschlossen'))).toBe(true)
+    expect((returned.find('#noMoreNamesConfirmation').element as HTMLSelectElement).value).toBe('not_confirmed')
+    if (media_type === 'pdf') {
+      expect((field(returned, 'Dokumenttyp:').element as HTMLSelectElement).value).toBe('')
+      expect((returned.find('input[type="number"]').element as HTMLInputElement).value).toBe('42')
+    }
+    returned.unmount()
+  })
+
+  it.each([{ fileId: 6, mediaType: 'pdf' }, { fileId: 5, mediaType: 'video' }])(
+    'isolates correction drafts from another media identity: %j', async (props) => {
+      const wrapper = mountComponent()
+      await flushPromises()
+      await field(wrapper, 'Vorname:').setValue('Draft name')
+      await open_correction(wrapper)
+      wrapper.unmount()
+      requireMediaStore().isPdf = props.mediaType === 'pdf'
+      requireMediaStore().isVideo = props.mediaType === 'video'
+      const other = mountComponent(props)
+      await flushPromises()
+      expect((field(other, 'Vorname:').element as HTMLInputElement).value).toBe('Max')
+      other.unmount()
+    }
+  )
+
+  it.each([true, false])('clears drafts only after successful approval: %s', async (success) => {
+    const wrapper = mountComponent()
+    await flushPromises()
+    await field(wrapper, 'Vorname:').setValue('Draft name')
+    await open_correction(wrapper)
+    wrapper.unmount()
+    if (success) hoisted.axiosPost.mockResolvedValue(apiResponse({ case_resolution: { patient_examination_id: 42 } }))
+    else hoisted.axiosPost.mockRejectedValue(new Error('Approval failed'))
+    const returned = mountComponent()
+    await flushPromises()
+    await returned.find('button.btn.btn-success').trigger('click')
+    await flushPromises()
+    expect(useAnonymizationValidationDraftStore().draft === null).toBe(success)
+    expect(useAnonymizationValidationDraftStore().resume_target).toEqual(
+      success ? null : { file_id: 5, media_type: 'pdf' }
+    )
+    expect(sessionStorage.getItem('last:fileId')).toBe(success ? null : '5')
+    expect(sessionStorage.getItem('last:scope')).toBe(success ? null : 'pdf')
+    returned.unmount()
+  })
+
+  it('retains entries when correction navigation fails and clears the draft on account change', async () => {
+    const wrapper = mountComponent()
+    await flushPromises()
+    await field(wrapper, 'Vorname:').setValue('Draft name')
+    hoisted.routerPush.mockRejectedValueOnce(new Error('Navigation failed'))
+    await open_correction(wrapper)
+    expect((field(wrapper, 'Vorname:').element as HTMLInputElement).value).toBe('Draft name')
+    expect(useAnonymizationValidationDraftStore().draft).not.toBeNull()
+    useAuthKcStore().user = { username: 'another-user', roles: [] }
+    expect(useAnonymizationValidationDraftStore().draft).toBeNull()
+    wrapper.unmount()
+  })
+
   it.each([
     [' Max ', ' Mustermann '],
     ['MAX', 'MUSTERMANN'],
@@ -488,6 +598,22 @@ describe('AnonymizationValidationComponent', () => {
     wrapper.unmount()
   })
 
+  it('keeps the report in review when the processed transfer artifact is unavailable', async () => {
+    hoisted.axiosPost.mockRejectedValue({
+      response: { data: { errorCode: 'processed_report_artifact_unavailable' } }
+    })
+    const wrapper = mountComponent()
+    await flushPromises()
+    await wrapper.find('button.btn.btn-success').trigger('click')
+    await flushPromises()
+    expect(requireToastStore().error).toHaveBeenCalledWith({
+      text: 'Die anonymisierte PDF fehlt oder ist nicht lesbar bzw. inkonsistent. Bitte in der PDF-Korrektur speichern und prüfen, danach erneut bestätigen. Es wurde kein Bericht freigegeben.'
+    })
+    expect(requireToastStore().success).not.toHaveBeenCalled()
+    expect(hoisted.routerPush).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
   it('shows backend validation errors when approval fails', async () => {
     hoisted.axiosPost.mockRejectedValue({
       response: {
@@ -534,7 +660,7 @@ describe('AnonymizationValidationComponent', () => {
     )
     expect(hoisted.axiosPost.mock.calls[0][1]).not.toHaveProperty('no_more_names_confirmed')
     expect(requireToastStore().success).toHaveBeenCalledWith({
-      text: 'Dokument bestätigt und Anonymisierung validiert'
+      text: 'Anonymisierte PDF bestätigt und für den Hub-Transfer aufbewahrt'
     })
     expect(requireToastStore().info).toHaveBeenCalledWith({
       text: 'PDF validiert. Patientenfall 42 wurde automatisch zugeordnet und im Berichtseditor geöffnet.'

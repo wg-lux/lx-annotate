@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
 import os
 from typing import Any, cast
 from unittest.mock import patch
@@ -10,6 +11,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.files.base import ContentFile
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
@@ -23,9 +25,16 @@ from endoreg_db.models import (
     VideoFile,
     VideoState,
 )
+from endoreg_db.services.raw_pdf_files import validate_report_metadata_annotation
+from endoreg_db.utils.hashs import get_file_hash
+from endoreg_db.utils.storage import file_exists
 
 from lx_annotate.models import OutboundHubTransferJob
-from tests.hub_payload_helpers import hub_report_pdf_bytes, verify_hub_report_artifact
+from tests.hub_payload_helpers import (
+    create_hub_sensitive_meta,
+    hub_report_pdf_bytes,
+    verify_hub_report_artifact,
+)
 
 TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
 User = cast(Any, get_user_model())
@@ -75,6 +84,64 @@ class HubExportApiTests(TestCase):
             ),
         )
         verify_hub_report_artifact(self.report)
+
+    def test_manually_corrected_report_is_retained_and_eligible_after_acceptance(
+        self,
+    ) -> None:
+        self.report.sensitive_meta = create_hub_sensitive_meta(center=self.center)
+        self.report.save(update_fields=["sensitive_meta"])
+        corrected_bytes = hub_report_pdf_bytes("Manually anonymized report")
+        correction = self.client.post(
+            f"/api/media/pdfs/{self.report.pk}/apply-redactions/",
+            data={
+                "file": SimpleUploadedFile(
+                    "corrected.pdf", corrected_bytes, content_type="application/pdf"
+                ),
+                "source_type": "raw",
+                "client_source_sha256": get_file_hash(self.report.file),
+                "redaction_manifest": json.dumps(
+                    {
+                        "version": 1,
+                        "normalized": True,
+                        "pages": [
+                            {
+                                "page": 1,
+                                "boxes": [
+                                    {"x": 0.1, "y": 0.1, "width": 0.2, "height": 0.1}
+                                ],
+                            }
+                        ],
+                    }
+                ),
+            },
+        )
+        self.assertEqual(correction.status_code, 201, correction.content)
+        self.report.refresh_from_db()
+        corrected_name = self.report.processed_file.name
+        self.report_state.refresh_from_db()
+        self.assertFalse(self.report_state.anonymization_validated)
+        with self.captureOnCommitCallbacks(execute=True):
+            accepted = validate_report_metadata_annotation(
+                self.report,
+                {
+                    "patient_first_name": "Test",
+                    "patient_last_name": "Patient",
+                    "patient_dob": "1980-01-01",
+                    "anonymized_text": "Manually anonymized report",
+                },
+            )
+        self.assertTrue(accepted)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.processed_file.name, corrected_name)
+        self.assertEqual(
+            get_file_hash(self.report.processed_file),
+            hashlib.sha256(corrected_bytes).hexdigest(),
+        )
+        self.assertTrue(file_exists(self.report.processed_file))
+        self.assertFalse(file_exists(self.report.file))
+        overview = self.client.get("/api/hub-export/overview/")
+        self.assertEqual(overview.status_code, 200, overview.content)
+        self.assertTrue(overview.json()["items"][0]["eligible"])
 
     def test_hub_export_overview_lists_eligible_items(self):
         empty_center = Center.objects.create(

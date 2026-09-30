@@ -643,7 +643,7 @@
         "type": "object"
       },
       "PatientExaminationReportSchema": {
-        "description": "Response schema for PatientExaminationReport.\n\nThis replaces the old DRF ModelSerializer and exposes the previously sourced\npatient_examination.dtypes_record fields through Ninja resolvers.",
+        "description": "Response schema for PatientExaminationReport.\n\nThe dtypes fields are the report's persisted snapshot, independent of later\nexamination edits or terminology migrations.",
         "properties": {
           "created_at": {
             "format": "date-time",
@@ -2335,6 +2335,40 @@
             "required": true,
             "schema": {
               "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "media-management"
+        ]
+      }
+    },
+    "/endoreg-api/media-management/force-remove/{media_type}/{file_id}/": {
+      "delete": {
+        "operationId": "media_management_force_remove_destroy_2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "media_type",
+            "required": true,
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -4335,6 +4369,22 @@
           },
           {
             "in": "query",
+            "name": "patient_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Patient Id"
+            }
+          },
+          {
+            "in": "query",
             "name": "status",
             "required": false,
             "schema": {
@@ -4675,6 +4725,39 @@
       }
     },
     "/endoreg-api/patient-examination-reports/{report_id}": {
+      "delete": {
+        "operationId": "endoreg_db_views_patient_report_patient_examination_report_delete_draft",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "title": "Report Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expected_version",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Expected Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "summary": "Delete Draft",
+        "tags": [
+          "patient-examination-reports"
+        ]
+      },
       "get": {
         "operationId": "endoreg_db_views_patient_report_patient_examination_report_get_report",
         "parameters": [

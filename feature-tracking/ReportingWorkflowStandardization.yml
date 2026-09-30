@@ -13,7 +13,15 @@ tracking:
 source_documents:
 - path: docs/guides/reporting-template-requirements-page.md
   disposition: reference
-  note: Reporting template and lookup workflow contract.
+  note: 'Reporting template and lookup workflow contract. 2026-09-28 centralization by codex-terminology-20260928-a:
+    FindingsCapturePage delegates inline template selection through the typed reportTemplateSelectionContext
+    to ReportingShell''s existing selection workflow. Both selectors now share confirmation, draft save,
+    published-template resolution, context checks, draft rebuild and rollback. Section drafts, generated
+    report text and validation reset only after successful preparation; dirty draft changes also trigger
+    the shared confirmation/save gate. Removed the duplicate inline reset and duplicate selector markup.
+    Focused FindingsCapturePage and ReportingShell tests cover delegation and successful or depublished-template
+    switches through both entry points: 55 passed. Application vue-tsc --noEmit -p tsconfig.app.json and
+    scoped ESLint with --max-warnings 0 passed.'
 definition_of_done:
 - id: coherent_context_typing
   category: requirements
@@ -276,6 +284,12 @@ definition_of_done:
   category: functionality
   title: Reporting prioritizes recognition and first actions
   acceptance:
+  - Reporting resolves the selected case patient and loads that patient's complete report and video history
+    without restricting media to the current examination, including a newly created empty examination.
+  - Report text is readable without a PDF. File actions use only backend-provided stream options; report
+    identifiers must never be interpreted as PDF identifiers.
+  - Clinicians can select earlier reports and videos without changing clinical ownership. Context changes,
+    failed refreshes and late responses cannot retain another patient's media.
   - Case and examination choices use clinical labels and dates without exposing numerical IDs as primary
     text.
   - The first viewport retains workflow selections and a short start guide while supporting information
@@ -308,11 +322,22 @@ definition_of_done:
     - kind: command
       reference: '2026-09-08: frontend vue-tsc --build --force and scoped ESLint for ReportingShell.vue
         passed (exit 0).'
-    note: Shell navigation now precedes findings in DOM and visual order. Added a focus-revealed workspace
+    - kind: test
+      reference: '2026-09-29: 106 tests passed across ReportingShell.mediaPreload, reportingTimelineApi,
+        ReportingMediaPreviewCards, reportingFlow.template, FindingsCapturePage and PatientResourcePages.
+        Coverage includes text-only reports, correction-file URLs, historical selection, identity/completeness
+        rejection, failed refresh and in-flight patient/case/unmount changes.'
+    - kind: command
+      reference: vue-tsc --build --force and scoped ESLint passed; npm run build-only passed with existing
+        chunk-size warning.
+    note: 'Shell navigation now precedes findings in DOM and visual order. Added a focus-revealed workspace
       skip link, persistent settings labels, context disclosure state, and clearer setup copy. Narrow
       layouts stack resolved context and creation actions; opening the technical inspector no longer restores
       two columns below 992px. Existing clinical gates and script logic are unchanged. Automated verification
       passed; desktop/mobile visual inspection and real-browser keyboard verification remain outstanding
-      for this increment.
-    assessed_by: codex-reporting-usability-20260908
-    assessed_at: '2026-09-08T06:23:16.835965Z'
+      for this increment. 2026-09-29: Reporting media loads the selected case patient full history without
+      the current examination filter. Full text-only reports and historical video/report selectors are
+      supported; file actions use only supplied stream options. Loading/failure/context changes discard
+      stale payloads and late responses. Live clinical browser acceptance remains pending.'
+    assessed_by: codex-patient-state-20260929
+    assessed_at: '2026-09-29T10:07:44.463138Z'

@@ -154,12 +154,14 @@ function caseLabel(document: PatientTimelineItem): string | null {
   if (!document.patientExaminationId) {
     return null
   }
-  const patientCase = cases.value.find((candidate) =>
+  const patientCases = cases.value.filter((candidate) =>
     candidate.patientExaminations.some(
       (examination) => examination.id === document.patientExaminationId
     )
   )
-  return patientCase ? `Fall ${patientCase.caseId}` : 'Keinem Fall zugeordnet'
+  return patientCases.length
+    ? patientCases.map((patientCase) => `Fall ${patientCase.caseId}`).join(' · ')
+    : 'Keinem Fall zugeordnet'
 }
 
 function formatDate(value: string | null): string {

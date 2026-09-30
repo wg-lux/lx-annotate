@@ -1,0 +1,46 @@
+title: Portable study definitions and eligibility
+owner: lx-annotate maintainers
+shared_contracts:
+  document: lx_dtypes.models.contracts.study_setup.StudySetupDefinition
+  parser: lx_dtypes.utils.study_setup_yaml.parse_study_setup_yaml
+  metadata: lx_dtypes.models.contracts.study_metadata.StudyMetadata
+  preset_metadata: lx_dtypes.models.knowledge_base.study_preset.StudyPreset.study_metadata
+storage:
+  root: CONFIG_ROOT is derived from LX_RUNTIME_ROOT as config/.
+  path: CONFIG_ROOT/studies/<owner-id>/<cohort-id>/<sha256>.yml
+  terminology: Study definitions are not terminology packages and never enter TERMINOLOGY_ROOT.
+  source_of_truth: The cohort database row and its validated definition_snapshot.
+  publication: Typed atomic writes with structured operation logs, mode 0600 files and 0700 directories.
+  revisions: A stable UUID identifies each study; changed saved documents increment the patch version.
+  snapshot: Downloads use saved definitions, not subsequently edited dataset descriptions.
+  failures: File publication failure rolls back the save; a later database failure may leave an unreferenced configuration revision.
+  retention: Prior content-addressed revisions are retained; no automatic cleanup or cross-store atomicity is claimed.
+workflow:
+  - Enter the study name, hypothesis, filters, dataset links and optional study protocol metadata.
+  - Save the cohort to publish its definition; the download button retrieves the saved revision.
+  - Select explicit preview to recompute eligibility against current authorized records.
+  - Existing cohorts receive their first portable snapshot when saved or explicitly downloaded.
+  - Dataset links use document-local references; dataset annotations and patient membership are never embedded.
+  - Parsing a definition does not import it, activate terminology, or grant access to patient data.
+eligibility:
+  centers: Participating center keys restrict the existing authorized patient-center scope; names are descriptive metadata.
+  age: Completed years using stored birth date and examination start date; inclusive minimum and maximum.
+  leap_day: A February 29 birthday is reached on March 1 in non-leap years.
+  age_groups: Any declared group qualifies. An empty list adds no age restriction.
+  dates: Missing dates or birth dates after examination start do not satisfy an age restriction.
+  pseudonymization: Eligibility uses the stored date of birth, which may be pseudonymized; no original identity data is recovered.
+  dependencies: Every exact module/version dependency must load locally; every referenced concept must resolve before save or preview.
+  supported_concepts: [examination, finding]
+  criteria: All criteria must match; references within a criterion are alternatives.
+  evidence: Each reference requires the examination's exact recorded knowledge_base_module and knowledge_base_version plus its examination name or an active finding.
+  versions: Missing or different recorded versions do not qualify; concept names alone never imply a historical version.
+  scope: Filtering precedes preview limits and summary aggregation, retaining existing pseudonymous and media eligibility restrictions.
+  empty_metadata: Adds no protocol restriction and preserves existing cohorts.
+access:
+  - Existing authenticated patient-read permissions apply to save, preview and download.
+  - Downloads require cohort ownership and current access to every linked dataset.
+  - The document contains protocol metadata and dataset configuration only, never patient rows or media.
+rollout:
+  - Install the coordinated lx-dtypes build containing study_setup and study_metadata contracts.
+  - Apply lx_annotate migration 0011_studycohort_definition_snapshot before using the updated application.
+  - CONFIG_ROOT inherits the host runtime volume's at-rest protection; no new key or independent environment root is introduced.

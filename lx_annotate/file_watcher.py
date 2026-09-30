@@ -429,10 +429,11 @@ class AutoProcessingHandler(FileSystemEventHandler):
         self.report_extensions = {".pdf"}
         self.pseudonymized_extensions = {".pdf", ".mp4"}
 
-        configured_default_center = os.getenv(
-            "LX_ANNOTATE_DEFAULT_CENTER",
-            "university_hospital_wuerzburg",
-        )
+        from django.conf import settings
+
+        configured_default_center = getattr(
+            settings, "LX_ANNOTATE_DEFAULT_CENTER", ""
+        ) or getattr(settings, "CENTER_NAME", "Local Center")
         # Keep handler construction side-effect free for file watcher tests and
         # lazy service wiring. Resolve the configured center only at ingest time.
         self.default_center_reference = _normalize_center_reference(
@@ -459,10 +460,9 @@ class AutoProcessingHandler(FileSystemEventHandler):
         logger.info("Pseudonymized intake directory: %s", self.pseudonymized_dir)
 
     def _resolve_default_center(self) -> Center:
-        try:
-            return _resolve_center_by_key(self.default_center_key)
-        except ValueError:
-            return _resolve_center_reference(self.default_center_reference)
+        from endoreg_db.services.center_defaults import resolve_local_center
+
+        return resolve_local_center()
 
     def dispatch(self, event):  # type: ignore[override]
         if event.is_directory:

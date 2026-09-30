@@ -29,12 +29,22 @@
             />
           </div>
           <div class="col-md-4">
-            <label class="form-label">Template</label>
+            <label
+              class="form-label"
+              for="findings-template-select"
+              >Template</label
+            >
             <select
+              id="findings-template-select"
               class="form-select"
               :value="selectedTemplateName || ''"
-              disabled
-              title="Vorlagen werden im Reporting-Kontext oberhalb der Seite gewechselt."
+              :disabled="templateLoading || !templateOptions.length"
+              @change="
+                selectTemplate(
+                  ($event.target as HTMLSelectElement).value,
+                  $event.target as HTMLSelectElement
+                )
+              "
             >
               <option
                 value=""
@@ -53,10 +63,10 @@
                 :key="template.name"
                 :value="template.name"
               >
-                {{ template.name }}
+                {{ getReportTemplateDisplayName(template, flow.selectedReportLanguage) }}
               </option>
             </select>
-            <div class="form-text">Vorlage oben im Reporting-Kontext wechseln.</div>
+            <div class="form-text">Berichtsvorlage für die Befunderfassung wechseln.</div>
           </div>
         </div>
 
@@ -252,6 +262,31 @@
                       </button>
                     </div>
 
+                    <fieldset
+                      v-if="interventionsForInstance(instance).length"
+                      class="mb-3"
+                    >
+                      <legend class="fs-6">Interventionen</legend>
+                      <label
+                        v-for="intervention in interventionsForInstance(instance)"
+                        :key="intervention"
+                        class="d-flex align-items-center gap-2 mb-2"
+                      >
+                        <input
+                          type="checkbox"
+                          class="form-check-input mt-0"
+                          :checked="(instance.interventions || []).includes(intervention)"
+                          @change="
+                            onInterventionChange(
+                              instance,
+                              intervention,
+                              ($event.target as HTMLInputElement).checked
+                            )
+                          "
+                        />
+                        {{ interventionLabel(intervention) }}
+                      </label>
+                    </fieldset>
                     <div class="row g-3">
                       <div
                         v-for="classification in visibleClassificationsForFinding(
@@ -398,8 +433,8 @@ import {
   type FindingClassification,
   type FindingChoice
 } from '@/api/findings.contract'
-import { validateReportTemplateRuntime } from '@/api/reportTemplatesApi'
 import { fetchExaminationReportingContext } from '@/api/knowledgeBaseGraphApi'
+import { getCoreConceptLocalizedName, type CoreConceptCollection } from '@/types/coreConcepts'
 import type {
   ReportTemplateFinding,
   ReportTemplateIdentity,
@@ -424,8 +459,16 @@ import {
   resolveReportingExamination
 } from './reportingExaminationResolution'
 import { useReportingKnowledgeBase } from './useReportingKnowledgeBase'
+import { useReportTemplateSelection } from './reportTemplateSelectionContext'
+import { groupValidationMessages } from './reportingValidationPresentation'
+
+import {
+  getReportTemplateDisplayName,
+  validateReportTemplateRuntime
+} from '@/api/reportTemplatesApi'
 
 const { getCatalogContext } = useReportingKnowledgeBase()
+const { selectTemplate } = useReportTemplateSelection()
 const flow = useReportingFlowStore()
 const terminology = useTerminologyStore()
 const examinationStore = useExaminationStore()
@@ -441,6 +484,8 @@ const templateValidationLoading = ref(false)
 const templateValidationError = ref<string | null>(null)
 const templateStatusMessage = ref<string | null>(null)
 const templateContextError = ref<string | null>(null)
+const interventionConcepts = ref<CoreConceptCollection | null>(null)
+let reportingContextGeneration = 0
 const touchedFields = ref<Record<string, boolean>>({})
 const showValidationFeedback = ref(false)
 const dirtySinceMount = ref(false)
@@ -466,7 +511,6 @@ const {
 
 const currentRuntimeDraft = computed(() => flow.currentRuntimeDraft)
 const currentPayload = computed(() => currentRuntimeDraft.value?.payload || null)
-
 function templateIdentityConflicts(
   draftIdentity: ReportTemplateIdentity | null | undefined,
   templateIdentity: ReportTemplateIdentity
@@ -619,13 +663,9 @@ const backendMissingClassificationsByFinding = computed<Record<string, string[]>
   return Object.fromEntries(entries)
 })
 
-const backendMessagesByFinding = computed<Record<string, string[]>>(() => {
-  const entries = (flow.lastTemplateValidation?.findingsValidators || []).map(
-    (validator) =>
-      [normalizeKey(validator.finding), validator.issues.map((issue) => issue.message)] as const
-  )
-  return Object.fromEntries(entries)
-})
+const backendMessagesByFinding = computed<Record<string, string[]>>(() =>
+  Object.fromEntries(groupValidationMessages(flow.lastTemplateValidation))
+)
 
 const findingAnchors = computed<Record<string, string>>(() => {
   const entries = captureSections.value
@@ -1073,7 +1113,25 @@ function findingLevelMessages(findingName: string): string[] {
   return Array.from(new Set(messages.filter(Boolean)))
 }
 
+function isReportingContextCurrent(
+  generation: number,
+  patientExaminationId: number | null,
+  bundleKey: string,
+  examinationName: string | null
+): boolean {
+  return (
+    generation === reportingContextGeneration &&
+    patientExaminationId === flow.patientExaminationId &&
+    bundleKey === terminology.activeBundleKey &&
+    examinationName === selectedExaminationName.value
+  )
+}
+
 async function refreshTemplatesForExamination() {
+  const generation = ++reportingContextGeneration
+  const patientExaminationId = flow.patientExaminationId
+  const bundleKey = terminology.activeBundleKey
+  interventionConcepts.value = null
   templateStatusMessage.value = null
   templateContextError.value = null
   if (!selectedKbModule.value) {
@@ -1099,11 +1157,14 @@ async function refreshTemplatesForExamination() {
       reportingContext.moduleVersion,
       examName
     )
+    if (!isReportingContextCurrent(generation, patientExaminationId, bundleKey, examName)) return
+    interventionConcepts.value = projection.concepts
     applyTemplateOptions(projection.reportTemplates)
     templateStatusMessage.value = projection.reportTemplates.length
       ? `${String(projection.reportTemplates.length)} Template(s) fuer "${examName}" geladen.`
       : `Keine Templates fuer "${examName}" gefunden.`
   } catch (error: unknown) {
+    if (!isReportingContextCurrent(generation, patientExaminationId, bundleKey, examName)) return
     applyTemplateOptions([])
     templateContextError.value = reportingApiErrorMessage(
       error,
@@ -1132,6 +1193,32 @@ function onRemoveFinding(findingLocalId: string) {
   flow.removeFinding(findingLocalId)
   dirtySinceMount.value = true
   successMessage.value = 'Befundinstanz aus dem lokalen Entwurf entfernt.'
+}
+
+function interventionsForInstance(instance: ReportTemplateRuntimePatientFindingInput): string[] {
+  return [
+    ...new Set([
+      ...(getFindingDefinitionByName(instance.finding)?.findingInterventions || []),
+      ...(interventionConcepts.value?.finding.find((finding) => finding.name === instance.finding)
+        ?.interventions || []),
+      ...(instance.interventions || [])
+    ])
+  ]
+}
+
+function interventionLabel(name: string): string {
+  const concept = interventionConcepts.value?.intervention.find((entry) => entry.name === name)
+  return concept ? getCoreConceptLocalizedName(concept, flow.selectedReportLanguage, name) : name
+}
+
+function onInterventionChange(
+  instance: ReportTemplateRuntimePatientFindingInput,
+  intervention: string,
+  selected: boolean
+) {
+  clearMessages()
+  dirtySinceMount.value = true
+  flow.setFindingIntervention(instance.localId || '', intervention, selected)
 }
 
 function onClassificationChoiceChange(
@@ -1215,7 +1302,16 @@ async function runRuntimeValidation(forceFeedback = false) {
       flow.selectedKbModule,
       target.draft.payload.knowledgeBaseVersion || '',
       target.templateName,
-      target.draft.payload
+      target.draft.payload,
+      {
+        examinationId: requireResolvedReportingExamination({
+          catalog: examinationStore.examinationsDropdown,
+          selectedExaminationId: flow.selectedExaminationId,
+          examinationName: target.draft.payload.examination
+        }).id,
+        patientExaminationId: target.draft.patientExaminationId,
+        indications: flow.indications
+      }
     )
     flow.setLastTemplateValidation(result)
   } catch (e: unknown) {
@@ -1281,9 +1377,7 @@ watch(
       terminology.activeBundle?.version || '',
       terminology.activeBundleKey
     )
-    if (terminology.activeBundle) {
-      await refreshTemplatesForExamination()
-    }
+    await refreshTemplatesForExamination()
   }
 )
 
@@ -1318,16 +1412,17 @@ watch(
 )
 
 watch(
-  () => flow.patientExaminationId,
+  () => [flow.patientExaminationId, selectedExaminationName.value],
   () => {
     resetTouchedState()
     templateValidationError.value = null
     flow.setLastTemplateValidation(null)
+    void refreshTemplatesForExamination()
   }
 )
 
 watch(
-  () => currentPayload.value?.patientFindings,
+  () => [currentPayload.value?.patientFindings, flow.indications],
   () => {
     if (!selectedTemplateName.value || !currentPayload.value) {
       return
@@ -1374,6 +1469,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  reportingContextGeneration += 1
   window.removeEventListener('beforeunload', handleBeforeUnload)
   if (validationTimer) {
     clearTimeout(validationTimer)

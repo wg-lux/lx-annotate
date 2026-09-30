@@ -2,53 +2,58 @@
   <div class="card shadow-sm">
     <div class="card-header d-flex justify-content-between align-items-center">
       <div>
-        <h6 class="mb-0">Media preload</h6>
-        <small class="text-muted">latest_only timeline payload</small>
+        <h6 class="mb-0">Berichte und Videos des Patienten</h6>
       </div>
-      <span class="badge bg-secondary">{{ flow.mediaPreloadStatus }}</span>
     </div>
     <div class="card-body">
       <div
         v-if="flow.mediaPreloadStatus === 'loading'"
         class="small text-muted"
       >
-        Loading latest media...
+        Medien werden geladen…
       </div>
       <div
         v-else-if="flow.mediaPreloadStatus === 'error'"
         class="alert alert-warning py-2 mb-0"
       >
-        {{ flow.mediaPreloadError || 'Media preload failed.' }}
+        {{ flow.mediaPreloadError || 'Medien konnten nicht geladen werden.' }}
       </div>
       <div
         v-else-if="!flow.mediaPreload"
         class="small text-muted"
       >
-        No preload data available.
+        Bitte zuerst einen eindeutigen Fall auswählen.
       </div>
       <div
         v-else
         class="row g-3"
       >
+        <ReportingMediaSelection />
         <div class="col-md-6">
           <div class="border rounded p-3 h-100">
-            <div class="fw-semibold mb-2">Letzter Befund</div>
+            <div class="fw-semibold mb-2">Bericht</div>
             <div
               v-if="flow.mediaPreload.latestReport"
               class="small"
             >
               <div>ID: {{ flow.mediaPreload.latestReport.id }}</div>
-              <div>document_type: {{ flow.mediaPreload.latestReport.documentType || 'n/a' }}</div>
+              <div>{{ flow.mediaPreload.latestReport.documentType }}</div>
               <div
                 v-if="reportTextPreview"
                 class="mt-3"
               >
-                <div class="text-muted fw-semibold mb-1">Text extraction</div>
+                <div class="text-muted fw-semibold mb-1">Berichtstext</div>
                 <pre class="report-text-preview mb-0">{{ reportTextPreview }}</pre>
               </div>
+              <p
+                v-else
+                class="small text-muted mt-3"
+              >
+                Kein Berichtstext vorhanden.
+              </p>
               <div class="d-flex flex-wrap gap-2 mt-2">
                 <button
-                  v-for="option in latestReportStreamOptions"
+                  v-for="option in flow.mediaPreload.latestReport.streamOptions"
                   :key="`report-${option.type}`"
                   class="btn btn-outline-secondary btn-sm"
                   @click="open_url(option.url)"
@@ -61,13 +66,13 @@
               v-else
               class="small text-muted"
             >
-              No report available.
+              Kein Bericht für diesen Patienten vorhanden.
             </div>
           </div>
         </div>
         <div class="col-md-6">
           <div class="border rounded p-3 h-100">
-            <div class="fw-semibold mb-2">Letztes Video</div>
+            <div class="fw-semibold mb-2">Video</div>
             <div
               v-if="flow.mediaPreload.latestVideo"
               class="small"
@@ -75,7 +80,7 @@
               <div>ID: {{ flow.mediaPreload.latestVideo.id }}</div>
               <div class="d-flex flex-wrap gap-2 mt-2">
                 <button
-                  v-for="option in latestVideoStreamOptions"
+                  v-for="option in flow.mediaPreload.latestVideo.streamOptions"
                   :key="`video-${option.type}`"
                   class="btn btn-outline-secondary btn-sm"
                   @click="open_url(option.url)"
@@ -88,7 +93,7 @@
               v-else
               class="small text-muted"
             >
-              No video available.
+              Kein Video für diesen Patienten vorhanden.
             </div>
           </div>
         </div>
@@ -99,59 +104,13 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { TimelineStreamOption } from '@/api/reportingTimelineApi'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
-import { buildPdfStreamUrl, buildVideoStreamUrl } from '@/utils/mediaUrls'
+import ReportingMediaSelection from './ReportingMediaSelection.vue'
 
 const flow = useReportingFlowStore()
-
-function buildCentralizedStreamOptions(
-  options: TimelineStreamOption[] | undefined,
-  mediaType: 'pdf' | 'video',
-  mediaId: number | null | undefined
-): TimelineStreamOption[] {
-  if (!mediaId) {
-    return options ?? []
-  }
-
-  return (options ?? []).map((option) => {
-    if (option.type !== 'raw' && option.type !== 'processed') {
-      return option
-    }
-
-    return {
-      ...option,
-      url:
-        mediaType === 'pdf'
-          ? buildPdfStreamUrl(mediaId, option.type)
-          : buildVideoStreamUrl(mediaId, option.type)
-    }
-  })
-}
-
-const latestReportStreamOptions = computed(() =>
-  buildCentralizedStreamOptions(
-    flow.mediaPreload?.latestReport?.streamOptions,
-    'pdf',
-    flow.mediaPreload?.latestReport?.rawPdfId ?? flow.mediaPreload?.latestReport?.id
-  )
+const reportTextPreview = computed(
+  () => flow.mediaPreload?.latestReport?.anonymizedText?.trim() ?? ''
 )
-
-const latestVideoStreamOptions = computed(() =>
-  buildCentralizedStreamOptions(
-    flow.mediaPreload?.latestVideo?.streamOptions,
-    'video',
-    flow.mediaPreload?.latestVideo?.id
-  )
-)
-
-const reportTextPreview = computed(() => {
-  const text = flow.mediaPreload?.latestReport?.anonymizedText?.trim()
-  if (!text) {
-    return ''
-  }
-  return text.length > 1200 ? `${text.slice(0, 1200)}...` : text
-})
 
 function open_url(url: string) {
   window.open(url, '_blank', 'noopener,noreferrer')

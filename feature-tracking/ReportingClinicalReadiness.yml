@@ -171,13 +171,37 @@ definition_of_done:
     - kind: command
       reference: npm run type-check passed; final component and application type checks passed; source
         OpenAPI freshness passed
+    - kind: test
+      reference: 'Reporting interventions: 150 tests passed across ReportingShell, FindingsCapturePage,
+        ReportEditorPage, reportingFlow and reportTemplatesApi; covers versioned intervention loading,
+        localized labels, instance-scoped selection, autosave, runtime serialization and report submission.'
+    - kind: code
+      reference: frontend/src/views/reporting/FindingsCapturePage.vue
+    - kind: code
+      reference: frontend/src/api/reportTemplatesApi.ts
+    - kind: command
+      reference: 'Intervention integration: OpenAPI freshness, type-check:source (vue-tsc and ESLint),
+        and type-check:component-tests passed. Store suite rerun: 17 passed including session restoration.
+        Browser acceptance with an installed coloreg bundle remains unverified.'
+    - kind: test
+      reference: 'Classification validation feedback: 36 tests passed across FindingsCapturePage,
+        reportingValidationPresentation and reportTemplatesApi. Classification issues and open-rule
+        hints appear at the affected finding and clear after successful revalidation. Existing
+        classification-choice and descriptor serialization remains covered.'
+    - kind: test
+      reference: 'Indication validation integration: 37 tests passed across reportingIndicationsValidation,
+        reportTemplatesApi and FindingsCapturePage. Selected indications resolve against the pinned
+        examination catalog and serialize as patient_indications; changes trigger revalidation.
+        Missing identities and unresolved optional choices fail visibly. Component type checks and
+        focused ESLint passed. Flat catalog classifications do not provide optional choice identities;
+        those selections remain blocked until the catalog supplies an unambiguous choice mapping.'
     note: Streamed annotation/report previews, ordered frame add/remove, positive-label browsing and last-click
       fallback are implemented. 111 focused frontend tests, component/application type checks and lint
       pass. Generated API freshness passes against edited endoreg-db/lx-dtypes sources. Selection is scoped
       to examination/authentication and is not restored after browser reload. Clinical/browser acceptance
       and coordinated package release remain outstanding.
-    assessed_by: codex-monitoring-fix-20260909
-    assessed_at: '2026-09-09T14:12:17.163026Z'
+    assessed_by: codex-reporting-interventions-20260929
+    assessed_at: '2026-09-29T14:07:34.674203Z'
 - id: observable_recovery_failures
   category: operations
   title: Draft recovery and identity failures are observable and actionable

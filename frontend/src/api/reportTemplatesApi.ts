@@ -1,5 +1,9 @@
 import axiosInstance, { dtypesApi } from '@/api/axiosInstance'
 import {
+  resolveValidationIndications,
+  type ReportingIndicationValidationContext
+} from './reportingIndicationsValidation'
+import {
   extractFindingId,
   type Finding,
   type FindingClassification,
@@ -1138,14 +1142,25 @@ export async function validateReportTemplateRuntime(
   moduleName: string,
   moduleVersion: string,
   templateName: string,
-  payload: ReportTemplateRuntimePayload
+  payload: ReportTemplateRuntimePayload,
+  indicationContext?: ReportingIndicationValidationContext
 ): Promise<ReportTemplateRuntimeValidationResult> {
   if (payload.knowledgeBaseVersion !== moduleVersion) {
     throw new Error('Die Runtime-Nutzlast gehört nicht zur angeforderten Terminologieversion.')
   }
+  const validationPayload = indicationContext
+    ? {
+        ...payload,
+        patientIndications: await resolveValidationIndications(
+          indicationContext,
+          moduleName,
+          moduleVersion
+        )
+      }
+    : payload
   const response = await axiosInstance.post(
     `${REPORT_TEMPLATE_BASE}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/validate?version=${encodeURIComponent(moduleVersion)}`,
-    serializeRuntimePayload(payload)
+    serializeRuntimePayload(validationPayload)
   )
   const normalized = normalizeRuntimeValidationResult(response.data)
   if (!normalized) {
@@ -1322,7 +1337,21 @@ function serializeRuntimePatientFindings(
           uuid: classificationsKey
         }
       ],
-      patient_finding_interventions: [],
+      patient_finding_interventions: patientFinding.interventions?.length
+        ? [
+            {
+              patient_finding: findingKey,
+              uuid: `${findingKey}_interventions`,
+              patient_finding_interventions: patientFinding.interventions.map(
+                (intervention, index) => ({
+                  intervention,
+                  patient_finding_interventions: `${findingKey}_interventions`,
+                  uuid: `${findingKey}_intervention_${String(index + 1)}`
+                })
+              )
+            }
+          ]
+        : [],
       uuid: findingKey
     }
   })
@@ -1338,7 +1367,28 @@ function serializeRuntimePayload(payload: ReportTemplateRuntimePayload) {
     ...(payload.knowledgeBaseVersion
       ? { knowledge_base_version: payload.knowledgeBaseVersion }
       : {}),
-    patient_findings: serializeRuntimePatientFindings(payload.patientFindings)
+    patient_findings: serializeRuntimePatientFindings(payload.patientFindings),
+    ...(payload.patientIndications
+      ? {
+          patient_indications: payload.patientIndications.map((indication, index) => {
+            const key = `frontend_runtime_exam_indication_${String(index + 1)}`
+            return {
+              indication: indication.indication,
+              patient_examination: 'frontend_runtime_exam',
+              uuid: key,
+              patient_indication_classifications: indication.classifications.map(
+                (classification, choiceIndex) => ({
+                  classification: classification.classification,
+                  classification_choice: classification.classificationChoice,
+                  patient_indication: key,
+                  uuid: `${key}_classification_${String(choiceIndex + 1)}`,
+                  patient_indication_classification_descriptors: []
+                })
+              )
+            }
+          })
+        }
+      : {})
   }
 }
 

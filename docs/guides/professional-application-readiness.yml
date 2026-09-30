@@ -1,0 +1,184 @@
+schema_version: '1.0'
+purpose: Reproducible verification and operator handoff for professional application readiness.
+authoritative_tracker: feature-tracking/ProfessionalApplicationReadiness.yml
+accountable_owner: lx-annotate maintainers
+scope:
+  - Anonymization review and correction, segment annotation, reporting, and administration.
+  - Application contracts and local regression checks; production acceptance requires separate host evidence.
+evidence_policy:
+  - All ten tracker criteria remain required. Passing a subset of tests never verifies an entire criterion.
+  - Record assessor, date, repository revision, dirty state, command, exit code, passed/failed/skipped counts, and limitations.
+  - Keep readiness assessments in the authoritative tracker; this document defines procedures, not a second completion tracker.
+  - Evidence must use synthetic test data and exclude patient data, credentials, raw exception bodies, and plaintext artifacts.
+  - Required failures, skips that leave acceptance uncovered, and missing operator evidence block release approval.
+  - Assign the named human release assessor before production acceptance; functional roles below do not imply sign-off.
+local_setup:
+  working_directory: /home/admin/dev/lx-annotate
+  backend_python: .devenv/state/venv/bin/python
+  ci_python: uv run --no-sync python
+  note: Use the installed development environment. The system python cannot import endoreg_db in this checkout.
+  frontend: Use the frontend flake Node/npm environment and the locked dependencies.
+  isolation: Use repository test settings and synthetic fixtures; never point these checks at a clinical database.
+command_groups:
+  policy:
+    - .devenv/state/venv/bin/python feature-tracking/tracker.py validate
+    - .devenv/state/venv/bin/python -m pytest -q feature-tracking/test_tracker.py
+    - .devenv/state/venv/bin/python feature-tracking/tracker.py check professional_application_readiness
+  frontend:
+    - npm --prefix frontend run test:unit -- --run
+    - npm --prefix frontend run type-check:source
+    - npm --prefix frontend run type-check:component-tests
+    - npm --prefix frontend run typegen:check
+  focused_backend:
+    - >-
+      .devenv/state/venv/bin/python -m pytest -q
+      tests/api/test_admin_monitoring_api.py tests/system/test_admin_monitoring.py
+      tests/system/test_asgi_request_cancellation.py tests/privacy/test_encryption_safety.py
+      tests/privacy/test_publication_materialization_aaa.py tests/hub/test_hub_transfer_security.py
+  full_backend:
+    - .devenv/state/venv/bin/python -m mypy lx_annotate --show-traceback
+    - .devenv/state/venv/bin/python -m ruff check lx_annotate tests
+    - .devenv/state/venv/bin/python -m ruff format --check lx_annotate tests
+    - >-
+      .devenv/state/venv/bin/python -m pytest
+      --ignore=tests/system/test_production_celery_redis_recovery.py
+      --cov=lx_annotate --cov-report=term-missing --cov-fail-under=75
+    - .devenv/state/venv/bin/python -m pytest -q -s tests/system/test_production_celery_redis_recovery.py
+requirements:
+  nonfunctional_requirements_contract:
+    responsible_role: Maintainers acting as release assessors.
+    method: Review all ten mappings here against every acceptance statement in the tracker; run policy commands.
+    pass_condition: Every acceptance statement has a responsible role, reproducible procedure and explicit pass condition; check refuses incomplete approval.
+  resilient_error_handling:
+    responsible_role: Frontend and API maintainers.
+    method: Run frontend tests and cancellation tests; exercise network loss, timeouts, 400/422, 403, 409, 429, 5xx, cancellation and out-of-order responses in each core workflow.
+    pass_condition: No uncaught failure, raw infrastructure error toast, duplicate mutation, lost safe draft or stale replacement; pending state ends and correction or reconciliation is explained.
+    draft_scenarios:
+      - Preserve empty edits and case selections when navigating correction and returning to the same media type and source.
+      - Isolate drafts across files and authenticated accounts; successful approval clears the draft.
+      - Keep clinical draft fields in memory; a browser reload is not promised to restore them.
+    error_contract:
+      - Shared axios notifications use stable messages for infrastructure failures; 400/422 retain backend validation detail.
+      - Cancellation remains silent, 401 requests login, and suppressed or polling requests remain silent.
+      - The original AxiosError remains available to callers; the shared client never automatically retries mutations.
+      - Timeout or lost connection does not prove rollback. Inspect authoritative server state before resubmission.
+  security_privacy:
+    responsible_role: Backend/storage maintainers with the LuxNix deployment operator.
+    method: Run focused backend tests, review each relevant permission boundary, and obtain host transport and key-identity evidence under the deployment source hygiene workflow.
+    pass_condition: Authorization denies forbidden access; required mTLS fails closed; ciphertext is decrypted only in scoped consumers; wrong keys, tampering and cleanup errors reject without leaving plaintext.
+    boundary: NetworkNode shared secrets authenticate requests only; master keys stay local; only anonymized processed media may leave the storage boundary.
+    review_limit: Focused storage and hub tests are not a complete authorization or cryptographic-consumer audit.
+  observability_telemetry:
+    responsible_role: Application maintainers with the monitoring operator.
+    method: Exercise monitoring API authorization, unavailable dependencies and failed jobs; inspect redacted diagnostics and the actual production operator destination.
+    pass_condition: Operators can distinguish and correlate failures without protected payloads; retention, access, volume bounds and alert escalation are documented and demonstrated.
+    references:
+      - docs/guides/admin-monitoring.yml
+      - frontend/src/utils/runtimeLogger.ts
+      - frontend/src/utils/__tests__/runtimeLogger.test.ts
+    known_gaps:
+      - frontend/vite.config.ts removes console output in production; browser logger unit tests do not establish production crash visibility.
+      - Logger context permits patientExaminationId and evaluation identities; necessity, access and retention require explicit review.
+      - Monitoring intentionally omits duration instrumentation, metrics exporters and alert routing; these need independent evidence.
+  design_system_accessibility:
+    responsible_role: Frontend maintainers with a workflow reviewer.
+    method: Run component tests, then keyboard and screen-reader review of anonymization, correction, segment annotation and reporting at desktop and narrow viewport sizes.
+    pass_condition: Every action is keyboard reachable with visible focus and an accessible name; status/error changes are announced; focus is restored after dialogs; information is not conveyed only by color.
+    required_evidence:
+      - Automated accessibility results with zero unresolved violations against an explicitly selected standard.
+      - Browser, assistive technology, viewport, contrast results and reviewed workflow steps.
+    limitation: jsdom component tests cannot establish visual contrast, real browser focus behavior or screen-reader usability.
+  performance_responsiveness:
+    responsible_role: Frontend/API maintainers with the deployment operator.
+    method: Run stale-response and deduplication tests; measure startup, critical workflow latency and interaction latency on the intended device and degraded network profile.
+    pass_condition: Pending feedback is immediate and truthful; requests are bounded; all measured values meet documented owner-approved numerical budgets.
+    required_measurement_fields: [device, browser, network_latency, bandwidth, dataset_size, sample_count, percentile, metric, budget, observed_value]
+    blocking_decision: Numerical budgets and the representative device/network/dataset profile must be defined before performance acceptance; no thresholds are inferred from unit-test duration.
+  deterministic_data_integrity:
+    responsible_role: API, frontend state and data-model maintainers.
+    method: Run store/API tests for stale responses, rapid target changes and duplicate submission; audit persisted workflow and provenance schemas in endoreg_db and lx_dtypes.
+    pass_condition: Late responses never replace current state; pending writes cannot duplicate mutations; dependent work waits for authoritative outcomes; invalid persisted payloads are rejected at the model boundary.
+    references:
+      - frontend/src/stores/__tests__/VideoStoreOptimization.spec.ts
+      - frontend/src/stores/__tests__/videoStore.segmentDraft.test.ts
+      - frontend/src/api/__tests__/reportDraftApi.test.ts
+      - tests/contracts/test_frontend_backend_api_contract.py
+    limitation: Frontend response typing and request conversion do not prove backend persistence validation or idempotency.
+  automated_delivery_quality:
+    responsible_role: Maintainers responsible for CI and releases.
+    method: Run all frontend/full_backend commands and CI; use the deployment source hygiene workflow for builds, artifact provenance, rollback and host acceptance.
+    pass_condition: All applicable gates pass, backend coverage is at least the existing 75 percent CI threshold, generated contracts are fresh, and required end-to-end/accessibility/release evidence is present.
+    ci_contract: .github/workflows/ci-cd.yml validates tracker YAML and tests readiness policy in addition to application gates.
+    limitation: CI schema validation does not approve a release and does not require every in-progress feature to be done on every branch.
+  maintainability_documentation:
+    responsible_role: Application maintainers.
+    method: Review API/store/consumer ownership against AGENTS.md, inspect focused regressions, and reproduce documented commands.
+    pass_condition: Changed boundaries use existing typed helpers, have negative-path tests and explain lifecycle semantics; another maintainer can reproduce verification.
+  operational_documentation:
+    responsible_role: Application maintainers with the on-call deployment operator.
+    method: Walk through the references below and complete an isolated failure/recovery exercise using the provisioned service identity.
+    pass_condition: Configuration, diagnostics, recovery, rollback, escalation, accessibility and known limitations are documented in English and demonstrated against the intended release.
+operator_handoff:
+  - Capture non-secret timestamps, workflow kind, queue and approved correlation context; do not attach raw clinical payloads or decrypted media.
+  - Determine the authoritative operation status before retrying a timed-out mutation; browser timeout alone is not evidence of failure.
+  - KI prediction reruns use lx-annotate-celery-inference-worker.service and the inference queue.
+  - Blackening outside segments uses lx-annotate-celery-frame-extraction-worker.service and the frame_extraction queue.
+  - Review monitoring_status using docs/guides/admin-monitoring.yml; warning, unknown and error are distinct from healthy.
+  - Escalate integrity/key/cleanup failures to storage maintainers; preserve non-secret logs and fail closed. Do not bypass encrypted storage or attempt unsafe recovery.
+  - Deployment, rollback and host acceptance require DeploymentSourceHygiene.yml, its prerequisites and an explicitly identified target host.
+references:
+  setup: README.md
+  configuration: docs/guides/runtime-environment-contract-test.md
+  monitoring: docs/guides/admin-monitoring.yml
+  anonymization: docs/guides/anonymization-validation-correction-workflow.md
+  reporting_recovery: docs/guides/reporting-examination-recovery.yml
+  segment_annotation: docs/guides/segment-annotation-workflow.md
+  encrypted_consumers: docs/guides/encrypted-model-weights-inference.md
+  recovery: docs/guides/secure-backup-disaster-recovery.md
+  deployment: docs/guides/deployment-strategy.md
+  wheel_deployment: docs/guides/wheel-deployment.md
+  release: docs/guides/release.md
+
+verification_record:
+  date: '2026-09-28'
+  assessor: codex-professional-readiness-20260928
+  source:
+    repository: /home/admin/dev/lx-annotate
+    base_revision: d4ffa63d9901f1305ba663e04ecde13db1bba2e0
+    state: Shared dirty checkout with existing staged work; changes reviewed against the index. No commit,
+      deployment or release approval performed.
+  dependencies:
+    Django: 6.0.3
+    endoreg-db: 1.3.16
+    lx-dtypes: 0.3.7
+    mypy: 2.1.0
+  results:
+    frontend_suite: 153 files, 1248 tests passed; exit 0. Baseline had four stale assertions, corrected
+      against the existing UI.
+    frontend_types: npm --prefix frontend run type-check and type-check:component-tests both exit 0 after
+      real API export was restored and artifacts regenerated; includes source typing and ESLint.
+    focused_backend: 95 passed across tracker, monitoring, ASGI cancellation, encryption safety, publication
+      materialization and hub transfer security.
+    backend_coverage: 1080 passed, 6 skipped, 1 failed; exit 1; coverage 85.31% meets the 75% threshold.
+      The sole failure was the stale GET-only report route assertion; fixed and all 9 contract tests passed
+      afterward. The broad suite was not rerun after the final fixes.
+    policy_and_api: '22 passed: 16 tracker policy tests and all 6 OpenAPI/management dispatch tests after
+      regeneration.'
+    contracts_and_workers: '11 passed: 9 frontend/backend contract tests, worker-thread imports, and isolated
+      real Redis worker-loss recovery.'
+    middleware_and_cohorts: 25 passed across request throttle and cohort tests; all 6 cohort tests passed
+      again after the final principal guard.
+    backend_typing: mypy lx_annotate --show-traceback exits 0; 106 source files. Resolved six baseline
+      errors without type-ignore directives. Existing notes about unchecked untyped function bodies remain.
+    backend_style: Ruff lint and format --check pass for lx_annotate, tests and manage.py; 228 files formatted.
+    policy: 54 feature definitions validate; professional_application_readiness check exits 1 with 1/10
+      criteria verified, as required for incomplete acceptance.
+  limitations:
+  - No production build, artifact provenance, rollout, host key identity or live mTLS acceptance performed.
+  - Six skips in the broad backend run leave their acceptance unverified, including asset-build cases;
+    do not infer complete coverage from the coverage percentage.
+  - OpenAPI exporter reports existing serializer/schema and operation-ID warnings despite freshness passing.
+  - Workflow-specific error presenters can still use raw messages; shared axios notification coverage
+    is not a complete UI error audit.
+  - No browser end-to-end/accessibility run, screen-reader/contrast review or measured performance acceptance.
+  - Performance target question remains open; no latency budgets or deployment target have been invented.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from django.db import transaction
 from django.db.models import F, Q
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from endoreg_db.models import AIDataSet, PatientExamination, VideoFile
 from endoreg_db.services.center_access import resolve_allowed_center_ids
@@ -13,6 +14,7 @@ from endoreg_db.services.study_cohort import (
 )
 from pydantic import ValidationError
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import NotAuthenticated
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -21,6 +23,14 @@ from lx_annotate.models import StudyCohort
 from lx_annotate.schemas.study_cohorts import (
     CohortDatasetLink,
     CohortDefinition,
+)
+from lx_annotate.services.study_definitions import (
+    download_study_definition,
+    persist_study_definition,
+)
+from lx_annotate.services.study_eligibility import (
+    apply_study_eligibility,
+    validate_study_terminology,
 )
 from lx_annotate.views.ai_dataset_splits import require_dataset_access
 from lx_annotate.views.study_export import StudyExportPatientReadPermission
@@ -32,6 +42,7 @@ def cohort_response(cohort: StudyCohort) -> dict[str, object]:
         "name": cohort.name,
         "hypothesis": cohort.hypothesis,
         "filters": cohort.filters,
+        "study_metadata": cohort.study_metadata,
         "dataset_ids": list(
             cohort.datasets.order_by("pk").values_list("pk", flat=True)
         ),
@@ -51,19 +62,25 @@ def validated_datasets(ids: list[int], user: object) -> list[AIDataSet]:
 
 
 def save_definition(request: Request, cohort: StudyCohort | None = None) -> Response:
+    actor_id = request.user.pk
+    if actor_id is None:
+        raise NotAuthenticated()
     try:
         definition = CohortDefinition.model_validate(request.data)
+        validate_study_terminology(definition.study_metadata)
         with transaction.atomic():
             datasets = validated_datasets(definition.dataset_ids, request.user)
             if cohort is None:
-                cohort = StudyCohort(created_by=request.user)
+                cohort = StudyCohort(created_by_id=actor_id)
             else:
                 cohort = StudyCohort.objects.select_for_update().get(pk=cohort.pk)
             cohort.name = definition.name
             cohort.hypothesis = definition.hypothesis
             cohort.filters = definition.filters.model_dump(mode="json")
+            cohort.study_metadata = definition.study_metadata.model_dump(mode="json")
             cohort.save()
             cohort.datasets.set(datasets)
+            persist_study_definition(cohort)
     except (ValidationError, ValueError) as error:
         return Response({"detail": str(error)}, status=400)
     return Response(
@@ -76,17 +93,36 @@ def save_definition(request: Request, cohort: StudyCohort | None = None) -> Resp
 def study_cohorts(request: Request) -> Response:
     if request.method == "POST":
         return save_definition(request)
-    cohorts = StudyCohort.objects.filter(created_by=request.user).prefetch_related(
-        "datasets"
-    )
+    cohorts = StudyCohort.objects.filter(
+        created_by_id=request.user.pk
+    ).prefetch_related("datasets")
     return Response([cohort_response(cohort) for cohort in cohorts])
 
 
 @api_view(["PUT"])
 @permission_classes([IsAuthenticated, StudyExportPatientReadPermission])
 def study_cohort_detail(request: Request, cohort_id: int) -> Response:
-    cohort = get_object_or_404(StudyCohort, pk=cohort_id, created_by=request.user)
+    cohort = get_object_or_404(StudyCohort, pk=cohort_id, created_by_id=request.user.pk)
     return save_definition(request, cohort)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated, StudyExportPatientReadPermission])
+def study_cohort_definition(request: Request, cohort_id: int) -> HttpResponse:
+    with transaction.atomic():
+        cohort = get_object_or_404(
+            StudyCohort.objects.select_for_update(),
+            pk=cohort_id,
+            created_by_id=request.user.pk,
+        )
+        validated_datasets(
+            list(cohort.datasets.values_list("pk", flat=True)), request.user
+        )
+        content = download_study_definition(cohort)
+    response = HttpResponse(content, content_type="application/yaml")
+    response["Content-Disposition"] = f'attachment; filename="study-{cohort.pk}.yml"'
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 @api_view(["GET", "POST"])
@@ -103,15 +139,18 @@ def dataset_study_cohorts(request: Request, dataset_id: int) -> Response:
             cohort = get_object_or_404(
                 StudyCohort.objects.select_for_update(),
                 pk=link.cohort_id,
-                created_by=request.user,
+                created_by_id=request.user.pk,
             )
             if link.linked:
                 cohort.datasets.add(dataset)
             else:
                 cohort.datasets.remove(dataset)
             cohort.save()
+            persist_study_definition(cohort)
         return Response(cohort_response(cohort))
-    cohorts = StudyCohort.objects.filter(created_by=request.user, datasets=dataset)
+    cohorts = StudyCohort.objects.filter(
+        created_by_id=request.user.pk, datasets=dataset
+    )
     return Response([cohort_response(cohort) for cohort in cohorts])
 
 
@@ -120,6 +159,7 @@ def dataset_study_cohorts(request: Request, dataset_id: int) -> Response:
 def study_cohort_preview(request: Request) -> Response:
     try:
         definition = CohortDefinition.model_validate(request.data)
+        validate_study_terminology(definition.study_metadata)
         datasets = validated_datasets(definition.dataset_ids, request.user)
     except (ValidationError, ValueError) as error:
         return Response({"detail": str(error)}, status=400)
@@ -155,7 +195,7 @@ def study_cohort_preview(request: Request) -> Response:
     payload = build_study_cohort_payload(
         parse_study_cohort_filters(definition.filters.model_dump()),
         request=request,
-        case_scope=pseudonymous,
+        case_scope=apply_study_eligibility(pseudonymous, definition.study_metadata),
     )
     return Response(
         {

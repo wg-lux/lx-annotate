@@ -89,6 +89,8 @@ describe('Sidebar linked routes', () => {
   })
 
   it('deckt alle aktuell in der Sidebar verlinkten Seiten ab und kann deren Komponenten laden', async () => {
+    sessionStorage.setItem('last:fileId', '42')
+    sessionStorage.setItem('last:scope', 'pdf')
     const wrapper = mount(SidebarComponent, {
       global: {
         stubs: {

@@ -121,7 +121,7 @@ class FrontendRequestThrottleMiddleware:
             activity.acquire()
         except ThrottleUnavailable:
             logger.error("request_throttle.admission_failed")
-            response = JsonResponse(
+            response: HttpResponseBase = JsonResponse(
                 {"error": "request_resources_unavailable"}, status=503
             )
             response["Retry-After"] = "1"
@@ -148,7 +148,9 @@ class FrontendRequestThrottleMiddleware:
                 finally:
                     activity.close()
 
-            response.close = close_response
+            # Install an instance callback while preserving the concrete response
+            # and the original close-before-release ordering.
+            setattr(response, "close", close_response)
             return response
         except BaseException:
             activity.close()

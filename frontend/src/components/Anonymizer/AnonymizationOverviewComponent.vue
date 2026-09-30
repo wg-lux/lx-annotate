@@ -27,26 +27,7 @@
         </div>
       </div>
       <div class="card-body">
-        <OverviewStorageSummary />
-        <OverviewTranscodePanel
-          :repairing="isRepairingVideoStates"
-          :refresh-token="transcodeRefreshToken"
-          @repair="repairAllVideoStates"
-        />
-        <p
-          v-if="cancellationError"
-          class="alert alert-warning"
-          role="alert"
-        >
-          {{ cancellationError }}
-        </p>
-        <div
-          v-if="videoStateRepairMessage"
-          class="alert alert-info"
-          role="status"
-        >
-          {{ videoStateRepairMessage }}
-        </div>
+        
         <!-- Error State -->
         <div
           v-if="anonymizationStore.error"
@@ -182,11 +163,11 @@
                 <th class="sticky-filename-column">Dateiname</th>
                 <th>Typ</th>
                 <th>Aktionen</th>
+                <th class="validation-action-column">Validierung</th>
                 <th>Import</th>
                 <th>HLS-Materialisierung</th>
                 <th>Anonymisierung</th>
                 <th>Annotation</th>
-                <th class="validation-action-column">Validierung</th>
                 <th>Originaldatei gelöscht?</th>
                 <th>Erstellt</th>
               </tr>
@@ -210,6 +191,7 @@
                 @dismiss-import="dismissImport"
                 @delete="deleteFile"
                 @validate="validateFile"
+                @annotate="annotateFile"
               />
             </tbody>
           </table>
@@ -285,6 +267,26 @@
               </div>
             </div>
           </div>
+          <OverviewStorageSummary />
+          <OverviewTranscodePanel
+            :repairing="isRepairingVideoStates"
+            :refresh-token="transcodeRefreshToken"
+            @repair="repairAllVideoStates"
+          />
+          <p
+            v-if="cancellationError"
+            class="alert alert-warning"
+            role="alert"
+          >
+            {{ cancellationError }}
+          </p>
+          <div
+            v-if="videoStateRepairMessage"
+            class="alert alert-info"
+            role="status"
+          >
+            {{ videoStateRepairMessage }}
+          </div>
         </div>
       </div>
     </div>
@@ -294,6 +296,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAnonymizationValidationDraftStore } from '@/stores/anonymizationValidationDraftStore'
 import { useAnonymizationStore, type FileItem } from '@/stores/anonymizationStore'
 import { useMediaTypeStore, type MediaItem } from '@/stores/mediaTypeStore'
 import { usePollingProtection } from '@/composables/usePollingProtection'
@@ -321,6 +324,7 @@ const runtimeLogger = createRuntimeLogger('anonymization-overview')
 // Composables
 const router = useRouter()
 const anonymizationStore = useAnonymizationStore()
+const validation_drafts = useAnonymizationValidationDraftStore()
 const mediaStore = useMediaTypeStore()
 const pollingProtection = usePollingProtection()
 const mediaManagement = useMediaManagement()
@@ -367,17 +371,6 @@ const MONITORING_REFRESH_INTERVAL_MS = 15000
 
 // Computed properties
 const overviewFiles = computed(() => anonymizationStore.overview)
-const ambiguousDeletionIds = computed(() => {
-  const mediaTypesById = new Map<number, FileItem['mediaType']>()
-  const ambiguousIds = new Set<number>()
-  for (const file of overviewFiles.value) {
-    if (file.importOnly || file.quarantined) continue
-    const existingType = mediaTypesById.get(file.id)
-    if (existingType && existingType !== file.mediaType) ambiguousIds.add(file.id)
-    mediaTypesById.set(file.id, file.mediaType)
-  }
-  return ambiguousIds
-})
 const availableFiles = computed(() =>
   overviewFiles.value.filter((file) => {
     const matchesResourceType =
@@ -558,8 +551,7 @@ const validateFile = async (file: FileItem) => {
         mediaStore.rememberType(file.sensitiveMetaId, kind, 'meta')
       }
 
-      sessionStorage.setItem('last:fileId', String(fileId))
-      sessionStorage.setItem('last:scope', kind)
+      validation_drafts.remember(kind, fileId)
 
       runtimeLogger.info('validation-selection-ready', { fileType: file.mediaType })
 
@@ -576,6 +568,20 @@ const validateFile = async (file: FileItem) => {
   } finally {
     processingFiles.value.delete(getFileKey(file))
   }
+}
+
+const annotateFile = async (file: FileItem) => {
+  if (!file.id || file.mediaType === 'unknown' || file.importOnly || file.quarantined) return
+
+  // Set current media item in store if required by your app
+  mediaStore.setCurrentItem(toMediaItem(file))
+
+  await router.push({
+    name: 'Video-Untersuchung',
+    query: {
+      video: String(file.id)
+    }
+  })
 }
 
 const reimportVideo = async (file: FileItem) => {
@@ -682,9 +688,7 @@ const dismissImport = async (file: FileItem) => {
 
 const deleteFile = async (file: FileItem) => {
   const fileId = file.id
-  if (ambiguousDeletionIds.value.has(fileId)) {
-    anonymizationStore.error =
-      'Löschen nicht möglich: Die Backend-API kann Video und PDF mit dieser ID nicht eindeutig zuordnen.'
+  if (file.mediaType === 'unknown' || file.importOnly || file.quarantined) {
     return
   }
 
@@ -699,7 +703,7 @@ const deleteFile = async (file: FileItem) => {
   processingFiles.value.add(getFileKey(file))
   try {
     // Use the media management API to delete the file
-    const result = await mediaManagement.deleteMediaFile(fileId)
+    const result = await mediaManagement.deleteMediaFile(fileId, file.mediaType)
     if (result) {
       // Refresh overview to remove the deleted file from the list
       await refreshOverview()

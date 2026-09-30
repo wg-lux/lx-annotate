@@ -4,11 +4,72 @@ import json
 from pathlib import Path
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.test import Client, override_settings
 from endoreg_db.models import Examination, Finding
 from lx_dtypes.terminology.terminology_loader import get_terminology_service
 
 from lx_annotate.services.report_llm import GraphReference, resolve_graph
+
+
+@override_settings(
+    ROOT_URLCONF="lx_annotate.urls",
+    ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"],
+)
+@pytest.mark.django_db
+def test_reporting_packages_can_be_switched_and_reselected(
+    packaged_registry: Path,
+) -> None:
+    client = Client()
+    actor = get_user_model().objects.create_user(
+        username="terminology-switch-test", is_staff=True
+    )
+    client.force_login(actor)
+    service = get_terminology_service()
+    assert service.registry_path == packaged_registry
+    original = service.list_bundles().active
+    assert original is not None
+
+    def select(module_name: str, version: str) -> None:
+        before = client.get("/dtypes-api/terminology/bundles", secure=True)
+        assert before.status_code == 200, before.content.decode()
+        response = client.post(
+            "/dtypes-api/terminology/bundles/select",
+            {
+                "module_name": module_name,
+                "version": version,
+                "expected_revision": before.json()["revision"],
+            },
+            content_type="application/json",
+            secure=True,
+        )
+        assert response.status_code == 200, response.content.decode()
+        after = client.get("/dtypes-api/terminology/bundles", secure=True)
+        assert after.status_code == 200, after.content.decode()
+        assert after.json()["active"] == response.json()["active"]
+        assert after.json()["revision"] == response.json()["revision"]
+        assert service.active_identity() == (module_name, version)
+        graph = client.get(
+            f"/dtypes-api/knowledge-bases/{module_name}/{version}/graph",
+            secure=True,
+        )
+        assert graph.status_code == 200, graph.content.decode()
+        assert graph.json()["identity"] == {
+            "knowledge_base_module": module_name,
+            "knowledge_base_version": version,
+        }
+
+    try:
+        for identity in (
+            ("dgvs_reporting", "0.1.0"),
+            ("mst_3_0", "3.0.0"),
+            ("star_upper_gi", "0.1.2"),
+            ("coloreg", "0.1.0"),
+            ("dgvs_reporting", "0.1.0"),
+        ):
+            select(*identity)
+    finally:
+        select(original.module_name, original.version)
 
 
 @override_settings(

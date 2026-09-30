@@ -15,6 +15,54 @@ from lx_annotate.schemas.ai_dataset_splits import (
 )
 
 
+class StaleSplitMembership(ValueError):
+    """Saved patient grouping no longer matches the current video records."""
+
+
+def _patient_id(video: VideoFile) -> int:
+    direct = video.patient_id
+    examination = video.examination.patient_id if video.examination else None
+    if direct is not None and examination is not None and direct != examination:
+        raise ValueError(
+            "Conflicting patient associations; repair video patient links before splitting."
+        )
+    patient_id = direct if direct is not None else examination
+    if patient_id is None:
+        raise ValueError(
+            "Missing patient associations; link every video to a patient before splitting."
+        )
+    return patient_id
+
+
+def validate_snapshot_patients(snapshot: SplitSnapshot) -> None:
+    """Reject stale grouping without rewriting historical membership.
+
+    This checks current local patient links at retrieval time; it does not lock
+    those links for later training or establish identity across sites.
+    """
+    expected = {
+        video.video_id: patient.patient_id
+        for patient in snapshot.patients
+        for video in patient.videos
+    }
+    videos = VideoFile.objects.filter(pk__in=expected).select_related("examination")
+    message = (
+        "Saved split patient links have changed or are unavailable. "
+        "Review patient associations and create a new split plan."
+    )
+    seen: set[int] = set()
+    for video in videos:
+        try:
+            current_patient_id = _patient_id(video)
+        except ValueError as error:
+            raise StaleSplitMembership(message) from error
+        if current_patient_id != expected[video.pk]:
+            raise StaleSplitMembership(message)
+        seen.add(video.pk)
+    if seen != set(expected):
+        raise StaleSplitMembership(message)
+
+
 def collect_membership(dataset: AIDataSet) -> dict[int, list[VideoMembership]]:
     frames: dict[int, set[int]] = defaultdict(set)
     annotations: dict[int, list[int]] = defaultdict(list)
@@ -40,17 +88,7 @@ def collect_membership(dataset: AIDataSet) -> dict[int, list[VideoMembership]]:
         .order_by("pk")
     )
     for video in videos:
-        direct = video.patient_id
-        examination = video.examination.patient_id if video.examination else None
-        if direct is not None and examination is not None and direct != examination:
-            raise ValueError(
-                "Conflicting patient associations; repair video patient links before splitting."
-            )
-        patient_id = direct if direct is not None else examination
-        if patient_id is None:
-            raise ValueError(
-                "Missing patient associations; link every video to a patient before splitting."
-            )
+        patient_id = _patient_id(video)
         patients[patient_id].append(
             VideoMembership(
                 video_id=video.pk,

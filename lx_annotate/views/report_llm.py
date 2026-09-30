@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+from io import BytesIO
+
 from django.shortcuts import get_object_or_404
+from django.views.decorators.cache import never_cache
 from endoreg_db.models import PatientExamination
 from endoreg_db.services.center_access import resolve_allowed_center_ids
 from ninja.errors import HttpError
 from pydantic import ValidationError
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.exceptions import APIException
+from rest_framework.parsers import JSONParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -22,6 +27,31 @@ from lx_annotate.services.report_llm import (
     llm_config,
     resolve_graph,
 )
+
+REPORT_REQUEST_MAX_BYTES = 1_000_000
+
+
+class ReportRequestTooLarge(APIException):
+    status_code = 413
+    default_code = "input_too_large"
+
+    def __init__(self):
+        # Keep the reporting error envelope even if CSRF triggers parsing
+        # before the view runs. In particular, ready must remain a boolean.
+        self.detail = {
+            "ready": False,
+            "code": self.default_code,
+            "detail": "Die Anfrage ist zu groß.",
+        }
+
+
+class ReportJSONParser(JSONParser):
+    def parse(self, stream, media_type=None, parser_context=None):
+        # Read at most one byte beyond the limit, without trusting Content-Length.
+        body = stream.read(REPORT_REQUEST_MAX_BYTES + 1)
+        if len(body) > REPORT_REQUEST_MAX_BYTES:
+            raise ReportRequestTooLarge()
+        return super().parse(BytesIO(body), media_type, parser_context)
 
 
 def error_response(error: ReportLlmError) -> Response:
@@ -45,14 +75,13 @@ def report_llm_status(request: Request) -> Response:
     )
 
 
+@never_cache
 @api_view(["POST"])
+@parser_classes([ReportJSONParser])
 @permission_classes([IsAuthenticated])
 def report_llm_generate(request: Request) -> Response:
-    if len(request.body) > 1_000_000:
-        return error_response(
-            ReportLlmError("input_too_large", "Die Anfrage ist zu groß.", 413)
-        )
     try:
+        # SessionAuthentication's CSRF check may already have parsed this data.
         data = GenerateReportRequest.model_validate(request.data)
     except ValidationError:
         return error_response(

@@ -1,4 +1,0 @@
-[submodule "lx-data-models"]
-	path = lx-data-models
-	url = https://github.com/wg-lux/lx-data-models
-	branch = report_template

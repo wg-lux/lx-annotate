@@ -3,6 +3,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { computed, reactive, ref } from 'vue'
 
 import FindingsCapturePage from '../FindingsCapturePage.vue'
+import { reportTemplateSelectionContextKey } from '../reportTemplateSelectionContext'
 import type {
   ReportTemplateRuntimeClassificationChoiceInput,
   ReportTemplateRuntimeDescriptorInput,
@@ -44,6 +45,7 @@ const hoisted = vi.hoisted(() => {
       'finding selectors'
     ),
     validateRuntime: vi.fn(),
+    selectTemplate: vi.fn().mockResolvedValue(undefined),
     fetchExaminationReportingContext: vi.fn(),
     terminologyStore: {
       activeBundle: initialActiveBundle(),
@@ -72,7 +74,8 @@ vi.mock('@/composables/reporting/useFindingSelectors', () => ({
   useFindingSelectors: () => hoisted.findingSelectorsRef.current
 }))
 
-vi.mock('@/api/reportTemplatesApi', () => ({
+vi.mock('@/api/reportTemplatesApi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api/reportTemplatesApi')>()),
   validateReportTemplateRuntime: hoisted.validateRuntime
 }))
 
@@ -212,8 +215,13 @@ function buildFlowStore() {
 
   const flow = reactive({
     patientExaminationId: 42,
+    indications: [{ examinationIndicationId: 7, indicationChoiceId: null }] as Array<{
+      examinationIndicationId: number | null
+      indicationChoiceId: number | null
+    }>,
     selectedExaminationId: initialSelectedExaminationId(),
     selectedKbModule: 'report_template_examples',
+    selectedReportLanguage: 'de' as const,
     selectedTemplateName: initialSelectedTemplateName(),
     findingsRevision: 0,
     lastFindingsEvent: null as FindingsEvent | null,
@@ -243,6 +251,7 @@ function buildFlowStore() {
       flow.lastTemplateValidation = result
     }),
     persistCurrentRuntimeDraft: vi.fn().mockResolvedValue(undefined),
+    setFindingIntervention: vi.fn(),
     addFinding: vi.fn(({ findingName }: { findingName: string }) => {
       const localId: string = `finding_${String(flow.currentRuntimeDraft.payload.patientFindings.length + 1)}`
       flow.currentRuntimeDraft.payload.patientFindings.push({
@@ -348,7 +357,7 @@ function buildFindingSelectors() {
         morphologyClassifications: [],
         FindingClassifications: [],
         findingTypes: [],
-        findingInterventions: []
+        findingInterventions: [] as string[]
       }
     ]),
     loading: false,
@@ -368,6 +377,11 @@ function buildFindingSelectors() {
 function mountPage() {
   return mount(FindingsCapturePage, {
     global: {
+      provide: {
+        [reportTemplateSelectionContextKey as symbol]: {
+          selectTemplate: hoisted.selectTemplate
+        }
+      },
       stubs: {
         MedicalBlock: {
           template: '<div><slot /></div>'
@@ -447,9 +461,51 @@ describe('FindingsCapturePage runtime draft flow', () => {
       'report_template_examples',
       '1.0.0',
       'star_upper_gi_main',
-      hoisted.flowRef.current.currentRuntimeDraft.payload
+      hoisted.flowRef.current.currentRuntimeDraft.payload,
+      {
+        examinationId: 7,
+        patientExaminationId: 42,
+        indications: hoisted.flowRef.current.indications
+      }
     )
     expect(hoisted.flowRef.current.persistCurrentRuntimeDraft).toHaveBeenCalled()
+  })
+
+  it('loads localized interventions from the reporting context and keeps restored selections removable', async () => {
+    hoisted.fetchExaminationReportingContext.mockResolvedValue({
+      reportTemplates: [],
+      concepts: {
+        finding: [{ name: 'esophagus_polyp', interventions: ['biopsy'] }],
+        intervention: [{ name: 'biopsy', nameDe: 'Biopsie', nameEn: 'Biopsy' }]
+      }
+    })
+    hoisted.flowRef.current.currentRuntimeDraft.payload.patientFindings = [
+      {
+        localId: 'finding_1',
+        finding: 'esophagus_polyp',
+        classificationChoices: [],
+        interventions: ['polypectomy']
+      }
+    ]
+    const wrapper = mountPage()
+    await flushPromises()
+
+    const checkboxes = wrapper.findAll('fieldset input[type="checkbox"]')
+    expect(checkboxes).toHaveLength(2)
+    expect(wrapper.get('fieldset').text()).toContain('Biopsie')
+    expect((checkboxes[1].element as HTMLInputElement).checked).toBe(true)
+    await checkboxes[0].setValue(true)
+    expect(hoisted.flowRef.current.setFindingIntervention).toHaveBeenCalledWith(
+      'finding_1',
+      'biopsy',
+      true
+    )
+    await checkboxes[1].setValue(false)
+    expect(hoisted.flowRef.current.setFindingIntervention).toHaveBeenCalledWith(
+      'finding_1',
+      'polypectomy',
+      false
+    )
   })
 
   it('keeps catalog-backed finding capture available without terminology', async () => {
@@ -495,6 +551,20 @@ describe('FindingsCapturePage runtime draft flow', () => {
     expect(hoisted.flowRef.current.setTemplateSelection).not.toHaveBeenCalled()
   })
 
+  it('delegates inline template changes to the reporting shell workflow', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    hoisted.flowRef.current.setTemplateSelection.mockClear()
+    hoisted.templateControls.selectTemplateByName.mockClear()
+
+    const select = wrapper.get('#findings-template-select')
+    await select.trigger('change')
+
+    expect(hoisted.selectTemplate).toHaveBeenCalledWith('star_upper_gi_main', select.element)
+    expect(hoisted.flowRef.current.setTemplateSelection).not.toHaveBeenCalled()
+    expect(hoisted.templateControls.selectTemplateByName).not.toHaveBeenCalled()
+  })
+
   it('renders the active knowledge-base module as read-only context', async () => {
     const wrapper = mountPage()
     await flushPromises()
@@ -536,9 +606,126 @@ describe('FindingsCapturePage runtime draft flow', () => {
       'report_template_examples',
       '1.0.0',
       'star_upper_gi_main',
-      hoisted.flowRef.current.currentRuntimeDraft.payload
+      hoisted.flowRef.current.currentRuntimeDraft.payload,
+      {
+        examinationId: 7,
+        patientExaminationId: 42,
+        indications: hoisted.flowRef.current.indications
+      }
     )
     expect(hoisted.flowRef.current.persistCurrentRuntimeDraft).toHaveBeenCalled()
+  })
+
+  it('shows classification validation failures at the affected finding and clears resolved feedback', async () => {
+    hoisted.flowRef.current.currentRuntimeDraft.payload.patientFindings = [
+      {
+        localId: 'finding_1',
+        finding: 'esophagus_polyp',
+        classificationChoices: [
+          {
+            classification: 'size_mm',
+            classificationChoice: 'size_mm',
+            descriptors: []
+          }
+        ]
+      }
+    ]
+    const result: ReportTemplateRuntimeValidationResult = {
+      templateName: 'star_upper_gi_main',
+      ok: false,
+      evaluatedFindingsCount: 1,
+      findingsValidators: [],
+      examinationValidators: [],
+      interventionValidators: [],
+      unitValidators: [],
+      issues: [],
+      classificationValidators: [
+        {
+          name: 'size_required',
+          finding: ' Esophagus-Polyp ',
+          classification: 'size_mm',
+          ok: false,
+          operator: 'exists',
+          precedence: 'required',
+          matchedOccurrences: 1,
+          triggeredOccurrences: 1,
+          hint: {},
+          issues: [
+            {
+              code: 'missing_data_requirement',
+              level: 'warning',
+              message: 'Polyp size must be recorded.'
+            }
+          ]
+        },
+        {
+          name: 'lst_required',
+          finding: 'esophagus_polyp',
+          classification: 'lst',
+          ok: false,
+          operator: 'exists',
+          precedence: 'required',
+          matchedOccurrences: 1,
+          triggeredOccurrences: 1,
+          hint: {},
+          issues: []
+        },
+        {
+          name: 'other_finding',
+          finding: 'colon_polyp',
+          classification: 'size_mm',
+          ok: false,
+          operator: 'exists',
+          precedence: 'required',
+          matchedOccurrences: 1,
+          triggeredOccurrences: 1,
+          hint: {},
+          issues: [{ code: 'invalid', level: 'error', message: 'Unrelated finding issue.' }]
+        }
+      ]
+    }
+    hoisted.validateRuntime.mockResolvedValue(result)
+    const wrapper = mountPage()
+    await flushPromises()
+    vi.advanceTimersByTime(400)
+    await flushPromises()
+
+    const finding = wrapper.get('#finding-esophagus_polyp')
+    expect(finding.text()).toContain('Polyp size must be recorded.')
+    expect(finding.text()).toContain('Klassifikation "lst" prüfen.')
+    expect(finding.text()).not.toContain('Unrelated finding issue.')
+
+    hoisted.validateRuntime.mockResolvedValue({ ...result, ok: true, classificationValidators: [] })
+    await requireDefined(
+      wrapper.findAll('button').find((button) => button.text() === 'Bericht prüfen'),
+      'validation button'
+    ).trigger('click')
+    await flushPromises()
+    expect(finding.text()).not.toContain('Polyp size must be recorded.')
+    expect(finding.text()).not.toContain('Klassifikation "lst" prüfen.')
+  })
+
+  it('revalidates when indication selections change without editing findings', async () => {
+    mountPage()
+    await flushPromises()
+    vi.advanceTimersByTime(400)
+    await flushPromises()
+    hoisted.validateRuntime.mockClear()
+    hoisted.flowRef.current.indications = [{ examinationIndicationId: 8, indicationChoiceId: null }]
+    await flushPromises()
+    vi.advanceTimersByTime(400)
+    await flushPromises()
+    expect(hoisted.validateRuntime).toHaveBeenCalledWith(
+      'report_template_examples',
+      '1.0.0',
+      'star_upper_gi_main',
+      hoisted.flowRef.current.currentRuntimeDraft.payload,
+      {
+        examinationId: 7,
+        patientExaminationId: 42,
+        indications: [{ examinationIndicationId: 8, indicationChoiceId: null }]
+      }
+    )
   })
 
   it('renders and records numeric descriptors supplied by the compiled template', async () => {

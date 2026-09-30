@@ -77,6 +77,15 @@ export type AttachCaseDocumentPayload = {
 }
 
 function normalizeCaseRows(data: unknown): PatientCase[] {
+  if (
+    isRecord(data) &&
+    (data.next ||
+      (Array.isArray(data.results) &&
+        data.count !== undefined &&
+        data.count !== data.results.length))
+  ) {
+    throw new TypeError('Case list is incomplete; case ownership cannot be determined')
+  }
   const rows = Array.isArray(data)
     ? data
     : isRecord(data) && Array.isArray(data.results)
@@ -218,6 +227,9 @@ function requireCaseDocument(value: unknown, path: string): CaseDocument {
 
 function requirePatientCase(value: unknown, path = 'case'): PatientCase {
   const record = requireRecord(value, path)
+  if (record.isActive === true && (record.isClosed === true || record.isDeleted === true)) {
+    throw new TypeError(`Invalid case response at ${path}: conflicting lifecycle flags`)
+  }
   if (!Array.isArray(record.patientExaminations) || !Array.isArray(record.documents)) {
     throw new TypeError(`Invalid case response at ${path}: expected examination/document arrays`)
   }
@@ -256,7 +268,19 @@ export async function fetchPatientCases(params: CaseListParams): Promise<Patient
       patient_examination_id: params.patientExaminationId
     }
   })
-  return normalizeCaseRows(response.data)
+  const cases = normalizeCaseRows(response.data)
+  if (
+    cases.some(
+      (row) =>
+        (params.patientId !== undefined && row.patient !== params.patientId) ||
+        (params.patientExaminationId !== undefined &&
+          !row.patientExaminations.some(
+            (examination) => examination.id === params.patientExaminationId
+          ))
+    )
+  )
+    throw new TypeError('Case response does not match the requested patient or examination')
+  return cases
 }
 
 export async function createPatientCase(payload: CreatePatientCasePayload): Promise<PatientCase> {

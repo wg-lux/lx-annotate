@@ -49,7 +49,7 @@ describe('patient resource pages', () => {
     mocks.fetchCases.mockResolvedValue([])
   })
 
-  it('shows every repeated PDF, report, and video occurrence', async () => {
+  it('shows every media occurrence and all cases sharing an examination', async () => {
     mocks.fetchTimeline.mockResolvedValue({
       patient: {
         id: 7,
@@ -119,6 +119,11 @@ describe('patient resource pages', () => {
         patientMedicationSchedules: [],
         patientLabSamples: [],
         patientLabValues: []
+      },
+      {
+        caseId: 'case-also-linked',
+        patient: 7,
+        patientExaminations: [{ id: 13 }]
       }
     ])
 
@@ -136,6 +141,7 @@ describe('patient resource pages', () => {
     expect(wrapper.text()).toContain('video.mp4')
     expect(wrapper.text()).toContain('video-repeat.mp4')
     expect(wrapper.text()).toContain('Fall case-repeat')
+    expect(wrapper.text()).toContain('Fall case-also-linked')
   })
 
   it('renders timeline entries safely when the backend omits stream options', async () => {

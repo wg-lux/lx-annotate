@@ -103,6 +103,8 @@ def test_django_runtime_paths_use_endoreg_topology() -> None:
     from endoreg_db.utils.paths import get_runtime_paths
 
     paths = get_runtime_paths()
+    assert settings.CONFIG_ROOT == paths.runtime_root / "config"
+    assert not settings.CONFIG_ROOT.is_relative_to(paths.terminology)
     for setting, expected in {
         "PROTECTED_MEDIA_ROOT": paths.storage,
         "MEDIA_ROOT": paths.storage,

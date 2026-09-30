@@ -186,7 +186,6 @@ if __name__ == "__main__":
 def _build_worker_import_env(tmp_path: Path) -> dict[str, str]:
     runtime_root = tmp_path / "runtime"
     data_root = runtime_root / "data"
-    storage_root = data_root / "storage"
     salt_file = atomic_write_file(
         destination=tmp_path / "identity-salt",
         content=(b"worker-import-test-identity-salt",),

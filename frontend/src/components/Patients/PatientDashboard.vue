@@ -99,85 +99,11 @@
         </div>
       </div>
       <div class="card-body">
-        <!-- Patient Cards Grid -->
-        <div
-          v-if="filteredPatients.length > 0"
-          class="patients-grid"
-        >
-          <div
-            v-for="patient in filteredPatients"
-            :key="patient.id"
-            class="patient-card"
-            :class="{ selected: selectedPatient?.id === patient.id }"
-            @click="selectPatient(patient)"
-          >
-            <div class="patient-card-header">
-              <h5 class="patient-name">{{ patient.firstName }} {{ patient.lastName }}</h5>
-              <span class="patient-id">ID: {{ patient.id }}</span>
-            </div>
-            <div class="patient-card-body">
-              <div class="patient-info">
-                <div class="info-item">
-                  <i class="ni ni-book-bookmark patient-info-icon"></i>
-                  <span>{{ formatDate(patient.dob) }}</span>
-                  <small
-                    v-if="patient.age"
-                    class="patient-info-detail"
-                    >({{ patient.age }} Jahre)</small
-                  >
-                </div>
-                <div
-                  v-if="patient.gender"
-                  class="info-item"
-                >
-                  <i class="ni ni-circle-08 patient-info-icon"></i>
-                  <span>{{ getGenderName(patient.gender) }}</span>
-                </div>
-                <div
-                  v-if="patient.center"
-                  class="info-item"
-                >
-                  <i class="ni ni-collection patient-info-icon"></i>
-                  <span>{{ getCenterName(patient.center) }}</span>
-                </div>
-                <div
-                  v-if="patient.email"
-                  class="info-item"
-                >
-                  <i class="ni ni-single-copy-04 patient-info-icon"></i>
-                  <span>{{ patient.email }}</span>
-                </div>
-              </div>
-            </div>
-            <div class="patient-card-footer">
-              <small class="text-muted"> Klicken für Details </small>
-            </div>
-          </div>
-        </div>
-
-        <!-- Empty State -->
-        <div
-          v-else-if="!loading"
-          class="empty-state"
-        >
-          <i class="ni ni-circle-08 ni-3x text-muted empty-state-icon"></i>
-          <h4 class="empty-state-heading">Keine Patienten gefunden</h4>
-          <p class="text-muted">
-            {{
-              searchTerm
-                ? 'Keine Patienten entsprechen der Suche.'
-                : 'Erstellen Sie den ersten Patienten.'
-            }}
-          </p>
-          <button
-            v-if="!searchTerm"
-            class="btn btn-primary"
-            @click="showCreateForm = true"
-          >
-            <i class="ni ni-fat-add empty-state-icon"></i>
-            Ersten Patienten erstellen
-          </button>
-        </div>
+        <PatientKanban
+          ref="board"
+          :search-term="searchTerm"
+          @select="selectPatient"
+        />
       </div>
     </div>
 
@@ -202,12 +128,14 @@ import { usePatientStore, type Patient } from '@/stores/patientStore'
 import { patientService } from '@/api/patientService'
 import PatientCreateForm from './PatientCreateForm.vue'
 import PatientDetailView from './PatientDetailView.vue'
+import PatientKanban from './PatientKanban.vue'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
 
 const logger = createRuntimeLogger('patient-dashboard')
 
 // Composables
 const patientStore = usePatientStore()
+const board = ref<InstanceType<typeof PatientKanban> | null>(null)
 
 // Reactive state
 const loading = ref(false)
@@ -222,28 +150,13 @@ const patients = computed(() => patientStore.patients)
 const genders = computed(() => patientStore.genders)
 const centers = computed(() => patientStore.centers)
 
-const filteredPatients = computed(() => {
-  if (!searchTerm.value) {
-    return patients.value
-  }
-
-  const term = searchTerm.value.toLowerCase()
-  return patients.value.filter(
-    (patient) =>
-      patient.firstName.toLowerCase().includes(term) ||
-      patient.lastName.toLowerCase().includes(term) ||
-      patient.email?.toLowerCase().includes(term) ||
-      `${patient.firstName} ${patient.lastName}`.toLowerCase().includes(term)
-  )
-})
-
 // Methods
 const loadData = async () => {
   try {
     loading.value = true
     error.value = ''
 
-    await Promise.all([loadPatients(), loadLookupData()])
+    await loadLookupData()
   } catch (err: unknown) {
     error.value = err instanceof Error && err.message ? err.message : 'Fehler beim Laden der Daten'
     logger.error('dashboard-load-failed', err, {
@@ -255,10 +168,6 @@ const loadData = async () => {
   }
 }
 
-const loadPatients = async () => {
-  const patientsData = await patientService.getPatients()
-  patientStore.patients = patientsData
-}
 const loadLookupData = async () => {
   // Lookup failures propagate to loadData so the dashboard's visible error state owns them.
   if (genders.value.length === 0) {
@@ -289,6 +198,7 @@ const onPatientCreated = (patient: Patient) => {
 }
 
 const onPatientUpdated = (patient: Patient) => {
+  void board.value?.refresh()
   selectedPatient.value = patient
 
   // Update in patients list
@@ -306,6 +216,7 @@ const onPatientUpdated = (patient: Patient) => {
 }
 
 const onPatientDeleted = (patientId: number) => {
+  void board.value?.refresh()
   // Remove patient from store
   const index = patientStore.patients.findIndex((p) => p.id === patientId)
   if (index !== -1) {
@@ -322,35 +233,6 @@ const onPatientDeleted = (patientId: number) => {
   setTimeout(() => {
     successMessage.value = ''
   }, 5000)
-}
-
-const formatDate = (dateString?: string | null) => {
-  if (!dateString) {
-    return 'Nicht angegeben'
-  }
-
-  try {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('de-DE')
-  } catch {
-    return 'Ungültig'
-  }
-}
-
-const getGenderName = (genderValue?: string | null) => {
-  if (!genderValue) {
-    return 'Nicht angegeben'
-  }
-  const gender = genders.value.find((g) => g.name === genderValue)
-  return gender?.nameDe || gender?.name || genderValue
-}
-
-const getCenterName = (centerValue?: string | null) => {
-  if (!centerValue) {
-    return 'Nicht zugeordnet'
-  }
-  const center = centers.value.find((c) => c.name === centerValue)
-  return center?.nameDe || center?.name || centerValue
 }
 
 // Lifecycle
@@ -408,107 +290,6 @@ onMounted(async () => {
 
 .search-box {
   min-width: 300px;
-}
-
-.patients-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1.5rem;
-  margin-top: 1rem;
-}
-
-.patient-card {
-  border: 2px solid #e9ecef;
-  border-radius: 12px;
-  padding: 1.5rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  background: white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.patient-card:hover {
-  border-color: #3498db;
-  box-shadow: 0 4px 8px rgba(52, 152, 219, 0.2);
-  transform: translateY(-2px);
-}
-
-.patient-card.selected {
-  border-color: #3498db;
-  background: #f8fafb;
-  box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
-}
-
-.patient-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.patient-name {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #2c3e50;
-  margin: 0;
-}
-
-.patient-id {
-  font-size: 0.85rem;
-  color: #6c757d;
-  background: #f8f9fa;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-}
-
-.patient-card-body {
-  margin-bottom: 1rem;
-}
-
-.patient-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.info-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  color: #495057;
-}
-
-.info-item .patient-info-icon {
-  width: 16px;
-  color: #6c757d;
-}
-
-.info-item .patient-info-detail {
-  color: #6c757d;
-  margin-left: 0.25rem;
-}
-
-.patient-card-footer {
-  padding-top: 0.75rem;
-  border-top: 1px solid #e9ecef;
-  text-align: center;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 4rem 2rem;
-}
-
-.empty-state .empty-state-icon {
-  margin-bottom: 1rem;
-}
-
-.empty-state .empty-state-heading {
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
 }
 
 .loading-container {
@@ -572,22 +353,8 @@ onMounted(async () => {
     align-items: stretch;
   }
 
-  .patients-grid {
-    grid-template-columns: 1fr;
-  }
-
   .search-box {
     min-width: auto;
-  }
-
-  .patient-card {
-    padding: 1rem;
-  }
-
-  .patient-card-header {
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: flex-start;
   }
 }
 </style>

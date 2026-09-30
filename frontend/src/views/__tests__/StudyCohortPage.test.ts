@@ -5,14 +5,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const hoisted = vi.hoisted(() => ({
   fetchStudyCohortPreview: vi.fn(),
   fetchStudyCohorts: vi.fn(),
+  fetchStudyDefinition: vi.fn(),
   fetchAiDatasetOptions: vi.fn(),
   saveStudyCohort: vi.fn(),
   routerPush: vi.fn()
 }))
 
-vi.mock('@/api/studyCohortApi', () => ({
+vi.mock('@/api/studyCohortApi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api/studyCohortApi')>()),
   previewStudyCohort: hoisted.fetchStudyCohortPreview,
   fetchStudyCohorts: hoisted.fetchStudyCohorts,
+  fetchStudyDefinition: hoisted.fetchStudyDefinition,
   saveStudyCohort: hoisted.saveStudyCohort
 }))
 vi.mock('@/api/aiDatasetApi', () => ({ fetchAiDatasetOptions: hoisted.fetchAiDatasetOptions }))
@@ -124,6 +127,12 @@ describe('StudyCohortPage', () => {
     expect(hoisted.fetchStudyCohortPreview).toHaveBeenCalledWith(
       {
         name: 'Polypenregister 2026',
+        studyMetadata: {
+          participatingCenters: [],
+          ageGroups: [],
+          terminologyRequirements: [],
+          inclusionCriteria: []
+        },
         hypothesis: 'Adenome treten häufiger in Untersuchungen mit annotierten Polypen auf.',
         datasetIds: [],
         filters: {
@@ -269,6 +278,18 @@ describe('StudyCohortPage', () => {
       hypothesis: 'Hypothesis',
       filters: { limit: 100 },
       datasetIds: [7, 8],
+      studyMetadata: {
+        participatingCenters: [{ centerKey: 'center-a', name: 'Center A' }],
+        ageGroups: [{ name: 'Adults', minimumAge: 18, maximumAge: null }],
+        terminologyRequirements: [{ module: 'coloreg', version: '0.2.0' }],
+        inclusionCriteria: [
+          {
+            name: 'Polyp',
+            description: '',
+            concepts: [{ module: 'coloreg', version: '0.2.0', kind: 'finding', name: 'polyp' }]
+          }
+        ]
+      },
       updatedAt: '2026-09-22'
     }
     hoisted.fetchStudyCohorts.mockResolvedValue([saved])
@@ -283,14 +304,62 @@ describe('StudyCohortPage', () => {
     await wrapper.get('[data-test="save-cohort"]').trigger('click')
     await flushPromises()
     expect(hoisted.saveStudyCohort).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Saved study', datasetIds: [7, 8] }),
+      expect.objectContaining({
+        name: 'Saved study',
+        datasetIds: [7, 8],
+        studyMetadata: saved.studyMetadata
+      }),
       12
     )
     await wrapper.get('form').trigger('submit')
     await flushPromises()
     expect(hoisted.fetchStudyCohortPreview).toHaveBeenCalledWith(
-      expect.objectContaining({ datasetIds: [7, 8] }),
+      expect.objectContaining({ datasetIds: [7, 8], studyMetadata: saved.studyMetadata }),
       expect.any(AbortSignal)
     )
+  })
+
+  it('downloads the saved definition and releases the browser object URL', async () => {
+    hoisted.fetchStudyCohorts.mockResolvedValue([
+      {
+        id: 12,
+        name: 'Saved',
+        hypothesis: 'Hypothesis',
+        filters: {},
+        datasetIds: []
+      }
+    ])
+    const blob = new Blob(['schema_version: "1.0"'], { type: 'application/yaml' })
+    hoisted.fetchStudyDefinition.mockResolvedValue(blob)
+    const createUrl = vi.fn().mockReturnValue('blob:study-definition')
+    const revokeUrl = vi.fn()
+    vi.stubGlobal(
+      'URL',
+      class extends URL {
+        static createObjectURL = createUrl
+        static revokeObjectURL = revokeUrl
+      }
+    )
+    const clicked: string[] = []
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement
+    ) {
+      clicked.push(this.download)
+    })
+    try {
+      const wrapper = mount(StudyCohortPage)
+      await flushPromises()
+      expect(wrapper.get('[data-test="download-definition"]').attributes('disabled')).toBeDefined()
+      await wrapper.get('[data-test="saved-cohort"]').setValue('12')
+      await wrapper.get('[data-test="download-definition"]').trigger('click')
+      await flushPromises()
+      expect(hoisted.fetchStudyDefinition).toHaveBeenCalledWith(12)
+      expect(createUrl).toHaveBeenCalledWith(blob)
+      expect(clicked).toEqual(['study-12.yml'])
+      expect(revokeUrl).toHaveBeenCalledWith('blob:study-definition')
+    } finally {
+      click.mockRestore()
+      vi.unstubAllGlobals()
+    }
   })
 })

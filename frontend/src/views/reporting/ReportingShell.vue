@@ -14,6 +14,7 @@
         <h4 class="mb-3">Bericht erstellen</h4>
         <div class="context-case-select w-100 w-xl-75">
           <ReportingContextSelection
+            v-if="!missingPersistedExamination"
             :active-patient-examination-id="activePatientExaminationId"
             :case-id="flow.caseId"
             :selected-patient-id="flow.selectedPatientId"
@@ -29,6 +30,16 @@
             @select-examination="onExaminationSelection"
             @create="createPatientExaminationContext"
             @restart="startNewPatientExamination"
+          />
+          <ReportingExaminationRecovery
+            v-else-if="activePatientExaminationId"
+            :key="activePatientExaminationId"
+            :patient-examination-id="activePatientExaminationId"
+            :examinations="examinations"
+            :loading="examinationsLoading"
+            :saving="examinationRecoverySaving"
+            :error="examinationRecoveryError"
+            @assign="assignMissingExamination"
           />
 
           <div
@@ -159,9 +170,8 @@
                   class="form-select"
                   data-testid="terminology-bundle-select"
                   :value="activeBundleIdentityKey"
-                  :disabled="terminology.selecting || !visibleTerminologyBundles.length"
                   aria-label="Terminologiepaket auswählen"
-                  @change="onTerminologyBundleSelect(($event.target as HTMLSelectElement).value)"
+                  @change="onTerminologyBundleSelect($event)"
                 >
                   <option value="">Keine aktive Terminologie</option>
                   <option
@@ -272,6 +282,10 @@
                 ></i>
                 ZIPs lokal/Cloud importieren
               </button>
+              <TerminologyDownload
+                :disabled="terminology.importing"
+                @downloaded="importDownloadedTerminology"
+              />
               <ReportImportPanel @completed="handleReportImportCompleted" />
               <button
                 class="btn btn-outline-secondary"
@@ -540,7 +554,7 @@
             >
               <template
                 v-for="(item, index) in navItems"
-                :key="item.to"
+                :key="item.label"
               >
                 <RouterLink
                   v-if="!isStepDisabled(item)"
@@ -770,6 +784,7 @@
               v-if="flow.mediaPreload"
               class="row g-3"
             >
+              <ReportingMediaSelection />
               <div class="col-md-4">
                 <div class="media-context-card">
                   <div class="fw-semibold mb-1">Bericht</div>
@@ -1195,7 +1210,8 @@
 
 <script setup lang="ts">
 import ReportingContextSelection from '@/components/Reporting/ReportingContextSelection.vue'
-import { computed, onMounted, provide, ref, watch } from 'vue'
+import ReportingExaminationRecovery from '@/components/Reporting/ReportingExaminationRecovery.vue'
+import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { findingsApi } from '@/api/findingsApi'
@@ -1212,6 +1228,7 @@ import {
   type ReportLanguageOption
 } from '@/api/reportingLanguagesApi'
 import ReportImportPanel from '@/components/Reporting/ReportImportPanel.vue'
+import TerminologyDownload from '@/components/Reporting/TerminologyDownload.vue'
 import { reportVerbosityLabels, type ReportVerbosity } from '@/types/reportTemplate'
 import { useLlmReportGeneration } from '@/composables/reporting/useLlmReportGeneration'
 import { useAuthenticatedFramePreview } from '@/composables/useAuthenticatedFramePreview'
@@ -1249,7 +1266,12 @@ import { usePatientStore } from '@/stores/patientStore'
 import { useExaminationStore } from '@/stores/examinationStore'
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore'
 import type { PatientExamination } from '@/stores/patientExaminationStore'
-import { fetchPatientTimelineLatest, pickPreferredReportStream } from '@/api/reportingTimelineApi'
+import {
+  fetchPatientTimeline,
+  fetchPatientTimelineLatest,
+  pickPreferredReportStream
+} from '@/api/reportingTimelineApi'
+import ReportingMediaSelection from '@/components/Reporting/ReportingMediaSelection.vue'
 import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream'
 import type { StreamableVideoFileType } from '@/utils/mediaUrls'
 import { reportingApiError, reportingApiErrorMessage } from './reportingError'
@@ -1265,6 +1287,7 @@ import {
 } from './reportTemplateLifecycleContext'
 import { normalizeReportingIndicationSelections } from './reportingIndicationContract'
 import { useReportingKnowledgeBase } from './useReportingKnowledgeBase'
+import { reportTemplateSelectionContextKey } from './reportTemplateSelectionContext'
 import {
   SupersededReportingDagError,
   commitReportingDagAtomically,
@@ -1295,7 +1318,6 @@ import {
   formatCaseLabel,
   formatDateLabel,
   formatKnowledgeName,
-  isGastroenterologyExaminationName,
   isVideoArtifactKind,
   normalizeKnowledgeKey as normalizeKey,
   normalizePatientExaminationOption,
@@ -1374,6 +1396,17 @@ const draftBootstrapInFlight = ref<{ key: string; promise: Promise<void> } | nul
 const draftBootstrapError = ref<string | null>(null)
 const supersededEvaluationNotice = ref<string | null>(null)
 const patientExaminationDetail = ref<Record<string, unknown> | null>(null)
+const examinationRecoverySaving = ref(false)
+const examinationRecoveryError = ref<string | null>(null)
+const missingPersistedExamination = computed(() => {
+  const detail = patientExaminationDetail.value
+  return Boolean(
+    detail &&
+    patientExaminationIdentityLoadedId.value === routePatientExaminationId.value &&
+    !extractExaminationName(detail) &&
+    extractExaminationId(detail) === null
+  )
+})
 const patientExaminationIdentityLoadedId = ref<number | null>(null)
 const templateReference = ref<ReportTemplatePayload | null>(null)
 const templateReferenceLoading = ref(false)
@@ -1582,8 +1615,19 @@ const { playbackError: reportingVideoPlaybackError } = useAuthenticatedVideoStre
   videoElement: reportingVideoElement,
   videoId: reportingVideoId,
   artifactKind: selectedVideoArtifactKind,
-  enabled: computed(() => reportingVideoId.value !== null)
+  enabled: computed(
+    () => reportingVideoId.value !== null && preferredVideoArtifactKind.value !== null
+  )
 })
+watch(
+  reportingVideoId,
+  () => {
+    frameSelectionGeneration += 1
+    framePreview.clear()
+    selectedVideoArtifactKind.value = preferredVideoArtifactKind.value ?? 'processed'
+  },
+  { flush: 'sync' }
+)
 
 const activeKbModule = computed(() =>
   terminology.activeBundle ? terminology.activeModuleName : ''
@@ -1615,6 +1659,10 @@ provide(reportTemplateLifecycleContextKey, {
   activeModuleVersion: activeKbVersion,
   activeExaminationName,
   notifyLifecycleChanged: refreshPublishedTemplatesAfterLifecycleChange
+})
+
+provide(reportTemplateSelectionContextKey, {
+  selectTemplate: onTemplateSelectionChange
 })
 
 const activeBundleIdentityKey = computed(() => {
@@ -1742,9 +1790,7 @@ const selectedReportLanguageLabel = computed(
       ?.label || flow.selectedReportLanguage.toUpperCase()
 )
 
-const visibleTerminologyBundles = computed(() =>
-  terminology.filteredBundles.length ? terminology.filteredBundles : terminology.bundles
-)
+const visibleTerminologyBundles = computed(() => terminology.bundles)
 
 async function loadReportingLanguages() {
   reportLanguagesLoading.value = true
@@ -2321,9 +2367,16 @@ function navigateToReportEditor() {
   void router.push(reportEditorTarget.value)
 }
 
-async function onTerminologyBundleSelect(bundleKey: string) {
+async function onTerminologyBundleSelect(event: Event) {
+  const select = event.target as HTMLSelectElement
+  const bundleKey = select.value
+  // Keep the displayed selection authoritative even when confirmation is cancelled.
+  select.value = activeBundleIdentityKey.value
   const bundle = terminology.findBundleByKey(bundleKey)
-  if (!bundle) {
+  if (!bundle || bundleKey === activeBundleIdentityKey.value || terminology.selecting) {
+    return
+  }
+  if (!window.confirm('Sind Sie sicher? Erstellen Sie zuerst eine neue Untersuchung.')) {
     return
   }
   terminologyImportMessage.value = ''
@@ -2337,6 +2390,8 @@ async function onTerminologyBundleSelect(bundleKey: string) {
     terminologyImportMessage.value =
       terminology.error ||
       reportingApiErrorMessage(error, 'Terminologiepaket konnte nicht aktiviert werden.')
+  } finally {
+    select.value = activeBundleIdentityKey.value
   }
 }
 
@@ -2387,6 +2442,18 @@ async function importTerminologyZip(event: Event) {
     return
   }
 
+  try {
+    await importTerminologyFiles(files)
+  } finally {
+    input.value = ''
+  }
+}
+
+async function importDownloadedTerminology(file: File) {
+  await importTerminologyFiles([file])
+}
+
+async function importTerminologyFiles(files: File[]) {
   terminologyImportMessage.value = ''
   try {
     if (flow.hasUnpersistedDraftChanges) {
@@ -2401,8 +2468,6 @@ async function importTerminologyZip(event: Event) {
     terminologyImportMessage.value =
       terminology.error ||
       reportingApiErrorMessage(error, 'Terminologiepaket konnte nicht importiert werden.')
-  } finally {
-    input.value = ''
   }
 }
 
@@ -2981,16 +3046,10 @@ function extractExaminationName(raw: Record<string, unknown>): string {
   return (
     (typeof examination.name === 'string' && examination.name.trim()) ||
     (typeof raw.examination_name === 'string' && raw.examination_name.trim()) ||
+    (typeof raw.examinationName === 'string' && raw.examinationName.trim()) ||
     (typeof raw.examination === 'string' && raw.examination.trim()) ||
     ''
   )
-}
-
-function isPatientExaminationAllowedForMedicalField(option: PatientExaminationOption): boolean {
-  if (!terminology.activeBundle) {
-    return true
-  }
-  return isGastroenterologyExaminationName(option.examinationName)
 }
 
 function extractPatientId(raw: Record<string, unknown>): number | null {
@@ -3046,7 +3105,6 @@ function caseExaminationOptions(patientCase: PatientCase): PatientExaminationOpt
         option: ReturnType<typeof normalizePatientExaminationOption>
       ): option is PatientExaminationOption => option !== null
     )
-    .filter(isPatientExaminationAllowedForMedicalField)
     .sort((left, right) => right.id - left.id)
 }
 
@@ -3078,9 +3136,15 @@ async function fetchCaseOptions(patientId: number): Promise<void> {
       return
     }
     caseOptions.value = rows
-    const activeCase = caseOptions.value.find((row) => row.caseId === flow.caseId)
+    const requestedCaseId = readRecord(route.query).case_id
+    const activeCase = rows.find(
+      (row) => row.caseId === (requestedCaseId === undefined ? flow.caseId : requestedCaseId)
+    )
     if (activeCase) {
       activateCase(activeCase)
+    } else if (requestedCaseId !== undefined) {
+      flow.setCaseContext({ caseId: null })
+      caseOptionsError.value = 'Der angeforderte Fall gehört nicht zu diesem Patienten.'
     }
   } catch (error: unknown) {
     if (requestGeneration !== caseOptionsRequestGeneration) {
@@ -3106,13 +3170,20 @@ async function ensureCaseForPatientExamination(patientExaminationId: number): Pr
       return
     }
     mergeCaseOptions(rows)
-    const patientCase = rows.find((row) =>
+    const matches = rows.filter((row) =>
       row.patientExaminations.some((examination) => examination.id === patientExaminationId)
     )
+    const requestedCaseId = readRecord(route.query).case_id
+    const patientCase =
+      requestedCaseId === undefined
+        ? (matches.find((row) => row.caseId === flow.caseId) ??
+          (matches.length === 1 ? matches[0] : undefined))
+        : matches.find((row) => row.caseId === requestedCaseId)
     if (!patientCase) {
       flow.setCaseContext({ caseId: null })
-      caseOptionsError.value =
-        'Diese Patientenuntersuchung ist keinem persistierten Fall zugeordnet.'
+      caseOptionsError.value = matches.length
+        ? 'Fallzuordnung nicht eindeutig. Bitte einen passenden Fall ausdrücklich wählen.'
+        : 'Diese Patientenuntersuchung ist keinem persistierten Fall zugeordnet.'
       return
     }
     caseOptionsError.value = null
@@ -3159,9 +3230,6 @@ async function onCaseSelect(caseId: string): Promise<void> {
 }
 
 function upsertPatientExaminationOption(option: PatientExaminationOption) {
-  if (!isPatientExaminationAllowedForMedicalField(option)) {
-    return
-  }
   const next = patientExaminationOptions.value.slice()
   const index = next.findIndex((entry) => entry.id === option.id)
   if (index >= 0) {
@@ -3197,7 +3265,6 @@ async function fetchPatientExaminationOptions(patientId: number) {
           option: ReturnType<typeof normalizePatientExaminationOption>
         ): option is PatientExaminationOption => option !== null
       )
-      .filter(isPatientExaminationAllowedForMedicalField)
       .sort((left: PatientExaminationOption, right: PatientExaminationOption) => right.id - left.id)
   } catch (error: unknown) {
     if (requestGeneration !== patientOptionsRequestGeneration) {
@@ -3315,12 +3382,97 @@ function onExaminationSelection(rawValue: string): void {
   patientExaminationCreationError.value = null
 }
 
+function examinationRecoveryContext(examinationId: number) {
+  const patientExaminationId = routePatientExaminationId.value
+  const examination = examinations.value.find((entry) => entry.id === examinationId)
+  if (
+    !patientExaminationId ||
+    !examination ||
+    !missingPersistedExamination.value ||
+    examinationRecoverySaving.value
+  ) {
+    return null
+  }
+  return { patientExaminationId, examination }
+}
+
+function hasAssignedExamination(detail: Record<string, unknown>): boolean {
+  return Boolean(extractExaminationName(detail)) || extractExaminationId(detail) !== null
+}
+
+function applyRecoveredExamination(
+  patientExaminationId: number,
+  examinationId: number,
+  examinationName: string,
+  detail: Record<string, unknown>
+): void {
+  patientExaminationDetail.value = detail
+  patientExaminationIdentityLoadedId.value = patientExaminationId
+  const option = normalizePatientExaminationOption(detail)
+  if (option) upsertPatientExaminationOption(option)
+  flow.setCaseSelection({ selectedExaminationId: examinationId })
+  const draft = flow.currentRuntimeDraft
+  if (draft?.patientExaminationId === patientExaminationId && !draft.payload.examination) {
+    flow.setRuntimeDraft({
+      ...draft,
+      payload: { ...draft.payload, examination: examinationName },
+      verificationStatus: 'unverified'
+    })
+  }
+}
+
+async function assignMissingExamination(examinationId: number): Promise<void> {
+  const context = examinationRecoveryContext(examinationId)
+  if (!context) return
+  const { patientExaminationId, examination } = context
+  examinationRecoverySaving.value = true
+  examinationRecoveryError.value = null
+  const isCurrent = () => routePatientExaminationId.value === patientExaminationId
+  const endpoint = r(endpoints.examination.patientExaminationDetail(patientExaminationId))
+  try {
+    await draftBootstrapInFlight.value?.promise
+    if (!isCurrent()) return
+    // Re-read before assigning so a resolved examination is never deliberately replaced.
+    const latest = await axiosInstance.get<Record<string, unknown>>(endpoint)
+    if (!isCurrent()) return
+    if (hasAssignedExamination(latest.data)) {
+      throw new Error(
+        'Die Untersuchung wurde inzwischen zugeordnet. Bitte laden Sie die Ansicht neu.'
+      )
+    }
+    const response = await axiosInstance.patch<Record<string, unknown>>(endpoint, {
+      examination: examination.name
+    })
+    if (!isCurrent()) return
+    if (extractExaminationName(response.data) !== examination.name) {
+      throw new Error(
+        'Die gespeicherte Untersuchungszuordnung konnte nicht bestätigt werden. Bitte laden Sie die Ansicht neu.'
+      )
+    }
+    applyRecoveredExamination(patientExaminationId, examinationId, examination.name, response.data)
+    // Reuse normal hydration and template compatibility checks; retain existing draft content.
+    await hydrateDraftForRoutePatientExamination(patientExaminationId)
+  } catch (error: unknown) {
+    if (isCurrent()) {
+      examinationRecoveryError.value = reportingApiErrorMessage(
+        error,
+        'Die Untersuchung konnte nicht zugeordnet werden.'
+      )
+    }
+  } finally {
+    examinationRecoverySaving.value = false
+  }
+}
+
 async function startNewPatientExamination(): Promise<void> {
   if (!(await flushDraftBeforeContextSwitch(null))) {
     return
   }
+  const selectedPatientId = flow.selectedPatientId
+  const selectedExaminationId = flow.selectedExaminationId
   flow.resetForPatientSwitch()
-  flow.setCaseSelection({ selectedPatientId: null, selectedExaminationId: null })
+  // Keep the previous context as editable defaults for a new study.
+  flow.setCaseSelection({ selectedPatientId, selectedExaminationId })
   patientExaminationCreationError.value = null
   await router.push('/reporting')
 }
@@ -3377,6 +3529,7 @@ async function createPatientExaminationContext(): Promise<void> {
 
 function draftHasRuntimeContent(): boolean {
   return Boolean(
+    flow.hasUnpersistedDraftChanges ||
     flow.currentRuntimeDraft?.payload.patientFindings.length ||
     Object.keys(readRecord(flow.templateSectionDrafts)).length ||
     flow.activeReportId ||
@@ -3488,6 +3641,7 @@ async function applyTemplateSelectionChange(
     throw error
   }
   flow.clearTemplateSectionDrafts()
+  flow.setRenderedReportText('', 'generated')
   flow.setLastTemplateValidation(null)
 }
 
@@ -4012,6 +4166,7 @@ async function loadPatientExaminationDraftContext(
     detailResponse.data && typeof detailResponse.data === 'object'
       ? (detailResponse.data as Record<string, unknown>)
       : {}
+
   assertPatientExaminationKnowledgeBaseCompatibility(detail, context)
   patientExaminationDetail.value = detail
   patientExaminationIdentityLoadedId.value = patientExaminationId
@@ -4241,11 +4396,13 @@ async function runDraftHydration(
 function isCurrentMediaPreloadRequest(
   requestGeneration: number,
   patientId: number,
-  patientExaminationId: number | null
+  patientExaminationId: number | null,
+  caseId: string
 ): boolean {
   const currentExaminationId = routePatientExaminationId.value || flow.patientExaminationId
   return (
     requestGeneration === mediaPreloadRequestGeneration &&
+    caseId === selectedPatientCase.value?.caseId &&
     patientId === flow.selectedPatientId &&
     patientExaminationId === currentExaminationId
   )
@@ -4280,26 +4437,49 @@ function mediaPreloadErrorMessage(error: unknown): string {
 }
 
 async function refreshMediaPreload() {
-  if (!flow.selectedPatientId) {
+  const patientCase = selectedPatientCase.value
+  if (!patientCase || patientCase.patient !== flow.selectedPatientId) {
     mediaPreloadRequestGeneration += 1
     flow.clearMediaPreload()
     return
   }
   const patientExaminationId = routePatientExaminationId.value || flow.patientExaminationId
-  const patientId = flow.selectedPatientId
+  if (
+    patientExaminationId &&
+    !patientCase.patientExaminations.some((examination) => examination.id === patientExaminationId)
+  ) {
+    mediaPreloadRequestGeneration += 1
+    flow.clearMediaPreload()
+    return
+  }
+  const patientId = patientCase.patient
   const requestGeneration = ++mediaPreloadRequestGeneration
   flow.setMediaPreloadLoading()
   try {
-    const payload = await fetchPatientTimelineLatest({
-      patientId,
-      patientExaminationId
-    })
-    if (!isCurrentMediaPreloadRequest(requestGeneration, patientId, patientExaminationId)) {
+    const [payload, timeline] = await Promise.all([
+      fetchPatientTimelineLatest({ patientId }),
+      fetchPatientTimeline(patientId)
+    ])
+    if (
+      !isCurrentMediaPreloadRequest(
+        requestGeneration,
+        patientId,
+        patientExaminationId,
+        patientCase.caseId
+      )
+    ) {
       return
     }
-    applyMediaPreload(payload)
+    applyMediaPreload({ ...payload, availableMedia: timeline.results })
   } catch (error: unknown) {
-    if (requestGeneration !== mediaPreloadRequestGeneration) {
+    if (
+      !isCurrentMediaPreloadRequest(
+        requestGeneration,
+        patientId,
+        patientExaminationId,
+        patientCase.caseId
+      )
+    ) {
       return
     }
     flow.setMediaPreloadError(mediaPreloadErrorMessage(error))
@@ -4349,7 +4529,7 @@ function stepStatusLabel(item: {
 }
 
 watch(
-  [() => flow.selectedPatientId, routePatientExaminationId],
+  [() => flow.selectedPatientId, routePatientExaminationId, () => readRecord(route.query).case_id],
   async ([patientId, patientExaminationId]) => {
     const watchGeneration = ++routeContextWatchGeneration
     const isCurrent = () =>
@@ -4436,7 +4616,12 @@ watch(
 )
 
 watch(
-  [() => flow.selectedPatientId, () => flow.patientExaminationId, routePatientExaminationId],
+  [
+    () => flow.selectedPatientId,
+    () => flow.patientExaminationId,
+    routePatientExaminationId,
+    () => selectedPatientCase.value?.caseId
+  ],
   async ([patientId]) => {
     if (!patientId) {
       mediaPreloadRequestGeneration += 1
@@ -4452,6 +4637,10 @@ onMounted(() => {
   void ensureTerminologyBundlesLoaded()
   void loadReportingLanguages()
   void Promise.all([patientStore.fetchPatients(), examinationStore.fetchExaminations()])
+})
+onBeforeUnmount(() => {
+  mediaPreloadRequestGeneration += 1
+  flow.clearMediaPreload()
 })
 </script>
 

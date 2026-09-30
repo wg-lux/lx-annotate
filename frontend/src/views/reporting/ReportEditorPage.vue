@@ -1664,6 +1664,12 @@ function formatRuntimeFindingSummary(
         choice.classificationChoice
       )}${descriptorText}`
     })
+    .concat(
+      (finding.interventions || []).map(
+        (name) =>
+          `Intervention: ${localizedConceptLabel(coreConcepts.value?.intervention, name) || name}`
+      )
+    )
     .join(verbosity === 'detailed' ? '\n  - ' : verbosity === 'short' ? '; ' : ' · ')
 
   const findingLabel = getFindingLabel(finding.finding)
@@ -1831,7 +1837,7 @@ function buildDraftFindingsPayload(): SaveReportSubmissionRequest['findings'] {
       classification: choice.classification,
       classificationChoice: choice.classificationChoice
     })),
-    interventions: []
+    interventions: (finding.interventions || []).map((intervention) => ({ intervention }))
   }))
 }
 

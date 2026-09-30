@@ -114,7 +114,7 @@
     </div>
 
     <div class="alert alert-secondary mb-0">
-      Änderungen können über „Bericht bearbeiten“ im Reporting-Ablauf vorgenommen werden.
+      Änderungen können über „Befunde“ im Reporting-Ablauf vorgenommen werden.
     </div>
   </div>
 </template>
@@ -122,7 +122,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import axiosInstance, { r } from '@/api/axiosInstance'
+import axiosInstance, { endoregApi } from '@/api/axiosInstance'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { endpoints } from '@/types/api/endpoints'
 import { buildPdfStreamUrl } from '@/utils/mediaUrls'
@@ -237,7 +237,7 @@ const patientTimelineUrl = computed(() => {
   }
   if (flow.selectedPatientId) {
     return withPatientExaminationFilter(
-      `/${r(endpoints.media.patientTimeline(flow.selectedPatientId))}`
+      endoregApi(endpoints.media.patientTimeline(flow.selectedPatientId))
     )
   }
   return null
@@ -257,7 +257,7 @@ async function loadLatestFinalizedState() {
 
   try {
     const listRes = await axiosInstance.get<unknown>(
-      r(endpoints.report.patientExaminationReportsByPatientExamination(patientExaminationId.value))
+      endoregApi(endpoints.report.patientExaminationReportsByPatientExamination(patientExaminationId.value))
     )
     const items = parseReportListPayload(listRes.data)
     if (!items.length) {
@@ -269,7 +269,7 @@ async function loadLatestFinalizedState() {
     flow.setActiveReportId(items[0].id)
 
     const detailRes = await axiosInstance.get(
-      r(endpoints.report.patientExaminationReportById(items[0].id))
+      endoregApi(endpoints.report.patientExaminationReportById(items[0].id))
     )
     latestReportDetail.value = (detailRes.data || null) as ReportDetailRow | null
     successMessage.value = 'Der abgeschlossene Bericht wurde geladen.'

@@ -2,6 +2,7 @@ import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import { reactive } from 'vue'
 import { routeLocationKey } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { useAnonymizationValidationDraftStore } from '@/stores/anonymizationValidationDraftStore'
 import SidebarComponent from '../SidebarComponent.vue'
 
 const { get, logError } = vi.hoisted(() => ({ get: vi.fn(), logError: vi.fn() }))
@@ -101,6 +102,79 @@ describe('Sidebar workflow', () => {
     expect(activeTexts()).toEqual(['3. Dokumentation starten', 'Dokumentation: Übersicht'])
     wrapper.unmount()
   })
+
+  it.each(['video', 'pdf'] as const)(
+    'removes the accepted %s target from an already mounted sidebar and session storage',
+    async (media_type) => {
+      const { wrapper } = mountSidebar()
+      const store = useAnonymizationValidationDraftStore()
+      const link = wrapper
+        .findAllComponents(RouterLinkStub)
+        .find((candidate) => candidate.text().includes('Validierung fortsetzen'))
+      expect(link?.props('to')).toBe('/anonymisierung/uebersicht')
+      store.remember(media_type, 42)
+      await flushPromises()
+      expect(link?.props('to')).toEqual({
+        path: '/anonymisierung/validierung',
+        query: { fileId: '42', mediaType: media_type }
+      })
+      store.clear(media_type, 42)
+      await flushPromises()
+      expect(link?.props('to')).toBe('/anonymisierung/uebersicht')
+      expect(sessionStorage.getItem('last:fileId')).toBeNull()
+      expect(sessionStorage.getItem('last:scope')).toBeNull()
+      wrapper.unmount()
+      const remounted = mountSidebar().wrapper
+      expect(
+        remounted
+          .findAllComponents(RouterLinkStub)
+          .find((candidate) => candidate.text().includes('Validierung fortsetzen'))
+          ?.props('to')
+      ).toBe('/anonymisierung/uebersicht')
+      remounted.unmount()
+    }
+  )
+
+  it.each([
+    ['pdf', 43],
+    ['video', 42]
+  ] as const)(
+    'does not clear a different pending target (%s %s) on acceptance',
+    async (media_type, file_id) => {
+      const { wrapper } = mountSidebar()
+      const store = useAnonymizationValidationDraftStore()
+      store.remember(media_type, file_id)
+      store.clear('pdf', 42)
+      await flushPromises()
+      const link = wrapper
+        .findAllComponents(RouterLinkStub)
+        .find((candidate) => candidate.text().includes('Validierung fortsetzen'))
+      expect(link?.props('to')).toEqual({
+        path: '/anonymisierung/validierung',
+        query: { fileId: String(file_id), mediaType: media_type }
+      })
+      expect(sessionStorage.getItem('last:fileId')).toBe(String(file_id))
+      expect(sessionStorage.getItem('last:scope')).toBe(media_type)
+      wrapper.unmount()
+    }
+  )
+
+  it.each([null, '', '0', '-1', 'NaN', '1.5'])(
+    'does not resume an invalid stored file ID: %s',
+    async (file_id) => {
+      if (file_id !== null) sessionStorage.setItem('last:fileId', file_id)
+      sessionStorage.setItem('last:scope', 'pdf')
+      const { wrapper } = mountSidebar()
+      await flushPromises()
+      expect(
+        wrapper
+          .findAllComponents(RouterLinkStub)
+          .find((candidate) => candidate.text().includes('Validierung fortsetzen'))
+          ?.props('to')
+      ).toBe('/anonymisierung/uebersicht')
+      wrapper.unmount()
+    }
+  )
 
   it.each(['video', 'pdf'])(
     'restores the last %s validation target from session storage',

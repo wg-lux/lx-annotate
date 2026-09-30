@@ -46,6 +46,8 @@ definition_of_done:
     generations retire only after the replacement and HLS are verified.
   - State repair preserves failed upload diagnostics and never treats historical HLS or file existence
     as proof of a successful replacement import or permission to delete a source.
+  - Missing video metadata resumes through the existing video reimport endpoint with prediction refresh
+    disabled. Missing sources, active operations and rejected imports remain explicit failures.
   - Transcode decryption failures fail closed, plaintext scope remains restrictive, and a post-publication
     cleanup failure never deletes the currently referenced published artifact.
   required: true
@@ -139,22 +141,12 @@ definition_of_done:
         cases. Canonical lx-dtypes cancellation contract lane 47 passed; targeted strict Pyright and Ruff
         passed. Migration drift check reported no changes. PostgreSQL concurrency and deployed browser
         acceptance remain open.'
-    note: Capacity, truthful stage progress, serialized polling and UUID-scoped cooperative cancellation
-      are implemented locally. Cancellation requires the reviewed endoreg-db and lx-dtypes source changes
-      plus the new migration; the currently pinned published backend does not advertise cancellation and
-      direct requests explicitly return unavailable. Processed replacement and bounded bulk submission
-      during state repair are implemented locally; HLS is the playback copy. The undeployed full-video
-      copy model, migration fields, and compatibility paths are removed. Encrypted candidate staging,
-      exclusive media leases, generation checks and short pointer-publication transactions protect the
-      existing artifact and annotation timeline. HLS publication retains the old generation until the
-      replacement is ready. Published-artifact cleanup failures remain explicit and preserve the referenced
-      output. Transcoding requires the corresponding endoreg-db source and migration 0080 plus lx-annotate
-      migration 0009; unsupported installed dependencies fail explicitly with 503. Encoding uses the existing
-      balanced profile and preserves FPS; it does not promise a particular size reduction. No production
-      operation or readiness approval is claimed. SQLite checks do not establish PostgreSQL concurrency
-      acceptance, and the gc-02 OCR timeout still requires runtime diagnosis.
-    assessed_by: codex-api-overview-20260914
-    assessed_at: '2026-09-14T15:33:14Z'
+    - kind: command
+      reference: '2026-09-25: Metadata repair invokes existing video reimport with refresh_predictions=false.
+        56 store/component tests passed; vue-tsc tsconfig.app.json and focused ESLint passed. Missing
+        source and rejected imports stay explicit. No production deployment performed.'
+    assessed_by: codex-import-20260924-a
+    assessed_at: '2026-09-25T06:42:12.033462Z'
 - id: truthful_import_and_reimport
   category: requirements
   title: Import and reimport retain truthful state and visible recovery
@@ -534,6 +526,45 @@ definition_of_done:
   assessment:
     status: not_assessed
     evidence: []
+- id: typed_media_deletion_and_patient_cleanup
+  category: data_integrity
+  title: Media deletion resolves an explicit media type and preserves lifecycle provenance
+  acceptance:
+  - Video and PDF identifiers are scoped by media type; equal numeric IDs never select another resource.
+  - Missing or multiple upload jobs cannot turn an already completed media deletion into a misleading
+    failure.
+  - Deletion preserves upload-job diagnostics and uses the authoritative lifecycle transition contract.
+  - Patient cleanup checks all associated media and has an explicit policy for existing examinations,
+    findings and the is_real_person protection before deleting a patient with no remaining media.
+  required: true
+  verification:
+    kind: manual
+    instructions: Test equal video/PDF IDs, missing media, zero/multiple upload jobs, retained lifecycle
+      history, patients with remaining media and patient deletion protections. Verify the reported video
+      16 on gc-02 using the actual runtime database before claiming incident resolution.
+    timeout_seconds: 300
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: test
+      reference: '2026-09-25: Vitest mediaManagement.deletion.test.ts and AnonymizationOverviewComponent.test.ts:
+        50 passed; equal video/PDF IDs, filtered collisions, both API aliases, video store and no untyped
+        fallback covered.'
+    - kind: command
+      reference: vue-tsc --build --force and ESLint on changed frontend files passed. OpenAPI artifacts
+        generated directly with python -m django against /home/admin/endoreg-db; the existing manage.py
+        main is a no-op.
+    - kind: review
+      reference: Backend typed route requires video or pdf and never falls through to another model. Legacy
+        untyped route rejects requests. Model storage cleanup retained; upload jobs preserved through
+        registered deletion signals and Rust-validated integrity-lost helper.
+    - kind: test
+      reference: 'Final backend verification: 54 passed, zero skipped across media-management endpoints,
+        lifecycle state machine, hub media integrity and app startup. Focused Pyright and Ruff passed.
+        Direct Django export_openapi --check verified generated schemas and TypeScript against the source
+        backend.'
+    assessed_by: codex-video16-20260925
+    assessed_at: '2026-09-25T08:23:37.064876Z'
 - id: readiness_findings_documented
   category: documentation
   title: Readiness findings distinguish source evidence from deployed acceptance

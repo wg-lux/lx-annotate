@@ -131,3 +131,20 @@ def test_manage_command_honors_test_settings_without_deployment_secret() -> None
 
     assert result.returncode == 0, result.stderr
     assert "Export Django Ninja OpenAPI schemas" in result.stdout
+
+
+def test_manage_command_rejects_unknown_command() -> None:
+    env = os.environ.copy()
+    env["DJANGO_SETTINGS_MODULE"] = "lx_annotate.settings.settings_test"
+    result = subprocess.run(
+        [sys.executable, "manage.py", "readiness_nonexistent_command"],
+        cwd=REPOSITORY_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "Unknown command" in result.stderr

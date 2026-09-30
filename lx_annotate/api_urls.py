@@ -37,6 +37,7 @@ from lx_annotate.views.quarantine import quarantine_overview
 from lx_annotate.views.report_llm import report_llm_generate, report_llm_status
 from lx_annotate.views.study_cohorts import (
     dataset_study_cohorts,
+    study_cohort_definition,
     study_cohort_detail,
     study_cohort_preview,
     study_cohorts,
@@ -47,6 +48,11 @@ from lx_annotate.views.video_transcode_jobs import VideoTranscodeJobsView
 
 urlpatterns = [
     path("media/studies/cohorts/", study_cohorts, name="study-cohorts"),
+    path(
+        "media/studies/cohorts/<int:cohort_id>/definition/",
+        study_cohort_definition,
+        name="study-cohort-definition",
+    ),
     path(
         "media/studies/cohorts/preview/",
         study_cohort_preview,

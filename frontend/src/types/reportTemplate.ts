@@ -393,6 +393,7 @@ export type ReportTemplateRuntimePatientFindingInput = {
   localId?: string
   finding: string
   classificationChoices: ReportTemplateRuntimeClassificationChoiceInput[]
+  interventions?: string[]
 }
 
 export type ReportTemplateRuntimePayload = {
@@ -403,4 +404,8 @@ export type ReportTemplateRuntimePayload = {
   knowledgeBaseModule?: string | null
   knowledgeBaseVersion?: string | null
   patientFindings: ReportTemplateRuntimePatientFindingInput[]
+  patientIndications?: Array<{
+    indication: string
+    classifications: Array<{ classification: string; classificationChoice: string }>
+  }>
 }

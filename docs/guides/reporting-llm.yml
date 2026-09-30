@@ -25,6 +25,13 @@ api:
   readiness_limit: Model inventory proves provider availability and model registration, not successful GPU allocation; generation errors remain visible.
   failures: Disabled configuration, unavailable model, authentication failure, timeout, invalid graph, oversized input, empty or truncated output.
   output: Plain report text, model name, graph context ID and prompt version.
+  request_parsing: >-
+    Generation accepts application/json through an endpoint-specific bounded
+    JSON parser. The view uses DRF's cached request.data because session
+    authentication's CSRF check can consume the request stream before the view.
+    Reading request.body afterwards raises RawPostDataException.
+    Oversized requests return the reporting input_too_large envelope with HTTP
+    413, including when CSRF triggers parsing. Missing CSRF tokens remain denied.
 prompt:
   version: clinical-graph-report-v2
   source: lx_annotate/services/report_llm.py
@@ -75,6 +82,7 @@ configuration:
     - Free-text notes remain clinical data. Payloads and upstream bodies are never logged by these endpoints.
     - No training, active-learning loop, model replacement or production deployment is performed by the button.
 limits:
+  request_body_bytes: 1000000
   frontend_status_timeout_seconds: 15
   frontend_generation_timeout_seconds: 135
   upstream_connect_timeout_seconds: 5

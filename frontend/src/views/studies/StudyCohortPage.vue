@@ -375,7 +375,17 @@
               geprüft. Verknüpfungen werden erst mit „Kohorte speichern“ gespeichert.</small
             >
           </div>
+          <StudyMetadataEditor v-model="studyMetadata" />
           <div class="d-flex justify-content-end gap-2 mt-3">
+            <button
+              type="button"
+              class="btn btn-outline-secondary mb-0"
+              :disabled="!selectedCohortId || saving || downloading"
+              data-test="download-definition"
+              @click="downloadDefinition"
+            >
+              Gespeicherte Definition (.yml)
+            </button>
             <button
               type="button"
               class="btn btn-outline-primary mb-0"
@@ -617,15 +627,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, toRaw, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { type StudyCohortPreviewFilters, type StudyCohortPreviewResponse } from '@/api/studyApi'
 import { fetchAiDatasetOptions, type AiDatasetOption } from '@/api/aiDatasetApi'
+import StudyMetadataEditor from '@/components/StudyMetadataEditor.vue'
 import {
   fetchStudyCohorts,
+  fetchStudyDefinition,
+  emptyStudyMetadata,
   previewStudyCohort,
   saveStudyCohort,
-  type SavedStudyCohort
+  type SavedStudyCohort,
+  type StudyMetadata
 } from '@/api/studyCohortApi'
 import { useStudyCohortExportStore } from '@/stores/studyCohortExportStore'
 
@@ -633,11 +647,13 @@ const router = useRouter()
 const cohortExportStore = useStudyCohortExportStore()
 const studyName = ref('')
 const hypothesis = ref('')
+const studyMetadata = ref(emptyStudyMetadata())
 const savedCohorts = ref<SavedStudyCohort[]>([])
 const datasetOptions = ref<AiDatasetOption[]>([])
 const selectedCohortId = ref('')
 const selectedDatasetIds = ref<number[]>([])
 const saving = ref(false)
+const downloading = ref(false)
 const savedMessage = ref('')
 const hasReportFilter = ref<'' | 'true' | 'false'>('')
 const hasVideoFilter = ref<'' | 'true' | 'false'>('')
@@ -678,7 +694,15 @@ const summaryMetrics = computed(() => {
 })
 
 watch(
-  [studyName, hypothesis, hasReportFilter, hasVideoFilter, filters, selectedDatasetIds],
+  [
+    studyName,
+    hypothesis,
+    hasReportFilter,
+    hasVideoFilter,
+    filters,
+    selectedDatasetIds,
+    studyMetadata
+  ],
   () => {
     activeController?.abort()
     activeController = null
@@ -758,6 +782,7 @@ async function previewCohort(): Promise<void> {
       {
         name,
         hypothesis: description,
+        studyMetadata: studyMetadata.value,
         filters: requestFilters(),
         datasetIds: [...selectedDatasetIds.value]
       },
@@ -793,8 +818,13 @@ function selectCohort(): void {
   const cohort = savedCohorts.value.find((row) => String(row.id) === selectedCohortId.value)
   studyName.value = cohort?.name ?? ''
   hypothesis.value = cohort?.hypothesis ?? ''
+  studyMetadata.value = copyStudyMetadata(cohort?.studyMetadata)
   selectedDatasetIds.value = [...(cohort?.datasetIds ?? [])]
   applySavedFilters(cohort?.filters ?? {})
+}
+
+function copyStudyMetadata(metadata: StudyMetadata | undefined): StudyMetadata {
+  return metadata ? structuredClone(toRaw(metadata)) : emptyStudyMetadata()
 }
 
 function booleanFilter(value: boolean | null | undefined): '' | 'true' | 'false' {
@@ -824,6 +854,7 @@ async function saveCohort(): Promise<void> {
       {
         name: studyName.value,
         hypothesis: hypothesis.value,
+        studyMetadata: studyMetadata.value,
         filters: requestFilters(),
         datasetIds: [...selectedDatasetIds.value]
       },
@@ -837,6 +868,29 @@ async function saveCohort(): Promise<void> {
     errorMessage.value = readableError(error)
   } finally {
     saving.value = false
+  }
+}
+
+async function downloadDefinition(): Promise<void> {
+  if (!selectedCohortId.value || downloading.value) return
+  downloading.value = true
+  errorMessage.value = ''
+  const id = Number(selectedCohortId.value)
+  try {
+    const blob = await fetchStudyDefinition(id)
+    const url = URL.createObjectURL(blob)
+    try {
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `study-${String(id)}.yml`
+      link.click()
+    } finally {
+      URL.revokeObjectURL(url)
+    }
+  } catch (error) {
+    errorMessage.value = readableError(error)
+  } finally {
+    downloading.value = false
   }
 }
 

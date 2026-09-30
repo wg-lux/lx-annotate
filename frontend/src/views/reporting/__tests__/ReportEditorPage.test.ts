@@ -223,6 +223,7 @@ function buildFlowStore() {
           {
             localId: 'finding_1',
             finding: 'esophagus_polyp',
+            interventions: [] as string[],
             classificationChoices: [
               {
                 localId: 'classification_1',
@@ -291,6 +292,7 @@ function buildFlowStoreWithMissingRequiredClassification() {
     {
       localId: 'finding_1',
       finding: 'esophagus_polyp',
+      interventions: [],
       classificationChoices: []
     }
   ]
@@ -422,6 +424,9 @@ describe('ReportEditorPage draft-driven workflow', () => {
   })
 
   it('renders live section preview from the current runtime draft and saves draft findings', async () => {
+    hoisted.flowRef.current.currentRuntimeDraft.payload.patientFindings[0].interventions = [
+      'biopsy'
+    ]
     const wrapper = mountPage()
     await flushPromises()
 
@@ -462,11 +467,12 @@ describe('ReportEditorPage draft-driven workflow', () => {
             classificationChoice: 'size_mm'
           }
         ],
-        interventions: []
+        interventions: [{ intervention: 'biopsy' }]
       }
     ])
     expect(savePayload.editorPayload).toMatchObject({ reportLanguage: 'de' })
     expect(savePayload.renderedText).toContain('Ösophaguspolyp: Größe: Millimeter')
+    expect(savePayload.renderedText).toContain('Intervention: biopsy')
   })
 
   it('requires confirmation before discarding a conflicted local draft and reloading the server state', async () => {

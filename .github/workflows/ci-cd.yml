@@ -126,6 +126,11 @@ jobs:
           cargo --version
           uv sync --frozen --extra dev --no-install-project
 
+      - name: Validate readiness definitions and tracker policy
+        run: |
+          uv run --no-sync python feature-tracking/tracker.py validate
+          uv run --no-sync pytest -q feature-tracking/test_tracker.py
+
       - name: Run backend static checks
         run: |
           uv run --no-sync mypy lx_annotate --show-traceback

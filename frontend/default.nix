@@ -5,16 +5,16 @@
 
 buildNpmPackage rec {
   pname = "lx-annotate-frontend";
-  version = "1.3.5";
+  version = "1.4.2";
 
   src = ./.;
 
-# TODO: On npm deps change, run make packages once with npmDepsHash = lib.fakeHash; 
+# TODO: On npm deps change, run "make package" once with npmDepsHash = lib.fakeHash; 
 # then replace lib.fakeHash with the returned "hash in quotes". You can find the hash in the section of the error message:
 # specified: the SHA-AA... default
 # (fake) got (your real hash)
 # Replace lib.fakeHash with the returned hash in default.nix
-  npmDepsHash = "sha256-sXoIYOgkOOAmi/7zKdni+l+Lj8W3h3VYLLWFP4Dk9Rk=";
+  npmDepsHash = "sha256-ftui+wiYlfxdv31hhFFAyRPS4g9orpxQc9FZL9Kr9CI=";
 
   # Keep Nix builds on the same Node/npm toolchain as the development shell.
   # The Nix default Node 20 toolchain rejects this lockfile's optional platform

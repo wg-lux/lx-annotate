@@ -35,6 +35,49 @@ describe('reportingTimelineApi', () => {
     vi.clearAllMocks()
   })
 
+  it('retains text-only reports without file handles', async () => {
+    const report = {
+      id: 7,
+      mediaType: 'full_report',
+      rawPdfId: null,
+      patientExaminationId: 10,
+      timestamp: null,
+      examinationDate: null,
+      documentType: null,
+      fileName: null,
+      anonymizedText: 'Anonymisierter Bericht',
+      streamOptions: []
+    }
+    hoisted.axios.get.mockResolvedValue({
+      data: { patient: timelinePatient, count: 1, results: [report] }
+    })
+    expect((await fetchPatientTimeline(42)).results).toEqual([report])
+    hoisted.axios.get.mockResolvedValue({
+      data: { patient: timelinePatient, count: 1, results: [{ ...report, anonymizedText: 123 }] }
+    })
+    await expect(fetchPatientTimeline(42)).rejects.toThrow(TypeError)
+  })
+
+  it.each([
+    { patient: { ...timelinePatient, id: 43 }, count: 0, results: [] },
+    { patient: timelinePatient, count: 1, results: [] }
+  ])('rejects wrong patient identity and partial histories %#', async (data) => {
+    hoisted.axios.get.mockResolvedValue({ data })
+    await expect(fetchPatientTimeline(42)).rejects.toThrow('identity or completeness')
+  })
+
+  it('rejects another patient in the latest preview', async () => {
+    hoisted.axios.get.mockResolvedValue({
+      data: {
+        patient: { ...timelinePatient, id: 43 },
+        latestReport: null,
+        latestVideo: null,
+        latestFrames: []
+      }
+    })
+    await expect(fetchPatientTimelineLatest({ patientId: 42 })).rejects.toThrow('identity mismatch')
+  })
+
   it('prefers processed stream and falls back to raw', () => {
     expect(
       pickPreferredStream([

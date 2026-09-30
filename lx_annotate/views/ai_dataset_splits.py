@@ -15,9 +15,11 @@ from rest_framework.response import Response
 from lx_annotate.models import AIDatasetSplitPlan
 from lx_annotate.schemas.ai_dataset_splits import SplitConfig, SplitSnapshot
 from lx_annotate.services.ai_dataset_splits import (
+    StaleSplitMembership,
     build_snapshot,
     collect_membership,
     summarize_snapshot,
+    validate_snapshot_patients,
 )
 
 
@@ -54,6 +56,7 @@ def plan_response(plan, user, *, include_membership=False):
         **summarize_snapshot(snapshot),
     }
     if include_membership:
+        validate_snapshot_patients(snapshot)
         result["membership"] = snapshot.model_dump(mode="json")
     return result
 
@@ -99,4 +102,8 @@ def dataset_split_plans(request, dataset_id):
 def dataset_split_plan_detail(request, dataset_id, plan_id):
     plan = get_object_or_404(AIDatasetSplitPlan, pk=plan_id, dataset_id=dataset_id)
     require_dataset_access(request.user, plan.dataset)
-    return Response(plan_response(plan, request.user, include_membership=True))
+    try:
+        result = plan_response(plan, request.user, include_membership=True)
+    except StaleSplitMembership as error:
+        return Response({"detail": str(error)}, status=409)
+    return Response(result)

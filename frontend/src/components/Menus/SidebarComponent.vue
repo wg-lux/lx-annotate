@@ -310,9 +310,11 @@
 import { computed } from 'vue'
 import { useRoute, type RouteLocationRaw } from 'vue-router'
 import coloRegLogo from '@/assets/ColoReg.png'
+import { useAnonymizationValidationDraftStore } from '@/stores/anonymizationValidationDraftStore'
 import { useSidebarWorkflowCounts } from '@/composables/useSidebarWorkflowCounts'
 
 const route = useRoute()
+const validation_drafts = useAnonymizationValidationDraftStore()
 const { pendingValidationCount, processingCount } = useSidebarWorkflowCounts()
 const isAnonymizationOverviewRoute = computed(
   () => route.path === '/anonymisierung' || route.path.startsWith('/anonymisierung/uebersicht')
@@ -330,17 +332,14 @@ const isReportingRoute = computed(() => route.path.startsWith('/reporting'))
 const isReportingCaseSetupRoute = computed(() => route.path.startsWith('/reporting/case-setup'))
 
 const lastValidationTo = computed<RouteLocationRaw>(() => {
-  const fileId = Number(sessionStorage.getItem('last:fileId'))
-  const storedScope = sessionStorage.getItem('last:scope')
-  const mediaType = storedScope === 'video' || storedScope === 'pdf' ? storedScope : null
-
-  if (Number.isFinite(fileId) && mediaType) {
+  const target = validation_drafts.resume_target
+  if (target) {
     return {
       path: '/anonymisierung/validierung',
-      query: { fileId: String(fileId), mediaType }
+      query: { fileId: String(target.file_id), mediaType: target.media_type }
     }
   }
-  return '/anonymisierung/validierung'
+  return '/anonymisierung/uebersicht'
 })
 </script>
 

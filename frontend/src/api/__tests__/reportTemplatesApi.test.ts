@@ -531,9 +531,16 @@ describe('reportTemplatesApi', () => {
         examination: 'star_upper_gi_endoscopy',
         knowledgeBaseModule: 'report_template_examples',
         knowledgeBaseVersion: '0.1.0',
+        patientIndications: [
+          {
+            indication: 'screening',
+            classifications: [{ classification: 'reason', classificationChoice: 'routine' }]
+          }
+        ],
         patientFindings: [
           {
             finding: 'esophagus_polyp',
+            interventions: ['biopsy'],
             classificationChoices: [
               {
                 classification: 'size_mm',
@@ -587,8 +594,36 @@ describe('reportTemplatesApi', () => {
                 uuid: 'frontend_runtime_exam_finding_1_classifications_1'
               }
             ],
-            patient_finding_interventions: [],
+            patient_finding_interventions: [
+              {
+                patient_finding: 'frontend_runtime_exam_finding_1',
+                uuid: 'frontend_runtime_exam_finding_1_interventions',
+                patient_finding_interventions: [
+                  {
+                    intervention: 'biopsy',
+                    patient_finding_interventions: 'frontend_runtime_exam_finding_1_interventions',
+                    uuid: 'frontend_runtime_exam_finding_1_intervention_1'
+                  }
+                ]
+              }
+            ],
             uuid: 'frontend_runtime_exam_finding_1'
+          }
+        ],
+        patient_indications: [
+          {
+            indication: 'screening',
+            patient_examination: 'frontend_runtime_exam',
+            uuid: 'frontend_runtime_exam_indication_1',
+            patient_indication_classifications: [
+              {
+                classification: 'reason',
+                classification_choice: 'routine',
+                patient_indication: 'frontend_runtime_exam_indication_1',
+                uuid: 'frontend_runtime_exam_indication_1_classification_1',
+                patient_indication_classification_descriptors: []
+              }
+            ]
           }
         ]
       }

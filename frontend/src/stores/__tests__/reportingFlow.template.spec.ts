@@ -56,6 +56,44 @@ describe('reportingFlowStore template draft state', () => {
     })
   })
 
+  it('persists intervention changes per finding instance without duplicates', async () => {
+    const flow = useReportingFlowStore()
+    flow.bindAuthSubject('oidc:user-1')
+    flow.setPatientExaminationContext({ patientExaminationId: PATIENT_EXAMINATION_ID })
+    flow.setRuntimeDraft({
+      draftId: 'draft_42',
+      patientExaminationId: PATIENT_EXAMINATION_ID,
+      moduleName: 'report_template_examples',
+      templateName: 'star_upper_gi_main',
+      payload: {
+        patient: 'patient_7',
+        examiners: [],
+        examination: 'colonoscopy',
+        patientFindings: [
+          { localId: 'one', finding: 'colon_polyp', classificationChoices: [] },
+          { localId: 'two', finding: 'colon_polyp', classificationChoices: [] }
+        ]
+      },
+      hydratedFrom: 'backend_context',
+      updatedAt: '2026-03-19T13:55:00.000Z'
+    })
+    flow.setFindingIntervention('one', 'biopsy', true)
+    flow.setFindingIntervention('one', 'biopsy', true)
+    expect(flow.currentRuntimeDraft?.payload.patientFindings[0].interventions).toEqual(['biopsy'])
+    expect(flow.currentRuntimeDraft?.payload.patientFindings[1].interventions).toBeUndefined()
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_SETTLE_MS)
+    expect(
+      hoisted.reportDraftApi.savePatientExaminationDraft.mock.calls[0][0].payload.patientFindings[0]
+        .interventions
+    ).toEqual(['biopsy'])
+    setActivePinia(createPinia())
+    const restored = useReportingFlowStore()
+    restored.bindAuthSubject('oidc:user-1')
+    expect(restored.currentRuntimeDraft?.payload.patientFindings[0].interventions).toEqual(['biopsy'])
+    flow.setFindingIntervention('one', 'biopsy', false)
+    expect(flow.currentRuntimeDraft?.payload.patientFindings[0].interventions).toEqual([])
+  })
+
   it('does not invent a knowledge-base module before terminology is active', () => {
     const flow = useReportingFlowStore()
 

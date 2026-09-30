@@ -14,6 +14,29 @@ source_documents:
 - path: docs/guides/terminology-delivery.md
   disposition: reference
   note: >-
+    2026-09-28 switching verification by codex-terminology-20260928-a:
+    removed automatic global package activation during restored examination loading
+    in ReportingShell.vue. Explicit package selections remain selected; examinations
+    pinned to another identity remain blocked with an actionable mismatch instead
+    of silently reverting the registry. Before the fix, the targeted frontend matrix
+    had 61 passing and 2 failing tests; afterwards all 63 passed across ReportingShell,
+    terminologyStore, terminologyApi and useReportTemplates. Scoped ESLint and Ruff
+    passed. With PYTHONPATH=/home/admin/lx-data-models:$PWD, the repository venv's
+    python -m pytest tests/api/test_packaged_terminology_resolution.py
+    tests/api/test_terminology_editor_compatibility.py -q passed all 4 tests.
+    Local lx-data-models revision: 3a785eb4ae3a6787281b63b6bc54ab701efde8c5,
+    with a pre-existing pyproject.toml edit. Authenticated API activation covers
+    dgvs_reporting 0.1.0, mst_3_0 3.0.0, star_upper_gi 0.1.2, coloreg 0.1.0,
+    and return to DGVS, checking registry revision, active identity and graph identity
+    on each selection and restoring the original selection afterwards. These are
+    source integration checks, not production deployment approval. The same 4 API
+    tests also passed against the installed lx-dtypes 0.3.7 package without the
+    source override. Per the user's follow-up, the terminology selector stays enabled
+    and asks "Sind Sie sicher? Erstellen Sie zuerst eine neue Untersuchung." before
+    activation. Cancellation restores the displayed active package without sending
+    an activation request; confirmation proceeds through the existing save and
+    activation flow. ReportingShell regression coverage checks both outcomes.
+
     2026-09-21 canonical host integration by codex-dtypes-20260921: one lazy /dtypes-api/
     mount, one configured terminology service, and one packaged_registry test fixture.
     Runtime settings use endoreg_db.utils.paths and LX_RUNTIME_ROOT. Frontend API/store

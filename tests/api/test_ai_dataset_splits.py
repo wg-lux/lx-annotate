@@ -208,3 +208,77 @@ def test_permissions_and_invalid_api_payloads(dataset, client):
     assert client.get(path(dataset)).status_code == 200
     portal.centers.clear()
     assert client.get(f"{path(dataset)}{plan_id}/").status_code == 403
+
+
+@pytest.mark.parametrize("change", ["reassigned", "missing", "conflicting", "deleted"])
+def test_saved_membership_rejects_patient_link_drift(dataset, client, change):
+    response = client.post(
+        path(dataset), dict(name="Plan", k=2, test_percent=20, seed=42), format="json"
+    )
+    assert response.status_code == 201
+    plan_id = response.json()["id"]
+    plan = AIDatasetSplitPlan.objects.get(pk=plan_id)
+    original_snapshot = plan.snapshot
+    patient = next(p for p in plan.snapshot["patients"] if p["validation_fold"] is None)
+    other = next(
+        p for p in plan.snapshot["patients"] if p["validation_fold"] is not None
+    )
+    video = VideoFile.objects.get(pk=patient["videos"][0]["video_id"])
+    if change == "reassigned":
+        # The saved holdout would now share a patient with a non-test bucket.
+        video.patient_id = other["patient_id"]
+        video.save(update_fields=["patient"])
+    elif change == "missing":
+        video.patient = None
+        video.save(update_fields=["patient"])
+    elif change == "conflicting":
+        video.examination = PatientExamination.objects.create(
+            patient_id=other["patient_id"]
+        )
+        video.save(update_fields=["examination"])
+    else:
+        video.delete()
+
+    detail = client.get(f"{path(dataset)}{plan_id}/")
+    assert detail.status_code == 409
+    assert "create a new split plan" in detail.json()["detail"]
+    assert "membership" not in detail.json()
+    plan.refresh_from_db()
+    assert plan.snapshot == original_snapshot
+    # Historical summaries remain inspectable, without returning membership.
+    summaries = client.get(path(dataset))
+    assert summaries.status_code == 200
+    assert "membership" not in summaries.json()[0]
+
+
+def test_saved_membership_accepts_same_patient_via_examination(dataset, client):
+    response = client.post(
+        path(dataset), dict(name="Plan", k=2, test_percent=20, seed=42), format="json"
+    )
+    assert response.status_code == 201
+    detail_path = f"{path(dataset)}{response.json()['id']}/"
+    original = client.get(detail_path).json()["membership"]
+    video = VideoFile.objects.get(pk=original["patients"][0]["videos"][0]["video_id"])
+    video.examination = PatientExamination.objects.create(patient_id=video.patient_id)
+    video.patient = None
+    video.save(update_fields=["patient", "examination"])
+    # Removing dataset membership must not rewrite or invalidate a saved snapshot.
+    dataset.image_annotations.clear()
+    dataset.video_annotations.clear()
+    detail = client.get(detail_path)
+    assert detail.status_code == 200
+    assert detail.json()["membership"] == original
+
+
+def test_saved_membership_checks_authorization_before_drift(dataset, client):
+    response = client.post(
+        path(dataset), dict(name="Plan", k=2, test_percent=20, seed=42), format="json"
+    )
+    assert response.status_code == 201
+    video = VideoFile.objects.first()
+    video.patient = None
+    video.save(update_fields=["patient"])
+    client.force_authenticate(User.objects.create_user(username="split-unscoped"))
+    detail = client.get(f"{path(dataset)}{response.json()['id']}/")
+    assert detail.status_code == 403
+    assert "Saved split" not in detail.json()["detail"]

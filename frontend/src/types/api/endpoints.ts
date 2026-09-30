@@ -142,7 +142,8 @@ export const endpoints = {
   mediaManagement: {
     status: 'media-management/status/',
     cleanup: 'media-management/cleanup/',
-    forceRemove: (fileId: Id) => `media-management/force-remove/${pathId(fileId)}/`,
+    forceRemove: (fileId: Id, mediaType: 'video' | 'pdf') =>
+      `media-management/force-remove/${mediaType}/${pathId(fileId)}/`,
     resetStatus: (fileId: Id) => `media-management/reset-status/${pathId(fileId)}/`
   },
 
@@ -194,6 +195,7 @@ export const endpoints = {
       `media/videos/${pathId(pk)}/ensure-segment-annotations/`,
     ensureSegmentAnnotationsBulk: 'media/videos/ensure-segment-annotations/',
 
+    videoReimport: (pk: Id) => `media/videos/${pathId(pk)}/reimport/`,
     videoSensitiveMetadata: (pk: Id) => `media/videos/${pathId(pk)}/sensitive-metadata/`,
     videoSensitiveMetadataVerify: (pk: Id) =>
       `media/videos/${pathId(pk)}/sensitive-metadata/verify/`,

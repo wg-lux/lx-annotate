@@ -173,3 +173,43 @@ definition_of_done:
       feature.
     assessed_by: codex-buckets-20260911-a
     assessed_at: '2026-09-11T08:34:14.862436Z'
+- id: saved_patient_link_integrity
+  category: data_integrity
+  title: Saved split membership rejects changed patient associations
+  acceptance:
+  - Before returning saved membership, recheck every saved video against its recorded patient using the
+    same direct/examination resolution as plan creation.
+  - Return HTTP 409 without membership for reassigned, missing, conflicting or deleted video/patient links.
+    Preserve the original snapshot and historical list summaries.
+  - Check center authorization before returning drift errors. Accept equivalent examination-based linkage
+    and dataset membership changes that leave the saved video-to-patient mapping intact.
+  required: true
+  verification:
+    kind: command
+    command:
+    - .devenv/state/venv/bin/python
+    - -m
+    - pytest
+    - tests/api/test_ai_dataset_splits.py
+    - -q
+    - --tb=short
+    - --show-capture=no
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'tests/api/test_ai_dataset_splits.py: 19 passed in 6.27s; six new cases cover four drift
+        modes, equivalent examination linkage and authorization precedence.'
+    - kind: test
+      reference: '.devenv/state/venv/bin/python -m pytest tests/api/test_ai_dataset_settings_api.py tests/contracts/test_frontend_backend_api_contract.py
+        -q --tb=short --show-capture=no: 21 passed in 5.46s.'
+    - kind: command
+      reference: Ruff check and format --check passed for both changed Python modules and the split test
+        module.
+    note: Membership detail now returns 409 on current patient-link drift. Historical summaries remain
+      available and snapshots remain immutable. This is a retrieval-time check, not a lock covering later
+      training, annotation-content freezing, cross-site identity resolution or public-release approval.
+      No schema or migration changes.
+    assessed_by: codex-claims-20260928
+    assessed_at: '2026-09-28T09:40:00.707899+00:00'

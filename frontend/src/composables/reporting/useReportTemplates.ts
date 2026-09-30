@@ -270,6 +270,7 @@ export function useReportTemplates(params?: {
     }
     return fetchTemplateByName(name, { setAsSelected: true })
   }
+  
 
   return {
     moduleName,

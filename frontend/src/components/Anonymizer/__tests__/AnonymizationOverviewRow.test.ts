@@ -182,16 +182,18 @@ describe('AnonymizationOverviewRow', () => {
   it('keeps anonymization, annotation and validation in separate cells', async () => {
     const wrapper = renderRow()
     const cells = wrapper.findAll('td')
+    const validation = wrapper.get('td.validation-action-column')
     expect(cells).toHaveLength(10)
-    expect(cells[5].text()).toBe('Fertig')
-    expect(cells[6].text()).toBe('Nicht gestartet')
-    await cells[7].get('button').trigger('click')
+    expect(cells[6].text()).toBe('Fertig')
+    expect(cells[7].text()).toBe('Nicht gestartet')
+    expect(validation.text()).toContain('Anonymisierung validieren')
+    await validation.get('button').trigger('click')
     expect(wrapper.emitted('validate')).toEqual([[video]])
 
     await wrapper.setProps({ file: { ...video, anonymizationStatus: 'validated' } })
-    expect(cells[7].find('button').exists()).toBe(false)
-    expect(cells[7].text()).toBe('Validiert')
-    expect(cells[6].text()).toBe('Nicht gestartet')
+    expect(validation.find('button').exists()).toBe(false)
+    expect(validation.text()).toBe('Anonymisierung validiert')
+    expect(cells[7].text()).toBe('Nicht gestartet')
   })
 
   it.each([

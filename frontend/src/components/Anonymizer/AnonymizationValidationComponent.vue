@@ -992,6 +992,7 @@ import { createRuntimeLogger } from '@/utils/runtimeLogger'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { isAxiosError } from 'axios'
 import { endpoints } from '@/types/api/endpoints'
+import { useAnonymizationValidationDraftStore, type EditableValidationPatient as Editable } from '@/stores/anonymizationValidationDraftStore'
 import type { VideoAnonymizationStatus } from '@/types/anonymizationPipeline'
 import {
   caseLinkageStatusBadgeClass,
@@ -1021,6 +1022,7 @@ const PHI_REGION_LABEL_NAME = 'sensitive_region'
 const anonymizationStore = useAnonymizationStore()
 const videoStore = useVideoStore()
 const authStore = useAuthKcStore()
+const validation_drafts = useAnonymizationValidationDraftStore()
 // const pdfStore = usePdfStore();
 const mediaStore = useMediaTypeStore()
 
@@ -1174,6 +1176,7 @@ type NoMoreNamesConfirmation = 'unknown' | 'confirmed' | 'not_confirmed'
 type ApiErrorPayload = {
   detail?: string
   error?: string
+  errorCode?: string
   allowedDocumentTypes?: unknown
   allowed_document_types?: unknown
 }
@@ -1189,6 +1192,12 @@ function parseApiErrorPayload(value: unknown): ApiErrorPayload | undefined {
   return {
     detail: typeof value.detail === 'string' ? value.detail : undefined,
     error: typeof value.error === 'string' ? value.error : undefined,
+    errorCode:
+      typeof value.errorCode === 'string'
+        ? value.errorCode
+        : typeof value.error_code === 'string'
+          ? value.error_code
+          : undefined,
     allowedDocumentTypes: value.allowedDocumentTypes,
     allowed_document_types: value.allowed_document_types
   }
@@ -1303,21 +1312,6 @@ const processedUrl = ref('')
 const showOriginal = ref(false)
 
 // Original state for dirty tracking
-
-type Editable = {
-  patientFirstName: string
-  patientLastName: string
-  patientGenderName: string
-  patientDob: string
-  casenumber: string
-  externalId?: string
-  externalIdOrigin?: string
-  centerName?: string
-  text?: string
-  anonymizedText?: string
-  examinersDisplay?: string
-  examinationDate?: string
-}
 
 const original = ref<{
   anonymizedText: string
@@ -2098,8 +2092,25 @@ function snapshotOriginalItemState(): void {
 
 function persistCurrentFileId(): void {
   const persistedFileId = resolveFileIdFromContext()
-  if (persistedFileId !== null) {
-    sessionStorage.setItem('last:fileId', String(persistedFileId))
+  const media_type = sourceMediaScope.value
+  if (persistedFileId !== null && (media_type === 'pdf' || media_type === 'video')) {
+    validation_drafts.remember(media_type, persistedFileId)
+  }
+}
+
+function restore_validation_draft(): void {
+  const draft = validation_drafts.draft
+  if (draft && draft.file_id === resolveFileIdFromContext() && draft.media_type === sourceMediaScope.value) {
+    editedPatient.value = { ...draft.patient }
+    editedAnonymizedText.value = draft.anonymized_text
+    examinationDate.value = draft.examination_date
+    selectedTags.value = [...draft.tags]
+    customTagInput.value = draft.custom_tag_input
+    validationComment.value = draft.validation_comment
+    selectedDocumentType.value = draft.document_type
+    selectedPatientExaminationOption.value = draft.patient_examination_option
+    manualPatientExaminationId.value = draft.manual_patient_examination_id
+    noMoreNamesConfirmation.value = draft.no_more_names_confirmation
   }
 }
 
@@ -2123,6 +2134,7 @@ function loadCurrentItemData(item: SensitiveMeta): void {
     backendPatientExaminationId !== null ? String(backendPatientExaminationId) : ''
 
   snapshotOriginalItemState()
+  restore_validation_draft()
   validateAllDates()
   persistCurrentFileId()
 }
@@ -2600,6 +2612,12 @@ function persistApprovedReportFileId(responseData: unknown): void {
 
 function applyApprovalErrorDetails(error: unknown): void {
   const payload = getApiErrorPayload(error)
+  if (payload?.errorCode === 'processed_report_artifact_unavailable') {
+    toast.error({
+      text: 'Die anonymisierte PDF fehlt oder ist nicht lesbar bzw. inkonsistent. Bitte in der PDF-Korrektur speichern und prüfen, danach erneut bestätigen. Es wurde kein Bericht freigegeben.'
+    })
+    return
+  }
   const allowedTypes = normalizeDocumentTypeOptions(
     payload?.allowedDocumentTypes ?? payload?.allowed_document_types
   )
@@ -2700,13 +2718,19 @@ const approveItem = async () => {
       r(endpoints.anonymization.validate(context.validationFileId)),
       validationPayload
     )
+    validation_drafts.clear(context.mediaKind, context.validationFileId)
     if (!approvalViewActive || resolveFileIdFromContext() !== context.validationFileId) {
       return
     }
     persistApprovedReportFileId(response.data)
 
     logger.info('approval-complete')
-    toast.success({ text: 'Dokument bestätigt und Anonymisierung validiert' })
+    toast.success({
+      text:
+        context.mediaKind === 'pdf'
+          ? 'Anonymisierte PDF bestätigt und für den Hub-Transfer aufbewahrt'
+          : 'Dokument bestätigt und Anonymisierung validiert'
+    })
 
     await navigateAfterApproval(
       context.mediaKind,
@@ -2738,25 +2762,38 @@ const navigateToCorrection = async () => {
     return
   }
 
-  // Check for unsaved changes
   try {
     const correctionFileId = resolveFileIdFromContext()
     if (correctionFileId === null) {
       toast.error({ text: 'Datei-ID für Korrektur konnte nicht bestimmt werden.' })
       return
     }
+    const media_type = sourceMediaScope.value || (isVideo.value ? 'video' : 'pdf')
+    validation_drafts.draft = {
+      file_id: correctionFileId,
+      media_type,
+      patient: { ...editedPatient.value },
+      anonymized_text: editedAnonymizedText.value,
+      examination_date: examinationDate.value,
+      tags: [...selectedTags.value],
+      custom_tag_input: customTagInput.value,
+      validation_comment: validationComment.value,
+      document_type: selectedDocumentType.value,
+      patient_examination_option: selectedPatientExaminationOption.value,
+      manual_patient_examination_id: manualPatientExaminationId.value,
+      no_more_names_confirmation: noMoreNamesConfirmation.value
+    }
     await router.push({
       name: 'Anonymisierung Korrektur',
       params: { fileId: String(correctionFileId) },
-      query: { mediaType: sourceMediaScope.value || (isVideo.value ? 'video' : 'pdf') }
+      query: { mediaType: media_type }
     })
-    // approveItem will navigate to next item, so we need to return
     toast.info({
-      text: 'Änderungen gespeichert. Bitte wählen Sie das Element erneut für die Korrektur aus.'
+      text: 'Eingaben für die Rückkehr zur Validierung vorgemerkt. Noch nicht bestätigt.'
     })
     return
   } catch (_error) {
-    toast.error({ text: 'Fehler beim Speichern. Korrektur-Navigation abgebrochen.' })
+    toast.error({ text: 'Korrektur konnte nicht geöffnet werden. Ihre Eingaben bleiben erhalten.' })
     return
   }
 }

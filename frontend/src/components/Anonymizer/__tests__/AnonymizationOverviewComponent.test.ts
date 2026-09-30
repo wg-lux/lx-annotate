@@ -530,18 +530,25 @@ describe('AnonymizationOverviewComponent', () => {
     })
   })
 
-  it('blocks ambiguous numeric deletion even when the conflicting row is filtered out', async () => {
-    hoisted.anonymizationStoreRef.current.overview = [
-      buildVideoFile(),
-      buildPdfFile({ id: VIDEO_FILE_ID })
-    ]
-    const wrapper = mount(AnonymizationOverviewComponent)
-    await flushPromises()
-    await wrapper.get('[data-test="anonymization-resource-type-filter"]').setValue('pdf')
-    await wrapper.get('[data-test="delete-file-button"]').trigger('click')
-    expect(hoisted.deleteMediaFile).not.toHaveBeenCalled()
-    expect(wrapper.get('[role="alert"]').text()).toContain('nicht eindeutig zuordnen')
-  })
+  it.each(['video', 'pdf'])(
+    'deletes the exact %s when the conflicting row is filtered out',
+    async (mediaType) => {
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+      hoisted.deleteMediaFile.mockResolvedValueOnce({ success: true })
+      hoisted.anonymizationStoreRef.current.overview = [
+        buildVideoFile(),
+        buildPdfFile({ id: VIDEO_FILE_ID })
+      ]
+      const wrapper = mount(AnonymizationOverviewComponent)
+      await flushPromises()
+      await wrapper.get('[data-test="anonymization-resource-type-filter"]').setValue(mediaType)
+      await wrapper.get('[data-test="delete-file-button"]').trigger('click')
+      await flushPromises()
+      expect(hoisted.deleteMediaFile).toHaveBeenCalledWith(VIDEO_FILE_ID, mediaType)
+      expect(hoisted.anonymizationStoreRef.current.fetchOverview).toHaveBeenCalledTimes(2)
+      confirm.mockRestore()
+    }
+  )
 
   it('starts monitoring when an active import appears after initial load', async () => {
     vi.useFakeTimers()
@@ -867,7 +874,7 @@ describe('AnonymizationOverviewComponent', () => {
 
     expect(stickyScrollbar.element.scrollLeft).toBe(TABLE_SCROLL_OFFSET)
     expect(wrapper.find('thead .validation-action-column').text()).toBe('Validierung')
-    expect(wrapper.find('tbody .validation-action-column button').text()).toContain('Validieren')
+    expect(wrapper.find('tbody .validation-action-column button').text()).toContain('Anonymisierung validieren')
   })
 
   it('renders a delete button for every overview row regardless of status', async () => {
@@ -1113,7 +1120,7 @@ describe('AnonymizationOverviewComponent', () => {
 
     expect(wrapper.text()).toContain('Rohvideo: Bereit')
     expect(wrapper.text()).toContain('Anonymisiert: Fehlgeschlagen')
-    expect(wrapper.text()).toContain('HLS-Erzeugung fehlgeschlagen')
+    expect(wrapper.text()).toContain('Stream-Erzeugung (HLS) fehlgeschlagen')
     expect(wrapper.text()).not.toContain('materialization_failed')
   })
 
@@ -1153,7 +1160,7 @@ describe('AnonymizationOverviewComponent', () => {
       expect(wrapper.text()).not.toContain('Rohvideo:')
       expect(wrapper.text()).toContain(`Anonymisiert: ${label}`)
       expect(
-        wrapper.find('.hls-materialization-summary').text().includes('HLS-Erzeugung fehlgeschlagen')
+        wrapper.find('.hls-materialization-summary').text().includes('Stream-Erzeugung (HLS) fehlgeschlagen')
       ).toBe(status === 'failed')
       expect(hoisted.anonymizationStoreRef.current.overview[0].hlsMaterializations).toHaveLength(2)
     }

@@ -147,11 +147,8 @@ export const MediaManagementAPI = {
    * Force remove a specific media item
    * @param fileId - ID of the file to remove
    */
-  async forceRemoveMedia(fileId: number): Promise<ProcessingResponse> {
-    const response = await api.delete<ProcessingResponse>(
-      endoregApi(endpoints.mediaManagement.forceRemove(fileId))
-    )
-    return response.data
+  async forceRemoveMedia(fileId: number, mediaType: 'video' | 'pdf'): Promise<ProcessingResponse> {
+    return MediaManagementAPI.deleteMediaFile(fileId, mediaType)
   },
 
   /**
@@ -262,9 +259,9 @@ export const MediaManagementAPI = {
    * Delete/remove a media file completely
    * @param fileId - ID of the file to delete
    */
-  async deleteMediaFile(fileId: number): Promise<ProcessingResponse> {
+  async deleteMediaFile(fileId: number, mediaType: 'video' | 'pdf'): Promise<ProcessingResponse> {
     const response = await api.delete<ProcessingResponse>(
-      endoregApi(endpoints.mediaManagement.forceRemove(fileId))
+      endoregApi(endpoints.mediaManagement.forceRemove(fileId, mediaType))
     )
     return response.data
   }
@@ -311,12 +308,12 @@ export function useMediaManagement() {
       safeApiCall(() => MediaManagementAPI.performCleanup(type, force)),
 
     // Individual file operations
-    forceRemoveMedia: (fileId: number) =>
-      safeApiCall(() => MediaManagementAPI.forceRemoveMedia(fileId)),
+    forceRemoveMedia: (fileId: number, mediaType: 'video' | 'pdf') =>
+      safeApiCall(() => MediaManagementAPI.forceRemoveMedia(fileId, mediaType)),
     resetProcessingStatus: (fileId: number) =>
       safeApiCall(() => MediaManagementAPI.resetProcessingStatus(fileId)),
-    deleteMediaFile: (fileId: number) =>
-      safeApiCall(() => MediaManagementAPI.deleteMediaFile(fileId)),
+    deleteMediaFile: (fileId: number, mediaType: 'video' | 'pdf') =>
+      safeApiCall(() => MediaManagementAPI.deleteMediaFile(fileId, mediaType)),
     reimportVideo: (fileId: number) => safeApiCall(() => MediaManagementAPI.reimportVideo(fileId)),
     reimportPdf: (fileId: number) => safeApiCall(() => MediaManagementAPI.reimportPdf(fileId)),
 

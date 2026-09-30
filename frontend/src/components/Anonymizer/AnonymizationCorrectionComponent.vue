@@ -2070,7 +2070,8 @@ const uploadRedactedPdf = async () => {
     }
     processingProgress.value = 100
     applyPdfCorrectionResponse(response.data, target.id)
-    processingStatus.value = 'Korrektur gespeichert. Erneute Anonymisierungsprüfung erforderlich.'
+    processingStatus.value =
+      'Korrigierte PDF gespeichert. Erneute Anonymisierungsprüfung erforderlich; nach Bestätigung bleibt diese PDF für den Hub-Transfer erhalten.'
     processingHistory.value.unshift({
       id: Date.now(),
       timestamp: new Date().toISOString(),

@@ -313,7 +313,10 @@ function isRuntimePatientFinding(
     (value.localId === undefined || typeof value.localId === 'string') &&
     typeof value.finding === 'string' &&
     Array.isArray(value.classificationChoices) &&
-    value.classificationChoices.every(isRuntimeClassificationChoice)
+    value.classificationChoices.every(isRuntimeClassificationChoice) &&
+    (value.interventions === undefined ||
+      (Array.isArray(value.interventions) &&
+        value.interventions.every((name) => typeof name === 'string' && name.trim().length > 0)))
   )
 }
 
@@ -808,6 +811,26 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         ...draft.payload,
         patientFindings: draft.payload.patientFindings.filter(
           (finding) => finding.localId !== findingLocalId
+        )
+      }
+    }))
+  }
+
+  function setFindingIntervention(findingLocalId: string, intervention: string, selected: boolean) {
+    if (!findingLocalId || !intervention.trim()) return
+    updateCurrentRuntimeDraft((draft) => ({
+      ...draft,
+      payload: {
+        ...draft.payload,
+        patientFindings: draft.payload.patientFindings.map((finding) =>
+          finding.localId === findingLocalId
+            ? {
+                ...finding,
+                interventions: selected
+                  ? [...new Set([...(finding.interventions || []), intervention])]
+                  : (finding.interventions || []).filter((name) => name !== intervention)
+              }
+            : finding
         )
       }
     }))
@@ -1341,6 +1364,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   }
 
   function setMediaPreloadLoading() {
+    mediaPreload.value = null
     mediaPreloadStatus.value = 'loading'
     mediaPreloadError.value = null
   }
@@ -1352,6 +1376,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   }
 
   function setMediaPreloadError(message: string) {
+    mediaPreload.value = null
     mediaPreloadStatus.value = 'error'
     mediaPreloadError.value = message
   }
@@ -1361,6 +1386,27 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     mediaPreload.value = null
     mediaPreloadStatus.value = 'idle'
     mediaPreloadError.value = null
+  }
+
+  function selectPatientMedia(key: string) {
+    const payload = mediaPreload.value
+    const item = payload?.availableMedia?.find(
+      (row) => `${row.mediaType}:${String(row.id)}` === key
+    )
+    if (!payload || !item) {
+      throw new Error('Selected media is not part of the loaded patient history')
+    }
+    const media = { ...item, streamOptions: item.streamOptions ?? [] }
+    if (item.mediaType === 'video') {
+      mediaPreload.value = { ...payload, latestVideo: media, latestFrames: [] }
+    } else if (item.mediaType === 'pdf' || item.mediaType === 'full_report') {
+      mediaPreload.value = {
+        ...payload,
+        latestReport: { ...media, anonymizedText: item.anonymizedText ?? null }
+      }
+    } else {
+      throw new Error('Unsupported patient media type')
+    }
   }
 
   function setIndications(rows: ReportingIndicationRow[]) {
@@ -1539,6 +1585,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     discardConflictedLocalDraft,
     addFinding,
     removeFinding,
+    setFindingIntervention,
     updateClassificationValue,
     setCaseSelection,
     setActiveReportId,
@@ -1558,6 +1605,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     noteClassificationUpdated,
     setMediaPreloadLoading,
     setMediaPreload,
+    selectPatientMedia,
     setMediaPreloadError,
     clearMediaPreload,
     addIndicationRow,

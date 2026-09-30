@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, reactive, readonly } from 'vue'
 import axiosInstance, { r } from '../api/axiosInstance'
+import { MediaManagementAPI } from '@/api/mediaManagement'
 import { AxiosError, type AxiosRequestConfig, type AxiosResponse } from 'axios'
 import { buildVideoStreamUrl } from '@/utils/mediaUrls'
 import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils'
@@ -934,7 +935,7 @@ export const useVideoStore = defineStore('video', () => {
       return false
     }
     try {
-      await axiosInstance.delete(r(endpoints.mediaManagement.forceRemove(videoId)))
+      await MediaManagementAPI.deleteMediaFile(videoId, 'video')
       return true
     } catch (error) {
       logger.error('video-delete.failed', error)

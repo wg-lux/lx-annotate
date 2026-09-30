@@ -7,11 +7,11 @@ import FinalizedResultPage from '../FinalizedResultPage.vue'
 const setActiveReportId = vi.fn()
 const axiosGet = vi.hoisted(() => vi.fn())
 
-vi.mock('@/api/axiosInstance', () => ({
+vi.mock('@/api/axiosInstance', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api/axiosInstance')>()),
   default: {
     get: axiosGet
-  },
-  r: (path: string) => `api/${path}`
+  }
 }))
 
 vi.mock('vue-router', () => ({
@@ -31,9 +31,9 @@ vi.mock('@/stores/reportingFlowStore', () => ({
 }))
 
 describe('FinalizedResultPage', () => {
-  const pdfViewUrl = `/api/${endpoints.media.pdfStream(12)}?type=raw`
-  const pdfDownloadUrl = `/api/${endpoints.media.pdfStream(12)}?type=raw&download=1`
-  const patientTimelineUrl = `/api/${endpoints.media.patientTimeline(9)}`
+  const pdfViewUrl = `/endoreg-api/${endpoints.media.pdfStream(12)}?type=raw`
+  const pdfDownloadUrl = `/endoreg-api/${endpoints.media.pdfStream(12)}?type=raw&download=1`
+  const patientTimelineUrl = `/endoreg-api/${endpoints.media.patientTimeline(9)}`
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -70,6 +70,9 @@ describe('FinalizedResultPage', () => {
     expect(hrefs).toContain(pdfViewUrl)
     expect(hrefs).toContain(pdfDownloadUrl)
     expect(hrefs).toContain(`${patientTimelineUrl}?patient_examination_id=17`)
+    for (const link of wrapper.findAll('a')) {
+      expect(link.element.origin).toBe(window.location.origin)
+    }
   })
 
   it('builds fallback timeline link with patient_examination_id filter', async () => {
@@ -92,5 +95,8 @@ describe('FinalizedResultPage', () => {
 
     const hrefs = wrapper.findAll('a').map((a) => a.attributes('href'))
     expect(hrefs).toContain(`${patientTimelineUrl}?patient_examination_id=17`)
+    for (const link of wrapper.findAll('a')) {
+      expect(link.element.origin).toBe(window.location.origin)
+    }
   })
 })
