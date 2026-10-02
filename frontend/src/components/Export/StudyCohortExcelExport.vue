@@ -101,6 +101,7 @@ import { fetchStudyCohortExportWorkbook } from '@/api/studyExportApi'
 import { useStudyCohortExportStore } from '@/stores/studyCohortExportStore'
 import type { ExportMessage } from '@/types/exportMessage'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
+import { saveDownload } from '@/utils/saveDownload'
 
 const log = createRuntimeLogger('study-cohort-excel-export')
 const cohortExportStore = useStudyCohortExportStore()
@@ -143,15 +144,6 @@ function readableError(error: unknown): string {
     return data.detail || data.error || candidate.message || ''
   }
   return candidate.message || 'Studienkohorte konnte nicht exportiert werden.'
-}
-
-function saveDownload(blob: Blob, filename: string): void {
-  const objectUrl = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = objectUrl
-  link.download = filename
-  link.click()
-  URL.revokeObjectURL(objectUrl)
 }
 
 async function downloadCohort(): Promise<void> {

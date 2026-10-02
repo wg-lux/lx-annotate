@@ -736,8 +736,8 @@ TEMPLATES = [
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": _runtime_paths.runtime_root / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": _runtime_paths.runtime_root / "db.postgresql",
     },
 }
 

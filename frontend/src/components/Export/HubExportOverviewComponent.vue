@@ -323,6 +323,20 @@
           </p>
         </section>
 
+        <div class="mb-3">
+          <label class="form-label" for="hub-local-retention">Lokale Videokopie nach Hub-Übertragung</label>
+          <select id="hub-local-retention" v-model="retainLocalProcessedMedia" class="form-select" data-test="hub-local-retention">
+            <option :value="true">Auf diesem Server behalten</option>
+            <option :value="false">Nach bestätigter Übertragung lokal entfernen</option>
+          </select>
+          <p class="text-sm text-muted mt-2" data-test="hub-local-retention-explanation">
+            {{ retainLocalProcessedMedia
+              ? 'Die anonymisierte Videokopie und ihre Wiedergabedaten bleiben lokal verfügbar. Das Video liegt dann redundant auf diesem Server und im Hub und belegt zusätzlichen Speicher.'
+              : 'Nach geprüfter Hub-Übertragung werden die lokale anonymisierte Videokopie und ihre Wiedergabedaten entfernt. Lokale Wiedergabe ist erst nach einer Rückübertragung wieder möglich.' }}
+            Diese Auswahl gilt für neu angelegte Videoübertragungen; bestehende Aufträge behalten ihre Speicherentscheidung.
+          </p>
+        </div>
+
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
           <div class="text-sm text-muted d-flex gap-3 flex-wrap">
             <span>
@@ -1024,9 +1038,11 @@ const toggleSelectAll = () => {
   selectedKeys.value = new Set(selectableItems.value.map((item) => selectionKey(item)))
 }
 
+const retainLocalProcessedMedia = ref(true)
+
 const markSelected = async () => {
   try {
-    await hubExportStore.markResources(selectedEligibleItems.value)
+    await hubExportStore.markResources(selectedEligibleItems.value, retainLocalProcessedMedia.value)
     selectedKeys.value = new Set()
   } catch {
     // The store exposes the backend rejection without discarding the operator's selection.
@@ -1045,7 +1061,7 @@ const unmarkSelected = async () => {
 const offloadEligibleVideos = async () => {
   offloadingEligibleVideos.value = true
   try {
-    await hubExportStore.offloadEligibleVideos()
+    await hubExportStore.offloadEligibleVideos(retainLocalProcessedMedia.value)
     selectedKeys.value = new Set()
   } catch {
     // The store exposes the backend rejection while retaining the current overview.

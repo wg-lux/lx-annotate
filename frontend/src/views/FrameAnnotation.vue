@@ -634,7 +634,7 @@
                   >
                     <div>
                       <strong>{{ box.labelName }}</strong>
-                      <small class="text-muted d-block">{{ formatBoxAnnotation(box) }}</small>
+                      <small class="text-muted d-block">{{ formatFrameBox(box) }}</small>
                     </div>
                     <button
                       type="button"
@@ -817,6 +817,7 @@ import {
   formatFrameBox,
   frameBoxStyle,
   parseFrameBoxRecord,
+  parseOptionalNumber,
   serializeFrameBox,
   type FrameBoxAnnotationDraft,
   type FrameImagePoint
@@ -1820,10 +1821,6 @@ function boxAnnotationStyle(box: FrameBoxAnnotationDraft): Record<string, string
   return frameBoxStyle(box)
 }
 
-function formatBoxAnnotation(box: FrameBoxAnnotationDraft): string {
-  return formatFrameBox(box)
-}
-
 function removeBoxAnnotation(clientId: string): void {
   boxAnnotations.value = boxAnnotations.value.filter((box) => box.clientId !== clientId)
   if (activeBoxClientId.value === clientId) {
@@ -2006,17 +2003,6 @@ function extractListPayload(payload: unknown): Array<Record<string, unknown>> {
     }
   }
   return []
-}
-
-function parseOptionalNumber(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value
-  }
-  if (typeof value === 'string' && value.trim()) {
-    const parsed = Number(value)
-    return Number.isFinite(parsed) ? parsed : null
-  }
-  return null
 }
 
 function firstDefinedValue(values: unknown[]): unknown {

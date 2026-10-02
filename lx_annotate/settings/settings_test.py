@@ -66,30 +66,36 @@ for app in REQUIRED_TEST_APPS:
     if app not in INSTALLED_APPS:
         INSTALLED_APPS.append(app)
 
+
 # -----------------------------------------------------------------------------
-# 3. DATABASE (In-Memory for Speed)
+# 3. DATABASE (PostgreSQL Test Instance)
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# 3. DATABASE — pytest-managed PostgreSQL
 # -----------------------------------------------------------------------------
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": ":memory:",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "lx_test",
+        # Replaced by the session fixture before test-database setup.
+        "USER": "pytest_not_configured",
+        "PASSWORD": "",
+        "HOST": "127.0.0.1",
+        "PORT": "1",
+        "CONN_MAX_AGE": 0,
+        "OPTIONS": {
+            "connect_timeout": 5,
+        },
+        "TEST": {
+            "NAME": "test_lx_test",
+        },
     }
 }
 
-
-# DISABLE MIGRATIONS FOR SPEED
-# ⚠️ Note: This creates tables directly from models.
-# If tests fail due to missing DB constraints, comment this out.
-class DisableMigrations:
-    def __contains__(self, item):
-        return True
-
-    def __getitem__(self, item):
-        return None
-
-
-MIGRATION_MODULES = cast(Any, DisableMigrations())
+# Use the real migration graph.
+MIGRATION_MODULES: dict[str, str | None] = {}
 
 # -----------------------------------------------------------------------------
 # 4. PATHS & ASSETS
@@ -169,5 +175,5 @@ RUN_VIDEO_TESTS = os.getenv("RUN_VIDEO_TESTS", "1") == "1"
 RUN_AI_TESTS = os.getenv("RUN_AI_TESTS", "0") == "1"
 RUN_INTEGRATION_TESTS = os.getenv("RUN_INTEGRATION_TESTS", "1") == "1"
 
-print("🧪 TEST MODE ACTIVE: In-memory DB, No Auth, Temp Media Root")
+print("TEST MODE ACTIVE: PostgreSQL, migrations enabled, no auth, temp media root")
 print(f"🎬 Video Tests: {'ENABLED' if RUN_VIDEO_TESTS else 'DISABLED'}")

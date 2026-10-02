@@ -102,7 +102,7 @@ def test_production_hls_real_redis_worker_loss_and_visibility(tmp_path: Path) ->
             # so an unrecorded site-packages hotfix cannot pass as a release.
             for package, modules in (
                 ("endoreg-db", (
-                    "endoreg_db.tasks", "endoreg_db.services.hls_media",
+                    "endoreg_db.tasks", "endoreg_db.services.streaming.hls_media",
                     "endoreg_db.import_files.file_storage.state_management",
                     "endoreg_db.services.hub.ingest")),
                 ("lx-dtypes", ("lx_dtypes.models.contracts.video_segments",)),

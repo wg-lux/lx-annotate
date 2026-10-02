@@ -8,8 +8,8 @@ from endoreg_db.services.jobs import video_post_validation_jobs
 from endoreg_db.services.jobs.video_post_validation_jobs import (
     dispatch_video_post_validation_rebuild,
 )
-from endoreg_db.services.video_segment_blackening import blackening_history_config
-from endoreg_db.services.video_segment_validation_workflow import (
+from endoreg_db.services.video_files.segment_blackening import blackening_history_config
+from endoreg_db.services.annotations.segment_validation_workflow import (
     resolve_segment_annotation_status,
 )
 

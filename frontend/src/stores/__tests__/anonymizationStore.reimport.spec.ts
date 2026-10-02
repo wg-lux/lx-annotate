@@ -120,15 +120,17 @@ describe('anonymizationStore video reimport', () => {
       }
     })
     const store = useAnonymizationStore()
-    const file = buildVideoFile({ anonymizationStatus: 'failed', annotationStatus: 'validated' })
+    const file = buildVideoFile({ annotationStatus: 'validated' })
     store.overview = [file]
 
     await expect(store.reimportVideo(42)).resolves.toBe(false)
 
-    expect(file.anonymizationStatus).toBe('failed')
+    expect(file.anonymizationStatus).toBe('extracting_frames')
     expect(file.annotationStatus).toBe('validated')
     expect(store.error).toContain('muss neu importiert werden')
+    expect(hoisted.post).toHaveBeenCalledWith('api/runtime/videos/42/repair/', { dry_run: false })
     expect(hoisted.post).toHaveBeenCalledTimes(1)
+    expect(hoisted.get).not.toHaveBeenCalled()
   })
 
   it.each([['sensitive_metadata'], ['technical_metadata', 'sensitive_metadata']])(
@@ -153,7 +155,7 @@ describe('anonymizationStore video reimport', () => {
       })
       expect(file.annotationStatus).toBe('validated')
       expect(store.error).toBeNull()
-      expect(poll).toHaveBeenCalledWith(42)
+      expect(poll).toHaveBeenCalledWith(42, 'video')
     }
   )
 
@@ -198,7 +200,7 @@ describe('anonymizationStore video reimport', () => {
     await expect(store.reimportVideo(42)).resolves.toBe(true)
 
     expect(hoisted.post).not.toHaveBeenCalled()
-    expect(startPolling).toHaveBeenCalledWith(42)
+    expect(startPolling).toHaveBeenCalledWith(42, 'video')
   })
 
   it('repairs all video states through the annotation-safe endpoint', async () => {

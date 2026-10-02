@@ -5,7 +5,7 @@
       subtitle="Befunde erfassen; eine aktive Terminologie ergänzt Vorlagen und Validierung"
       icon="ni ni-single-copy-04"
       icon-bg-class="bg-gradient-primary"
-      :is-complete="!!selectedTemplateName && !!currentRuntimeDraft"
+      :is-complete="!!flow.lastTemplateValidation?.ok && lastValidatedSignature === validationInputSignature"
       :is-active="true"
       :show-action="false"
       :loading="templateLoading || findingSelectorsLoading || templateValidationLoading"
@@ -78,17 +78,45 @@
           >
             Templates für Untersuchung laden
           </button>
-          <button
-            class="btn btn-primary btn-sm"
-            :disabled="templateValidationLoading || !canValidateDraft"
+        <button
+          type="button"
+          class="btn btn-outline-primary btn-sm"
+          data-testid="save-intermediate-draft"
+          :disabled="manualDraftSaveBusy || !!draftSaveBlockedReason || !flow.hasUnpersistedDraftChanges"
+          :aria-busy="manualDraftSaveBusy || flow.draftPersistenceStatus === 'saving'"
+          @click="saveIntermediateDraft"
+        >
+          {{ manualDraftSaveBusy ? 'Entwurf wird gespeichert…' : 'Zwischenspeichern' }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          :disabled="templateValidationLoading || !canValidateDraft"
             @click="runRuntimeValidation(true)"
           >
             Bericht prüfen
           </button>
         </div>
 
-        <div
-          v-if="templateErrorMessage"
+      <div
+        class="small text-muted mb-2"
+        role="status"
+        aria-live="polite"
+        data-testid="intermediate-draft-status"
+      >
+        {{ draftSaveStatusText }}
+      </div>
+      <div
+        v-if="draftSaveActionError || flow.draftPersistenceError"
+        class="alert alert-danger py-2 mb-2"
+        role="alert"
+        data-testid="intermediate-draft-error"
+      >
+        {{ draftSaveActionError || flow.draftPersistenceError }}
+      </div>
+
+      <div
+        v-if="templateErrorMessage"
           class="alert alert-danger py-2 mb-2"
         >
           {{ templateErrorMessage }}
@@ -275,7 +303,7 @@
                         <input
                           type="checkbox"
                           class="form-check-input mt-0"
-                          :checked="(instance.interventions || []).includes(intervention)"
+                          :checked="(instance.interventions || []).some((entry) => entry.intervention === intervention)"
                           @change="
                             onInterventionChange(
                               instance,
@@ -490,6 +518,11 @@ const touchedFields = ref<Record<string, boolean>>({})
 const showValidationFeedback = ref(false)
 const dirtySinceMount = ref(false)
 let validationTimer: ReturnType<typeof setTimeout> | null = null
+let validationGeneration = 0
+let validationDisposed = false
+const lastValidatedSignature = ref<string | null>(null)
+const manualDraftSaveBusy = ref(false)
+const draftSaveActionError = ref<string | null>(null)
 
 const {
   moduleName: selectedKbModule,
@@ -654,14 +687,18 @@ const catalogFindingsByNormalizedName = computed(() => {
 })
 
 const backendMissingClassificationsByFinding = computed<Record<string, string[]>>(() => {
-  const entries = (flow.lastTemplateValidation?.findingsValidators || []).flatMap((validator) => {
-    if (!validator.missingRequiredClassifications.length) {
-      return []
-    }
-    return [[normalizeKey(validator.finding), validator.missingRequiredClassifications] as const]
-  })
-  return Object.fromEntries(entries)
+  const byFinding = new Map<string, Set<string>>()
+  for (const validator of flow.lastTemplateValidation?.findingsValidators || []) {
+    const key = normalizeKey(validator.finding)
+    const names = byFinding.get(key) || new Set<string>()
+    for (const name of validator.missingRequiredClassifications) names.add(name)
+    byFinding.set(key, names)
+  }
+  return Object.fromEntries(
+    Array.from(byFinding, ([name, classifications]) => [name, [...classifications]])
+  )
 })
+
 
 const backendMessagesByFinding = computed<Record<string, string[]>>(() =>
   Object.fromEntries(groupValidationMessages(flow.lastTemplateValidation))
@@ -1201,7 +1238,7 @@ function interventionsForInstance(instance: ReportTemplateRuntimePatientFindingI
       ...(getFindingDefinitionByName(instance.finding)?.findingInterventions || []),
       ...(interventionConcepts.value?.finding.find((finding) => finding.name === instance.finding)
         ?.interventions || []),
-      ...(instance.interventions || [])
+      ...(instance.interventions || []).map((entry) => entry.intervention)
     ])
   ]
 }
@@ -1276,97 +1313,230 @@ function onDescriptorInput(
   })
 }
 
-async function runRuntimeValidation(forceFeedback = false) {
-  const target = currentValidationTarget()
-  if (!target) {
-    templateValidationError.value = null
-    flow.setLastTemplateValidation(null)
+// Saving and validation have separate lifecycles. Autosave is owned by the store.
+const draftSaveContextKey = computed(() => {
+  const draft = currentRuntimeDraft.value
+  return JSON.stringify([
+    flow.authSubject,
+    flow.patientExaminationId,
+    draft?.draftId,
+    draft?.patientExaminationId,
+    draft?.moduleName,
+    draft?.payload.knowledgeBaseVersion,
+    draft?.templateName,
+    draft?.templateIdentity
+  ])
+})
+
+const draftSaveBlockedReason = computed<string | null>(() => {
+  const draft = currentRuntimeDraft.value
+  if (!draft || !draft.patientExaminationId || draft.patientExaminationId !== flow.patientExaminationId) {
+    return 'Zuerst einen eindeutigen Untersuchungsentwurf öffnen.'
+  }
+  if (flow.savingFinalReport) return 'Der Bericht wird gerade abgeschlossen.'
+  if (
+    draft.persistencePolicy === 'blocked_until_verified') {
+    return 'Die Terminologie-/Vorlagenidentität muss vor dem Speichern verifiziert werden.'
+  }
+  if (flow.draftConflict?.patientExaminationId === draft.patientExaminationId) {
+    return 'Speicherkonflikt: zuerst die andere Bearbeitung prüfen. Lokale Eingaben bleiben erhalten.'
+  }
+  return null
+})
+
+const draftSaveStatusText = computed(() => {
+  if (draftSaveBlockedReason.value) return draftSaveBlockedReason.value
+  if (manualDraftSaveBusy.value || flow.draftPersistenceStatus === 'saving') {
+    return 'Entwurf wird gespeichert…'
+  }
+  if (flow.draftPersistenceStatus === 'error') {
+    return 'Entwurf nicht gespeichert. Lokale Eingaben bleiben erhalten.'
+  }
+  if (flow.hasUnpersistedDraftChanges) return 'Ungespeicherte Änderungen im Entwurf.'
+  if (flow.draftPersistenceStatus === 'saved') {
+    return 'Entwurf gespeichert. Vorlagenregeln und Abschluss werden getrennt geprüft.'
+  }
+  return 'Noch keine serverseitige Speicherbestätigung für diesen Entwurf.'
+})
+
+async function saveIntermediateDraft(): Promise<void> {
+  if (manualDraftSaveBusy.value) return
+  draftSaveActionError.value = null
+  if (draftSaveBlockedReason.value) {
+    draftSaveActionError.value = draftSaveBlockedReason.value
     return
   }
-  if (!draftMatchesSelectedTemplate.value) {
-    templateValidationError.value =
-      'Der Entwurf gehört nicht zur aktuell ausgewählten Berichtsvorlage und wird nicht validiert.'
-    flow.setLastTemplateValidation(null)
-    return
-  }
-
-  if (forceFeedback) {
-    showValidationFeedback.value = true
-  }
-
-  templateValidationLoading.value = true
-  templateValidationError.value = null
-  let validationFailed = false
+  const contextKey = draftSaveContextKey.value
+  manualDraftSaveBusy.value = true
   try {
-    const result = await validateReportTemplateRuntime(
-      flow.selectedKbModule,
-      target.draft.payload.knowledgeBaseVersion || '',
-      target.templateName,
-      target.draft.payload,
-      {
-        examinationId: requireResolvedReportingExamination({
-          catalog: examinationStore.examinationsDropdown,
-          selectedExaminationId: flow.selectedExaminationId,
-          examinationName: target.draft.payload.examination
-        }).id,
-        patientExaminationId: target.draft.patientExaminationId,
-        indications: flow.indications
-      }
-    )
-    flow.setLastTemplateValidation(result)
-  } catch (e: unknown) {
-    validationFailed = true
-    flow.setLastTemplateValidation(null)
-    templateValidationError.value = reportingApiErrorMessage(
-      e,
-      'Template-Validierung konnte nicht ausgefuehrt werden.'
+    // Reuse the store's serialized save loop, latest edits and expected_revision.
+    await flow.flushDraftAutosave()
+    if (contextKey !== draftSaveContextKey.value) return
+    if (draftSaveBlockedReason.value) {
+      draftSaveActionError.value = draftSaveBlockedReason.value
+    } else if (flow.hasUnpersistedDraftChanges || flow.draftPersistenceStatus !== 'saved') {
+      draftSaveActionError.value = 'Der aktuelle Entwurf wurde noch nicht vollständig vom Server bestätigt.'
+    }
+  } catch (error: unknown) {
+    if (contextKey !== draftSaveContextKey.value) return
+    draftSaveActionError.value = reportingApiErrorMessage(
+      error,
+      'Der Zwischenstand konnte nicht gespeichert werden. Ihre Eingaben bleiben erhalten.'
     )
   } finally {
-    await persistDraftAfterValidation(validationFailed)
-    templateValidationLoading.value = false
+    manualDraftSaveBusy.value = false
   }
 }
 
-function currentValidationTarget(): {
-  draft: ReportingRuntimeDraft
+watch(draftSaveContextKey, () => {
+  draftSaveActionError.value = null
+})
+
+watch(
+  () => [flow.draftPersistenceStatus, flow.hasUnpersistedDraftChanges] as const,
+  ([status, hasChanges]) => {
+    if (status === 'saved' && !hasChanges) draftSaveActionError.value = null
+  }
+)
+
+type ValidationSnapshot = {
+  contextKey: string
+  moduleName: string
+  moduleVersion: string
   templateName: string
-} | null {
+  payload: ReportingRuntimeDraft['payload']
+  context: {
+    examinationId: number
+    patientExaminationId: number
+    indications: typeof flow.indications
+  }
+}
+
+// Use content rather than object identity/updatedAt/revision: a save acknowledgement
+// must not itself trigger another validation request or save/validate loop.
+const validationInput = computed<{ signature: string | null; error: string | null }>(() => {
   const draft = currentRuntimeDraft.value
   const templateName = selectedTemplateName.value
-  if (!draft || !templateName || !flow.patientExaminationId) {
-    return null
+  const examinationId = resolvedSelectedExaminationId.value
+  if (
+    !draft || !templateName || !examinationId || !draftMatchesSelectedTemplate.value ||
+    draft.patientExaminationId !== flow.patientExaminationId
+  ) return { signature: null, error: null }
+
+  const snapshot: ValidationSnapshot = {
+    contextKey: draftSaveContextKey.value,
+    moduleName: draft.payload.knowledgeBaseModule || draft.moduleName,
+    moduleVersion: draft.payload.knowledgeBaseVersion || '',
+    templateName,
+    payload: draft.payload,
+    context: {
+      examinationId,
+      patientExaminationId: draft.patientExaminationId,
+      indications: flow.indications
+    }
   }
-  return { draft, templateName }
+  try {
+    const signature = JSON.stringify(snapshot, (_key, value: unknown) => {
+      // Never silently turn NaN/Infinity into null or drop unsupported values.
+      if (typeof value === 'number' && !Number.isFinite(value)) {
+        throw new TypeError('Non-finite descriptor value')
+      }
+      if (typeof value === 'bigint' || typeof value === 'function' || typeof value === 'symbol') {
+        throw new TypeError('Non-JSON descriptor value')
+      }
+      return value
+    })
+    return { signature, error: null }
+  } catch {
+    return {
+      signature: null,
+      error: 'Der Entwurf enthält einen nicht JSON-kompatiblen Wert. Bitte die Eingaben prüfen.'
+    }
+  }
+})
+const validationInputSignature = computed(() => validationInput.value.signature)
+
+function clearValidationTimer(): void {
+  if (validationTimer !== null) {
+    clearTimeout(validationTimer)
+    validationTimer = null
+  }
 }
 
-async function persistDraftAfterValidation(validationFailed: boolean) {
+function invalidateRuntimeValidation(): void {
+  validationGeneration += 1
+  clearValidationTimer()
+  templateValidationLoading.value = false
+  templateValidationError.value = null
+  lastValidatedSignature.value = null
+  flow.setLastTemplateValidation(null)
+}
+
+function isCurrentValidation(generation: number, signature: string): boolean {
+  return !validationDisposed &&
+    generation === validationGeneration &&
+    signature === validationInputSignature.value
+}
+
+async function runRuntimeValidation(forceFeedback = false): Promise<void> {
+  clearValidationTimer()
+  if (validationDisposed) return
+  invalidateRuntimeValidation()
+  if (forceFeedback) showValidationFeedback.value = true
+  const signature = validationInputSignature.value
+  if (!signature) {
+    templateValidationError.value = validationInput.value.error
+    return
+  }
+
+  // Snapshot the JSON-shaped runtime contract before any asynchronous request.
+  const snapshot = JSON.parse(signature) as ValidationSnapshot
+  const generation = validationGeneration
+  templateValidationLoading.value = true
   try {
-    await flow.persistCurrentRuntimeDraft()
+    const result = await validateReportTemplateRuntime(
+      snapshot.moduleName,
+      snapshot.moduleVersion,
+      snapshot.templateName,
+      snapshot.payload,
+      snapshot.context
+    )
+    if (!isCurrentValidation(generation, signature)) return
+    lastValidatedSignature.value = signature
+    flow.setLastTemplateValidation(result)
   } catch (error: unknown) {
-    if (validationFailed) {
-      return
-    }
+    if (!isCurrentValidation(generation, signature)) return
     templateValidationError.value = reportingApiErrorMessage(
       error,
-      'Der Reporting-Entwurf konnte nach der Validierung nicht gespeichert werden.'
+      'Template-Validierung konnte nicht ausgeführt werden.'
     )
+  } finally {
+    if (isCurrentValidation(generation, signature)) {
+      templateValidationLoading.value = false
+    }
+    // Do not save here: store autosave is independent of template availability
+    // and succeeds/fails independently of runtime validation.
   }
 }
 
-function scheduleRuntimeValidation() {
-  if (validationTimer) {
-    clearTimeout(validationTimer)
+function scheduleRuntimeValidation(): void {
+  invalidateRuntimeValidation()
+  if (validationDisposed) return
+  if (!validationInputSignature.value) {
+    templateValidationError.value = validationInput.value.error
+    return
   }
   validationTimer = setTimeout(() => {
+    validationTimer = null
     void runRuntimeValidation(false)
   }, 350)
 }
 
-function handleBeforeUnload(event: BeforeUnloadEvent) {
-  if (!dirtySinceMount.value) {
-    return
-  }
+function handleBeforeUnload(event: BeforeUnloadEvent): void {
+  const blockedLocalEdits = !!draftSaveBlockedReason.value && dirtySinceMount.value
+  if (!flow.hasUnpersistedDraftChanges && !blockedLocalEdits) return
   event.preventDefault()
+  // Legacy browser support. Do not try to await a network save on beforeunload.
 }
 
 watch(
@@ -1421,28 +1591,10 @@ watch(
   }
 )
 
-watch(
-  () => [currentPayload.value?.patientFindings, flow.indications],
-  () => {
-    if (!selectedTemplateName.value || !currentPayload.value) {
-      return
-    }
-    scheduleRuntimeValidation()
-  },
-  { deep: true }
-)
+watch(validationInputSignature, () => {
+  scheduleRuntimeValidation()
+})
 
-watch(
-  () => selectedTemplateName.value,
-  () => {
-    if (!selectedTemplateName.value) {
-      flow.setLastTemplateValidation(null)
-      templateValidationError.value = null
-      return
-    }
-    scheduleRuntimeValidation()
-  }
-)
 
 onMounted(async () => {
   window.addEventListener('beforeunload', handleBeforeUnload)
@@ -1470,11 +1622,10 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   reportingContextGeneration += 1
+  validationDisposed = true
+  validationGeneration += 1
+  clearValidationTimer()
   window.removeEventListener('beforeunload', handleBeforeUnload)
-  if (validationTimer) {
-    clearTimeout(validationTimer)
-    validationTimer = null
-  }
 })
 </script>
 

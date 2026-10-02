@@ -115,7 +115,7 @@ def repair_video_state(video: VideoFile, *, dry_run: bool = False) -> dict[str, 
 
 
 def _repair_one(video_id: int, *, dry_run: bool) -> dict[str, Any]:
-    from endoreg_db.services import media_operation_gate
+    from endoreg_db.services.media import operation_gate
 
     with transaction.atomic():
         video = (
@@ -125,11 +125,11 @@ def _repair_one(video_id: int, *, dry_run: bool) -> dict[str, Any]:
         )
         # Legacy installed dependencies cannot start a transcode; newer ones
         # expose this guard and must participate in the same publication lock.
-        guard = getattr(media_operation_gate, "assert_video_not_transcoding", None)
+        guard = getattr(operation_gate, "assert_video_not_transcoding", None)
         try:
             if guard is not None:
                 guard(video_id)
-        except media_operation_gate.MediaOperationDeferred:
+        except operation_gate.MediaOperationDeferred:
             return {
                 "video_id": video.pk,
                 "filename": video.original_file_name or "",

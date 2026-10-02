@@ -101,6 +101,7 @@ def hub_export_mark(request):
             target_node=target_node,
             marked_by=request.user,
             allowed_center_ids=center_ids,
+            retain_local_processed_media=mutation.retain_local_processed_media,
         )
     except (ObjectDoesNotExist, ValueError) as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
@@ -142,6 +143,7 @@ def hub_export_offload_eligible_videos(request):
             target_node=target_node,
             marked_by=request.user,
             allowed_center_ids=center_ids,
+            retain_local_processed_media=mutation.retain_local_processed_media,
         )
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)

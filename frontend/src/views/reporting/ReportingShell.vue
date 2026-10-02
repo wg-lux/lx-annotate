@@ -1261,6 +1261,7 @@ import {
   useReportingFlowStore,
   type ReportingRuntimeDraft
 } from '@/stores/reportingFlowStore'
+import { parsePersistedRuntimePayload } from './reportingRuntimeContract'
 import { terminologyBatchImportMessage, useTerminologyStore } from '@/stores/terminologyStore'
 import { usePatientStore } from '@/stores/patientStore'
 import { useExaminationStore } from '@/stores/examinationStore'
@@ -3075,18 +3076,6 @@ function extractDraftDate(raw: Record<string, unknown>): string | null {
   return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString()
 }
 
-function isRuntimePayload(value: unknown): value is ReportTemplateRuntimePayload {
-  if (!isRecord(value)) {
-    return false
-  }
-  return (
-    typeof value.patient === 'string' &&
-    Array.isArray(value.examiners) &&
-    typeof value.examination === 'string' &&
-    Array.isArray(value.patientFindings)
-  )
-}
-
 function stringField(record: Record<string, unknown>, ...keys: string[]): string | null {
   for (const key of keys) {
     const value = record[key]
@@ -3944,7 +3933,8 @@ async function hydrateRuntimeDraftFromDraftApi(
       ? draft.templateIdentity
       : null
   const updatedAt = response.updatedAt ?? response.updated_at ?? null
-  if (!isRuntimePayload(draft.payload)) {
+  const payload = parsePersistedRuntimePayload(draft.payload)
+  if (!payload) {
     flow.markDraftPersistenceHydrated(updatedAt, response.revision)
     return false
   }
@@ -3966,7 +3956,7 @@ async function hydrateRuntimeDraftFromDraftApi(
     moduleName: draftModuleName,
     templateName: draftTemplateName,
     templateIdentity: draftTemplateIdentity,
-    payload: draft.payload,
+    payload,
     hydratedFrom: 'draft_api',
     verificationStatus: 'unverified',
     persistencePolicy: context.moduleName ? 'blocked_until_verified' : 'persistable',

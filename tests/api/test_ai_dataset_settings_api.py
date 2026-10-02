@@ -107,6 +107,7 @@ def test_ai_dataset_dropdown_rejects_invalid_field_types_and_combinations(
     field,
     message,
 ):
+    existing_datasets = list(AIDataSet.objects.order_by("pk").values())
     response = client.post(
         "/api/settings/application/dropdowns/ai_datasets/",
         data=json.dumps(payload),
@@ -116,11 +117,18 @@ def test_ai_dataset_dropdown_rejects_invalid_field_types_and_combinations(
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert response.json()["errors"][field] == message
-    assert not AIDataSet.objects.exists()
+    assert list(AIDataSet.objects.order_by("pk").values()) == existing_datasets
 
 
 @override_settings(DEBUG=True, ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"])
 def test_ai_dataset_dropdown_applies_video_defaults(client):
+    existing_response = client.get(
+        "/api/settings/application/dropdowns/ai_datasets/",
+        secure=True,
+    )
+    assert existing_response.status_code == status.HTTP_200_OK
+    existing_entries = existing_response.json()
+
     response = client.post(
         "/api/settings/application/dropdowns/ai_datasets/",
         data=json.dumps(
@@ -147,7 +155,9 @@ def test_ai_dataset_dropdown_applies_video_defaults(client):
         secure=True,
     )
     assert list_response.status_code == status.HTTP_200_OK
-    assert list_response.json() == [
+    entries = list_response.json()
+    assert [entry for entry in entries if entry["id"] != dataset.pk] == existing_entries
+    assert [entry for entry in entries if entry["id"] == dataset.pk] == [
         {
             "id": dataset.pk,
             "value": "Video Training",

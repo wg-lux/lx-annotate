@@ -168,7 +168,7 @@ def test_read_only_user_cannot_bulk_repair(repair_operator):
 
 
 def test_active_transcode_blocks_repair_without_mutating_state(repair_operator):
-    from endoreg_db.services.media_operation_gate import (
+    from endoreg_db.services.media.operation_gate import (
         acquire_video_transcode_lease,
         release_video_transcode_lease,
     )

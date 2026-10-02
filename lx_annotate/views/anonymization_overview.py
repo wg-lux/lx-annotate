@@ -10,6 +10,7 @@ from endoreg_db.models import RawPdfFile, UploadJob, VideoFile
 from endoreg_db.serializers.misc.file_overview import (
     overview_upload_job_retry_summary,
     safe_upload_job_original_filename,
+    overview_upload_job_media_type,
 )
 from endoreg_db.services.hub.import_monitoring import (
     can_dismiss_upload_job,
@@ -108,7 +109,7 @@ class LifecycleAnonymizationOverviewView(AnonymizationOverviewView):
             while synthetic_id in used_ids:
                 synthetic_id -= 1
             used_ids.add(synthetic_id)
-            media_type = "pdf" if "pdf" in upload_job.content_type.lower() else "video"
+            media_type = overview_upload_job_media_type(upload_job.content_type)
             filename = safe_upload_job_original_filename(cast(Any, upload_job))
             rows.append(
                 {

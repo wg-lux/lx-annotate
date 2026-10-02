@@ -27,7 +27,6 @@
         </div>
       </div>
       <div class="card-body">
-        
         <!-- Error State -->
         <div
           v-if="anonymizationStore.error"
@@ -505,6 +504,12 @@ const repairAllVideoStates = async (option?: TranscodeOption) => {
 const startAnonymization = async (file: FileItem) => {
   const mediaType = file.mediaType
   if (mediaType === 'unknown' || file.importOnly || file.quarantined) return
+
+  if (file.anonymizationStatus === 'failed') {
+    if (mediaType === 'video') await reimportVideo(file)
+    else await reimportPdf(file)
+    return
+  }
 
   // Use polling protection for start anonymization
   const result = await pollingProtection.startAnonymizationSafeWithProtection(file.id, mediaType)

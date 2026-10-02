@@ -7,7 +7,7 @@ from datetime import date
 import pytest
 from endoreg_db.models.administration.center.center import Center
 from endoreg_db.models.administration.person.patient.patient import Patient
-from endoreg_db.services.pseudonym_service import (
+from endoreg_db.services.privacy.patient_pseudonyms import (
     generate_patient_pseudonym,
     validate_patient_for_pseudonym,
 )

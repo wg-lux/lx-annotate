@@ -30,7 +30,7 @@ export interface FrameBoxLabel {
 
 type IdFactory = () => string
 
-const parseOptionalNumber = (value: unknown): number | null => {
+export const parseOptionalNumber = (value: unknown): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value
   }

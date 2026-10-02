@@ -10,7 +10,7 @@ from django.utils import timezone
 from endoreg_db.models import NetworkNode, RawPdfFile, VideoFile
 from endoreg_db.models.state.anonymization import AnonymizationState
 from endoreg_db.models.state.video_segment_validation import SegmentAnnotationStatus
-from endoreg_db.services.video_segment_validation_workflow import (
+from endoreg_db.services.annotations.segment_validation_workflow import (
     resolve_segment_annotation_status,
 )
 from endoreg_db.utils.hashs import get_file_hash

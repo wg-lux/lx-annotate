@@ -376,24 +376,31 @@ export type ReportTemplateRuntimeValidationFindingInput = {
   classifications: ReportTemplateRuntimeValidationClassificationInput[]
 }
 
-export type ReportTemplateRuntimeDescriptorInput = {
+/** Local occurrence identity, separate from the canonical terminology name. */
+export type ReportTemplateRuntimeEntity = {
   localId?: string
+}
+
+export type ReportTemplateRuntimeDescriptorInput = ReportTemplateRuntimeEntity & {
   classificationChoiceDescriptor: string
   descriptorValue: unknown
 }
 
-export type ReportTemplateRuntimeClassificationChoiceInput = {
-  localId?: string
+export type ReportTemplateRuntimeClassificationChoiceInput = ReportTemplateRuntimeEntity & {
   classification: string
   classificationChoice: string
   descriptors: ReportTemplateRuntimeDescriptorInput[]
 }
 
-export type ReportTemplateRuntimePatientFindingInput = {
-  localId?: string
+/** References lx_dtypes Intervention.name; ownership is the enclosing finding occurrence. */
+export type ReportTemplateRuntimeInterventionInput = ReportTemplateRuntimeEntity & {
+  intervention: string
+}
+
+export type ReportTemplateRuntimePatientFindingInput = ReportTemplateRuntimeEntity & {
   finding: string
   classificationChoices: ReportTemplateRuntimeClassificationChoiceInput[]
-  interventions?: string[]
+  interventions?: ReportTemplateRuntimeInterventionInput[]
 }
 
 export type ReportTemplateRuntimePayload = {

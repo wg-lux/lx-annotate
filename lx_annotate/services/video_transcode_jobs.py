@@ -5,8 +5,9 @@ from __future__ import annotations
 import inspect
 import logging
 import threading
+from datetime import timedelta
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 from uuid import UUID, uuid4
 
 if TYPE_CHECKING:
@@ -22,6 +23,7 @@ from lx_annotate.models import VideoTranscodeJob
 
 logger = logging.getLogger(__name__)
 OPTIONS = tuple(VideoTranscodeJob.Option.values)
+TRANSCODE_LEASE_SECONDS = 120
 
 
 class TranscodeSubmissionError(Exception):
@@ -32,8 +34,8 @@ class TranscodeSubmissionError(Exception):
 
 def transcode_runtime() -> tuple[ModuleType, ModuleType]:
     try:
-        from endoreg_db.services import media_operation_gate as gate
-        from endoreg_db.services import video_processed_transcode as service
+        from endoreg_db.services.media import operation_gate as gate
+        from endoreg_db.services.video_storage import processed_transcode as service
 
         required = {
             "transcode_claim",
@@ -99,9 +101,28 @@ class SerializedVideoTranscodeJob(TypedDict):
     error_code: str
     created_at: str
     updated_at: str
+    heartbeat_at: str | None
+    finished_at: str | None
+    observed_at: str
+    worker_activity: Literal["recent", "unconfirmed", "waiting", "inactive"]
 
 
 def serialize_job(job: VideoTranscodeJob) -> SerializedVideoTranscodeJob:
+    observed_at = timezone.now()
+    worker_activity: Literal["recent", "unconfirmed", "waiting", "inactive"]
+    if job.status == "running":
+        worker_activity = (
+            "recent"
+            if job.heartbeat_at is not None
+            and timedelta(0)
+            <= observed_at - job.heartbeat_at
+            < timedelta(seconds=TRANSCODE_LEASE_SECONDS)
+            else "unconfirmed"
+        )
+    elif job.status == "queued":
+        worker_activity = "waiting"
+    else:
+        worker_activity = "inactive"
     return {
         "id": str(job.pk),
         "video_id": job.video_id,
@@ -115,6 +136,10 @@ def serialize_job(job: VideoTranscodeJob) -> SerializedVideoTranscodeJob:
         "error_code": job.error_code,
         "created_at": job.created_at.isoformat(),
         "updated_at": job.updated_at.isoformat(),
+        "heartbeat_at": job.heartbeat_at.isoformat() if job.heartbeat_at else None,
+        "finished_at": job.finished_at.isoformat() if job.finished_at else None,
+        "observed_at": observed_at.isoformat(),
+        "worker_activity": worker_activity,
     }
 
 
@@ -237,14 +262,16 @@ def execute_video_transcode(job_id: str) -> str:
             raise TranscodeSubmissionError("invalid_transcode_option", 400)
         gate, service = transcode_runtime()
         claim = gate.acquire_video_transcode_lease(
-            video_id=job.video_id, ttl_seconds=120
+            video_id=job.video_id, ttl_seconds=TRANSCODE_LEASE_SECONDS
         )
 
         def heartbeat() -> None:
             close_old_connections()
             try:
                 while not stop.wait(20):
-                    gate.renew_video_transcode_lease(claim, ttl_seconds=120)
+                    gate.renew_video_transcode_lease(
+                        claim, ttl_seconds=TRANSCODE_LEASE_SECONDS
+                    )
                     if not owned.update(
                         heartbeat_at=timezone.now(), updated_at=timezone.now()
                     ):

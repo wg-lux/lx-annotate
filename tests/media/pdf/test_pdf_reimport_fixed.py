@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 import django
-from endoreg_db.services.report_import import ReportImportService
+from endoreg_db.import_files.report_import_service import ReportImportService
 
 # Add project root to path
 project_root = Path(__file__).resolve().parents[3]

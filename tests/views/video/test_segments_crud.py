@@ -20,7 +20,7 @@ from endoreg_db.models import (
 from endoreg_db.services.jobs.video_post_validation_jobs import (
     JobDispatchResult,
 )
-from endoreg_db.services.video_segment_blackening import (
+from endoreg_db.services.video_files.segment_blackening import (
     OUTSIDE_FRAME_BLACKENING_KIND,
     blackening_history_config,
 )

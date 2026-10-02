@@ -93,38 +93,7 @@ def find_contract_gaps(
     return list(dict.fromkeys(gaps))
 
 
-def _configure_django() -> None:
-    """Configure only the apps needed to render the migration bundle."""
-    from django.conf import settings
 
-    if settings.configured:
-        raise RuntimeError(
-            "Bundle evaluation must run in a fresh Python process before Django "
-            "settings are configured.",
-        )
-
-    from endoreg_db.utils.paths import get_runtime_paths
-
-    settings.configure(
-        DATABASES={
-            "default": {
-                "ENGINE": "django.db.backends.sqlite3",
-                "NAME": ":memory:",
-            },
-        },
-        INSTALLED_APPS=[
-            "django.contrib.auth",
-            "django.contrib.contenttypes",
-            "lx_dtypes.django",
-            "scripts.evaluate_runtime_check_bundle.BundleEvaluationEndoregConfig",
-        ],
-        MEDIA_ROOT=str(get_runtime_paths().storage),
-        USE_TZ=True,
-    )
-
-    import django
-
-    django.setup()
 
 
 def _required_contract() -> SchemaContract:
@@ -184,7 +153,6 @@ def main() -> int:
     os.chdir(REPO_ROOT)
     try:
         with _isolated_runtime_root():
-            _configure_django()
             required = _required_contract()
             provided = _provided_contract()
     except Exception as exc:

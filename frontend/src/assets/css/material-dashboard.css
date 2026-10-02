@@ -3002,7 +3002,7 @@ textarea.form-control-lg {
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
-  border: none;
+  border: black;
   appearance: none;
   print-color-adjust: exact;
   transition: background-color 0.25s ease, border-color 0.25s ease, background-position 0.15s ease-in-out, opacity 0.15s ease-out, box-shadow 0.15s ease-in-out;
@@ -3027,7 +3027,7 @@ textarea.form-control-lg {
 }
 
 .form-check-input:focus {
-  border-color: none;
+  border-color: var(--bs-secondary);
   outline: 0;
   box-shadow: none;
 }

@@ -81,7 +81,7 @@ class LifecyclePolicyPermission(BasePermission):
 
 
 def lifecycle_center_ids(user: Any) -> frozenset[int] | None:
-    from endoreg_db.services.center_access import resolve_allowed_center_ids
+    from endoreg_db.services.centers.access import resolve_allowed_center_ids
     from rest_framework.exceptions import PermissionDenied
 
     center_ids = resolve_allowed_center_ids(user)

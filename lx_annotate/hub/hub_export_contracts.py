@@ -8,7 +8,7 @@ from lx_dtypes.models.contracts.hub_media_envelope import (
     HubMediaEnvelopeMetadata,
     HubMediaEnvelopeReceipt,
 )
-from pydantic import BaseModel, ConfigDict, Field, PositiveInt, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PositiveInt, StrictBool, model_validator
 
 
 class HubExportResourceKind(StrEnum):
@@ -28,12 +28,14 @@ class HubExportMutationRequest(BaseModel):
 
     target_node_key: str | None = None
     resources: list[HubExportResourceRef] = Field(min_length=1)
+    retain_local_processed_media: StrictBool | None = None
 
 
 class HubEligibleVideoOffloadRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     target_node_key: str | None = None
+    retain_local_processed_media: StrictBool | None = None
 
 
 class HubEligibleVideoOffloadResult(BaseModel):

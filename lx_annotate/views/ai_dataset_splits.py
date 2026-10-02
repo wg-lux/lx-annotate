@@ -5,7 +5,7 @@ from __future__ import annotations
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from endoreg_db.models import AIDataSet, VideoFile
-from endoreg_db.services.center_access import resolve_allowed_center_ids
+from endoreg_db.services.centers.access import resolve_allowed_center_ids
 from pydantic import ValidationError
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied

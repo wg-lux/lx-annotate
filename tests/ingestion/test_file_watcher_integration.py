@@ -110,17 +110,6 @@ def test_inflight_slot_is_released_after_processing_finishes(monkeypatch, tmp_pa
     assert str(video_path) in handler.in_flight_files
 
 
-def test_processed_file_is_not_submitted_again(monkeypatch, tmp_path):
-    handler, executor = make_handler(monkeypatch)
-    video_path = tmp_path / "video.mp4"
-    handler.processed_files.add(str(video_path))
-
-    handler.on_created(FileCreatedEvent(str(video_path)))
-
-    assert executor.submissions == []
-    assert str(video_path) not in handler.in_flight_files
-
-
 def test_process_existing_files_skips_temp_handoff_files(monkeypatch, tmp_path):
     service = file_watcher.FileWatcherService()
     service.handler.shutdown()

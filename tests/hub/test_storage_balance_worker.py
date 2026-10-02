@@ -70,11 +70,11 @@ def test_committed_fetch_uses_the_authoritative_renewable_media_lease_gate(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    from endoreg_db.services import media_operation_gate
+    from endoreg_db.services.media import operation_gate
 
     requests = []
     monkeypatch.setattr(
-        media_operation_gate,
+        operation_gate,
         "acquire_media_operation_lease",
         lambda *, request: requests.append(request),
     )
@@ -122,14 +122,14 @@ def test_committed_fetch_fails_before_disclosure_when_cleanup_owns_lease_gate(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    from endoreg_db.services import media_operation_gate
+    from endoreg_db.services.media import operation_gate
 
     def deferred(*, request: object) -> None:
         del request
-        raise media_operation_gate.MediaOperationDeferred("cleanup pending")
+        raise operation_gate.MediaOperationDeferred("cleanup pending")
 
     monkeypatch.setattr(
-        media_operation_gate,
+        operation_gate,
         "acquire_media_operation_lease",
         deferred,
     )

@@ -125,6 +125,18 @@ definition_of_done:
   assessment:
     status: verified
     evidence:
+    - kind: test
+      reference: '2026-10-01, assessor codex-failure-triage-20261001: tests/api/test_ai_dataset_settings_api.py'
+      note: 'endoreg-db 1.4.1 migration 0078_video_joined_dataset seeds a system-managed
+        dataset. Invalid-request tests now compare persisted rows before and after POST
+        instead of assuming an empty table. Video-default creation preserves existing
+        dropdown entries and adds the exact expected new entry. Validation status codes
+        and error messages remain asserted. Focused rerun of dataset API, storage balance
+        worker and storage recovery tests: 31 passed, 4 failed in 84.27s; all 12 dataset
+        API tests passed. The four remaining failures are endoreg-db PostgreSQL locking
+        defects. Ruff check and format --check passed for the changed test file. Final
+        cross-repository rerun with PYTHONPATH=/home/admin/endoreg-db: all 35 selected
+        tests passed in 75.41s, including all 12 dataset API tests.'
     - kind: command
       reference: '.devenv/state/venv/bin/pytest tests/api/test_ai_dataset_splits.py tests/contracts/test_frontend_backend_api_contract.py
         -q: 22 passed'

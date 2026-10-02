@@ -54,6 +54,10 @@ export interface VideoTranscodeJob {
   errorCode: string
   createdAt: string
   updatedAt: string
+  heartbeatAt: string | null
+  finishedAt: string | null
+  observedAt: string
+  workerActivity: 'recent' | 'unconfirmed' | 'waiting' | 'inactive'
 }
 
 export interface VideoTranscodeCandidate {
@@ -125,11 +129,26 @@ function isTranscodeJob(value: unknown): value is VideoTranscodeJob {
     isRecord(value) &&
     hasTranscodeIdentity(value) &&
     hasTranscodeMeasurements(value) &&
+    hasTranscodeObservation(value) &&
     typeof value.stage === 'string' &&
-    typeof value.errorCode === 'string' &&
-    typeof value.createdAt === 'string' &&
-    typeof value.updatedAt === 'string'
+    typeof value.errorCode === 'string'
   )
+}
+
+function hasTranscodeObservation(value: Record<string, unknown>): boolean {
+  return (
+    isTimestamp(value.createdAt) &&
+    isTimestamp(value.updatedAt) &&
+    isTimestamp(value.observedAt) &&
+    (value.heartbeatAt === null || isTimestamp(value.heartbeatAt)) &&
+    (value.finishedAt === null || isTimestamp(value.finishedAt)) &&
+    typeof value.workerActivity === 'string' &&
+    ['recent', 'unconfirmed', 'waiting', 'inactive'].includes(value.workerActivity)
+  )
+}
+
+function isTimestamp(value: unknown): value is string {
+  return typeof value === 'string' && Number.isFinite(Date.parse(value))
 }
 
 function isTranscodeCandidate(value: unknown): value is VideoTranscodeCandidate {

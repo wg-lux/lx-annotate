@@ -110,7 +110,7 @@ export function usePollingProtection() {
       throw new Error('Datei wird bereits verarbeitet')
     }
     try {
-      return await startAnonymizationSafe(fileId)
+      return await startAnonymizationSafe(fileId, mediaType)
     } finally {
       // Lock immer freigeben, damit UI nicht gebremst wird
       releaseProcessingLock(fileId, mediaType)

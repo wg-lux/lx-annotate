@@ -27,6 +27,12 @@ definition_of_done:
     Storage reads are bounded and disclose neither protected paths nor media contents.
   - Active import and HLS stages have accessible indeterminate progress unless the backend supplies measured
     progress with a meaningful denominator. Terminal states stop progress.
+  - Transcode observation exposes worker heartbeat, server observation and completion timestamps. The
+    UI distinguishes persisted running state from a recent worker heartbeat and warns when activity cannot
+    be confirmed within the existing lease interval; observation never resets or redispatches jobs.
+  - Job details show identifier, last reported phase, elapsed time, timestamps and measured sizes. Active,
+    waiting and terminal jobs are counted separately, and periodic observation discovers newly queued
+    work.
   - Overview requests coalesce, discover newly active work, recover after request failures, and cannot
     restart polling after the component is disposed.
   - Import interruption is a persisted, center-authorized cancellation request by upload-job UUID. The
@@ -78,8 +84,8 @@ definition_of_done:
     - kind: code
       reference: frontend/src/components/Anonymizer/AnonymizationOverviewComponent.vue; frontend/src/components/Anonymizer/AnonymizationOverviewRow.vue
     - kind: review
-      reference: /home/admin/endoreg-db/endoreg_db/services/video_processed_transcode.py; /home/admin/endoreg-db/endoreg_db/utils/storage/files.py;
-        /home/admin/endoreg-db/endoreg_db/services/video_files/_io.py
+      reference: /home/admin/endoreg-db/endoreg_db/services/video_storage/video_processed_transcode.py;
+        /home/admin/endoreg-db/endoreg_db/utils/storage/files.py; /home/admin/endoreg-db/endoreg_db/services/video_files/_io.py
     - kind: code
       reference: /home/admin/endoreg-db/endoreg_db/services/hub/upload_job_cancellation.py; /home/admin/endoreg-db/endoreg_db/migrations/0079_upload_job_cancellation.py;
         /home/admin/lx-data-models/lx_dtypes/models/contracts/anonymization_overview.py
@@ -145,8 +151,29 @@ definition_of_done:
       reference: '2026-09-25: Metadata repair invokes existing video reimport with refresh_predictions=false.
         56 store/component tests passed; vue-tsc tsconfig.app.json and focused ESLint passed. Missing
         source and rejected imports stay explicit. No production deployment performed.'
-    assessed_by: codex-import-20260924-a
-    assessed_at: '2026-09-25T06:42:12.033462Z'
+    - kind: command
+      reference: '2026-10-02: Frontend Vitest API/transcode-panel/overview cohort: 79 passed. vue-tsc
+        --build --force and scoped ESLint passed. Focused Pyright service/API tests: 0 errors, 0 warnings;
+        Ruff and git diff --check passed.'
+    - kind: command
+      reference: '2026-10-02: PYTHONPATH=/home/admin/endoreg-db:/home/admin/dev/lx-annotate .devenv/state/venv/bin/pytest
+        tests/api/test_video_transcode_jobs.py tests/services/test_video_transcode_worker.py -q --tb=short
+        with PostgreSQL 18.6 bin/libpq paths: 57 passed in 54.90s. Covers heartbeat expiry boundary, missing/future
+        heartbeats, terminal states, read-only observation and existing fenced worker behavior.'
+    - kind: review
+      reference: 'gc-02 site-client, local read-only diagnostics 2026-10-02 around 14:02 CEST: all five
+        responding Celery workers reported empty active/reserved/scheduled lists; six consumed queue backlogs
+        and Redis unacknowledged deliveries were zero. Broker resolved from the running systemd unit environment,
+        not the differing development environment. The reported video-4 running label was not confirmed
+        by actual task execution. Database row inspection unavailable due to credential-file permissions;
+        no state was changed.'
+    note: Added read-only transcode activity evidence using the existing 120-second lease interval. Missing,
+      expired or future worker heartbeats are unconfirmed; persisted job status is preserved. The panel
+      exposes timestamps, elapsed time, job identity, observation counts and explicit unmeasured progress,
+      and discovers new work every 30 seconds while idle. No live job reset, cleanup, replay or deployment
+      performed; broader lifecycle and deployed browser acceptance remain open.
+    assessed_by: codex-overview-supervisor-20261002
+    assessed_at: '2026-10-02T12:05:40.773365Z'
 - id: truthful_import_and_reimport
   category: requirements
   title: Import and reimport retain truthful state and visible recovery

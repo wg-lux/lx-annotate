@@ -223,7 +223,7 @@ function buildFlowStore() {
           {
             localId: 'finding_1',
             finding: 'esophagus_polyp',
-            interventions: [] as string[],
+            interventions: [] as Array<{ intervention: string; localId?: string }>,
             classificationChoices: [
               {
                 localId: 'classification_1',
@@ -425,7 +425,7 @@ describe('ReportEditorPage draft-driven workflow', () => {
 
   it('renders live section preview from the current runtime draft and saves draft findings', async () => {
     hoisted.flowRef.current.currentRuntimeDraft.payload.patientFindings[0].interventions = [
-      'biopsy'
+      { intervention: 'biopsy', localId: 'biopsy_occurrence' }
     ]
     const wrapper = mountPage()
     await flushPromises()

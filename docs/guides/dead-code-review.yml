@@ -8,3 +8,29 @@ checks: Application and component-test vue-tsc, scoped ESLint, git diff --check,
 retained: Public type names, Django-discovered classes, compatibility shims, and hash helpers with distinct validation contracts.
 python: 'No Python changes; Radon baseline 881 blocks, average 3.92. For Python removals use python -m trace --count -C <artifact-directory> --module pytest <focused-test>; missing trace hits alone do not prove dead code.'
 gaps: Vulture baseline and quality:dead-code task absent; Knip, Oxlint and Biome researched but not installed or run.
+
+duplicate_helper_review_2026_10_01:
+  owner: codex-dedup-20261001-a
+  scope: Four previously untouched frontend callers and two shared utilities.
+  removed: Two duplicate function bodies; four local definitions replaced by shared imports.
+  helpers:
+    - frontend/src/utils/formatSnippet.ts
+    - frontend/src/utils/saveDownload.ts
+  callers:
+    - frontend/src/api/patientService.ts
+    - frontend/src/stores/annotationStats.ts
+    - frontend/src/components/Export/CaseStudyExcelExport.vue
+    - frontend/src/components/Export/StudyCohortExcelExport.vue
+  preserved: Exact function bodies, call sites, exception handling, API contracts, and download lifecycle.
+  excluded: Existing user edits, backend storage and cryptography, and helpers with differing validation contracts.
+  verification:
+    - All four original HEAD function bodies exactly match the two extracted helpers.
+    - Scoped ESLint passed from frontend using the repository configuration.
+    - Prettier check passed for all six changed source files.
+    - git diff --check passed.
+  tests: Not run at user request; runtime and integration behavior remain unverified.
+  suggested_review_tests:
+    - frontend/src/stores/__tests__/annotationStats.test.ts
+    - frontend/src/api/__tests__/patientService.medicalLedger.test.ts
+    - frontend/src/components/Export/__tests__/CaseStudyExcelExport.test.ts
+    - frontend/src/components/Export/__tests__/StudyCohortExcelExport.test.ts

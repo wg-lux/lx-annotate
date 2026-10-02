@@ -1,4 +1,7 @@
 import { defineStore } from 'pinia'
+import { v4 as uuidv4 } from 'uuid'
+import { isRuntimePayload } from '@/views/reporting/reportingRuntimeContract'
+import { migrateRuntimeInterventions } from '@/views/reporting/reportingInterventionContract'
 import type { ReportFrameSelection } from '@/utils/frameStreams'
 import { computed, ref, watch } from 'vue'
 import { savePatientExaminationDraft } from '@/api/reportDraftApi'
@@ -143,6 +146,10 @@ function normalizeRuntimePatientFindings(
   return patientFindings.map((patientFinding) => ({
     ...patientFinding,
     localId: patientFinding.localId || nextRuntimeDraftEntityId('finding'),
+    interventions: patientFinding.interventions?.map((intervention) => ({
+      ...intervention,
+      localId: intervention.localId || uuidv4()
+    })),
     classificationChoices: normalizeRuntimeClassificationChoices(
       patientFinding.classificationChoices
     )
@@ -283,70 +290,6 @@ function isTemplateReadiness(value: unknown): boolean {
   )
 }
 
-function isRuntimeDescriptor(value: unknown): value is ReportTemplateRuntimeDescriptorInput {
-  return (
-    isRecord(value) &&
-    (value.localId === undefined || typeof value.localId === 'string') &&
-    typeof value.classificationChoiceDescriptor === 'string' &&
-    'descriptorValue' in value
-  )
-}
-
-function isRuntimeClassificationChoice(
-  value: unknown
-): value is ReportTemplateRuntimeClassificationChoiceInput {
-  return (
-    isRecord(value) &&
-    (value.localId === undefined || typeof value.localId === 'string') &&
-    typeof value.classification === 'string' &&
-    typeof value.classificationChoice === 'string' &&
-    Array.isArray(value.descriptors) &&
-    value.descriptors.every(isRuntimeDescriptor)
-  )
-}
-
-function isRuntimePatientFinding(
-  value: unknown
-): value is ReportTemplateRuntimePatientFindingInput {
-  return (
-    isRecord(value) &&
-    (value.localId === undefined || typeof value.localId === 'string') &&
-    typeof value.finding === 'string' &&
-    Array.isArray(value.classificationChoices) &&
-    value.classificationChoices.every(isRuntimeClassificationChoice) &&
-    (value.interventions === undefined ||
-      (Array.isArray(value.interventions) &&
-        value.interventions.every((name) => typeof name === 'string' && name.trim().length > 0)))
-  )
-}
-
-function isRuntimePayload(value: unknown): value is ReportTemplateRuntimePayload {
-  if (!isRecord(value)) return false
-  return hasValidRuntimePayloadCore(value) && hasValidRuntimePayloadOptionals(value)
-}
-
-function hasValidRuntimePayloadCore(value: Record<string, unknown>): boolean {
-  return (
-    typeof value.patient === 'string' &&
-    isStringArray(value.examiners) &&
-    typeof value.examination === 'string' &&
-    Array.isArray(value.patientFindings) &&
-    value.patientFindings.every(isRuntimePatientFinding)
-  )
-}
-
-function isOptionalNullableString(value: unknown): boolean {
-  return value === undefined || isNullableString(value)
-}
-
-function hasValidRuntimePayloadOptionals(value: Record<string, unknown>): boolean {
-  return (
-    isOptionalNullableString(value.date) &&
-    isOptionalNullableString(value.knowledgeBaseModule) &&
-    isOptionalNullableString(value.knowledgeBaseVersion)
-  )
-}
-
 function isReportingRuntimeDraft(value: unknown): value is ReportingRuntimeDraft {
   if (!isRecord(value)) {
     return false
@@ -410,9 +353,13 @@ function normalizePersistedRuntimeDrafts(
 ): Partial<Record<string, ReportingRuntimeDraft>> {
   if (!isRecord(value)) return {}
   return Object.fromEntries(
-    Object.entries(value).filter((entry): entry is [string, ReportingRuntimeDraft] =>
-      isReportingRuntimeDraft(entry[1])
-    )
+    Object.entries(value)
+      .map(([key, draft]): [string, unknown] => [
+        key,
+        isRecord(draft) ? { ...draft, payload: migrateRuntimeInterventions(draft.payload) } : draft
+      ])
+      .filter((entry): entry is [string, ReportingRuntimeDraft] => isReportingRuntimeDraft(entry[1]))
+      .map(([key, draft]) => [key, { ...draft, payload: normalizeRuntimePayloadIds(draft.payload) }])
   )
 }
 
@@ -818,6 +765,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
 
   function setFindingIntervention(findingLocalId: string, intervention: string, selected: boolean) {
     if (!findingLocalId || !intervention.trim()) return
+    const name = intervention.trim()
     updateCurrentRuntimeDraft((draft) => ({
       ...draft,
       payload: {
@@ -827,8 +775,10 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
             ? {
                 ...finding,
                 interventions: selected
-                  ? [...new Set([...(finding.interventions || []), intervention])]
-                  : (finding.interventions || []).filter((name) => name !== intervention)
+                  ? (finding.interventions || []).some((entry) => entry.intervention === name)
+                    ? finding.interventions
+                    : [...(finding.interventions || []), { intervention: name }]
+                  : (finding.interventions || []).filter((entry) => entry.intervention !== name)
               }
             : finding
         )

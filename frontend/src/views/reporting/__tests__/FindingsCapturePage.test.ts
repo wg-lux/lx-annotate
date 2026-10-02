@@ -468,7 +468,7 @@ describe('FindingsCapturePage runtime draft flow', () => {
         indications: hoisted.flowRef.current.indications
       }
     )
-    expect(hoisted.flowRef.current.persistCurrentRuntimeDraft).toHaveBeenCalled()
+    expect(hoisted.flowRef.current.persistCurrentRuntimeDraft).not.toHaveBeenCalled()
   })
 
   it('loads localized interventions from the reporting context and keeps restored selections removable', async () => {
@@ -484,7 +484,7 @@ describe('FindingsCapturePage runtime draft flow', () => {
         localId: 'finding_1',
         finding: 'esophagus_polyp',
         classificationChoices: [],
-        interventions: ['polypectomy']
+        interventions: [{ intervention: 'polypectomy' }]
       }
     ]
     const wrapper = mountPage()

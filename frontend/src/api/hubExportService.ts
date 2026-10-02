@@ -22,18 +22,18 @@ export const hubExportService = {
     return data
   },
 
-  async markResources(targetNodeKey: string, resources: HubExportResourceRef[]): Promise<void> {
-    await axiosInstance.post(r(endpoints.hubExport.mark), { targetNodeKey, resources })
+  async markResources(targetNodeKey: string, resources: HubExportResourceRef[], retainLocalProcessedMedia?: boolean): Promise<void> {
+    await axiosInstance.post(r(endpoints.hubExport.mark), { targetNodeKey, resources, retainLocalProcessedMedia })
   },
 
   async unmarkResources(targetNodeKey: string, resources: HubExportResourceRef[]): Promise<void> {
     await axiosInstance.post(r(endpoints.hubExport.unmark), { targetNodeKey, resources })
   },
 
-  async offloadEligibleVideos(targetNodeKey: string): Promise<HubEligibleVideoOffloadResult> {
+  async offloadEligibleVideos(targetNodeKey: string, retainLocalProcessedMedia?: boolean): Promise<HubEligibleVideoOffloadResult> {
     const { data } = await axiosInstance.post<HubEligibleVideoOffloadResult>(
       r(endpoints.hubExport.offloadEligibleVideos),
-      { targetNodeKey }
+      { targetNodeKey, retainLocalProcessedMedia }
     )
     return data
   },

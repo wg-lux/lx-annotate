@@ -182,7 +182,7 @@ export interface AnonymizationState {
   current: SensitiveMeta | null
   // New state for overview functionality
   overview: FileItem[]
-  pollingHandles: Partial<Record<number, ReturnType<typeof setTimeout>>>
+  pollingHandles: Partial<Record<string, ReturnType<typeof setTimeout>>>
   isPolling: boolean
   hasAvailableFiles: boolean
   availableFiles: FileItem[]
@@ -573,28 +573,30 @@ export const useAnonymizationStore = defineStore('anonymization', {
           'not_started'
         ])
         this.reimportQueuedIds = this.reimportQueuedIds.filter((id) => {
-          const queuedFile = overviewData.find((f) => f.id === id)
+          const queuedFile = overviewData.find((f) => f.id === id && f.mediaType === 'video')
           return !!queuedFile && !stopStatuses.has(queuedFile.anonymizationStatus)
         })
 
         // NEW: Polling sofort stoppen für
         // 1) Dateien, die nicht mehr existieren
-        const currentPollingIds = Object.keys(this.pollingHandles).map((k) => Number(k))
-        const existingIds = new Set(overviewData.map((f) => f.id))
-        for (const pollingId of currentPollingIds) {
-          if (!existingIds.has(pollingId)) {
-            this.stopPolling(pollingId)
+        const existingKeys = new Set(overviewData.map((f) => `${f.mediaType}:${String(f.id)}`))
+        for (const pollingKey of Object.keys(this.pollingHandles)) {
+          if (!existingKeys.has(pollingKey)) {
+            const timer = this.pollingHandles[pollingKey]
+            clearTimeout(timer)
+            Reflect.deleteProperty(this.pollingHandles, pollingKey)
           }
         }
         // 2) Dateien mit finalem Status oder die nicht gepollt werden sollen
         for (const fileOverview of overviewData) {
           if (
             isOverviewPollingTerminal(fileOverview, stopStatuses) &&
-            this.pollingHandles[fileOverview.id] !== undefined
+            (fileOverview.mediaType === 'pdf' || fileOverview.mediaType === 'video')
           ) {
-            this.stopPolling(fileOverview.id)
+            this.stopPolling(fileOverview.id, fileOverview.mediaType)
           }
         }
+        this.isPolling = Object.keys(this.pollingHandles).length > 0
 
         this.hasAvailableFiles = overviewData.length > 0
         return overviewData
@@ -647,13 +649,14 @@ export const useAnonymizationStore = defineStore('anonymization', {
     /**
      * Start anonymization for a specific file
      */
-    async startAnonymization(id: number) {
-      const file = this.overview.find((f) => f.id === id)
+    async startAnonymization(id: number, mediaType: 'video' | 'pdf') {
+      const file = this.overview.find((f) => f.id === id && f.mediaType === mediaType)
       if (!file) {
         this.error = `Datei mit ID ${String(id)} nicht gefunden.`
         return false
       }
 
+      const previousStatus = file.anonymizationStatus
       try {
         runtimeLogger.debug('anonymization-start-requested', { fileType: file.mediaType })
 
@@ -661,18 +664,18 @@ export const useAnonymizationStore = defineStore('anonymization', {
         file.anonymizationStatus = 'processing_anonymization'
 
         // Trigger anonymization
-        await axiosInstance.post(r(endpoints.anonymization.start(id)))
+        await axiosInstance.post(r(endpoints.anonymization.start(id)), { media_type: mediaType })
         runtimeLogger.info('anonymization-start-accepted', { fileType: file.mediaType })
 
         // Start polling
-        this.startPolling(id)
+        this.startPolling(id, mediaType)
 
         return true
       } catch (err: unknown) {
         runtimeLogger.error('anonymization-start-failed', err, { fileType: file.mediaType })
 
         // Revert optimistic update
-        file.anonymizationStatus = 'not_started'
+        file.anonymizationStatus = previousStatus
 
         if (axios.isAxiosError<unknown>(err)) {
           this.error = `Fehler beim Starten der Anonymisierung (${axiosStatus(err)}): ${err.message}`
@@ -689,15 +692,16 @@ export const useAnonymizationStore = defineStore('anonymization', {
     /**
      * Start polling status for a specific file
      */
-    startPolling(id: number) {
-      if (this.pollingHandles[id] !== undefined) {
+    startPolling(id: number, mediaType: 'video' | 'pdf') {
+      const pollingKey = `${mediaType}:${String(id)}`
+      if (this.pollingHandles[pollingKey] !== undefined) {
         runtimeLogger.debug('status-poll-already-running')
         return
       }
 
       // 1. Find the file to determine its type
-      const file = this.overview.find((f) => f.id === id)
-      if (!file) {
+      const file = this.overview.find((f) => f.id === id && f.mediaType === mediaType)
+      if (!file || file.importOnly || file.quarantined) {
         runtimeLogger.warn('status-poll-file-missing')
         return
       }
@@ -705,19 +709,21 @@ export const useAnonymizationStore = defineStore('anonymization', {
       runtimeLogger.debug('status-poll-started', { fileType: file.mediaType })
       this.isPolling = true
 
-      const kindParam = file.mediaType === 'pdf' ? 'report' : 'video'
+      const kindParam = mediaType === 'pdf' ? 'report' : 'video'
       let nextDelayMs = statusPollIntervalMs(id)
       const jitter = () => Math.floor(Math.random() * STATUS_POLL_JITTER_MS)
 
       const applyStatusUpdate = (data: AnonymizationStatusResponse): boolean => {
-        const currentFile = this.overview.find((candidate) => candidate.id === id)
+        const currentFile = this.overview.find(
+          (candidate) => candidate.id === id && candidate.mediaType === mediaType
+        )
         if (!currentFile || !isFileAnonymizationStatus(data.anonymizationStatus)) return false
         const statusFromBackend = data.anonymizationStatus
         runtimeLogger.debug('status-poll-update-applied', { fileType: currentFile.mediaType })
         currentFile.anonymizationStatus = statusFromBackend
         if (!FINAL_ANONYMIZATION_STATUSES.has(statusFromBackend)) return false
         runtimeLogger.info('status-poll-final-state-reached', { fileType: currentFile.mediaType })
-        this.stopPolling(id)
+        this.stopPolling(id, mediaType)
         return true
       }
 
@@ -732,12 +738,12 @@ export const useAnonymizationStore = defineStore('anonymization', {
       }
 
       const poll = async () => {
-        if (this.pollingHandles[id] === undefined) {
+        if (this.pollingHandles[pollingKey] === undefined) {
           return
         }
 
         if (!claimStatusPollSlot(id, kindParam, nextDelayMs)) {
-          this.pollingHandles[id] = setTimeout(() => void poll(), nextDelayMs + jitter())
+          this.pollingHandles[pollingKey] = setTimeout(() => void poll(), nextDelayMs + jitter())
           return
         }
 
@@ -747,30 +753,31 @@ export const useAnonymizationStore = defineStore('anonymization', {
             { params: { kind: kindParam } }
           )
 
-          if (this.pollingHandles[id] === undefined) return
+          if (this.pollingHandles[pollingKey] === undefined) return
           if (applyStatusUpdate(data)) return
           nextDelayMs = statusPollIntervalMs(id)
         } catch (err) {
           updateDelayAfterFailure(err)
         }
 
-        if (this.pollingHandles[id] === undefined) {
+        if (this.pollingHandles[pollingKey] === undefined) {
           return
         }
         deferStatusPollSlot(id, kindParam, nextDelayMs)
-        this.pollingHandles[id] = setTimeout(() => void poll(), nextDelayMs + jitter())
+        this.pollingHandles[pollingKey] = setTimeout(() => void poll(), nextDelayMs + jitter())
       }
 
-      this.pollingHandles[id] = setTimeout(() => void poll(), nextDelayMs + jitter())
+      this.pollingHandles[pollingKey] = setTimeout(() => void poll(), nextDelayMs + jitter())
     },
     /**
      * Stop polling for a specific file
      */
-    stopPolling(id: number) {
-      const timer = this.pollingHandles[id]
+    stopPolling(id: number, mediaType: 'video' | 'pdf') {
+      const pollingKey = `${mediaType}:${String(id)}`
+      const timer = this.pollingHandles[pollingKey]
       if (timer !== undefined) {
         clearTimeout(timer)
-        Reflect.deleteProperty(this.pollingHandles, id)
+        Reflect.deleteProperty(this.pollingHandles, pollingKey)
         runtimeLogger.debug('status-poll-stopped')
       }
 
@@ -782,9 +789,10 @@ export const useAnonymizationStore = defineStore('anonymization', {
      * Stop all polling
      */
     stopAllPolling() {
-      Object.keys(this.pollingHandles).forEach((id) => {
-        this.stopPolling(parseInt(id))
-      })
+      for (const timer of Object.values(this.pollingHandles)) {
+        if (timer !== undefined) clearTimeout(timer)
+      }
+      this.pollingHandles = {}
       this.isPolling = false
       runtimeLogger.debug('all-status-polls-stopped')
     },
@@ -899,29 +907,33 @@ export const useAnonymizationStore = defineStore('anonymization', {
       })
       this.error = null
       await this.fetchOverview()
-      this.startPolling(fileId)
+      this.startPolling(fileId, 'video')
       return true
     },
 
     /** Repair state, or resume metadata import through the existing pipeline. */
     async reimportVideo(fileId: number) {
-      const file = this.overview.find((f) => f.id === fileId)
+      const file = this.overview.find((f) => f.id === fileId && f.mediaType === 'video')
       if (!file) {
         this.error = `Video mit ID ${String(fileId)} nicht gefunden.`
         return false
       }
 
-      if (file.mediaType !== 'video') {
-        this.error = `Datei mit ID ${String(fileId)} ist kein Video.`
-        return false
-      }
-
       if (isUploadJobActive(file)) {
-        this.startPolling(fileId)
+        this.startPolling(fileId, 'video')
         return true
       }
 
       try {
+        if (file.anonymizationStatus === 'failed') {
+          await axiosInstance.post(r(endpoints.media.videoReimport(fileId)), {
+            refresh_predictions: false
+          })
+          this.error = null
+          await this.fetchOverview()
+          this.startPolling(fileId, 'video')
+          return true
+        }
         const { data } = await axiosInstance.post<VideoStateRepairResponse>(
           r(endpoints.runtime.videoStateRepairOne(fileId)),
           { dry_run: false }
@@ -956,7 +968,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
      * Follows the same pattern as reimportVideo for consistency
      */
     async reimportPdf(fileId: number) {
-      const file = this.overview.find((f) => f.id === fileId)
+      const file = this.overview.find((f) => f.id === fileId && f.mediaType === 'pdf')
       if (!file) {
         this.error = `PDF mit ID ${String(fileId)} nicht gefunden.`
         return false
@@ -981,7 +993,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         runtimeLogger.info('media-reimport-accepted', { fileType: 'pdf' })
 
         runtimeLogger.debug('media-reimport-poll-started', { fileType: 'pdf' })
-        this.startPolling(fileId)
+        this.startPolling(fileId, 'pdf')
 
         // Check if re-import was successful
         if (response.data.sensitiveMetaCreated ?? response.data.sensitive_meta_created) {

@@ -23,6 +23,42 @@ source_documents:
     switches through both entry points: 55 passed. Application vue-tsc --noEmit -p tsconfig.app.json and
     scoped ESLint with --max-warnings 0 passed.'
 definition_of_done:
+- id: intervention_occurrence_objects
+  category: requirements
+  title: Interventions use typed occurrence objects with canonical concept references
+  acceptance:
+  - Runtime selections use intervention and localId fields, scoped to the owning finding occurrence.
+  - Legacy string selections migrate on session and backend hydration without changing wire contracts.
+  - Invalid intervention objects cannot silently rebuild a saved backend draft.
+  - Canonical terminology dependencies and deferred multiple-entry requirements are documented in English YAML.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run intervention contract, reporting store, findings capture, report editor, shell and runtime API tests, then application type checking and scoped lint.
+    timeout_seconds: 1200
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: document
+      reference: docs/guides/reporting-blocks.yml
+    - kind: code
+      reference: frontend/src/types/reportTemplate.ts
+    - kind: test
+      reference: frontend/src/views/reporting/__tests__/reportingInterventionContract.test.ts
+    - kind: test
+      reference: '2026-10-01 focused reporting/API lane: 9 files, 201 passed, 1 pre-existing failure at FindingsCapturePage.test.ts:616; reproduced with original staged component and test.'
+    - kind: command
+      reference: 'vue-tsc --noEmit -p frontend/tsconfig.app.json passed.'
+    - kind: command
+      reference: 'Scoped ESLint passed excluding FindingsCapturePersistance.test.ts with its pre-existing line 453 error; git diff --check passed; tracker validate passed for all 54 definitions.'
+    note: Intervention object coverage passes, including legacy browser/backend migration, per-finding isolation,
+      stable occurrence identity, unchanged serialization and malformed backend rejection. The staged findings
+      test still expects validation to call persistCurrentRuntimeDraft, and the staged persistence test has
+      a pre-existing restrict-template-expressions lint error at line 453. Component-test type checking is
+      unavailable because tsconfig.component-tests.json was already deleted in the supplied working tree.
+      Multiple entry points are deliberately deferred; live browser acceptance was not performed.
+    assessed_by: codex-report-objects-20261001
+    assessed_at: '2026-10-01T14:48:20Z'
 - id: coherent_context_typing
   category: requirements
   title: Reporting context has one coherent typed representation

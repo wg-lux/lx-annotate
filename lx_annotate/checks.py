@@ -11,7 +11,9 @@ from django.core.checks import CRITICAL, CheckMessage, Critical, Warning
 from django.core.exceptions import ImproperlyConfigured
 from django.db import DEFAULT_DB_ALIAS, connections
 from django.db.utils import OperationalError, ProgrammingError
-from endoreg_db.services.environment_readiness import check_environment_readiness
+from endoreg_db.services.runtime.environment_readiness import (
+    check_environment_readiness,
+)
 from endoreg_db.utils.paths import get_runtime_paths
 from endoreg_db.utils.rust_backend import has_native_capability
 from lx_dtypes.terminology.terminology_loader import get_terminology_service

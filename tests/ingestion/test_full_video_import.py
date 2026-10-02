@@ -12,7 +12,11 @@ from types import SimpleNamespace
 
 import pytest
 
-pytestmark = [pytest.mark.django_db, pytest.mark.integration, pytest.mark.video]
+pytestmark = [
+    pytest.mark.django_db(transaction=True),
+    pytest.mark.integration,
+    pytest.mark.video,
+]
 
 
 @pytest.fixture(autouse=True)

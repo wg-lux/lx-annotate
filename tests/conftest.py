@@ -7,6 +7,42 @@ import pytest
 
 
 @pytest.fixture(scope="session")
+def django_db_modify_db_settings(
+    postgresql_proc,
+    django_db_modify_db_settings_parallel_suffix,
+) -> None:
+    """Connect Django to pytest-postgresql's temporary server.
+
+    pytest-postgresql owns the server process.
+    pytest-django still owns database creation, migrations, and teardown.
+    """
+    from django.conf import settings
+    from django.db import connections
+
+    database = settings.DATABASES["default"]
+
+    if database["ENGINE"] != "django.db.backends.postgresql":
+        raise RuntimeError(
+            "The temporary PostgreSQL fixture requires PostgreSQL test settings."
+        )
+
+    # Avoid keeping a connection opened with earlier configuration.
+    connections.close_all()
+
+    # Update the existing dictionary in place. Do not replace TEST["NAME"]:
+    # pytest-django's parallel-suffix fixture may already have adjusted it.
+    database.update(
+        {
+            "NAME": "lx_test",
+            "USER": postgresql_proc.user,
+            "PASSWORD": postgresql_proc.password or "",
+            "HOST": postgresql_proc.host,
+            "PORT": str(postgresql_proc.port),
+        }
+    )
+
+
+@pytest.fixture(scope="session")
 def packaged_registry():
     """Hydrate the test root configured before Django imports any API routes."""
     from lx_dtypes.terminology.terminology_loader import hydrate_shipped_terminology

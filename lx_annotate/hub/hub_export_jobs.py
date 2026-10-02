@@ -885,6 +885,7 @@ def mark_resources_for_hub_upload(
     target_node: NetworkNode,
     marked_by=None,
     allowed_center_ids: frozenset[int] | None = None,
+    retain_local_processed_media: bool | None = None,
 ) -> list[OutboundHubTransferJob]:
     authenticated_marker = _authenticated_marker(marked_by)
     source_node = get_default_source_node()
@@ -903,6 +904,7 @@ def mark_resources_for_hub_upload(
                 target_node=target_node,
                 source_node=source_node,
                 marked_by=authenticated_marker,
+                retain_local_processed_media=retain_local_processed_media,
             )
         elif resource_kind == OutboundHubTransferJob.ResourceKind.REPORT:
             job, created = _mark_report_for_hub_upload(
@@ -930,6 +932,7 @@ def queue_all_eligible_videos_for_hub_upload(
     target_node: NetworkNode,
     marked_by: Any,
     allowed_center_ids: frozenset[int] | None = None,
+    retain_local_processed_media: bool | None = None,
 ) -> HubEligibleVideoOffloadResult:
     authenticated_marker = _authenticated_marker(marked_by)
     source_node = get_default_source_node()
@@ -954,6 +957,7 @@ def queue_all_eligible_videos_for_hub_upload(
                 target_node=target_node,
                 source_node=source_node,
                 marked_by=authenticated_marker,
+                retain_local_processed_media=retain_local_processed_media,
             )
         except ValueError:
             continue
@@ -1138,6 +1142,7 @@ def _mark_video_for_hub_upload(
     target_node: NetworkNode,
     source_node: NetworkNode,
     marked_by: Any,
+    retain_local_processed_media: bool | None = None,
 ) -> tuple[OutboundHubTransferJob, bool]:
     video = VideoFile.objects.select_related("center").get(pk=resource_id)
     readiness = resolve_video_hub_export_state(video, verify_processed_media=True)
@@ -1153,7 +1158,13 @@ def _mark_video_for_hub_upload(
         defaults={
             "resource_kind": OutboundHubTransferJob.ResourceKind.VIDEO,
             "source_center": video.center,
-            "local_cleanup_policy": configured_local_cleanup_policy(),
+            "local_cleanup_policy": (
+                configured_local_cleanup_policy()
+                if retain_local_processed_media is None
+                else OutboundHubTransferJob.LocalCleanupPolicy.RETAIN_PROCESSED_MEDIA
+                if retain_local_processed_media
+                else OutboundHubTransferJob.LocalCleanupPolicy.ELIGIBLE_AFTER_VERIFIED_APPLY
+            ),
             "marked_by": marked_by,
             "transfer_key": build_transfer_key(
                 source_node_key=source_node.node_key,

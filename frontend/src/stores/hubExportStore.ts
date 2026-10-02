@@ -230,13 +230,13 @@ export const useHubExportStore = defineStore('hubExport', {
         this.loading = false
       }
     },
-    async markResources(resources: HubExportResourceRef[]) {
+    async markResources(resources: HubExportResourceRef[], retainLocalProcessedMedia?: boolean) {
       if (!this.selectedTargetNodeKey) {
         throw new Error('Kein Hub-Ziel ausgewählt.')
       }
       this.mutationError = null
       try {
-        await hubExportService.markResources(this.selectedTargetNodeKey, resources)
+        await hubExportService.markResources(this.selectedTargetNodeKey, resources, retainLocalProcessedMedia)
         await this.fetchOverview(this.selectedTargetNodeKey)
       } catch (error: unknown) {
         this.mutationError = mutationErrorMessage(
@@ -262,13 +262,13 @@ export const useHubExportStore = defineStore('hubExport', {
         throw error
       }
     },
-    async offloadEligibleVideos(): Promise<HubEligibleVideoOffloadResult> {
+    async offloadEligibleVideos(retainLocalProcessedMedia?: boolean): Promise<HubEligibleVideoOffloadResult> {
       if (!this.selectedTargetNodeKey) {
         throw new Error('Kein Hub-Ziel ausgewählt.')
       }
       this.mutationError = null
       try {
-        const data = await hubExportService.offloadEligibleVideos(this.selectedTargetNodeKey)
+        const data = await hubExportService.offloadEligibleVideos(this.selectedTargetNodeKey, retainLocalProcessedMedia)
         await this.fetchOverview(this.selectedTargetNodeKey)
         return data
       } catch (error: unknown) {

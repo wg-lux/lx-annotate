@@ -27,7 +27,9 @@ from endoreg_db.models import (
     UploadJob,
     VideoFile,
 )
-from endoreg_db.services.environment_readiness import assert_environment_readiness
+from endoreg_db.services.runtime.environment_readiness import (
+    assert_environment_readiness,
+)
 from endoreg_db.services.hub.ingest import (
     UploadProvenance,
     process_preanonymized_watcher_file,
@@ -460,7 +462,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
         logger.info("Pseudonymized intake directory: %s", self.pseudonymized_dir)
 
     def _resolve_default_center(self) -> Center:
-        from endoreg_db.services.center_defaults import resolve_local_center
+        from endoreg_db.services.centers.defaults import resolve_local_center
 
         return resolve_local_center()
 
@@ -494,7 +496,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
 
     def _ensure_processing_slot(self, file_path: str) -> bool:
         with self.files_lock:
-            if file_path in self.processed_files or file_path in self.in_flight_files:
+            if file_path in self.in_flight_files:
                 return False
             self.in_flight_files.add(file_path)
             return True
@@ -512,10 +514,17 @@ class AutoProcessingHandler(FileSystemEventHandler):
             self.processed_files.discard(file_path)
 
     def _submit_file(self, file_path: str) -> None:
-        if not self._ensure_processing_slot(file_path):
-            logger.debug("Skipping duplicate file event: %s", file_path)
+        path_key = str(Path(file_path))
+
+        if not self._ensure_processing_slot(path_key):
+            logger.debug("Skipping already queued or processing path: %s", path_key)
             return
-        self.executor.submit(self._process_file, file_path)
+
+        try:
+            self.executor.submit(self._process_file, path_key)
+        except Exception:
+            self._release_processing_slot(path_key)
+            raise
 
     def _process_file(self, file_path: str) -> None:
         path_key = str(Path(file_path))
@@ -523,9 +532,6 @@ class AutoProcessingHandler(FileSystemEventHandler):
 
         try:
             with self.files_lock:
-                if path_key in self.processed_files:
-                    logger.debug("File already processed: %s", path_key)
-                    return
                 if path_key not in self.in_flight_files:
                     self.in_flight_files.add(path_key)
 
@@ -1029,11 +1035,9 @@ class FileWatcherService:
                 and not should_ignore_file(candidate)
             ):
                 path_str = str(candidate)
-                if (
-                    path_str in self.handler.processed_files
-                    or path_str in self.handler.in_flight_files
-                ):
-                    continue
+                with self.handler.files_lock:
+                    if path_str in self.handler.in_flight_files:
+                        continue
                 yield candidate
 
     def _process_existing_files(self) -> int:

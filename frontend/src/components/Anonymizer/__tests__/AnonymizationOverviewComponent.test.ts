@@ -42,6 +42,8 @@ const hoisted = vi.hoisted(() => ({
       isVideoReimportQueued: ReturnType<typeof vi.fn>
       startPolling: ReturnType<typeof vi.fn>
       stopAllPolling: ReturnType<typeof vi.fn>
+      reimportVideo: ReturnType<typeof vi.fn>
+      reimportPdf: ReturnType<typeof vi.fn>
     }
   },
   mediaStoreRef: {
@@ -226,7 +228,9 @@ describe('AnonymizationOverviewComponent', () => {
       setCurrentForValidation: vi.fn().mockResolvedValue(true),
       isVideoReimportQueued: vi.fn().mockReturnValue(false),
       startPolling: vi.fn(),
-      stopAllPolling: vi.fn()
+      stopAllPolling: vi.fn(),
+      reimportVideo: vi.fn().mockResolvedValue(true),
+      reimportPdf: vi.fn().mockResolvedValue(true)
     })
 
     hoisted.mediaStoreRef.current = {
@@ -478,6 +482,32 @@ describe('AnonymizationOverviewComponent', () => {
     expect(wrapper.text()).toContain('study-video.mp4')
     expect(wrapper.text()).toContain('Video-ID: 17')
   })
+
+  it.each(['video', 'pdf'] as const)(
+    'uses guarded reimport when retrying a failed %s',
+    async (mediaType) => {
+      const store = hoisted.anonymizationStoreRef.current
+      store.overview = [
+        mediaType === 'video'
+          ? buildVideoFile({ anonymizationStatus: 'failed' })
+          : buildPdfFile({ anonymizationStatus: 'failed' })
+      ]
+      const wrapper = mount(AnonymizationOverviewComponent)
+      await flushPromises()
+      const retryButton = wrapper
+        .findAll('tbody button')
+        .find((button) => button.text() === 'Erneut versuchen')
+      expect(retryButton).toBeDefined()
+      await retryButton?.trigger('click')
+      await flushPromises()
+      expect(mediaType === 'video' ? store.reimportVideo : store.reimportPdf).toHaveBeenCalledWith(
+        mediaType === 'video' ? VIDEO_FILE_ID : PDF_FILE_ID
+      )
+      expect(
+        hoisted.pollingProtectionRef.current.startAnonymizationSafeWithProtection
+      ).not.toHaveBeenCalled()
+    }
+  )
 
   it('starts the exact PDF when a video shares its numeric id', async () => {
     hoisted.anonymizationStoreRef.current.overview = [
@@ -874,7 +904,9 @@ describe('AnonymizationOverviewComponent', () => {
 
     expect(stickyScrollbar.element.scrollLeft).toBe(TABLE_SCROLL_OFFSET)
     expect(wrapper.find('thead .validation-action-column').text()).toBe('Validierung')
-    expect(wrapper.find('tbody .validation-action-column button').text()).toContain('Anonymisierung validieren')
+    expect(wrapper.find('tbody .validation-action-column button').text()).toContain(
+      'Anonymisierung validieren'
+    )
   })
 
   it('renders a delete button for every overview row regardless of status', async () => {
@@ -1160,7 +1192,10 @@ describe('AnonymizationOverviewComponent', () => {
       expect(wrapper.text()).not.toContain('Rohvideo:')
       expect(wrapper.text()).toContain(`Anonymisiert: ${label}`)
       expect(
-        wrapper.find('.hls-materialization-summary').text().includes('Stream-Erzeugung (HLS) fehlgeschlagen')
+        wrapper
+          .find('.hls-materialization-summary')
+          .text()
+          .includes('Stream-Erzeugung (HLS) fehlgeschlagen')
       ).toBe(status === 'failed')
       expect(hoisted.anonymizationStoreRef.current.overview[0].hlsMaterializations).toHaveLength(2)
     }

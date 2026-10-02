@@ -270,7 +270,7 @@ def _locked_examiner(portal_info: PortalUserInfo | None) -> Examiner | None:
     if examiner_pk is None:
         return None
     examiner = (
-        Examiner.objects.select_for_update()
+        Examiner.objects.select_for_update(of=("self",))
         .select_related("center")
         .filter(pk=examiner_pk)
         .first()

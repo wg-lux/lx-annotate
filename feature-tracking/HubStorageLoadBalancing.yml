@@ -286,6 +286,39 @@ definition_of_done:
   assessment:
     status: in_progress
     evidence:
+    - kind: test
+      reference: '2026-10-01, assessor codex-failure-triage-20261001: tests/hub/test_storage_balance_worker.py and tests/hub/test_storage_recovery.py'
+      note: 'PostgreSQL NotSupportedError in endoreg-db 1.4.1 services/hub/storage_rotation.py,
+        advance_storage_rotation, at the locked rotation lookup (line 609). Unrestricted
+        select_for_update with select_related(source_placement, target_placement__reservation)
+        tries to lock the nullable reservation join. This blocks terminal failure,
+        balance-worker and persisted-cancellation recovery tests. Processed ingest fails
+        separately in services/hub/storage_transfer.py, commit_verified_storage_placement
+        (line 439), whose locking query also joins the nullable reservation.
+        The fix belongs in endoreg-db and must preserve explicit locks for related rows
+        whose state is mutated; audit other joined locking queries and verify concurrent
+        rotation/reservation behavior. Initial diagnosis used the installed dependency;
+        its files and local storage behavior were left unchanged. Focused rerun of
+        dataset API, storage balance worker and storage
+        recovery tests: 31 passed, 4 failed in 84.27s; all four remaining failures are
+        these upstream PostgreSQL errors.'
+    - kind: test
+      reference: '2026-10-01, assessor codex-failure-triage-20261001: /home/admin/endoreg-db storage locking review'
+      note: 'At user request, reviewed the existing checkout fixes in storage_rotation.py
+        and storage_transfer.py. Required placement locks remain; optional reservations
+        are locked directly. Added active/missing reservation rejection tests and a real
+        PostgreSQL second-connection test proving the rotation reservation lock lasts
+        until transaction commit. Endoreg rotation/transfer/placement/balancing suite:
+        36 passed, 1 warning in 70.40s. Focused Pyright: 0 errors, 0 warnings; Ruff lint
+        passed. Tracker validation: 37 definitions valid. The transfer module requires
+        formatting and remains under another owner lock; its owner was notified. These
+        are local verification results, not production acceptance or installed-package
+        update evidence. Final LX command: PYTHONPATH=/home/admin/endoreg-db
+        .devenv/state/venv/bin/pytest tests/api/test_ai_dataset_settings_api.py
+        tests/hub/test_storage_balance_worker.py tests/hub/test_storage_recovery.py
+        -q --tb=short; 35 passed in 75.41s. Import probe confirmed
+        /home/admin/endoreg-db/endoreg_db/__init__.py. LX still uses the older
+        installed dependency without that explicit checkout import path.'
     - kind: command
       reference: '2026-08-11 final local lanes: Lux/Nix 47 passed; LX 68 passed; endoreg storage 49 passed/1
         PostgreSQL-only skip; skipped admission race passed separately on PostgreSQL 17; wheel-only live

@@ -1824,7 +1824,7 @@ describe('ReportingShell media preload', () => {
     expect(wrapper.get('.reporting-workspace-grid').classes()).toContain('has-technical-inspector')
   })
 
-  it('restores a persisted backend draft before rebuilding from patient examination detail', async () => {
+  it('restores a persisted backend draft and migrates legacy interventions before rebuilding', async () => {
     hoisted.timelineApi.fetchPatientTimelineLatest.mockResolvedValue({
       patient: { id: 42 },
       latestReport: null,
@@ -1853,7 +1853,7 @@ describe('ReportingShell media preload', () => {
           examination: 'colonoscopy',
           knowledgeBaseModule: 'report_template_examples',
           knowledgeBaseVersion: '1.0.0',
-          patientFindings: []
+          patientFindings: [{ finding: 'polyp', classificationChoices: [], interventions: ['biopsy'] }]
         }
       },
       updated_at: '2026-03-19T13:00:00.000Z'
@@ -1887,7 +1887,8 @@ describe('ReportingShell media preload', () => {
     })
     expect(restoredDraft.payload).toMatchObject({
       patient: 'patient_42',
-      examination: 'colonoscopy'
+      examination: 'colonoscopy',
+      patientFindings: [{ finding: 'polyp', interventions: [{ intervention: 'biopsy' }] }]
     })
     expect(hoisted.flowRef.current.markDraftPersistenceHydrated).toHaveBeenCalledWith(
       '2026-03-19T13:00:00.000Z',
@@ -1899,6 +1900,22 @@ describe('ReportingShell media preload', () => {
         renderedText: 'Persistierter Berichtstext'
       })
     )
+  })
+
+  it('surfaces invalid intervention objects without rebuilding or overwriting a saved draft', async () => {
+    hoisted.reportDraftApi.fetchPatientExaminationDraft.mockResolvedValue({
+      patient_examination_id: 314, revision: 5,
+      draft: { payload: {
+        patient: 'patient_42', examiners: [], examination: 'colonoscopy',
+        patientFindings: [{ finding: 'polyp', classificationChoices: [], interventions: [{}] }]
+      } }
+    })
+    const wrapper = mountShell()
+    await flushPromises()
+    expect(wrapper.text()).toContain('ungültige Befund- oder Interventionsdaten')
+    expect(hoisted.flowRef.current.setRuntimeDraft).not.toHaveBeenCalled()
+    expect(hoisted.reportTemplatesApi.buildReportTemplateRuntimePayload).not.toHaveBeenCalled()
+    expect(hoisted.flowRef.current.markDraftPersistenceHydrated).not.toHaveBeenCalled()
   })
 
   it('does not activate a persisted draft whose template is not published', async () => {

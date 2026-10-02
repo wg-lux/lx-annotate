@@ -38,6 +38,22 @@
       Transkodierungsaufträge werden geladen…
     </p>
     <template v-if="overview">
+      <p
+        class="small mt-2"
+        data-test="job-summary"
+        aria-live="polite"
+      >
+        Angezeigte Aufträge: {{ jobCounts.recent }} mit aktueller Worker-Rückmeldung ·
+        {{ jobCounts.waiting }} warten · {{ jobCounts.unconfirmed }} ohne aktuelle Rückmeldung ·
+        {{ jobCounts.terminal }} beendet
+      </p>
+      <p
+        class="small text-muted"
+        data-test="observation-time"
+      >
+        Zuletzt erfolgreich abgefragt: {{ formatDate(lastFetchedAt) }}. Aktive Aufträge werden alle
+        5 Sekunden abgefragt, sonst alle 30 Sekunden.
+      </p>
       <div class="d-flex flex-wrap align-items-end gap-3">
         <label class="form-label">
           Video
@@ -120,21 +136,49 @@
         >
           <div class="d-flex flex-wrap justify-content-between gap-2">
             <strong>Video {{ job.videoId }} · Verarbeitetes Video verkleinern</strong>
-            <span>{{ statusLabel(job.status) }}</span>
+            <span :class="{ 'text-warning': job.workerActivity === 'unconfirmed' }">
+              {{
+                job.workerActivity === 'unconfirmed'
+                  ? 'Aktivität unbestätigt'
+                  : statusLabel(job.status)
+              }}
+            </span>
           </div>
+          <p class="small mb-1">Zuletzt gemeldete Phase: {{ stageLabel(job.stage) }}</p>
+          <p
+            v-if="job.workerActivity === 'unconfirmed'"
+            class="small text-warning mb-1"
+            data-test="unconfirmed-worker"
+          >
+            Als laufend gespeichert, aber keine aktuelle Worker-Rückmeldung vorhanden. Die letzte
+            Phase bestätigt keinen Fortschritt. Bitte Serverdiagnose prüfen.
+          </p>
+          <p
+            v-else-if="job.workerActivity === 'recent'"
+            class="small text-muted mb-1"
+          >
+            Die letzte Worker-Rückmeldung ist aktuell. Eine Rückmeldung bestätigt Aktivität, nicht
+            den Fortschritt der Verarbeitung.
+          </p>
           <template v-if="isActive(job)">
-            <p class="small mb-1">{{ stageLabel(job.stage) }}</p>
             <progress
+              v-if="job.workerActivity === 'recent'"
               class="transcode-progress"
               :value="job.progressPercent ?? undefined"
               :max="100"
               :aria-label="`Transkodierung Video ${job.videoId}: ${stageLabel(job.stage)}`"
             />
             <span
-              v-if="job.progressPercent !== null"
+              v-if="job.progressPercent !== null && job.workerActivity === 'recent'"
               class="small"
               >{{ job.progressPercent }} %</span
             >
+            <span
+              v-else-if="job.workerActivity === 'recent'"
+              class="small text-muted"
+            >
+              Fortschritt nicht gemessen
+            </span>
           </template>
           <p
             v-else
@@ -143,6 +187,20 @@
             Vorher: {{ formatBytes(job.beforeBytes) }} · Nachher:
             {{ formatBytes(job.afterBytes) }} · Eingespart: {{ formatBytes(job.savedBytes) }}
           </p>
+          <dl class="job-details small my-2">
+            <dt>Angefordert</dt>
+            <dd>{{ formatDate(job.createdAt) }}</dd>
+            <dt>Letzte Änderung / Rückmeldung</dt>
+            <dd>{{ formatDate(job.updatedAt) }}</dd>
+            <dt>Letzte Worker-Rückmeldung</dt>
+            <dd>{{ job.heartbeatAt ? formatDate(job.heartbeatAt) : 'Noch keine' }}</dd>
+            <dt>{{ isActive(job) ? 'Zeit seit Anforderung' : 'Gesamtdauer' }}</dt>
+            <dd>{{ elapsedLabel(job) }}</dd>
+            <dt v-if="job.finishedAt">Beendet</dt>
+            <dd v-if="job.finishedAt">{{ formatDate(job.finishedAt) }}</dd>
+            <dt>Auftrags-ID</dt>
+            <dd class="job-identity">{{ job.id }}</dd>
+          </dl>
           <p
             v-if="job.errorCode === 'transcode_cleanup_pending'"
             class="small text-warning mb-0"
@@ -178,6 +236,8 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { isAxiosError } from 'axios'
 import { v4 as uuidv4 } from 'uuid'
+import { formatDate } from './overviewPresentation'
+import { formatDuration } from '@/utils/timeUtils'
 import {
   fetchVideoTranscodeJobs,
   startVideoTranscode,
@@ -193,6 +253,14 @@ const props = withDefaults(defineProps<{ repairing?: boolean; refreshToken?: num
 })
 const emit = defineEmits<{ repair: [option: TranscodeOption] }>()
 const overview = ref<VideoTranscodeOverview | null>(null)
+const lastFetchedAt = ref<string | null>(null)
+const jobCounts = computed(() => ({
+  recent: overview.value?.jobs.filter((job) => job.workerActivity === 'recent').length ?? 0,
+  waiting: overview.value?.jobs.filter((job) => job.workerActivity === 'waiting').length ?? 0,
+  unconfirmed:
+    overview.value?.jobs.filter((job) => job.workerActivity === 'unconfirmed').length ?? 0,
+  terminal: overview.value?.jobs.filter((job) => job.workerActivity === 'inactive').length ?? 0
+}))
 const selectedVideoId = ref<number | null>(null)
 const selectedOption = computed<TranscodeOption | null>(() =>
   overview.value?.options.includes('replace_processed') ? 'replace_processed' : null
@@ -222,6 +290,7 @@ let refreshPending = false
 const hasPendingRefresh = () => refreshPending
 let requestIdentity: { videoId: number; option: TranscodeOption; key: string } | null = null
 const POLL_INTERVAL_MS = 5000
+const IDLE_POLL_INTERVAL_MS = 30000
 
 function isActive(job: VideoTranscodeJob): boolean {
   return job.status === 'queued' || job.status === 'running'
@@ -230,7 +299,7 @@ function isActive(job: VideoTranscodeJob): boolean {
 function statusLabel(status: TranscodeJobStatus): string {
   const labels: Record<TranscodeJobStatus, string> = {
     queued: 'Wartet',
-    running: 'Läuft',
+    running: 'Worker-Rückmeldung aktuell',
     completed: 'Abgeschlossen',
     skipped: 'Übersprungen',
     failed: 'Fehlgeschlagen',
@@ -247,11 +316,17 @@ function stageLabel(stage: string): string {
     publishing: 'Ergebnis wird gespeichert',
     materializing: 'Quelle wird zur Verarbeitung bereitgestellt',
     encoding: 'Video wird transkodiert',
-    rebuilding_playback: 'HLS-Wiedergabe wird erneuert',
+    rebuilding_playback: 'HTTP Live Streaming (HLS): Wiedergabe wird erneuert',
     cleanup: 'Ersetzte Dateien werden bereinigt',
     completed: 'Abgeschlossen'
   }
-  return labels[stage] ?? 'Verarbeitung läuft'
+  return labels[stage] ?? 'Keine bekannte Phase gemeldet'
+}
+
+function elapsedLabel(job: VideoTranscodeJob): string {
+  const end = isActive(job) ? job.observedAt : job.finishedAt
+  if (!end) return 'Nicht erfasst'
+  return formatDuration(Math.max(0, (Date.parse(end) - Date.parse(job.createdAt)) / 1000))
 }
 
 function formatBytes(bytes: number | null): string {
@@ -277,15 +352,17 @@ function failureMessage(failure: unknown): string {
 
 function scheduleRefresh(): void {
   if (isDisposed() || timer || loading.value || submitting.value) return
-  if (!error.value && !overview.value?.jobs.some(isActive)) return
+  const interval =
+    error.value || overview.value?.jobs.some(isActive) ? POLL_INTERVAL_MS : IDLE_POLL_INTERVAL_MS
   timer = setTimeout(() => {
     timer = null
     void refresh()
-  }, POLL_INTERVAL_MS)
+  }, interval)
 }
 
 function applyObservation(response: VideoTranscodeOverview): void {
   overview.value = response
+  lastFetchedAt.value = new Date().toISOString()
   error.value = ''
   if (!eligibleCandidates.value.some((candidate) => candidate.videoId === selectedVideoId.value))
     selectedVideoId.value = null
@@ -309,6 +386,7 @@ async function refresh(): Promise<void> {
   } catch (failure: unknown) {
     if (isDisposed()) return
     overview.value = null
+    lastFetchedAt.value = null
     error.value = failureMessage(failure)
   } finally {
     controller = null
@@ -393,5 +471,16 @@ onUnmounted(() => {
 }
 .transcode-job + .transcode-job {
   border-top: 1px solid var(--lx-border, #dee2e6);
+}
+.job-details {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) minmax(0, 2fr);
+  gap: 0.25rem 1rem;
+}
+.job-details dd {
+  margin: 0;
+}
+.job-identity {
+  overflow-wrap: anywhere;
 }
 </style>

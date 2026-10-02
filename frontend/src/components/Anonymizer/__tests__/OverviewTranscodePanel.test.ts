@@ -34,6 +34,10 @@ function job(overrides: Partial<VideoTranscodeJob> = {}): VideoTranscodeJob {
     errorCode: '',
     createdAt: '2026-09-14T09:00:00Z',
     updatedAt: '2026-09-14T09:00:00Z',
+    observedAt: '2026-09-14T09:00:30Z',
+    heartbeatAt: '2026-09-14T09:00:20Z',
+    finishedAt: null,
+    workerActivity: 'recent',
     ...overrides
   }
 }
@@ -98,7 +102,7 @@ describe('OverviewTranscodePanel', () => {
     )
   })
 
-  it('shows indeterminate stage progress and stops polling on measured completion', async () => {
+  it('shows measured completion and slows observation while no jobs are active', async () => {
     vi.useFakeTimers()
     fetchJobs.mockResolvedValueOnce(overview([job()]))
     fetchJobs.mockResolvedValueOnce(
@@ -109,7 +113,9 @@ describe('OverviewTranscodePanel', () => {
           progressPercent: 100,
           beforeBytes: 4096,
           afterBytes: 1024,
-          savedBytes: 0
+          savedBytes: 0,
+          workerActivity: 'inactive',
+          finishedAt: '2026-09-14T09:01:00Z'
         })
       ])
     )
@@ -124,6 +130,52 @@ describe('OverviewTranscodePanel', () => {
     expect(wrapper.text()).toContain('Eingespart: 0 B')
     await vi.advanceTimersByTimeAsync(15000)
     expect(fetchJobs).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows heartbeat evidence, duration and job identity without inventing progress', async () => {
+    fetchJobs.mockResolvedValueOnce(overview([job({ stage: 'rebuilding_playback' })]))
+    const wrapper = mount(OverviewTranscodePanel)
+    await flushPromises()
+    expect(wrapper.text()).toContain('HTTP Live Streaming (HLS): Wiedergabe wird erneuert')
+    expect(wrapper.text()).toContain('transcode-job')
+    expect(wrapper.text()).toContain('30s')
+    expect(wrapper.text()).toContain('Fortschritt nicht gemessen')
+    expect(wrapper.get('[data-test="job-summary"]').text()).toContain(
+      '1 mit aktueller Worker-Rückmeldung'
+    )
+    expect(wrapper.get('[data-test="observation-time"]').text()).toContain(
+      'Zuletzt erfolgreich abgefragt'
+    )
+  })
+
+  it.each([null, '2026-09-14T08:00:00Z'])(
+    'does not show confirmed execution or progress for an unconfirmed heartbeat %s',
+    async (heartbeatAt) => {
+      fetchJobs.mockResolvedValueOnce(
+        overview([job({ workerActivity: 'unconfirmed', heartbeatAt })])
+      )
+      const wrapper = mount(OverviewTranscodePanel)
+      await flushPromises()
+      expect(wrapper.text()).toContain('Aktivität unbestätigt')
+      expect(wrapper.get('[data-test="unconfirmed-worker"]').text()).toContain('keinen Fortschritt')
+      expect(wrapper.get('[data-test="job-summary"]').text()).toContain(
+        '1 ohne aktuelle Rückmeldung'
+      )
+      expect(wrapper.find('progress').exists()).toBe(false)
+    }
+  )
+
+  it('discovers jobs submitted elsewhere while the last observation was idle', async () => {
+    vi.useFakeTimers()
+    fetchJobs.mockResolvedValueOnce(overview())
+    fetchJobs.mockResolvedValueOnce(overview([job()]))
+    const wrapper = mount(OverviewTranscodePanel)
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(30000)
+    expect(fetchJobs).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('Worker-Rückmeldung aktuell')
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(fetchJobs).toHaveBeenCalledTimes(3)
   })
 
   it('shows retained storage and server cleanup guidance when cleanup remains pending', async () => {

@@ -18,7 +18,9 @@ from endoreg_db.models import (
     VideoProcessingHistory,
     VideoState,
 )
-from endoreg_db.services import video_segment_validation_workflow as segment_workflow
+from endoreg_db.services.annotations import (
+    segment_validation_workflow as segment_workflow,
+)
 
 from lx_annotate.hub.hub_export_jobs import build_hub_export_overview
 from lx_annotate.hub.hub_export_state import resolve_video_hub_export_state

@@ -9,6 +9,7 @@ from django.utils import timezone
 from endoreg_db.models import VideoFile
 from endoreg_db.models.media.operation_lease import MediaOperationLease
 from endoreg_db.models.media.video.video_processing import VideoProcessingHistory
+from endoreg_db.services.streaming.hls_media import delete_video_hls_artifacts
 from endoreg_db.utils.file_operations import safe_delete_field_file
 from endoreg_db.utils.hashs import get_file_hash
 from endoreg_db.utils.storage_streaming import field_file_size
@@ -195,7 +196,7 @@ def cleanup_verified_local_processed_video(
 
     with transaction.atomic():
         outbound_job = (
-            OutboundHubTransferJob.objects.select_for_update()
+            OutboundHubTransferJob.objects.select_for_update(of=("self",))
             .select_related("video_file", "source_center", "target_node")
             .get(pk=outbound_job_id)
         )
@@ -240,7 +241,7 @@ def cleanup_verified_local_processed_video(
 
     with transaction.atomic():
         outbound_job = (
-            OutboundHubTransferJob.objects.select_for_update()
+            OutboundHubTransferJob.objects.select_for_update(of=("self",))
             .select_related("video_file", "source_center", "target_node")
             .get(pk=outbound_job_id)
         )
@@ -263,10 +264,18 @@ def cleanup_verified_local_processed_video(
                 raise HubExportCleanupBlocked(
                     "Local processed-video digest changed while cleanup was pending.",
                 )
+            # Playback and its source share one local lifetime. Retire HLS first
+            # so an interrupted deletion never leaves a cache without its master.
+            delete_video_hls_artifacts(video, artifact_kind="processed")
             storage_object_deleted = safe_delete_field_file(
                 field_file,
                 missing_ok=False,
             )
+            if field_file.storage.exists(storage_name):
+                raise HubExportCleanupBlocked("Processed storage deletion did not complete.")
+        else:
+            # Resume a durable cleaning receipt after a prior storage deletion.
+            delete_video_hls_artifacts(video, artifact_kind="processed")
         video.processed_file.name = ""
         video.save(update_fields=["processed_file", "date_modified"])
 

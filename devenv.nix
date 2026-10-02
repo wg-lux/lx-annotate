@@ -211,6 +211,7 @@ let
       git
       myTesseract
       secretspec
+      postgresql
     ]
     ++ lib.optionals enableOllama [ ollama.out ];
 

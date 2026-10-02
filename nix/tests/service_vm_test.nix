@@ -55,8 +55,8 @@ in
                 forceCpu = true;
               };
               extraEnv = {
-                DJANGO_DB_ENGINE = "django.db.backends.sqlite3";
-                DJANGO_DB_NAME = "/var/lib/lx-annotate/data/runtime-contract.sqlite3";
+                DJANGO_DB_ENGINE = "django.db.backends.postgresql";
+                DJANGO_DB_NAME = "/var/lib/lx-annotate/data/runtime-contract.postgresql";
                 DJANGO_SECRET_KEY = "vm-test-secret-key-00000000000000000000000000000000";
                 DJANGO_ALLOWED_HOSTS = "127.0.0.1,localhost";
                 DJANGO_CSRF_TRUSTED_ORIGINS = "http://127.0.0.1";
@@ -137,8 +137,8 @@ in
               description = "Exercise packaged LX-Annotate operational commands";
               wantedBy = [ "multi-user.target" ];
               environment = {
-                DJANGO_DB_ENGINE = "django.db.backends.sqlite3";
-                DJANGO_DB_NAME = "/run/lx-annotate-command-contract/db.sqlite3";
+                DJANGO_DB_ENGINE = "django.db.backends.postgresql";
+                DJANGO_DB_NAME = "/run/lx-annotate-command-contract/db.postgresql";
                 DJANGO_SECRET_KEY = "vm-command-contract-secret-000000000000000000000000";
                 DJANGO_SETTINGS_MODULE = "lx_annotate.settings.settings_dev";
                 LX_RUNTIME_ROOT = "/run/lx-annotate-command-contract/data";

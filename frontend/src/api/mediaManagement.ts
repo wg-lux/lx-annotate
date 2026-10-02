@@ -198,10 +198,11 @@ export const MediaManagementAPI = {
    */
   async getAnonymizationStatusSafe(
     fileId: number,
-    _fileType?: 'video' | 'pdf'
+    fileType: 'video' | 'pdf'
   ): Promise<AnonymizationStatusResponse> {
     const response = await api.get<AnonymizationStatusResponse>(
-      endoregApi(endpoints.anonymization.status(fileId))
+      endoregApi(endpoints.anonymization.status(fileId)),
+      { params: { kind: fileType } }
     )
     return response.data
   },
@@ -210,9 +211,13 @@ export const MediaManagementAPI = {
    * Start anonymization with processing lock protection
    * @param fileId - ID of the file to process
    */
-  async startAnonymizationSafe(fileId: number): Promise<ProcessingResponse> {
+  async startAnonymizationSafe(
+    fileId: number,
+    mediaType: 'video' | 'pdf'
+  ): Promise<ProcessingResponse> {
     const response = await api.post<ProcessingResponse>(
-      endoregApi(endpoints.anonymization.start(fileId))
+      endoregApi(endpoints.anonymization.start(fileId)),
+      { media_type: mediaType }
     )
     return response.data
   },
@@ -318,10 +323,10 @@ export function useMediaManagement() {
     reimportPdf: (fileId: number) => safeApiCall(() => MediaManagementAPI.reimportPdf(fileId)),
 
     // Safe anonymization operations
-    getStatusSafe: (fileId: number, fileType?: 'video' | 'pdf') =>
+    getStatusSafe: (fileId: number, fileType: 'video' | 'pdf') =>
       safeApiCall(() => MediaManagementAPI.getAnonymizationStatusSafe(fileId, fileType)),
-    startAnonymizationSafe: (fileId: number) =>
-      safeApiCall(() => MediaManagementAPI.startAnonymizationSafe(fileId)),
+    startAnonymizationSafe: (fileId: number, mediaType: 'video' | 'pdf') =>
+      safeApiCall(() => MediaManagementAPI.startAnonymizationSafe(fileId, mediaType)),
     validateAnonymizationSafe: (fileId: number, documentType?: string) =>
       safeApiCall(() => MediaManagementAPI.validateAnonymizationSafe(fileId, documentType)),
 

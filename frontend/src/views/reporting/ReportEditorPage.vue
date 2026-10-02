@@ -1666,7 +1666,7 @@ function formatRuntimeFindingSummary(
     })
     .concat(
       (finding.interventions || []).map(
-        (name) =>
+        ({ intervention: name }) =>
           `Intervention: ${localizedConceptLabel(coreConcepts.value?.intervention, name) || name}`
       )
     )
@@ -1837,7 +1837,7 @@ function buildDraftFindingsPayload(): SaveReportSubmissionRequest['findings'] {
       classification: choice.classification,
       classificationChoice: choice.classificationChoice
     })),
-    interventions: (finding.interventions || []).map((intervention) => ({ intervention }))
+    interventions: (finding.interventions || []).map(({ intervention }) => ({ intervention }))
   }))
 }
 

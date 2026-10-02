@@ -16,7 +16,7 @@ from endoreg_db.models.state.video_segment_validation import (
     mark_post_validation_complete,
     mark_segment_annotations_stale,
 )
-from endoreg_db.services.export_ready import mark_video_ready_for_export
+from endoreg_db.services.media.export_ready import mark_video_ready_for_export
 
 from lx_annotate.hub import hub_export_state
 from lx_annotate.hub.hub_export_jobs import mark_resources_for_hub_upload
@@ -92,7 +92,7 @@ class HubExportVideoStatePathTests(TestCase):
 
     def _promote_ready_for_export(self, video: VideoFile) -> VideoFile:
         with patch(
-            "endoreg_db.services.export_ready.ensure_within_protected_media_root",
+            "endoreg_db.services.media.export_ready.ensure_within_protected_media_root",
             side_effect=lambda path: path,
         ):
             mark_video_ready_for_export(

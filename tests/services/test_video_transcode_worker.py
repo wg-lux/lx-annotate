@@ -87,7 +87,7 @@ def test_idempotency_key_cannot_be_reassigned_to_another_video(video_and_actor):
 
 @pytest.fixture
 def encrypted_video(video_and_actor, tmp_path, master_key, monkeypatch):
-    from endoreg_db.services import streamable_media
+    from endoreg_db.services.streaming import streamable_media
     from endoreg_db.utils import paths
 
     monkeypatch.setenv("LX_RUNTIME_ROOT", str(tmp_path))
@@ -270,14 +270,15 @@ def test_serialized_job_omits_storage_identity_and_reports_persisted_bytes(
     assert "claim_token" not in payload and "actor_id" not in payload
 
 
+@pytest.mark.django_db(transaction=True)
 def test_heartbeat_failure_fences_publication_before_worker_continues(
     encrypted_video, monkeypatch
 ):
     from threading import Event
 
     from django.db import OperationalError
-    from endoreg_db.services import media_operation_gate, video_processed_transcode
-
+    from endoreg_db.services.video_storage import processed_transcode
+    from endoreg_db.services.media import operation_gate
     from lx_annotate.services import video_transcode_jobs
 
     class ImmediateStop(Event):
@@ -300,23 +301,23 @@ def test_heartbeat_failure_fences_publication_before_worker_continues(
     def fail_renewal(*args, **kwargs):
         raise OperationalError("heartbeat database unavailable")
 
-    actual = video_processed_transcode.transcode_processed_video_for_storage_pressure
+    actual = processed_transcode.transcode_processed_video_for_storage_pressure
     fenced = []
 
     @wraps(actual)
     def observe_fence(*args, **kwargs):
         claim = kwargs["transcode_claim"]
         fenced.append(claim.heartbeat_failed.is_set())
-        media_operation_gate.assert_video_transcode_lease(claim)
+        operation_gate.assert_video_transcode_lease(claim)
         pytest.fail("Failed heartbeat must fence publication")
 
     monkeypatch.setattr(video_transcode_jobs.threading, "Event", ImmediateStop)
     monkeypatch.setattr(video_transcode_jobs.threading, "Thread", ImmediateThread)
     monkeypatch.setattr(
-        media_operation_gate, "renew_video_transcode_lease", fail_renewal
+        operation_gate, "renew_video_transcode_lease", fail_renewal
     )
     monkeypatch.setattr(
-        video_processed_transcode,
+        processed_transcode,
         "transcode_processed_video_for_storage_pressure",
         observe_fence,
     )
@@ -337,14 +338,14 @@ def test_heartbeat_failure_fences_publication_before_worker_continues(
 def test_real_encoder_worker_persists_byte_results_and_preserves_raw(
     encrypted_video, option, monkeypatch
 ):
-    from endoreg_db.services import video_processed_transcode
+    from endoreg_db.services.video_storage import processed_transcode
     from endoreg_db.utils.paths import EndoregPathsModel
 
     actual_transcode = (
-        video_processed_transcode.transcode_processed_video_for_storage_pressure
+        processed_transcode.transcode_processed_video_for_storage_pressure
     )
-    actual_hls = video_processed_transcode.materialize_video_hls
-    actual_candidate = video_processed_transcode._build_transcode_candidate
+    actual_hls = processed_transcode.materialize_video_hls
+    actual_candidate = processed_transcode._build_transcode_candidate
     results = []
     hls_errors = []
 
@@ -375,13 +376,13 @@ def test_real_encoder_worker_persists_byte_results_and_preserves_raw(
         return result
 
     monkeypatch.setattr(
-        video_processed_transcode,
+        processed_transcode,
         "transcode_processed_video_for_storage_pressure",
         observe_transcode,
     )
-    monkeypatch.setattr(video_processed_transcode, "materialize_video_hls", observe_hls)
+    monkeypatch.setattr(processed_transcode, "materialize_video_hls", observe_hls)
     monkeypatch.setattr(
-        video_processed_transcode, "_build_transcode_candidate", observe_candidate
+        processed_transcode, "_build_transcode_candidate", observe_candidate
     )
     executable = shutil.which("ffmpeg")
     if executable is None:
@@ -456,19 +457,19 @@ def test_real_encoder_worker_persists_byte_results_and_preserves_raw(
 def test_cleanup_pending_does_not_report_completed_or_storage_savings(
     encrypted_video, monkeypatch
 ):
-    from endoreg_db.services import video_processed_transcode
+    from endoreg_db.services.video_storage import processed_transcode
 
-    actual = video_processed_transcode.transcode_processed_video_for_storage_pressure
+    actual = processed_transcode.transcode_processed_video_for_storage_pressure
 
     @wraps(actual)
     def cleanup_pending(*args, **kwargs):
         kwargs["progress_callback"]("cleanup")
-        raise video_processed_transcode.ProcessedVideoTranscodeCleanupError(
+        raise processed_transcode.ProcessedVideoTranscodeCleanupError(
             video_id=args[0].pk, phase="published_generation"
         )
 
     monkeypatch.setattr(
-        video_processed_transcode,
+        processed_transcode,
         "transcode_processed_video_for_storage_pressure",
         cleanup_pending,
     )

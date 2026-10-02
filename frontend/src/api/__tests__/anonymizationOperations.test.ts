@@ -32,7 +32,11 @@ const transcodeJob: VideoTranscodeJob = {
   savedBytes: null,
   errorCode: '',
   createdAt: '2026-09-14T09:00:00Z',
-  updatedAt: '2026-09-14T09:00:00Z'
+  updatedAt: '2026-09-14T09:00:00Z',
+  observedAt: '2026-09-14T09:00:00Z',
+  heartbeatAt: null,
+  finishedAt: null,
+  workerActivity: 'waiting'
 }
 
 describe('anonymization operations API', () => {
@@ -101,6 +105,10 @@ describe('anonymization operations API', () => {
     },
     { jobs: [{ ...transcodeJob, progressPercent: 101 }], candidates: [], options: [] },
     { jobs: [{ ...transcodeJob, beforeBytes: -1 }], candidates: [], options: [] },
+    { jobs: [{ ...transcodeJob, heartbeatAt: 'invalid-date' }], candidates: [], options: [] },
+    { jobs: [{ ...transcodeJob, observedAt: null }], candidates: [], options: [] },
+    { jobs: [{ ...transcodeJob, workerActivity: 'running' }], candidates: [], options: [] },
+    { jobs: [{ ...transcodeJob, workerActivity: ['recent'] }], candidates: [], options: [] },
     { jobs: [], options: [] }
   ])('rejects invalid transcode observations instead of inventing capabilities', async (data) => {
     get.mockResolvedValueOnce({ data })

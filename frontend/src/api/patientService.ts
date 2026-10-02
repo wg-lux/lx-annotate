@@ -3,6 +3,7 @@ import axios, { type AxiosResponse } from 'axios'
 import { endpoints } from '@/types/api/endpoints'
 import type { Center, Gender, Patient, PatientCreateData, PatientFormData } from '@/types/patient'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
+import { formatSnippet } from '@/utils/formatSnippet'
 
 export type {
   Center,
@@ -126,27 +127,6 @@ const patientFieldRules: PatientFieldRule[] = [
   { key: 'updatedAt', invalidMessage: 'updatedAt must be a string', accepts: isOptionalString }
 ]
 const patientDiagnosticRules = patientFieldRules.slice(0, 15)
-
-function formatSnippet(value: unknown): string {
-  if (value === null || value === undefined) {
-    return String(value)
-  }
-  if (
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean' ||
-    typeof value === 'bigint' ||
-    typeof value === 'symbol' ||
-    typeof value === 'function'
-  ) {
-    return String(value)
-  }
-  try {
-    return JSON.stringify(value)
-  } catch {
-    return '[object value]'
-  }
-}
 
 function describeInvalidPatientRow(row: unknown): string {
   if (!isRecord(row)) {

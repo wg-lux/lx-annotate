@@ -1344,9 +1344,9 @@ function serializeRuntimePatientFindings(
               uuid: `${findingKey}_interventions`,
               patient_finding_interventions: patientFinding.interventions.map(
                 (intervention, index) => ({
-                  intervention,
+                  intervention: intervention.intervention,
                   patient_finding_interventions: `${findingKey}_interventions`,
-                  uuid: `${findingKey}_intervention_${String(index + 1)}`
+                  uuid: intervention.localId || `${findingKey}_intervention_${String(index + 1)}`
                 })
               )
             }

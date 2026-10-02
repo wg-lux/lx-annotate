@@ -291,7 +291,7 @@ def test_virtual_training_frames_require_validation(
     retained_video: tuple[VideoFile, AIDataSet, LabelSet, int],
     gate: str,
 ) -> None:
-    from endoreg_db.services.aidataset_training_manifests import (
+    from endoreg_db.services.datasets.training_manifests import (
         build_frame_multilabel_training_manifest,
     )
 

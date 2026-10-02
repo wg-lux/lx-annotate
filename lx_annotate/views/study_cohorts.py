@@ -7,8 +7,8 @@ from django.db.models import F, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from endoreg_db.models import AIDataSet, PatientExamination, VideoFile
-from endoreg_db.services.center_access import resolve_allowed_center_ids
-from endoreg_db.services.study_cohort import (
+from endoreg_db.services.centers.access import resolve_allowed_center_ids
+from endoreg_db.services.studies.cohort import (
     build_study_cohort_payload,
     parse_study_cohort_filters,
 )

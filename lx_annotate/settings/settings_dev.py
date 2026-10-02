@@ -81,7 +81,7 @@ if "db_engine" in _database_config.model_fields_set:
     DATABASES["default"]["ENGINE"] = _database_config.db_engine
 if "db_name" in _database_config.model_fields_set:
     DATABASES["default"]["NAME"] = _database_config.db_name
-if DATABASES["default"]["ENGINE"] != "django.db.backends.sqlite3":
+if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":
     DATABASES["default"].update(
         USER=_database_config.db_user,
         PASSWORD=_database_config.db_password,

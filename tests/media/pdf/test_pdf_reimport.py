@@ -8,7 +8,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from endoreg_db.services.report_import import ReportImportService
+from endoreg_db.import_files.report_import_service import ReportImportService
 
 
 def test_pdf_reimport():

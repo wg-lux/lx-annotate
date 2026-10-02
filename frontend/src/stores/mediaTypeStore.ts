@@ -64,6 +64,8 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
   // Call this once after fetchOverview() in the overview component
   function seedTypesFromOverview(items: Array<{ id: number; mediaType?: string }>) {
     for (const overviewItem of items) {
+      // Import and quarantine rows use synthetic identifiers, not media identities.
+      if (!Number.isSafeInteger(overviewItem.id) || overviewItem.id < 0) continue
       const rawMediaType = (overviewItem.mediaType ?? '').toLowerCase()
       const mediaType: MediaType =
         rawMediaType === 'pdf' ? 'pdf' : rawMediaType === 'video' ? 'video' : 'unknown'

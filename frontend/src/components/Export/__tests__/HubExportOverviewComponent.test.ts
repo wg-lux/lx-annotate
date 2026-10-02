@@ -879,13 +879,18 @@ describe('HubExportOverviewComponent', () => {
     const wrapper = mount(HubExportOverviewComponent)
     await flushPromises()
 
+    expect(wrapper.get('[data-test="hub-local-retention-explanation"]').text()).toContain('redundant')
+    await wrapper.get('[data-test="hub-local-retention"]').setValue('false')
+    expect(wrapper.get('[data-test="hub-local-retention-explanation"]').text()).toContain('Rückübertragung')
+
     const button = wrapper.get('[data-test="hub-export-offload-eligible-videos"]')
     expect(button.text()).toBe('Alle geeigneten Videos zum Hub übertragen')
     await button.trigger('click')
     await flushPromises()
 
     expect(hoisted.post).toHaveBeenCalledWith('/api/hub-export/offload-eligible-videos/', {
-      targetNodeKey: 'hub-node'
+      targetNodeKey: 'hub-node',
+      retainLocalProcessedMedia: false
     })
   })
 
@@ -953,7 +958,8 @@ describe('HubExportOverviewComponent', () => {
     await flushPromises()
 
     expect(hoisted.post).toHaveBeenCalledWith('/api/hub-export/offload-eligible-videos/', {
-      targetNodeKey: 'hub-node'
+      targetNodeKey: 'hub-node',
+      retainLocalProcessedMedia: true
     })
   })
 

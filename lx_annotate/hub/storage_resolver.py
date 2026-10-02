@@ -120,7 +120,7 @@ def fetch_committed_storage_artifact(
     client_factory: Callable[[str], StorageTransferPeerClient],
     lease_seconds: int = 300,
 ) -> Path:
-    from endoreg_db.services.media_operation_gate import (
+    from endoreg_db.services.media.operation_gate import (
         MediaOperationDeferred,
         MediaOperationLeaseAcquisition,
         MediaOperationLeaseType,

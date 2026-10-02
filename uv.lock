@@ -1079,7 +1079,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "1.4.1"
+version = "1.4.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery", extra = ["redis"] },
@@ -1145,9 +1145,9 @@ dependencies = [
     { name = "whitenoise" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b0/4b/2f4988ad1859701c8c2bd2325624d9f86bccbf35f0a62b509d887df444d6/endoreg_db-1.4.1.tar.gz", hash = "sha256:2aa7f0b4d4a089fc8b2a4962c57984b569b334a61aea90c4d8aae9e59cb96204", size = 1336246, upload-time = "2026-09-29T13:38:46.93Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f5/f3/10cb275fd3bfa81cf23d632f8883f218322abd1ebc1d840ad828477158ad/endoreg_db-1.4.5.tar.gz", hash = "sha256:6ea1128c21be26143ca889e4437e746418b0e7ff456ff8741fe79d41352cf0ff", size = 1346211, upload-time = "2026-10-02T12:32:49.173Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1e/b8/77d2e83a90bd6c8fcff47aeb4f3ccb795c17a79a39ce20177d7a7c739ece/endoreg_db-1.4.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0b3d76325f7cd47e635a98b2ea4afa74ebae260e87a8462b15003c90f60da936", size = 2341682, upload-time = "2026-09-29T13:38:43.523Z" },
+    { url = "https://files.pythonhosted.org/packages/e5/50/c14ca16dfa38b86850f46f07268e788185974a441fd10e4e5d8e51bdf7dd/endoreg_db-1.4.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a175871664367909f7e495fc897c8996419bc6fe4248cb9b59e033a42670629f", size = 2358743, upload-time = "2026-10-02T12:32:46.588Z" },
 ]
 
 [[package]]
@@ -1899,7 +1899,7 @@ torch = [
 
 [[package]]
 name = "lx-annotate"
-version = "1.4.2"
+version = "1.4.5"
 source = { editable = "." }
 dependencies = [
     { name = "asgiref" },
@@ -1957,6 +1957,7 @@ dev = [
     { name = "pytest-django" },
     { name = "pytest-env" },
     { name = "pytest-mypy-plugins" },
+    { name = "pytest-postgresql" },
     { name = "pytest-xdist" },
     { name = "radon" },
     { name = "ruff" },
@@ -1997,7 +1998,7 @@ requires-dist = [
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "djangorestframework-types", marker = "extra == 'dev'", specifier = ">=0.9.0" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==1.4.1" },
+    { name = "endoreg-db", specifier = "==1.4.5" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
@@ -2024,6 +2025,7 @@ requires-dist = [
     { name = "pytest-django", marker = "extra == 'dev'", specifier = ">=4.11.1" },
     { name = "pytest-env", marker = "extra == 'dev'", specifier = ">=1.1.5" },
     { name = "pytest-mypy-plugins", marker = "extra == 'dev'", specifier = ">=3.2.0" },
+    { name = "pytest-postgresql", marker = "extra == 'dev'", specifier = ">=9.1.0" },
     { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.8.0" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "radon", marker = "extra == 'dev'", specifier = ">=6.0.1" },
@@ -2050,7 +2052,7 @@ provides-extras = ["dev", "docs"]
 
 [[package]]
 name = "lx-anonymizer"
-version = "1.0.4"
+version = "1.0.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -2061,7 +2063,6 @@ dependencies = [
     { name = "lx-dtypes" },
     { name = "numpy" },
     { name = "onnx" },
-    { name = "onnxruntime" },
     { name = "opencv-python-headless" },
     { name = "pandas" },
     { name = "pdfplumber" },
@@ -2084,9 +2085,9 @@ dependencies = [
     { name = "verovio" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/25/94/8489e65dc5a1957758beac0271f26a334a2554690421bd74a6a233495c43/lx_anonymizer-1.0.4.tar.gz", hash = "sha256:e0e006a34db723c88f80fe1ef45b74226673298bd779eec16a4fd0e73cba7a60", size = 16230758, upload-time = "2026-09-28T07:47:24.985Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1d/58/20c701565db5238c895bddf38eb31752fab5da06bfad6fe9e883d1940fde/lx_anonymizer-1.0.5.tar.gz", hash = "sha256:1783ccc7cacf3b0729ef3d194f27e3202e577ff5029151d25b14057010902e59", size = 16240541, upload-time = "2026-10-02T10:38:23.648Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/74/1b/d42e0166fd9733cae403c28156a347400ac6b92b7514562186e80cffe731/lx_anonymizer-1.0.4-cp312-abi3-manylinux_2_34_x86_64.whl", hash = "sha256:4ffb3685444510c8cb8b66086daa8d653dc989597d8f40e7d81b0eac94cd6e33", size = 16176944, upload-time = "2026-09-28T07:47:20.126Z" },
+    { url = "https://files.pythonhosted.org/packages/a9/6b/8f4a6f2448acf66d90596ddb90e89c541836872e41812b9ebf5392ba7a18/lx_anonymizer-1.0.5-cp312-abi3-manylinux_2_34_x86_64.whl", hash = "sha256:bc650f4d0027f216ea99b1100173d7fa743b3d41c23ff7338c42b3a65729455b", size = 16179497, upload-time = "2026-10-02T10:38:18.985Z" },
 ]
 
 [package.optional-dependencies]
@@ -2225,6 +2226,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d6/54/cfe61301667036ec958cb99bd3efefba235e65cdeb9c84d24a8293ba1d90/mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba", size = 8729, upload-time = "2022-08-14T12:40:10.846Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8", size = 9979, upload-time = "2022-08-14T12:40:09.779Z" },
+]
+
+[[package]]
+name = "mirakuru"
+version = "3.0.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "psutil", marker = "sys_platform != 'cygwin'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/82/70/d15022d73ed8c18977a8dc4860b3e1f83259fd8dddd8eaea0bb35c25afb9/mirakuru-3.0.3.tar.gz", hash = "sha256:70ec0b03a474fd5c29ce2d2050e15546e91f4e7d5f709d209ad45d091deaa2f6", size = 28257, upload-time = "2026-09-03T12:23:03.529Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/41/3e/4255fde6cd809861c677567513e767bda508a2d1264ec05d49258455ebb5/mirakuru-3.0.3-py3-none-any.whl", hash = "sha256:a506fa39a401873b12c31fe902a40249e67f54e32351e42a77fd3e94a789f6f2", size = 28433, upload-time = "2026-09-03T12:23:02.155Z" },
 ]
 
 [[package]]
@@ -2672,24 +2685,6 @@ wheels = [
 ]
 
 [[package]]
-name = "onnxruntime"
-version = "1.26.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "flatbuffers" },
-    { name = "numpy" },
-    { name = "packaging" },
-    { name = "protobuf" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/81/b1/d111b1df656761f980d9e298a60039a9cb66036b1d039e777537743d0ac3/onnxruntime-1.26.0-cp312-cp312-macosx_14_0_arm64.whl", hash = "sha256:05b028781b322ad74b57ce5b50aa5280bb1fe96ceec334628ade681e0b24c1ac", size = 18016624, upload-time = "2026-05-12T00:41:01.735Z" },
-    { url = "https://files.pythonhosted.org/packages/f6/a0/3f9d896a0385a36bd04345d6d0b802821a5782adde562e7e135f6bb71c73/onnxruntime-1.26.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:91f2bb870a4b9224eba0a6728c1fa7a9e552b8e59e1083c51fbbc3d013f2b5c0", size = 16052692, upload-time = "2026-05-08T19:07:13.829Z" },
-    { url = "https://files.pythonhosted.org/packages/7c/43/2a4e04f8dbeffad19bbcced4bcd4289bf478921518437404d6b92bdf213b/onnxruntime-1.26.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:9b6dd70599005bd1bf29779f04a91978b92b5e719c11a20068a8f8e535f725b6", size = 18185439, upload-time = "2026-05-08T19:07:36.299Z" },
-    { url = "https://files.pythonhosted.org/packages/44/fc/026d0a7162b9c2153dac292baea9e027c42304dc1d9dc6f8ff5b4cfbaedd/onnxruntime-1.26.0-cp312-cp312-win_amd64.whl", hash = "sha256:a26374dc7fbcaae593601086b242120e13f2310558df0991da6dd8b8fac00414", size = 13026427, upload-time = "2026-05-08T19:08:03.503Z" },
-    { url = "https://files.pythonhosted.org/packages/3e/27/1dcf88e45e4c69db5f7b106f2dacc3801ba98994e082ca03e1dfdf7bfe57/onnxruntime-1.26.0-cp312-cp312-win_arm64.whl", hash = "sha256:54a8053410fd31fd66469bd754fcfe8a4df9f7eb44756b4b5479bf50c842d948", size = 12796647, upload-time = "2026-05-08T19:07:52.108Z" },
-]
-
-[[package]]
 name = "onnxruntime-gpu"
 version = "1.26.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2985,6 +2980,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/83/43/85ef45e8b36c6a48546af7b266592dc32d7f67837a6514d111bced6d7d75/pooch-1.9.0.tar.gz", hash = "sha256:de46729579b9857ffd3e741987a2f6d5e0e03219892c167c6578c0091fb511ed", size = 61788, upload-time = "2026-01-30T19:15:09.649Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2a/2d/d4bf65e47cea8ff2c794a600c4fd1273a7902f268757c531e0ee9f18aa58/pooch-1.9.0-py3-none-any.whl", hash = "sha256:f265597baa9f760d25ceb29d0beb8186c243d6607b0f60b83ecf14078dbc703b", size = 67175, upload-time = "2026-01-30T19:15:08.36Z" },
+]
+
+[[package]]
+name = "port-for"
+version = "1.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/85/db/cb50b1dd5ce6d1ffdfb93ff358c714c57367cc59beafe14209c21c0b3408/port_for-1.1.0.tar.gz", hash = "sha256:b9e949f0ec7101094c4b0f096fad80d0aa90818854fa69a9d750fa4fd1e7b4ba", size = 17414, upload-time = "2026-09-05T11:37:50.459Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5c/8b/823aec43117b17fcecd241b3c893c4e6f9156a878b139b2d684d71fe25f7/port_for-1.1.0-py3-none-any.whl", hash = "sha256:99c543583dc33942b64ae5e3b80d71c536bd2eb1c568730d533776e0d0ff9264", size = 17041, upload-time = "2026-09-05T11:37:49.335Z" },
 ]
 
 [[package]]
@@ -3556,6 +3560,22 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/41/38/519349835619e0441c12f37e000e999adc7d57c50e7745d432ed5b4548d4/pytest_mypy_plugins-4.0.3.tar.gz", hash = "sha256:bfe491a363dfa7d183e1a9d19615d8aaff79262eea2bc3dca87b4f8223cfe7e8", size = 30583, upload-time = "2026-05-14T07:43:23.834Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6d/d3/f918e0fd29f27fcec312a313fd0d1d49c7636ba1d6cc558b1364984a4ef7/pytest_mypy_plugins-4.0.3-py3-none-any.whl", hash = "sha256:0494fbd3c0332026eee191f96f0b3e2aa3edfb0cc31bd6989607923bb52343ad", size = 21491, upload-time = "2026-05-14T07:43:22.174Z" },
+]
+
+[[package]]
+name = "pytest-postgresql"
+version = "9.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "mirakuru" },
+    { name = "packaging" },
+    { name = "port-for" },
+    { name = "psycopg" },
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/86/7f/75f3bddd42f8db32cd761d65a1ff78f1703437d3967af7e70ef14605391b/pytest_postgresql-9.1.0.tar.gz", hash = "sha256:d340789d6f43cac901fc14f52b15723279bd66db4db7a6506d969417c36cdf04", size = 46801, upload-time = "2026-09-04T12:22:34.831Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/69/ac/7151f908b4744672b96b2234faf485a11e7c4e485618079049f9f31dda03/pytest_postgresql-9.1.0-py3-none-any.whl", hash = "sha256:78d5b04e321c1d9b2ac86c837aa536f833f4141bd297196d54b6755a3aeba008", size = 41999, upload-time = "2026-09-04T12:22:33.362Z" },
 ]
 
 [[package]]

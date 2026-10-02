@@ -79,19 +79,53 @@ describe('reportingFlowStore template draft state', () => {
     })
     flow.setFindingIntervention('one', 'biopsy', true)
     flow.setFindingIntervention('one', 'biopsy', true)
-    expect(flow.currentRuntimeDraft?.payload.patientFindings[0].interventions).toEqual(['biopsy'])
+    const interventions = flow.currentRuntimeDraft?.payload.patientFindings[0].interventions
+    expect(interventions).toMatchObject([{ intervention: 'biopsy' }])
+    expect(typeof interventions?.[0].localId).toBe('string')
     expect(flow.currentRuntimeDraft?.payload.patientFindings[1].interventions).toBeUndefined()
     await vi.advanceTimersByTimeAsync(AUTOSAVE_SETTLE_MS)
     expect(
       hoisted.reportDraftApi.savePatientExaminationDraft.mock.calls[0][0].payload.patientFindings[0]
         .interventions
-    ).toEqual(['biopsy'])
+    ).toEqual(interventions)
     setActivePinia(createPinia())
     const restored = useReportingFlowStore()
     restored.bindAuthSubject('oidc:user-1')
-    expect(restored.currentRuntimeDraft?.payload.patientFindings[0].interventions).toEqual(['biopsy'])
+    expect(restored.currentRuntimeDraft?.payload.patientFindings[0].interventions).toEqual(interventions)
     flow.setFindingIntervention('one', 'biopsy', false)
     expect(flow.currentRuntimeDraft?.payload.patientFindings[0].interventions).toEqual([])
+  })
+
+  it('upgrades legacy session interventions and preserves their identities on later edits', () => {
+    sessionStorage.setItem('reportingFlowState.v2', JSON.stringify({
+      ownerSub: 'oidc:user-1', expiresAt: Date.now() + 60_000,
+      state: {
+        patientExaminationId: PATIENT_EXAMINATION_ID,
+        runtimeDraftsByPatientExaminationId: {
+          [PATIENT_EXAMINATION_ID]: {
+            draftId: 'legacy', patientExaminationId: PATIENT_EXAMINATION_ID,
+            moduleName: 'report_template_examples', templateName: null,
+            hydratedFrom: 'session_storage', updatedAt: '2026-03-19T14:00:00.000Z',
+            payload: {
+              patient: 'patient_7', examiners: [], examination: 'colonoscopy',
+              patientFindings: [{ localId: 'one', finding: 'polyp', classificationChoices: [],
+                interventions: ['biopsy'] }]
+            }
+          }
+        }
+      }
+    }))
+    const flow = useReportingFlowStore()
+    flow.bindAuthSubject('oidc:user-1')
+    const original = flow.currentRuntimeDraft?.payload.patientFindings[0].interventions?.[0]
+    expect(original).toMatchObject({ intervention: 'biopsy' })
+    expect(typeof original?.localId).toBe('string')
+    flow.setFindingIntervention('one', 'polypectomy', true)
+    flow.setFindingIntervention('one', 'biopsy', true)
+    const interventions = flow.currentRuntimeDraft?.payload.patientFindings[0].interventions
+    expect(interventions).toHaveLength(2)
+    expect(interventions?.[0]).toEqual(original)
+    expect(interventions?.[1].localId).not.toBe(original?.localId)
   })
 
   it('does not invent a knowledge-base module before terminology is active', () => {

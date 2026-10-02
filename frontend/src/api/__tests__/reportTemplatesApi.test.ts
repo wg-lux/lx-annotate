@@ -540,7 +540,7 @@ describe('reportTemplatesApi', () => {
         patientFindings: [
           {
             finding: 'esophagus_polyp',
-            interventions: ['biopsy'],
+            interventions: [{ intervention: 'biopsy', localId: 'biopsy_occurrence' }],
             classificationChoices: [
               {
                 classification: 'size_mm',
@@ -602,7 +602,7 @@ describe('reportTemplatesApi', () => {
                   {
                     intervention: 'biopsy',
                     patient_finding_interventions: 'frontend_runtime_exam_finding_1_interventions',
-                    uuid: 'frontend_runtime_exam_finding_1_intervention_1'
+                    uuid: 'biopsy_occurrence'
                   }
                 ]
               }

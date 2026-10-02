@@ -160,6 +160,7 @@ import {
 } from '@/api/studyExportApi'
 import type { ExportMessage } from '@/types/exportMessage'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
+import { saveDownload } from '@/utils/saveDownload'
 
 type GroupKey = 'examinations' | 'findings' | 'indications'
 
@@ -272,15 +273,6 @@ async function blobError(error: unknown): Promise<string> {
     log.error('error-response.parse-failed', parseError)
   }
   return readableError(error)
-}
-
-function saveDownload(blob: Blob, filename: string): void {
-  const objectUrl = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = objectUrl
-  link.download = filename
-  link.click()
-  URL.revokeObjectURL(objectUrl)
 }
 
 async function loadOptions(): Promise<void> {

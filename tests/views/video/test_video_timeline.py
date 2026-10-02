@@ -18,7 +18,7 @@ from endoreg_db.services.video_files import (
     video_seconds_to_frame_number,
 )
 from endoreg_db.services.video_storage.timelines import persist_video_source_timeline
-from endoreg_db.services.video_timeline import VideoTimelineMappingError
+from endoreg_db.services.video_files.timeline import VideoTimelineMappingError
 from rest_framework.test import APIClient
 
 pytestmark = pytest.mark.django_db

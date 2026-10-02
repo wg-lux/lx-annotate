@@ -50,7 +50,7 @@ def payload(**overrides):
 
 
 def test_runtime_rejects_backend_with_copy_mode_default(monkeypatch):
-    from endoreg_db.services import video_processed_transcode
+    from endoreg_db.services.video_storage import processed_transcode
 
     from lx_annotate.services.video_transcode_jobs import (
         TranscodeSubmissionError,
@@ -69,7 +69,7 @@ def test_runtime_rejects_backend_with_copy_mode_default(monkeypatch):
         pytest.fail("An incompatible encoder must never be called")
 
     monkeypatch.setattr(
-        video_processed_transcode,
+        processed_transcode,
         "transcode_processed_video_for_storage_pressure",
         old_backend,
     )
@@ -221,23 +221,53 @@ def test_list_limit_applies_to_jobs_and_candidates_and_redacts_sources(operator)
     assert response["Cache-Control"] == "private, no-store"
 
 
-def test_observation_does_not_mutate_old_worker_state(operator):
+@pytest.mark.parametrize(
+    "heartbeat_age,status,expected",
+    [
+        (20, "running", "recent"),
+        (119, "running", "recent"),
+        (120, "running", "unconfirmed"),
+        (3600, "running", "unconfirmed"),
+        (None, "running", "unconfirmed"),
+        (-60, "running", "unconfirmed"),
+        (None, "queued", "waiting"),
+        (20, "completed", "inactive"),
+        (20, "failed", "inactive"),
+    ],
+)
+def test_observation_reports_activity_without_mutating_worker_state(
+    operator, monkeypatch, heartbeat_age, status, expected
+):
     client, user, video = operator
+    now = timezone.now()
+    monkeypatch.setattr(timezone, "now", lambda: now)
+    heartbeat = (
+        now - timedelta(seconds=heartbeat_age) if heartbeat_age is not None else None
+    )
+    finished = now if status in {"completed", "failed"} else None
     job = VideoTranscodeJob.objects.create(
         video=video,
         actor=user,
         idempotency_key=uuid4(),
         option="replace_processed",
-        status="running",
+        status=status,
         stage="encoding",
         claim_token=uuid4(),
-        heartbeat_at=timezone.now() - timedelta(hours=1),
+        heartbeat_at=heartbeat,
+        finished_at=finished,
         source_name=video.processed_file.name,
         source_sha256=video.processed_video_hash,
     )
     updated_at = job.updated_at
-    assert client.get(LIST_URL).status_code == 200
+    response = client.get(LIST_URL)
+    assert response.status_code == 200
+    observation = response.json()["jobs"][0]
+    assert observation["worker_activity"] == expected
+    assert observation["heartbeat_at"] == (heartbeat.isoformat() if heartbeat else None)
+    assert observation["finished_at"] == (finished.isoformat() if finished else None)
+    assert observation["observed_at"] == now.isoformat()
     assert client.get(url(video)).status_code == 200
     job.refresh_from_db()
-    assert job.status == "running" and job.stage == "encoding"
-    assert job.updated_at == updated_at and job.finished_at is None
+    assert job.status == status and job.stage == "encoding"
+    assert job.updated_at == updated_at and job.finished_at == finished
+    assert job.heartbeat_at == heartbeat

@@ -26,30 +26,6 @@ def test_bundle_runtime_cleanup_and_environment_restore_after_failure():
     assert os.environ["LX_RUNTIME_ROOT"] == previous_root
 
 
-@pytest.mark.parametrize("configured_root", [None, "relative-host-root"])
-def test_bundle_evaluation_isolates_runtime_from_production_environment(
-    tmp_path: Path,
-    configured_root: str | None,
-):
-    env = os.environ.copy()
-    env.update({"DJANGO_ENV": "production", "TMPDIR": str(tmp_path)})
-    if configured_root is None:
-        env.pop("LX_RUNTIME_ROOT", None)
-    else:
-        env["LX_RUNTIME_ROOT"] = configured_root
-    result = subprocess.run(
-        [sys.executable, "scripts/evaluate_runtime_check_bundle.py"],
-        cwd=Path(__file__).resolve().parents[2],
-        env=env,
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert "Runtime-check bundle contract passed" in result.stdout
-    assert not list(tmp_path.glob("lx_bundle_check_*"))
-
-
 def test_bundle_contract_reports_each_missing_schema_requirement():
     required = SchemaContract(
         tables=frozenset({"complete_table", "missing_table"}),

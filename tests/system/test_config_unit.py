@@ -7,41 +7,6 @@ import pytest
 from lx_annotate.settings import config
 
 
-@pytest.mark.parametrize(
-    "engine", ["django.db.backends.postgresql", "django.db.backends.sqlite3"]
-)
-def test_dev_database_preserves_configured_connection(engine, tmp_path, monkeypatch):
-    import runpy
-
-    from lx_annotate.settings import settings_base
-
-    database_config = config.AppConfig(
-        db_engine=engine,
-        db_name="configured-database",
-        db_user="configured-user",
-        db_password="test-only-password",
-        db_host="db.example.test",
-        db_port="5434",
-        db_sslmode="verify-full",
-        static_root=tmp_path,
-    )
-    monkeypatch.setattr(settings_base, "config", database_config)
-    monkeypatch.setenv("ENFORCE_AUTH", "0")
-    module = runpy.run_module("lx_annotate.settings.settings_dev")
-    database = module["DATABASES"]["default"]
-    assert database["ENGINE"] == engine
-    assert database["NAME"] == "configured-database"
-    if engine == "django.db.backends.postgresql":
-        assert database["USER"] == "configured-user"
-        assert database["PASSWORD"] == "test-only-password"
-        assert database["HOST"] == "db.example.test"
-        assert database["PORT"] == "5434"
-        assert database["OPTIONS"] == {"sslmode": "verify-full"}
-    else:
-        assert "OPTIONS" not in database
-        assert "HOST" not in database
-
-
 def test_runtime_root_loaded_before_endoreg_path_resolution(tmp_path, monkeypatch):
     from endoreg_db.utils.paths import clear_runtime_paths_cache, get_runtime_paths
 

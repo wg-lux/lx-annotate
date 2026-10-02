@@ -7,7 +7,7 @@ from io import BytesIO
 from django.shortcuts import get_object_or_404
 from django.views.decorators.cache import never_cache
 from endoreg_db.models import PatientExamination
-from endoreg_db.services.center_access import resolve_allowed_center_ids
+from endoreg_db.services.centers.access import resolve_allowed_center_ids
 from ninja.errors import HttpError
 from pydantic import ValidationError
 from rest_framework.decorators import api_view, parser_classes, permission_classes
