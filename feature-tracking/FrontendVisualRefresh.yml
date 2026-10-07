@@ -51,6 +51,16 @@ tracking:
     note: 'Shared navigation usability pass complete: skip-to-content, sidebar keyboard focus and Escape
       dismissal, mobile account labels. 16 navigation tests, full frontend build/type-check/lint, final
       build-only and tracker validation passed. Browser visual review remains unperformed.'
+  - action: reopened
+    changed_by: codex-checkbox-border-20261006
+    changed_at: '2026-10-06T14:49:03.540276Z'
+    note: Ordinary Material Dashboard checkboxes need visible borders including controls outside form-check
+      wrappers.
+  - action: done
+    changed_by: codex-checkbox-border-20261006
+    changed_at: '2026-10-06T14:50:36.051423Z'
+    note: 'Checkbox border follow-up complete: shared CSS review, 13 focused tests, Vite build-only and
+      diff check passed. Browser visual verification unavailable because Chromium lacks libnspr4.so.'
 source_documents:
 - path: AGENTS.md
   disposition: reference
@@ -109,11 +119,18 @@ definition_of_done:
     - kind: review
       reference: 'corner-radius-centralization-20260814: reviewed scoped Vue and CSS changes; ordinary
         surfaces resolve to the shared token while shape-semantic exceptions remain intact'
-    note: Centralized ordinary application corner rounding on --lx-corner-radius (0.75rem), aligned LX
-      and Bootstrap radius variables plus semantic surface utilities, and preserved intentional circular,
-      pill, progress, switch, and joined-control geometry.
-    assessed_by: codex-corner-radius-20260814
-    assessed_at: '2026-08-14T07:28:03.791373Z'
+    - kind: review
+      reference: frontend/src/assets/custom-overrides.css
+    - kind: test
+      reference: 'FindingsCapturePage.test.ts: 13/13 passed'
+    - kind: command
+      reference: 'npm --prefix frontend run build-only: exit 0'
+    note: 'Shared CSS gives ordinary checkboxes a solid 1px muted-ink border outside and inside form-check
+      wrappers; checked and indeterminate theme borders remain visible. Switches, radios, and focus outlines
+      are preserved. FindingsCapturePage: 13/13 tests passed; Vite build-only exit 0 with bundle-size
+      advisory; git diff --check exit 0. Real-browser verification blocked by Chromium missing libnspr4.so.'
+    assessed_by: codex-checkbox-border-20261006
+    assessed_at: '2026-10-06T14:50:33.428350Z'
 - id: frontend_verification
   category: testing
   title: Frontend build and navigation component tests pass

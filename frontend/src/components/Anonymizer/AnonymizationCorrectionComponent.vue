@@ -127,14 +127,6 @@
                             <i class="ni ni-cloud-upload-96 me-1"></i>
                             PDF herunterladen
                           </button>
-                          <button
-                            class="btn btn-outline-info btn-sm"
-                            :disabled="!redactedPdfBytes || isProcessing"
-                            @click="uploadRedactedPdf"
-                          >
-                            <i class="ni ni-cloud-upload-96 me-1"></i>
-                            Korrektur am Bericht speichern
-                          </button>
                         </div>
                       </div>
                     </div>
@@ -1969,6 +1961,7 @@ const generateRedactedPdf = async () => {
     if (generation === selection_generation) {
       isProcessing.value = false
       currentOperation.value = ''
+      await uploadRedactedPdf()
     }
   }
 }

@@ -11,9 +11,8 @@ from django.utils import timezone
 from endoreg_db.models import Center, NetworkNode, VideoFile, VideoState
 from endoreg_db.models.media.operation_lease import MediaOperationLease
 from endoreg_db.models.media.video.hls_artifact import VideoHlsArtifact
+from endoreg_db.utils.file_operations import atomic_write_file, safe_delete_field_file
 from endoreg_db.utils.paths import get_runtime_paths
-from endoreg_db.utils.file_operations import atomic_write_file
-from endoreg_db.utils.file_operations import safe_delete_field_file
 from lx_dtypes.models.contracts.hub_media_envelope import HubMediaEnvelopeReceipt
 
 from lx_annotate.hub.hub_export_cleanup import (
@@ -114,9 +113,17 @@ class HubExportCleanupTests(TestCase):
         raw_payload = b"raw-media-must-remain"
         self.video.raw_file = ContentFile(raw_payload, name="raw-remains.mp4")
         self.video.save(update_fields=["raw_file", "date_modified"])
-        hls_directory = get_runtime_paths().streamable_videos_processed_media / "hls" / str(self.video.uuid)
-        atomic_write_file(destination=hls_directory / "old-segment.ts", content=[b"encrypted HLS"])
-        VideoHlsArtifact.objects.create(video=self.video, artifact_kind="processed", status="ready")
+        hls_directory = (
+            get_runtime_paths().streamable_videos_processed_media
+            / "hls"
+            / str(self.video.uuid)
+        )
+        atomic_write_file(
+            destination=hls_directory / "old-segment.ts", content=[b"encrypted HLS"]
+        )
+        VideoHlsArtifact.objects.create(
+            video=self.video, artifact_kind="processed", status="ready"
+        )
 
         result = cleanup_verified_local_processed_video(
             outbound_job_id=str(self.job.pk),
@@ -129,7 +136,11 @@ class HubExportCleanupTests(TestCase):
         self.assertTrue(result.storage_object_deleted)
         self.assertFalse(self.video.processed_file.name)
         self.assertFalse(hls_directory.exists())
-        self.assertFalse(VideoHlsArtifact.objects.filter(video=self.video, artifact_kind="processed").exists())
+        self.assertFalse(
+            VideoHlsArtifact.objects.filter(
+                video=self.video, artifact_kind="processed"
+            ).exists()
+        )
         self.assertTrue(self.video.raw_file.name)
         self.assertEqual(
             self.job.local_cleanup_status,
@@ -138,13 +149,29 @@ class HubExportCleanupTests(TestCase):
         self.assertIsNotNone(self.job.local_cleanup_completed_at)
 
     def test_retention_choice_preserves_video_and_hls(self) -> None:
-        self.job.local_cleanup_policy = OutboundHubTransferJob.LocalCleanupPolicy.RETAIN_PROCESSED_MEDIA
+        self.job.local_cleanup_policy = (
+            OutboundHubTransferJob.LocalCleanupPolicy.RETAIN_PROCESSED_MEDIA
+        )
         self.job.save(update_fields=["local_cleanup_policy"])
-        hls_directory = get_runtime_paths().streamable_videos_processed_media / "hls" / str(self.video.uuid)
-        atomic_write_file(destination=hls_directory / "old-segment.ts", content=[b"encrypted HLS"])
+        hls_directory = (
+            get_runtime_paths().streamable_videos_processed_media
+            / "hls"
+            / str(self.video.uuid)
+        )
+        atomic_write_file(
+            destination=hls_directory / "old-segment.ts", content=[b"encrypted HLS"]
+        )
         with self.assertRaisesMessage(HubExportCleanupBlocked, "retains"):
-            cleanup_verified_local_processed_video(outbound_job_id=str(self.job.pk), source_node_key="site-node", apply=True)
-        self.assertTrue(self.video.processed_file.storage.exists(str(self.video.processed_file.name)))
+            cleanup_verified_local_processed_video(
+                outbound_job_id=str(self.job.pk),
+                source_node_key="site-node",
+                apply=True,
+            )
+        self.assertTrue(
+            self.video.processed_file.storage.exists(
+                str(self.video.processed_file.name)
+            )
+        )
         self.assertTrue(hls_directory.exists())
 
     def test_active_media_lease_blocks_before_mutation(self) -> None:

@@ -8,7 +8,14 @@ from lx_dtypes.models.contracts.hub_media_envelope import (
     HubMediaEnvelopeMetadata,
     HubMediaEnvelopeReceipt,
 )
-from pydantic import BaseModel, ConfigDict, Field, PositiveInt, StrictBool, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PositiveInt,
+    StrictBool,
+    model_validator,
+)
 
 
 class HubExportResourceKind(StrEnum):

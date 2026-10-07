@@ -1583,6 +1583,7 @@ export interface operations {
         parameters: {
             query: {
                 version: string;
+                language?: "de" | "en";
             };
             header?: never;
             path: {
@@ -1633,6 +1634,7 @@ export interface operations {
         parameters: {
             query: {
                 version: string;
+                language?: "de" | "en";
             };
             header?: never;
             path: {
@@ -1796,6 +1798,7 @@ export interface operations {
         parameters: {
             query: {
                 version: string;
+                language?: "de" | "en";
             };
             header?: never;
             path: {

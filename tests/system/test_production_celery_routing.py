@@ -140,6 +140,14 @@ def test_production_settings_export_hub_transfer_routes(tmp_path: Path) -> None:
         app = Celery("production-routing-test")
         app.config_from_object(settings_prod, namespace="CELERY")
 
+        cleanup = app.conf.beat_schedule["cleanup-media-sources"]
+        assert cleanup["task"] == "endoreg_db.cleanup_media_sources"
+        assert cleanup["schedule"] == 900
+        assert cleanup["options"]["expires"] < cleanup["schedule"]
+        assert cleanup["options"]["queue"] == settings_prod.CELERY_MAINTENANCE_QUEUE
+        cleanup_route = app.amqp.router.route({}, cleanup["task"], args=(), kwargs={})
+        assert cleanup_route["queue"].name == settings_prod.CELERY_MAINTENANCE_QUEUE
+
         assert app.conf.broker_url == "redis://localhost:6379/1"
         assert app.conf.task_default_queue == "default"
         assert app.conf.task_create_missing_queues is False

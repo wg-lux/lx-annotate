@@ -1079,7 +1079,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "1.4.5"
+version = "1.4.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery", extra = ["redis"] },
@@ -1145,9 +1145,9 @@ dependencies = [
     { name = "whitenoise" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f5/f3/10cb275fd3bfa81cf23d632f8883f218322abd1ebc1d840ad828477158ad/endoreg_db-1.4.5.tar.gz", hash = "sha256:6ea1128c21be26143ca889e4437e746418b0e7ff456ff8741fe79d41352cf0ff", size = 1346211, upload-time = "2026-10-02T12:32:49.173Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7d/f9/4fc3553b7244e6d52d64e6ad0fe96c2777e85491404441b649cfd5c72a6d/endoreg_db-1.4.9.tar.gz", hash = "sha256:5727ea701700a478680bbcac8e6fcb2a66ff1b8a25b490f35d3fa7bcb2eff070", size = 1359211, upload-time = "2026-10-07T11:23:35.771Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e5/50/c14ca16dfa38b86850f46f07268e788185974a441fd10e4e5d8e51bdf7dd/endoreg_db-1.4.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a175871664367909f7e495fc897c8996419bc6fe4248cb9b59e033a42670629f", size = 2358743, upload-time = "2026-10-02T12:32:46.588Z" },
+    { url = "https://files.pythonhosted.org/packages/e2/e8/fc7de7fa9f1c7aec8524b4cf54ab9307ebb7e29ea4ef9fb498d682d99966/endoreg_db-1.4.9-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c6932203cac9f872a5a5b772d167a8bb74f4f434d07f13f716869201ae591549", size = 2375461, upload-time = "2026-10-07T11:23:32.642Z" },
 ]
 
 [[package]]
@@ -1899,7 +1899,7 @@ torch = [
 
 [[package]]
 name = "lx-annotate"
-version = "1.4.5"
+version = "1.4.7"
 source = { editable = "." }
 dependencies = [
     { name = "asgiref" },
@@ -1998,7 +1998,7 @@ requires-dist = [
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "djangorestframework-types", marker = "extra == 'dev'", specifier = ">=0.9.0" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==1.4.5" },
+    { name = "endoreg-db", specifier = "==1.4.9" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
@@ -2100,7 +2100,7 @@ gpu = [
 
 [[package]]
 name = "lx-dtypes"
-version = "0.4.1"
+version = "0.4.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bibtexparser" },
@@ -2124,9 +2124,9 @@ dependencies = [
     { name = "scipy" },
     { name = "types-pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/11/9c/f7aa83b87fd85b51e99100dd0735cfdac9def3e7cb6f76c403848cff19c5/lx_dtypes-0.4.1.tar.gz", hash = "sha256:bef55b8feafd267c06351d91d8f65095cdd0185913ceb4ac746fa3a48d8af2d8", size = 2882000, upload-time = "2026-09-29T12:19:25.616Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9e/3c/8daf10fb411e0fc7f14cc880f72677db97100a2bd43ef6e49e90d49bd7b8/lx_dtypes-0.4.2.tar.gz", hash = "sha256:3e5812b898dca9655222042e196747dbc96495a0ec7f333670d1fbfb049ce0cf", size = 2885069, upload-time = "2026-10-07T06:22:33.173Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a6/37/253be31b9a9d1b87b1c6e485e6a91f13716e973bf7d91d584db667e83288/lx_dtypes-0.4.1-py3-none-any.whl", hash = "sha256:9cc8ee13c266de340b6f525aa39cab3a0725c2aa5b270662d010c2a9471d33fe", size = 1160661, upload-time = "2026-09-29T12:19:21.729Z" },
+    { url = "https://files.pythonhosted.org/packages/94/a1/55fe5be40c7b6ee9d41bafd58b0abe49ee8fe720e8b3a8b8960d98c42d2a/lx_dtypes-0.4.2-py3-none-any.whl", hash = "sha256:5cff8daa575829fcf62484b2ab22337f63c2c317ea5260f5eb07ef39788ed5e0", size = 1163363, upload-time = "2026-10-07T06:22:29.017Z" },
 ]
 
 [[package]]

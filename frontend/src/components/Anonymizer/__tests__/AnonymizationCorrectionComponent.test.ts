@@ -198,15 +198,10 @@ describe('AnonymizationCorrectionComponent PDF rendering', () => {
     await overlay.trigger('mousedown', { clientX: 64, clientY: 80 })
     await overlay.trigger('mousemove', { clientX: 192, clientY: 240 })
     await overlay.trigger('mouseup')
-    const generate = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Anonymisierte PDF erzeugen'))
-    expect(generate).toBeDefined()
-    await generate?.trigger('click')
     await flushPromises()
     const save = wrapper
       .findAll('button')
-      .find((button) => button.text().includes('Korrektur am Bericht speichern'))
+      .find((button) => button.text().includes('Anonymisierte PDF erzeugen'))
     await save?.trigger('click')
     await flushPromises()
     expect(hoisted.axiosPost).toHaveBeenCalledOnce()

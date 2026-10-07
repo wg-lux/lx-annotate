@@ -23,7 +23,7 @@ from watchdog.events import (  # type: ignore[import-not-found]
     FileMovedEvent,
 )
 
-import scripts.file_watcher as file_watcher
+from lx_annotate import file_watcher
 
 
 class RecordingExecutor:

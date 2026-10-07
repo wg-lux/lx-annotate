@@ -73,7 +73,7 @@ describe('useHubExportStore AAA boundary', () => {
     expect(store.loading).toBe(false)
   })
 
-  it('delegates marking then refreshes the selected target', async () => {
+  it.each([undefined, true, false])('delegates marking with retention %s then refreshes the selected target', async (retainLocalProcessedMedia) => {
     // Arrange
     service.markResources.mockResolvedValue(undefined)
     service.fetchOverview.mockResolvedValue(overview)
@@ -82,10 +82,10 @@ describe('useHubExportStore AAA boundary', () => {
     const resources = [{ id: 9, resourceKind: 'video' as const }]
 
     // Act
-    await store.markResources(resources)
+    await store.markResources(resources, retainLocalProcessedMedia)
 
     // Assert
-    expect(service.markResources).toHaveBeenCalledWith('hub-1', resources)
+    expect(service.markResources).toHaveBeenCalledWith('hub-1', resources, retainLocalProcessedMedia)
     expect(service.fetchOverview).toHaveBeenCalledWith('hub-1')
     expect(store.mutationError).toBeNull()
   })

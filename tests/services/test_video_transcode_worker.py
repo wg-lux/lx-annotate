@@ -277,8 +277,9 @@ def test_heartbeat_failure_fences_publication_before_worker_continues(
     from threading import Event
 
     from django.db import OperationalError
-    from endoreg_db.services.video_storage import processed_transcode
     from endoreg_db.services.media import operation_gate
+    from endoreg_db.services.video_storage import processed_transcode
+
     from lx_annotate.services import video_transcode_jobs
 
     class ImmediateStop(Event):
@@ -313,9 +314,7 @@ def test_heartbeat_failure_fences_publication_before_worker_continues(
 
     monkeypatch.setattr(video_transcode_jobs.threading, "Event", ImmediateStop)
     monkeypatch.setattr(video_transcode_jobs.threading, "Thread", ImmediateThread)
-    monkeypatch.setattr(
-        operation_gate, "renew_video_transcode_lease", fail_renewal
-    )
+    monkeypatch.setattr(operation_gate, "renew_video_transcode_lease", fail_renewal)
     monkeypatch.setattr(
         processed_transcode,
         "transcode_processed_video_for_storage_pressure",

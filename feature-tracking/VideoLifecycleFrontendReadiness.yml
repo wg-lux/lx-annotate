@@ -16,6 +16,67 @@ source_documents:
   disposition: reference
   note: Test and contract verification boundaries.
 definition_of_done:
+- id: browser_video_annotation_downloads
+  category: functionality
+  title: Export page offers video and timestamp CSV downloads
+  acceptance:
+  - The selected video has direct anonymized video and annotation CSV download actions.
+  - CSV export includes persisted frame numbers and presentation timestamps with selectable pre-import
+    evidence.
+  - Download failures remain visible and do not report success or modify annotations.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run component tests, TypeScript and focused lint; verify backend download contracts.
+    timeout_seconds: 900
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: test
+      reference: '2026-10-06: Vitest VideoExportDownloads.test.ts, Export.test.ts and ExportAnnotations.pts-contract.test.ts:
+        9 passed.'
+    - kind: command
+      reference: vue-tsc --build --force and vue-tsc --noEmit -p tsconfig.vitest.json passed; focused
+        ESLint and git diff --check passed.
+    - kind: code
+      reference: frontend/src/components/Export/VideoExportDownloads.vue; frontend/src/components/VideoExamination/ExportAnnotations.vue;
+        frontend/src/views/Export.vue
+    - kind: command
+      reference: Source-backed OpenAPI generation and export_openapi --check passed for endoreg-api/dtypes-api
+        and generated TypeScript. The two committed endoreg-api JSON snapshots are identical; only the
+        three new download paths changed. Final vue-tsc --build frontend/tsconfig.json --force passed.
+    note: 'Direct native anonymized-video download, annotation CSV and separate selectable original/processed
+      canonical timestamp CSV implemented. OpenAPI snapshots and TypeScript regenerated and checked against
+      the source backend. Local verification only; no deployment or production browser acceptance. Backend
+      evidence: /home/admin/endoreg-db/feature-tracking/VideoStorageNormalization.yml, browser_video_annotation_downloads.'
+    assessed_by: codex-export-20261006-a
+    assessed_at: '2026-10-06T09:33:26.248420Z'
+- id: periodic_media_cleanup
+  category: operations
+  title: Recorded media cleanup is retried periodically
+  acceptance:
+  - Celery Beat dispatches the backend media cleanup task every fifteen minutes to the maintenance queue
+    with an expiry shorter than the interval.
+  - The backend retains its existing apply gate, retention, integrity and lease checks; local scheduling
+    configuration is not deployment evidence.
+  required: true
+  verification:
+    kind: manual
+    instructions: Validate the schedule and backend task tests before deployment.
+    timeout_seconds: 900
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: lx_annotate/settings/settings_base.py
+    - kind: test
+      reference: tests/system/test_production_celery_routing.py
+    note: 'Maintenance route and fifteen-minute Beat schedule added with 850-second task expiry. Focused
+      Pyright: 0 errors, 0 warnings. Production settings and actual Celery routing probe: tests/system/test_production_celery_routing.py::test_production_settings_export_hub_transfer_routes,
+      1 passed. Backend task tests passed within 119-test cleanup suite. Not deployed; existing runtime
+      apply gate unchanged.'
+    assessed_by: codex-cleanup-20261005
+    assessed_at: '2026-10-06T08:22:31.766209Z'
 - id: api_first_overview_operations
   category: functionality
   title: Overview capacity and media operations reflect authoritative API state

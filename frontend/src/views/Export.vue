@@ -36,7 +36,7 @@
         data-test="segment-export-tab"
         @click="activeExport = 'segments'"
       >
-        Trainingsdaten
+        Videos und Annotationen
       </button>
     </div>
 
@@ -57,7 +57,9 @@ type ExportMode = 'cases' | 'cohort' | 'segments'
 
 const route = useRoute()
 const requestedMode = route.query.mode
-const activeExport = ref<ExportMode>(requestedMode === 'cohort' ? 'cohort' : 'cases')
+const activeExport = ref<ExportMode>(
+  requestedMode === 'cohort' || requestedMode === 'segments' ? requestedMode : 'cases'
+)
 </script>
 
 <style scoped>

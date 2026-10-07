@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.test import Client, override_settings
 from drf_spectacular.generators import SchemaGenerator
 from endoreg_db.urls import ninja_api
 from endoreg_db.urls import urlpatterns as endoreg_urlpatterns
@@ -148,3 +149,79 @@ def test_manage_command_rejects_unknown_command() -> None:
 
     assert result.returncode != 0
     assert "Unknown command" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/dtypes-api/report-templates/{module_name}/{template_name}/validate",
+        "/dtypes-api/report-templates/{module_name}/{template_name}/validate-from-ledger/{patient_examination_id}",
+        "/dtypes-api/validators/{module_name}/{validator_kind}/{validator_name}/validate",
+    ],
+)
+def test_validation_language_is_optional_and_constrained(path: str) -> None:
+    from lx_dtypes.django.api.main import api
+    from ninja import NinjaAPI
+
+    assert isinstance(api, NinjaAPI)
+    schema = api.get_openapi_schema(path_prefix="/dtypes-api")
+    parameters = schema["paths"][path]["post"]["parameters"]
+    language = next(
+        parameter for parameter in parameters if parameter["name"] == "language"
+    )
+    assert language["in"] == "query"
+    assert language["required"] is False
+    assert language["schema"]["default"] == "de"
+    assert language["schema"]["enum"] == ["de", "en"]
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/dtypes-api/report-templates/report_template_examples/colonoscopy_training_basic/validate",
+        "/dtypes-api/report-templates/report_template_examples/colonoscopy_training_basic/validate-from-ledger/999999",
+        "/dtypes-api/validators/report_template_examples/findings_validator/unknown/validate",
+    ],
+)
+@override_settings(ROOT_URLCONF="lx_annotate.urls", ALLOWED_HOSTS=["testserver"])
+def test_validation_rejects_unsupported_language_at_request_boundary(path: str) -> None:
+    response = Client().post(
+        f"{path}?version=0.1.0&language=unsupported",
+        data={},
+        content_type="application/json",
+        secure=True,
+    )
+    assert response.status_code == 422
+    assert any(
+        error["loc"] == ["query", "language"] for error in response.json()["detail"]
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("language", [None, "de", "en"])
+@override_settings(ROOT_URLCONF="lx_annotate.urls", ALLOWED_HOSTS=["testserver"])
+def test_ledger_validation_accepts_default_and_supported_languages(
+    language: str | None,
+) -> None:
+    query = "version=0.1.0"
+    if language is not None:
+        query += f"&language={language}"
+    response = Client().post(
+        "/dtypes-api/report-templates/report_template_examples/"
+        f"colonoscopy_training_basic/validate-from-ledger/999999?{query}",
+        secure=True,
+    )
+    # A real ledger lookup is reached; query validation must not reject old clients
+    # that omit language or clients selecting either supported language.
+    assert response.status_code == 404
+    assert "PatientExamination" in response.json()["detail"]
+
+
+def test_case_documents_schema_describes_records_not_a_string(tmp_path: Path) -> None:
+    _export(tmp_path)
+    schema = json.loads((tmp_path / "endoreg-api.json").read_text())
+    for name in ("Case", "PatchedCase"):
+        documents = schema["components"]["schemas"][name]["properties"]["documents"]
+        assert documents["type"] == "array"
+        assert documents["items"]["type"] == "object"
+        assert documents["readOnly"] is True

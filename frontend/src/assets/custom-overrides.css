@@ -606,6 +606,11 @@ a:hover {
   border-color: var(--lx-teal);
 }
 
+.form-check-input[type="checkbox"]:not(:where(.form-switch *)),
+.form-check:not(.form-switch) .form-check-input[type="checkbox"] {
+  border: 1px solid var(--lx-ink-muted);
+}
+
 .form-control,
 .form-select {
   min-height: 2.65rem;

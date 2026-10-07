@@ -9,7 +9,7 @@ owners:
 - lx-dtypes maintainers
 production_critical: true
 tracking:
-  state: done
+  state: active
   history:
   - action: done
     changed_by: codex-openapi-typegen-20260825
@@ -45,6 +45,11 @@ tracking:
     note: Repaired management dispatch and frontend alias configuration; installed package schemas, generated
       types, regression tests and frontend compilation/lint pass. This records local verification, not
       deployment.
+  - action: reopened
+    changed_by: codex-storage-20261006-a1
+    changed_at: '2026-10-07T09:46:23.683932Z'
+    note: Installed lx-dtypes adds optional language query parameters; review contract compatibility and
+      regenerate stale artifacts.
 source_documents:
 - path: docs/guides/openapi-type-generation.md
   disposition: reference
@@ -105,10 +110,21 @@ definition_of_done:
     - kind: command
       reference: Schema freshness passed; final npm --prefix frontend run type-check:source exit 0 (.devenv/state/endoreg-integration-frontend-verified.log).
         Targeted mypy passed for 3 production files; Ruff passed.
-    note: Root/frontend schemas and types are current. Made @/* target explicitly relative, preserving
-      baseUrl removal; vue-tsc and ESLint passed.
-    assessed_by: codex-overview-20260924-a
-    assessed_at: '2026-09-24T12:24:11.324199Z'
+    - kind: test
+      reference: tests/system/test_openapi_type_generation.py; full backend suite 1259 passed, 6 skipped;
+        frontend casesApi 14 passed
+    note: 'Installed lx-dtypes adds optional language query parameters; review contract compatibility
+      and regenerate stale artifacts. Review 2026-10-07: regenerated root/frontend schemas and TypeScript
+      from locally rebuilt endoreg-db 1.4.8 and installed lx-dtypes. Dtypes drift consists only of optional
+      de/en language parameters, default de; endpoint tests verify rejection of unsupported values and
+      acceptance of omitted/de/en values. Corrected an actual Case.documents schema mismatch by narrowing
+      the upstream serializer return value type, without changing runtime responses. Both Case and PatchedCase
+      now expose record arrays. Full backend suite: 1259 passed, 6 skipped in 265.83s; includes new regressions
+      and artifact freshness checks. Frontend vue-tsc/ESLint passed; case API tests 14 passed. LX-Annotate
+      Pyright and focused tests Pyright: 0 errors/0 warnings. Existing operationId/path-parameter inference
+      warnings remain; no claim of full field-level API specification or production deployment.'
+    assessed_by: codex-storage-20261006-a1
+    assessed_at: '2026-10-07T09:57:42.543951Z'
 - id: generation_tests
   category: testing
   title: Export and generated-file freshness are regression tested

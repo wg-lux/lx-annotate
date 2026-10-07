@@ -576,7 +576,10 @@ class HubExportApiTests(TestCase):
         with getattr(self, "captureOnCommitCallbacks")(execute=True):
             response = self.client.post(
                 "/api/hub-export/offload-eligible-videos/",
-                data={"target_node_key": "hub-node", "retain_local_processed_media": False},
+                data={
+                    "target_node_key": "hub-node",
+                    "retain_local_processed_media": False,
+                },
                 content_type="application/json",
             )
 
@@ -593,7 +596,10 @@ class HubExportApiTests(TestCase):
             },
         )
         job = OutboundHubTransferJob.objects.get(video_file=video)
-        self.assertEqual(job.local_cleanup_policy, OutboundHubTransferJob.LocalCleanupPolicy.ELIGIBLE_AFTER_VERIFIED_APPLY)
+        self.assertEqual(
+            job.local_cleanup_policy,
+            OutboundHubTransferJob.LocalCleanupPolicy.ELIGIBLE_AFTER_VERIFIED_APPLY,
+        )
         self.assertEqual(job.local_status, OutboundHubTransferJob.LocalStatus.QUEUED)
         self.assertEqual(job.marked_by, self.operator)
         delay_mock.assert_called_once_with(str(job.pk), self.site_node.node_key)

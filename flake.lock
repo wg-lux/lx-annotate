@@ -11,11 +11,11 @@
         "uv2nix": "uv2nix_2"
       },
       "locked": {
-        "lastModified": 1787220592,
-        "narHash": "sha256-+2w3HsuSQwaDybrwZCK6uY5lEEtMmII5iRoJmwvh860=",
+        "lastModified": 1790944619,
+        "narHash": "sha256-0V1Fcij9Pdpny3hddIiacNgbPugAgVZXvt9VxBcbgtQ=",
         "owner": "wg-lux",
         "repo": "endoreg-db",
-        "rev": "b8b608307cd7b42709da48bf8e16dc29c058611e",
+        "rev": "8456530efffa4caf77c3fd236f0020ddb6e48d4f",
         "type": "github"
       },
       "original": {
@@ -233,11 +233,11 @@
     "nixtest_2": {
       "locked": {
         "dir": "lib",
-        "lastModified": 1769441055,
-        "narHash": "sha256-SrHLnM3UMzpj5/o52yf3lFOVpsIGEU5nAFUkdeJO1bM=",
+        "lastModified": 1779378277,
+        "narHash": "sha256-HIfcZI4rIPMBWoA28KYUJ4mF3v0xn6hWxS11mXtNlwI=",
         "owner": "TECHNOFAB",
         "repo": "nixtest",
-        "rev": "9f9fcb85349003edb554574d0e3f623811866f50",
+        "rev": "6c4c1bace647f485457cfc952a274e17739177ed",
         "type": "gitlab"
       },
       "original": {

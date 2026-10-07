@@ -19,6 +19,7 @@
     <div class="sidenav-body w-auto max-height-vh-100">
       <ul class="navbar-nav">
         <li class="nav-section-title">Workflow</li>
+        <li class="nav-item"><router-link to="/speicher" class="nav-link" :class="{ active: route.path === '/speicher' }"><span class="nav-link-text ms-1">Speicherüberwachung</span></router-link></li>
         <li class="nav-item">
           <router-link
             to="/"

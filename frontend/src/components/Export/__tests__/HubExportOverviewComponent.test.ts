@@ -136,7 +136,8 @@ describe('HubExportOverviewComponent', () => {
 
     expect(hoisted.post).toHaveBeenCalledWith(`/api/${endpoints.hubExport.mark}`, {
       targetNodeKey: 'hub-node',
-      resources: [{ id: 11, resourceKind: 'report' }]
+      resources: [{ id: 11, resourceKind: 'report' }],
+      retainLocalProcessedMedia: true
     })
   })
 

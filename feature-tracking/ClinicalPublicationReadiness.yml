@@ -41,10 +41,17 @@ definition_of_done:
     - kind: test
       reference: '7 passed: tests/privacy/test_publication_materialization_aaa.py; included in final 112-pass
         regression run.'
-    note: Seven AAA cases pass against real EncryptedStorage and the real PDF parser. This verifies scoped
-      materialization, not clinical identifier removal.
-    assessed_by: codex-infrastructure-manuscript-20260910
-    assessed_at: '2026-09-10T07:49:43.703438Z'
+    - kind: test
+      reference: 'tests/privacy/test_publication_materialization_aaa.py: 9 passed in focused 23-test integration
+        run'
+    note: 'Seven AAA cases pass against real EncryptedStorage and the real PDF parser. This verifies scoped
+      materialization, not clinical identifier removal. Review 2026-10-07: tests now use the public protected
+      directory argument instead of patching removed NamedTemporaryFile internals. Nine real-materialization
+      cases pass in the 23-test focused run, including unprotected-directory rejection and overlapping
+      scope isolation; original wrong-key, tamper, truncation, header, parser, permissions, cleanup and
+      ciphertext preservation assertions remain. No production encryption-boundary approval is implied.'
+    assessed_by: codex-storage-20261006-a1
+    assessed_at: '2026-10-07T09:54:50.547212Z'
 - id: report_export_state
   category: functionality
   title: Report approval and fresh integrity checks fail closed

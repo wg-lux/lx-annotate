@@ -365,6 +365,10 @@ CELERY_TASK_ROUTES = {
         "queue": CELERY_MAINTENANCE_QUEUE,
         "routing_key": CELERY_MAINTENANCE_QUEUE,
     },
+    "endoreg_db.cleanup_media_sources": {
+        "queue": CELERY_MAINTENANCE_QUEUE,
+        "routing_key": CELERY_MAINTENANCE_QUEUE,
+    },
     "lx_annotate.run_outbound_hub_transfer_job": {
         "queue": CELERY_HUB_TRANSFER_QUEUE,
         "routing_key": CELERY_HUB_TRANSFER_QUEUE,
@@ -439,6 +443,15 @@ CELERY_TASK_ROUTES = {
     },
 }
 CELERY_BEAT_SCHEDULE = {
+    "cleanup-media-sources": {
+        "task": "endoreg_db.cleanup_media_sources",
+        "schedule": 900.0,
+        "options": {
+            "queue": CELERY_MAINTENANCE_QUEUE,
+            "routing_key": CELERY_MAINTENANCE_QUEUE,
+            "expires": 850,
+        },
+    },
     "retry-due-upload-jobs": {
         "task": "endoreg_db.retry_due_upload_jobs",
         "schedule": 60.0,

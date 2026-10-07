@@ -2362,6 +2362,20 @@
               "title": "Version",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "language",
+            "required": false,
+            "schema": {
+              "default": "de",
+              "enum": [
+                "de",
+                "en"
+              ],
+              "title": "Language",
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -2459,6 +2473,20 @@
             "required": true,
             "schema": {
               "title": "Version",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "language",
+            "required": false,
+            "schema": {
+              "default": "de",
+              "enum": [
+                "de",
+                "en"
+              ],
+              "title": "Language",
               "type": "string"
             }
           }
@@ -2670,6 +2698,20 @@
             "required": true,
             "schema": {
               "title": "Version",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "language",
+            "required": false,
+            "schema": {
+              "default": "de",
+              "enum": [
+                "de",
+                "en"
+              ],
+              "title": "Language",
               "type": "string"
             }
           }

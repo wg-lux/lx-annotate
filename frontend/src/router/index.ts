@@ -233,6 +233,12 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
         }
       },
       {
+        path: '/speicher',
+        name: 'Speicherüberwachungszentrum',
+        component: () => import('@/views/StorageMonitor.vue'),
+        meta: { description: 'Lokales Medien- und Dateiinventar' }
+      },
+      {
         path: '/anonymisierung/uebersicht',
         name: 'Anonymisierung Übersicht',
         component: () => import('@/views/AnonymizationOverview.vue'),

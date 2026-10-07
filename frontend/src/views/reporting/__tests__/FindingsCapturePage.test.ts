@@ -613,7 +613,8 @@ describe('FindingsCapturePage runtime draft flow', () => {
         indications: hoisted.flowRef.current.indications
       }
     )
-    expect(hoisted.flowRef.current.persistCurrentRuntimeDraft).toHaveBeenCalled()
+    // Validation must leave persistence to the store-owned autosave lifecycle.
+    expect(hoisted.flowRef.current.persistCurrentRuntimeDraft).not.toHaveBeenCalled()
   })
 
   it('shows classification validation failures at the affected finding and clears resolved feedback', async () => {

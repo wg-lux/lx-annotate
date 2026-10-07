@@ -35,6 +35,7 @@ from lx_annotate.views.hub_export import (
 from lx_annotate.views.monitoring import monitoring_snapshot
 from lx_annotate.views.quarantine import quarantine_overview
 from lx_annotate.views.report_llm import report_llm_generate, report_llm_status
+from lx_annotate.views.storage_monitor import storage_monitor
 from lx_annotate.views.study_cohorts import (
     dataset_study_cohorts,
     study_cohort_definition,
@@ -47,6 +48,7 @@ from lx_annotate.views.video_state_repair import VideoStateRepairView
 from lx_annotate.views.video_transcode_jobs import VideoTranscodeJobsView
 
 urlpatterns = [
+    path("media/storage-monitor/", storage_monitor, name="storage-monitor"),
     path("media/studies/cohorts/", study_cohorts, name="study-cohorts"),
     path(
         "media/studies/cohorts/<int:cohort_id>/definition/",

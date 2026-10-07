@@ -272,7 +272,9 @@ def cleanup_verified_local_processed_video(
                 missing_ok=False,
             )
             if field_file.storage.exists(storage_name):
-                raise HubExportCleanupBlocked("Processed storage deletion did not complete.")
+                raise HubExportCleanupBlocked(
+                    "Processed storage deletion did not complete."
+                )
         else:
             # Resume a durable cleaning receipt after a prior storage deletion.
             delete_video_hls_artifacts(video, artifact_kind="processed")

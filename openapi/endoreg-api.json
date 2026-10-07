@@ -20,8 +20,26 @@
             "type": "string"
           },
           "documents": {
+            "items": {
+              "additionalProperties": {
+                "nullable": true,
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  }
+                ]
+              },
+              "type": "object"
+            },
             "readOnly": true,
-            "type": "string"
+            "type": "array"
           },
           "hash": {
             "description": "A hash value associated with the case when configured.",
@@ -267,8 +285,26 @@
             "type": "string"
           },
           "documents": {
+            "items": {
+              "additionalProperties": {
+                "nullable": true,
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  }
+                ]
+              },
+              "type": "object"
+            },
             "readOnly": true,
-            "type": "string"
+            "type": "array"
           },
           "hash": {
             "description": "A hash value associated with the case when configured.",
@@ -3353,6 +3389,30 @@
         ]
       }
     },
+    "/endoreg-api/media/videos/{id}/annotations.csv": {
+      "get": {
+        "description": "Download accepted anonymized MP4 or CSV attachments.\n\nAnnotation CSV uses persisted frame coordinates and accepts use_export_flags.\nTimestamp CSV accepts timeline=original or processed and exports independent\ncanonical sequences. MP4 downloads support Range and content-hash If-Range.\nNegotiate application/json for errors; attachments declare their content type.",
+        "operationId": "media_videos_annotations.csv_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
     "/endoreg-api/media/videos/{id}/apply-mask/": {
       "post": {
         "description": "Apply masking to video.",
@@ -3449,6 +3509,30 @@
       "patch": {
         "description": "Video media management API for listing and detail operations.",
         "operationId": "media_videos_details_partial_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/download/": {
+      "get": {
+        "description": "Download accepted anonymized MP4 or CSV attachments.\n\nAnnotation CSV uses persisted frame coordinates and accepts use_export_flags.\nTimestamp CSV accepts timeline=original or processed and exports independent\ncanonical sequences. MP4 downloads support Range and content-hash If-Range.\nNegotiate application/json for errors; attachments declare their content type.",
+        "operationId": "media_videos_download_retrieve",
         "parameters": [
           {
             "in": "path",
@@ -4263,6 +4347,30 @@
       "get": {
         "description": "Return the PTS-backed previous/current/next display-frame boundaries.",
         "operationId": "media_videos_timeline_frame_neighborhood_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/timestamps.csv": {
+      "get": {
+        "description": "Download accepted anonymized MP4 or CSV attachments.\n\nAnnotation CSV uses persisted frame coordinates and accepts use_export_flags.\nTimestamp CSV accepts timeline=original or processed and exports independent\ncanonical sequences. MP4 downloads support Range and content-hash If-Range.\nNegotiate application/json for errors; attachments declare their content type.",
+        "operationId": "media_videos_timestamps.csv_retrieve",
         "parameters": [
           {
             "in": "path",

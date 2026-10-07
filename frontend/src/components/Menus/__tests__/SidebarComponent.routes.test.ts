@@ -121,6 +121,7 @@ describe('Sidebar linked routes', () => {
     const expectedSidebarPaths = new Set([
       '/',
       '/einstellungen',
+      '/speicher',
       '/administration',
       '/patienten',
       '/anonymisierung/uebersicht',

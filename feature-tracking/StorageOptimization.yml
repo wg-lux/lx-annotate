@@ -30,6 +30,44 @@ source_documents:
     disposition: reference
     note: Canonical admin-password import, rotation, export, and validation workflow.
 definition_of_done:
+  - id: storage_monitor
+    category: functionality
+    title: Local media and filesystem inventory with reviewed deletion
+    acceptance:
+    - Videos and reports in every persisted state and their media artifacts are searchable alongside unindexed
+      import files and missing references.
+    - Monitoring requires global storage access; deletion requires global administration and an expiring signed
+      observation, with references, file identity and active work rechecked.
+    - The frontend provides filtering, pagination, details, explicit deletion scope and confirmation; failed
+      or partial actions remain visible.
+    - Reusable API and component tests cover permissions, unindexed imports, changed files, references and deletion
+      confirmation.
+    required: true
+    verification:
+      kind: manual
+      instructions: Run backend type checks, storage monitor API tests and frontend type and component checks.
+      timeout_seconds: 900
+    assessment:
+      status: in_progress
+      evidence:
+      - kind: code
+        reference: lx_annotate/services/storage_monitor.py
+      - kind: code
+        reference: frontend/src/views/StorageMonitor.vue
+      - kind: test
+        reference: tests/api/test_storage_monitor.py
+      - kind: test
+        reference: frontend/src/views/__tests__/StorageMonitor.test.ts
+      note: 'Local implementation complete and undeployed. Final storage-monitor API suite: 23 passed, including
+        encrypted report deletion, shared ownership preservation, active media, changed files, expired signatures,
+        provenance aliases and terminal upload source cleanup with hash checks. Earlier integration with existing
+        storage-capacity endpoint: 62 passed. Final frontend component suite: 4 passed; vue-tsc, scoped ESLint
+        and Vite production build passed. Scoped backend Pyright: 0 errors/0 warnings; Ruff and diff --check
+        passed. Full project Pyright has one unrelated unresolved import in lx_annotate/file_watcher.py: endoreg_db.services.video_temporal_inference.
+        Unassigned artifacts outside import roots remain visible but require ownership reconciliation before
+        deletion. Inventory is bounded to 100000 entries. No production data modified.'
+      assessed_by: codex-cleanup-20261005
+      assessed_at: '2026-10-06T09:30:48.485335Z'
   - id: frontend_request_priority
     category: functionality
     title: API requests reserve foreground resource priority

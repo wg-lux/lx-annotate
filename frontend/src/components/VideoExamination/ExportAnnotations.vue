@@ -40,7 +40,13 @@
         {{ noVideosMessage }}
       </small>
 
-      <template v-else>
+      <VideoExportDownloads
+        v-if="selectedVideoId"
+        :video="selectedVideoId"
+        :marked="useExportFlags"
+      />
+
+      <template v-if="hasVideos">
         <div class="export-toggle">
           <label
             class="form-check-label"
@@ -259,6 +265,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import VideoExportDownloads from '@/components/Export/VideoExportDownloads.vue'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { useVideoStore, type Segment } from '@/stores/videoStore'
 import type { ExportMessage } from '@/types/exportMessage'

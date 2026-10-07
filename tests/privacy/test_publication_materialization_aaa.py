@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import os
-from functools import partial
+from collections.abc import Iterator
 from pathlib import Path
-from tempfile import NamedTemporaryFile
+from uuid import uuid4
 
 import fitz
 import pytest
@@ -18,8 +18,10 @@ from endoreg_db.utils.encryption.storage_materialization import (
 from endoreg_db.utils.file_operations import (
     atomic_write_file,
     ensure_directory,
+    safe_rmtree,
     safe_unlink_file,
 )
+from endoreg_db.utils.paths import get_runtime_paths
 
 from lx_annotate.storage.encrypted import EncryptedStorage
 from lx_annotate.storage.encryption import MAGIC
@@ -38,15 +40,15 @@ def encrypted_pdf(tmp_path: Path) -> tuple[FieldFile, bytes, Path]:
 
 
 @pytest.fixture
-def plaintext_scope(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
-    # Isolate actual temporary files without replacing the materializer or reader.
-    directory = ensure_directory(tmp_path / "plaintext", dir_mode=0o700)
-    monkeypatch.setattr(
-        storage_materialization,
-        "NamedTemporaryFile",
-        partial(NamedTemporaryFile, dir=directory),
+def plaintext_scope() -> Iterator[Path]:
+    directory = ensure_directory(
+        get_runtime_paths().transcoding / f"publication-test-{uuid4().hex}",
+        dir_mode=0o700,
     )
-    return directory
+    try:
+        yield directory
+    finally:
+        safe_rmtree(directory)
 
 
 def test_encrypted_pdf_reaches_real_parser_only_inside_private_scope(
@@ -60,7 +62,11 @@ def test_encrypted_pdf_reaches_real_parser_only_inside_private_scope(
     assert plaintext not in original_ciphertext
 
     # Act
-    with materialized_plaintext_field_file(field_file, suffix=".pdf") as path:
+    with materialized_plaintext_field_file(
+        field_file, suffix=".pdf", directory=plaintext_scope
+    ) as path:
+        assert path.parent == plaintext_scope
+        assert plaintext_scope.stat().st_mode & 0o777 == 0o700
         permissions = path.stat().st_mode & 0o777
         with fitz.open(path) as document:
             extracted = document[0].get_text()
@@ -86,7 +92,9 @@ def test_consumer_exception_removes_plaintext_and_preserves_ciphertext(
     # Act
     with (
         pytest.raises(RuntimeError, match="consumer interrupted"),
-        materialized_plaintext_field_file(field_file, suffix=".pdf") as path,
+        materialized_plaintext_field_file(
+            field_file, suffix=".pdf", directory=plaintext_scope
+        ) as path,
     ):
         with fitz.open(path) as document:
             assert document.page_count == 1
@@ -125,7 +133,9 @@ def test_damaged_encrypted_input_never_reaches_consumer_or_leaves_plaintext(
     # Act
     with (
         pytest.raises((InvalidTag, ValueError, RuntimeError, OSError)),
-        materialized_plaintext_field_file(field_file, suffix=".pdf"),
+        materialized_plaintext_field_file(
+            field_file, suffix=".pdf", directory=plaintext_scope
+        ),
     ):
         consumer_entered = True
 
@@ -151,7 +161,9 @@ def test_cleanup_failure_is_reported_instead_of_silent_success(
     try:
         with (
             pytest.raises(PermissionError, match="plaintext cleanup denied"),
-            materialized_plaintext_field_file(field_file, suffix=".pdf") as path,
+            materialized_plaintext_field_file(
+                field_file, suffix=".pdf", directory=plaintext_scope
+            ) as path,
         ):
             assert path.exists()
         # Assert: failure stays visible; test teardown removes the fault-injected residue.
@@ -160,3 +172,35 @@ def test_cleanup_failure_is_reported_instead_of_silent_success(
         for residue in plaintext_scope.iterdir():
             safe_unlink_file(residue)
     assert list(plaintext_scope.iterdir()) == []
+
+
+def test_materialization_rejects_directory_outside_protected_storage(
+    encrypted_pdf: tuple[FieldFile, bytes, Path], tmp_path: Path
+) -> None:
+    field_file, _, ciphertext_path = encrypted_pdf
+    ciphertext = ciphertext_path.read_bytes()
+    outside = ensure_directory(tmp_path / "outside", dir_mode=0o700)
+    with pytest.raises(ValueError, match="protected transcoding storage"):
+        with materialized_plaintext_field_file(field_file, directory=outside):
+            pytest.fail("Unprotected plaintext must not reach the consumer")
+    assert list(outside.iterdir()) == []
+    assert ciphertext_path.read_bytes() == ciphertext
+
+
+def test_overlapping_materialization_scopes_have_independent_lifetimes(
+    encrypted_pdf: tuple[FieldFile, bytes, Path], plaintext_scope: Path
+) -> None:
+    field_file, plaintext, ciphertext_path = encrypted_pdf
+    ciphertext = ciphertext_path.read_bytes()
+    with materialized_plaintext_field_file(
+        field_file, directory=plaintext_scope
+    ) as first:
+        with materialized_plaintext_field_file(
+            field_file, directory=plaintext_scope
+        ) as second:
+            assert first != second
+            assert first.read_bytes() == second.read_bytes() == plaintext
+        assert not second.exists()
+        assert first.read_bytes() == plaintext
+    assert list(plaintext_scope.iterdir()) == []
+    assert ciphertext_path.read_bytes() == ciphertext

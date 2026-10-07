@@ -27,9 +27,6 @@ from endoreg_db.models import (
     UploadJob,
     VideoFile,
 )
-from endoreg_db.services.runtime.environment_readiness import (
-    assert_environment_readiness,
-)
 from endoreg_db.services.hub.ingest import (
     UploadProvenance,
     process_preanonymized_watcher_file,
@@ -38,6 +35,9 @@ from endoreg_db.services.hub.ingest import (
 from endoreg_db.services.hub.watcher_handoff import (
     WatcherFileNotReadyError,
     is_in_progress_handoff_path,
+)
+from endoreg_db.services.runtime.environment_readiness import (
+    assert_environment_readiness,
 )
 from endoreg_db.services.video_files._imports import (
     check_storage_capacity,
@@ -768,7 +768,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
             )
         try:
             from endoreg_db.models import AiModel
-            from endoreg_db.services.video_temporal_inference import (
+            from endoreg_db.services.video_files.temporal_inference import (
                 dispatch_video_temporal_inference,
             )
 

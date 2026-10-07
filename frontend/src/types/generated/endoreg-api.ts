@@ -1450,6 +1450,30 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/endoreg-api/media/videos/{id}/annotations.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Download accepted anonymized MP4 or CSV attachments.
+         *
+         *     Annotation CSV uses persisted frame coordinates and accepts use_export_flags.
+         *     Timestamp CSV accepts timeline=original or processed and exports independent
+         *     canonical sequences. MP4 downloads support Range and content-hash If-Range.
+         *     Negotiate application/json for errors; attachments declare their content type.
+         */
+        get: operations["media_videos_annotations.csv_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/endoreg-api/media/videos/{id}/apply-mask/": {
         parameters: {
             query?: never;
@@ -1509,6 +1533,30 @@ export type paths = {
         head?: never;
         /** @description Video media management API for listing and detail operations. */
         patch: operations["media_videos_details_partial_update"];
+        trace?: never;
+    };
+    "/endoreg-api/media/videos/{id}/download/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Download accepted anonymized MP4 or CSV attachments.
+         *
+         *     Annotation CSV uses persisted frame coordinates and accepts use_export_flags.
+         *     Timestamp CSV accepts timeline=original or processed and exports independent
+         *     canonical sequences. MP4 downloads support Range and content-hash If-Range.
+         *     Negotiate application/json for errors; attachments declare their content type.
+         */
+        get: operations["media_videos_download_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/endoreg-api/media/videos/{id}/ensure-prediction-segment-annotations/": {
@@ -2237,6 +2285,30 @@ export type paths = {
         };
         /** @description Return the PTS-backed previous/current/next display-frame boundaries. */
         get: operations["media_videos_timeline_frame_neighborhood_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/endoreg-api/media/videos/{id}/timestamps.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Download accepted anonymized MP4 or CSV attachments.
+         *
+         *     Annotation CSV uses persisted frame coordinates and accepts use_export_flags.
+         *     Timestamp CSV accepts timeline=original or processed and exports independent
+         *     canonical sequences. MP4 downloads support Range and content-hash If-Range.
+         *     Negotiate application/json for errors; attachments declare their content type.
+         */
+        get: operations["media_videos_timestamps.csv_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3272,7 +3344,9 @@ export type components = {
              * @description The date and time the case was created.
              */
             readonly created_at: string;
-            readonly documents: string;
+            readonly documents: {
+                [key: string]: (string | number) | null;
+            }[];
             /** @description A hash value associated with the case when configured. */
             hash?: string | null;
             readonly id: number;
@@ -3332,7 +3406,9 @@ export type components = {
              * @description The date and time the case was created.
              */
             readonly created_at?: string;
-            readonly documents?: string;
+            readonly documents?: {
+                [key: string]: (string | number) | null;
+            }[];
             /** @description A hash value associated with the case when configured. */
             hash?: string | null;
             readonly id?: number;
@@ -5426,6 +5502,26 @@ export interface operations {
             };
         };
     };
+    "media_videos_annotations.csv_retrieve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     media_videos_apply_mask_create: {
         parameters: {
             query?: never;
@@ -5507,6 +5603,26 @@ export interface operations {
         };
     };
     media_videos_details_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    media_videos_download_retrieve: {
         parameters: {
             query?: never;
             header?: never;
@@ -6154,6 +6270,26 @@ export interface operations {
         };
     };
     media_videos_timeline_frame_neighborhood_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "media_videos_timestamps.csv_retrieve": {
         parameters: {
             query?: never;
             header?: never;
