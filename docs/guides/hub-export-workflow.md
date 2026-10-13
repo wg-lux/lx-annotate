@@ -137,6 +137,76 @@ but repository-wide ESLint remains blocked by an existing attribute-order warnin
 in `AnonymizationValidationComponent.vue`. No production deployment or real-media
 backfill acceptance is included in these local results.
 
+## Recoverable operator workflow
+
+The Hub-Export **Handlungsbedarf** filter includes videos without outbound jobs.
+Each video's **Nächster Schritt** comes from a structured backend assessment:
+processing, anonymization review, segment review/cleanup, identity evidence,
+export proof, provenance, integrity, and transport configuration are separate
+concerns. Missing identity evidence or an unavailable original requires
+administrator recovery; retry cannot manufacture either. Repair and review
+links select the video by ID and retain a return link and the originating filters.
+
+Stored readiness is labelled **Nachweis gespeichert**, never unconditional
+approval. **Payload vorprüfen** calls
+`POST /api/hub-export/videos/<id>/preflight/` using the sender's identity,
+payload and provenance validators. It verifies the managed encrypted artifact
+under the publication row lock and media guards, and rolls back temporary
+leases. It does not approve, reset, mark, queue or change transfer history.
+Its result is a point-in-time observation, invalidated by overview refresh;
+marking and sending remain separate actions and the sender revalidates its
+boundary. A failed preflight exposes only structured, privacy-limited reasons.
+Local transport configuration is reported separately and does not prove valid
+certificate lifetime, worker availability, Vault health or receiver acceptance.
+
+A historical `completed` row is not fresh acceptance. Preflight compares the
+persisted receiver receipt with the current byte-verified artifact and canonical
+job identity. A mismatch requires investigation; it never rewrites or replaces
+the historical transfer. The existing failed-job retry keeps the same job and
+transfer key. The UI displays transfer stages, not fictitious byte percentages.
+
+### Reviewed cleanup restart
+
+Global administrators with the lifecycle write capability and center access can
+use **Wiederherstellung untersuchen**. The
+`POST /api/hub-export/videos/<id>/inspect-recovery/` endpoint uses shared cleanup
+history semantics and dispatcher timeout constants. It reports task age,
+configured queue, observed active/reserved/scheduled work, source availability
+and media-operation guards. Progress is **unknown** when no trustworthy telemetry
+exists. Missing inspection replies remain unknown; absence in replies never
+proves that a broker queue or a nonresponding consumer is empty.
+
+The explicit **Geprüften Wiederanlauf starten** action is available only for
+one old pending/running history, an observed queue consumer, an unobserved task,
+a retained source and no active media lease. Before confirming, the administrator
+must investigate the broker and **all** consumers and affirm that the old task
+is neither active nor queued. A second confirmation acknowledges that the shared
+dispatcher may expire old histories and roll back extracted frame artifacts.
+There is no automatic timeout restart or bulk recovery.
+
+`POST /api/hub-export/videos/<id>/restart-cleanup/` requires the signed preview
+and both boolean confirmations. The preview expires after five minutes and is
+bound to the user, video, history, task ID, status and creation time. The server
+locks the video, rechecks scope, preview identity, observations and operation
+guards, and calls `dispatch_video_post_validation_rebuild` with the original
+validated-only setting. Audit events record the review and dispatch result.
+A changed history rejects replay; new activity, missing source, invalid preview,
+missing confirmation or insufficient permissions stops before dispatch. A failed
+response requires inspection of the resulting history rather than blind retry.
+No hub transfer is created by cleanup recovery. Review the cleanup outcome and
+repeat all invalidated clinical approvals before exporting.
+
+These controls require the matching backend and frontend release. Local tests
+are not acceptance on gc-02, gc-10 or gs-02, and do not repair their recordings.
+
+Local verification on 13 October 2026 used the sibling `/home/admin/endoreg-db`
+source through `PYTHONPATH`: the full Hub suite passed 242 tests, and the final
+focused API suite passed 36 tests including reviewed running-history rollback
+and retained-media checks. The four affected frontend suites passed 142 tests.
+Vue source and Vitest type checks, targeted ESLint/Ruff, Hub Pyright, structure
+lint and feature-schema validation passed. This is source-level verification,
+not an installed-wheel or live-browser acceptance result.
+
 ## Marked For Upload
 
 `marked for upload` means:

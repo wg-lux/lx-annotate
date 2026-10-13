@@ -19,6 +19,12 @@ export const hubExportService = {
     const { data } = await axiosInstance.post<HubRecoveryAssessment>(r(endpoints.hubExport.preflight(id)))
     return data
   },
+  async restartCleanup(id: number, previewToken: string): Promise<void> {
+    const { data } = await axiosInstance.post<{ status: string }>(r(endpoints.hubExport.restartCleanup(id)), {
+      preview_token: previewToken, queue_and_consumers_reviewed: true, confirm_frame_rollback: true
+    })
+    if (data.status !== 'queued') throw new Error('Der Wiederanlauf wurde nicht eingeplant. Auftrag und Fehler prüfen.')
+  },
   async inspectRecovery(id: number): Promise<HubCleanupInspection> {
     const { data } = await axiosInstance.post<HubCleanupInspection>(r(endpoints.hubExport.inspectRecovery(id)))
     return data

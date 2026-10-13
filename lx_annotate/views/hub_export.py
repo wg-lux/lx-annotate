@@ -16,6 +16,8 @@ from rest_framework.response import Response
 from lx_annotate.hub.hub_export_contracts import (
     HubEligibleVideoOffloadRequest,
     HubExportMutationRequest,
+    HubRecoveryAction,
+    HubRecoveryAssessment,
 )
 from lx_annotate.hub.hub_export_jobs import (
     build_hub_export_overview,
@@ -26,7 +28,11 @@ from lx_annotate.hub.hub_export_jobs import (
     retry_failed_outbound_job,
     unmark_resources_for_hub_upload,
 )
-from lx_annotate.permissions import LifecyclePolicyPermission, lifecycle_center_ids
+from lx_annotate.permissions import (
+    LifecyclePolicyPermission,
+    lifecycle_center_ids,
+    user_has_global_center_scope_admin,
+)
 
 
 def _resolve_target_node(target_node_key: str | None) -> NetworkNode | None:
@@ -50,7 +56,33 @@ def _parse_eligible_video_offload_request(
 
 
 def _validation_errors(exc: ValidationError) -> object:
-    return exc.errors(include_url=False, include_input=False)
+    return exc.errors(include_url=False, include_input=False, include_context=False)
+
+
+def _operator_recovery(
+    assessment: HubRecoveryAssessment, *, allow_inspection: bool
+) -> HubRecoveryAssessment:
+    if allow_inspection:
+        return assessment
+
+    def action(value: HubRecoveryAction) -> HubRecoveryAction:
+        return (
+            HubRecoveryAction.ADMINISTRATOR_RECOVERY
+            if value == HubRecoveryAction.INSPECT_RECOVERY
+            else value
+        )
+
+    return assessment.model_copy(
+        update={
+            "allowed_actions": list(
+                dict.fromkeys(action(value) for value in assessment.allowed_actions)
+            ),
+            "blockers": [
+                blocker.model_copy(update={"action": action(blocker.action)})
+                for blocker in assessment.blockers
+            ],
+        }
+    )
 
 
 @api_view(["GET"])
@@ -67,6 +99,12 @@ def hub_export_overview(request):
     payload = build_hub_export_overview(
         target_node=target_node, allowed_center_ids=center_ids
     )
+    for item in payload["items"]:
+        if item.get("recovery") is not None:
+            item["recovery"] = _operator_recovery(
+                HubRecoveryAssessment.model_validate(item["recovery"]),
+                allow_inspection=user_has_global_center_scope_admin(request.user),
+            ).model_dump(mode="json")
     return Response(payload, status=status.HTTP_200_OK)
 
 
@@ -232,15 +270,21 @@ def hub_export_preflight(request, video_id):
         return Response(
             {"detail": "Video not found."}, status=status.HTTP_404_NOT_FOUND
         )
-    return Response(result.model_dump(mode="json"))
+    return Response(
+        _operator_recovery(
+            result, allow_inspection=user_has_global_center_scope_admin(request.user)
+        ).model_dump(mode="json")
+    )
 
 
 @api_view(["POST"])
 @authentication_classes([SessionAuthentication])
 @permission_classes([IsAuthenticated, LifecyclePolicyPermission])
 def hub_export_inspect_recovery(request, video_id):
-    from lx_annotate.hub.hub_export_recovery import inspect_cleanup, scoped_video
-    from lx_annotate.permissions import user_has_global_center_scope_admin
+    from lx_annotate.hub.hub_export_recovery import (
+        preview_cleanup_recovery,
+        scoped_video,
+    )
 
     if not user_has_global_center_scope_admin(request.user):
         return Response(
@@ -253,4 +297,44 @@ def hub_export_inspect_recovery(request, video_id):
         return Response(
             {"detail": "Video not found."}, status=status.HTTP_404_NOT_FOUND
         )
-    return Response(inspect_cleanup(video))
+    return Response(preview_cleanup_recovery(video, requested_by_id=request.user.pk))
+
+
+@api_view(["POST"])
+@authentication_classes([SessionAuthentication])
+@permission_classes([IsAuthenticated, LifecyclePolicyPermission])
+def hub_export_restart_cleanup(request, video_id):
+    from lx_annotate.hub.hub_export_contracts import HubCleanupRestartRequest
+    from endoreg_db.services.media.operation_gate import MediaOperationDeferred
+    from lx_annotate.hub.hub_export_recovery import restart_cleanup
+
+    if not user_has_global_center_scope_admin(request.user):
+        return Response(
+            {"detail": "Administrator recovery permission is required."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    try:
+        mutation = HubCleanupRestartRequest.model_validate(request.data)
+    except ValidationError as exc:
+        return Response(
+            {"errors": _validation_errors(exc)}, status=status.HTTP_400_BAD_REQUEST
+        )
+    try:
+        result = restart_cleanup(
+            video_id=video_id,
+            requested_by=request.user,
+            allowed_center_ids=lifecycle_center_ids(request.user),
+            mutation=mutation,
+        )
+    except ObjectDoesNotExist:
+        return Response(
+            {"detail": "Video not found."}, status=status.HTTP_404_NOT_FOUND
+        )
+    except MediaOperationDeferred:
+        return Response(
+            {"detail": "A media operation is active. Inspect again."},
+            status=status.HTTP_409_CONFLICT,
+        )
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
+    return Response(result)

@@ -58,6 +58,9 @@ export interface HubCleanupInspection {
   ageSeconds: number | null
   staleCandidate: boolean
   recoveryAllowed: boolean
+  previewToken: string | null
+  activeMediaOperation: boolean
+  retainedSourcePresent: boolean
   detail: string
 }
 
@@ -101,6 +104,8 @@ export type HubExportRejectionReason =
   | 'processed_file_unreadable'
   | 'segment_cleanup_pending'
   | 'segment_cleanup_failed'
+  | 'identity_evidence'
+  | 'integrity_lost'
 
 export interface HubProcessedFile {
   resourceKind: 'video' | 'report'
@@ -231,6 +236,9 @@ export const useHubExportStore = defineStore('hubExport', {
   actions: {
     async preflightVideo(id: number): Promise<HubRecoveryAssessment> {
       return hubExportService.preflightVideo(id)
+    },
+    async restartCleanup(id: number, previewToken: string): Promise<void> {
+      await hubExportService.restartCleanup(id, previewToken)
     },
     async inspectRecovery(id: number): Promise<HubCleanupInspection> {
       return hubExportService.inspectRecovery(id)

@@ -91,6 +91,8 @@ class HubExportRejectionReason(StrEnum):
     PROCESSED_FILE_UNREADABLE = "processed_file_unreadable"
     SEGMENT_CLEANUP_PENDING = "segment_cleanup_pending"
     SEGMENT_CLEANUP_FAILED = "segment_cleanup_failed"
+    IDENTITY_EVIDENCE = "identity_evidence"
+    INTEGRITY_LOST = "integrity_lost"
 
 
 class HubExportDuplicateReason(StrEnum):
@@ -166,6 +168,31 @@ class HubRecoveryAssessment(BaseModel):
     transport_configuration: Literal["not_checked", "configured", "unavailable"] = (
         "not_checked"
     )
+
+
+class HubCleanupRestartRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    preview_token: str = Field(min_length=1, max_length=4096)
+    queue_and_consumers_reviewed: StrictBool
+    confirm_frame_rollback: StrictBool
+
+    @model_validator(mode="after")
+    def require_review(self):
+        if not self.queue_and_consumers_reviewed or not self.confirm_frame_rollback:
+            raise ValueError(
+                "Queue review and frame rollback confirmation are required."
+            )
+        return self
+
+
+class HubCleanupPreviewIdentity(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    video_id: int
+    history_id: int
+    task_id: str
+    history_status: str
+    history_created_at: str
+    requested_by_id: int
 
 
 class HubPayloadRejected(ValueError):

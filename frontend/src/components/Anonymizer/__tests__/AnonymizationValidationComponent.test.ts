@@ -296,6 +296,25 @@ describe('AnonymizationValidationComponent', () => {
     await flushPromises()
   }
 
+  it('restores patient edits and a manual examination assignment after visiting reporting', async () => {
+    const wrapper = mountComponent()
+    await flushPromises()
+    await field(wrapper, 'Vorname:').setValue('Edited name')
+    await field(wrapper, 'Befund-Fall (PatientExamination):').setValue('__manual__')
+    await wrapper.find('input[type="number"]').setValue('42')
+    const link = wrapper.findAll('a').find((entry) => entry.text().includes('Fallauflösung öffnen'))
+    await requireDefined(link, 'Reporting link').trigger('click')
+    expect(hoisted.axiosPost).not.toHaveBeenCalled()
+    wrapper.unmount()
+    requireAnonymizationStore().current = buildPdfItem({ patientFirstName: 'Server value' })
+    const returned = mountComponent()
+    await flushPromises()
+    expect((field(returned, 'Vorname:').element as HTMLInputElement).value).toBe('Edited name')
+    expect((field(returned, 'Befund-Fall (PatientExamination):').element as HTMLSelectElement).value).toBe('__manual__')
+    expect((returned.find('input[type="number"]').element as HTMLInputElement).value).toBe('42')
+    returned.unmount()
+  })
+
   it.each(['pdf', 'video'])('preserves all entered %s fields across correction and backend reload', async (media_type) => {
     requireMediaStore().isPdf = media_type === 'pdf'
     requireMediaStore().isVideo = media_type === 'video'
@@ -707,6 +726,8 @@ describe('AnonymizationValidationComponent', () => {
     expect(JSON.parse(resolutionTarget)).toEqual({
       path: '/reporting/case-resolution',
       query: {
+        fileId: '5',
+        mediaType: 'pdf',
         preferredExamination: 'colonoscopy',
         returnTo: '/anonymisierung/validierung?fileId=5&mediaType=pdf'
       }

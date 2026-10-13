@@ -2,7 +2,9 @@
   <main class="card shadow-sm">
     <div class="card-header"><h5 class="mb-0">Medikation und Laborwerte</h5></div>
     <div class="card-body">
-      <RouterLink to="/reporting/case-setup">Zurück zur Fallanlage</RouterLink>
+      <RouterLink :to="{ path: '/reporting/case-setup', query: route.query }">
+        Zurück zur Fallanlage
+      </RouterLink>
       <p class="text-muted mt-2">
         Medikationszeiträume und Messungen werden dem ausgewählten Fall zugeordnet. Zeitangaben
         gelten in Ihrer lokalen Zeitzone.

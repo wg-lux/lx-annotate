@@ -383,10 +383,10 @@ const MONITORING_REFRESH_INTERVAL_MS = 15000
 
 // Computed properties
 const overviewFiles = computed(() => anonymizationStore.overview)
-watch([() => route?.query.video, overviewFiles], ([videoId, files]) => {
+watch([() => route.query.video, overviewFiles], ([videoId, files]) => {
   const id = Number(videoId)
   if (Number.isSafeInteger(id) && id > 0) {
-    repairVideoTarget.value = files.find(file => file.mediaType === 'video' && Number(file.id) === id) ?? null
+    repairVideoTarget.value = files.find(file => file.mediaType === 'video' && file.id === id) ?? null
   }
 }, { immediate: true })
 

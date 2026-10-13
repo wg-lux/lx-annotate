@@ -282,3 +282,33 @@ definition_of_done:
   assessment:
     status: not_assessed
     evidence: []
+
+- id: recoverable_operator_handoff
+  category: functionality
+  title: Operators can diagnose and explicitly recover individual hub-export blockers
+  acceptance:
+  - Videos without outbound jobs expose structured blockers and selected-video recovery links.
+  - Sender-equivalent preflight does not change approvals or queue work and rejects absent identity, provenance, or integrity evidence.
+  - Historical completion requires a persisted receipt matching the current verified artifact.
+  - Cleanup restart requires a global administrator, center access, a current signed preview, queue/consumer review, rollback confirmation, and fresh operation guards.
+  - Live, unknown, changed, replayed, missing-source, and unauthorized recovery attempts fail closed.
+  - The deployed interface is exercised with keyboard navigation and representative protected recordings before operational approval.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the focused Hub and frontend recovery tests, then exercise the documented per-video workflow on the reviewed deployment.
+    timeout_seconds: 1200
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: lx_annotate/hub/hub_export_recovery.py and frontend/src/components/Export/HubExportOverviewComponent.vue
+    - kind: document
+      reference: docs/guides/hub-export-workflow.md#recoverable-operator-workflow
+    - kind: test
+      reference: '2026-10-13: PYTHONPATH=/home/admin/endoreg-db .devenv/state/venv/bin/python -m pytest tests/hub -q: 242 passed; final focused test_hub_export_api.py: 36 passed, including real shared running-history rollback with retained media.'
+    - kind: test
+      reference: '2026-10-13: Export, anonymization overview/validation and video-dropdown Vitest suites: 142 passed. Vue source and Vitest type checks, targeted ESLint/Ruff, and Hub Pyright passed.'
+    note: Local implementation; deployed browser and real-recording acceptance remain pending. No production data or credentials changed.
+    assessed_by: codex-hub-recovery-20261013
+    assessed_at: '2026-10-13T12:56:16Z'

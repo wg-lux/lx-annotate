@@ -25,7 +25,11 @@ from endoreg_db.services.annotations import (
 from lx_annotate.hub.hub_export_jobs import build_hub_export_overview
 from lx_annotate.hub.hub_export_state import resolve_video_hub_export_state
 from lx_annotate.models import OutboundHubTransferJob, StorageArtifactPublication
-from tests.hub_payload_helpers import hub_report_pdf_bytes, verify_hub_report_artifact
+from tests.hub_payload_helpers import (
+    create_hub_sensitive_meta,
+    hub_report_pdf_bytes,
+    verify_hub_report_artifact,
+)
 
 TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
 
@@ -116,6 +120,7 @@ class HubExportHookTests(TestCase):
             processed_file_sha256="a" * 64,
         )
         video = VideoFile.objects.create(
+            sensitive_meta=create_hub_sensitive_meta(center=self.center),
             center=self.center,
             state=video_state,
             raw_video_hash="video-hash-1",
@@ -168,6 +173,7 @@ class HubExportHookTests(TestCase):
             segment_annotations_validated=False,
         )
         video = VideoFile.objects.create(
+            sensitive_meta=create_hub_sensitive_meta(center=self.center),
             center=self.center,
             state=video_state,
             raw_video_hash="video-hash-cleanup-pending",
@@ -206,6 +212,7 @@ class HubExportHookTests(TestCase):
             processed_file_sha256=processed_hash,
         )
         video = VideoFile.objects.create(
+            sensitive_meta=create_hub_sensitive_meta(center=self.center),
             center=self.center,
             state=video_state,
             raw_video_hash="video-hash-missing-transfer-hashes",
@@ -238,6 +245,7 @@ class HubExportHookTests(TestCase):
             processed_file_sha256=processed_hash,
         )
         video = VideoFile.objects.create(
+            sensitive_meta=create_hub_sensitive_meta(center=self.center),
             center=self.center,
             state=video_state,
             raw_video_hash="video-hash-transfer-ready",
@@ -276,6 +284,7 @@ class HubExportHookTests(TestCase):
             processed_file_sha256="a" * 64,
         )
         video = VideoFile.objects.create(
+            sensitive_meta=create_hub_sensitive_meta(center=self.center),
             center=self.center,
             state=video_state,
             raw_video_hash="video-hash-metadata-mismatch-overview",
@@ -316,6 +325,7 @@ class HubExportHookTests(TestCase):
             processed_file_sha256=persisted_hash,
         )
         video = VideoFile.objects.create(
+            sensitive_meta=create_hub_sensitive_meta(center=self.center),
             center=self.center,
             state=video_state,
             raw_video_hash="video-hash-physical-mismatch-overview",
@@ -353,6 +363,7 @@ class HubExportHookTests(TestCase):
             processed_file_sha256="",
         )
         video = VideoFile.objects.create(
+            sensitive_meta=create_hub_sensitive_meta(center=self.center),
             center=self.center,
             state=video_state,
             raw_video_hash="video-hash-not-ready",

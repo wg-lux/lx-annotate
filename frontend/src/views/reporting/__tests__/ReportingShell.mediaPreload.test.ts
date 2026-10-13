@@ -1143,6 +1143,74 @@ describe('ReportingShell media preload', () => {
     }
   )
 
+  it.each(['case-setup', 'medication'])(
+    'retains the patient and examination when returning to %s without route parameters',
+    async (page) => {
+      hoisted.routeRef.current = reactive({
+        path: `/reporting/${page}`,
+        params: { patient_examination_id: '' }
+      })
+      const initial = mountShell()
+      await flushPromises()
+      initial.unmount()
+      const wrapper = mountShell()
+      await flushPromises()
+      expect(hoisted.flowRef.current.patientExaminationId).toBe(314)
+      expect(hoisted.flowRef.current.selectedPatientId).toBe(42)
+      expect(hoisted.flowRef.current.selectedExaminationId).toBe(9)
+      expect(hoisted.flowRef.current.caseId).toBe('case-uuid-314')
+      const medicationLink = wrapper
+        .findAllComponents({ name: 'RouterLink' })
+        .find((link) => (link.props('to') as { path: string }).path === '/reporting/medication')
+      expect(medicationLink?.props('to')).toEqual({
+        path: '/reporting/medication',
+        query: {
+          patient_id: '42',
+          patient_examination_id: '314',
+          case_id: 'case-uuid-314'
+        }
+      })
+    }
+  )
+
+  it.each([true, false])('hydrates an examination handoff on fresh entry (patient query: %s)', async (includePatient) => {
+    hoisted.routeRef.current = reactive({
+      path: '/reporting/case-setup',
+      params: { patient_examination_id: '' }
+    })
+    Object.assign(hoisted.routeRef.current, {
+      query: { ...(includePatient ? { patient_id: '42' } : {}), patient_examination_id: '314' }
+    })
+    hoisted.flowRef.current.patientExaminationId = null
+    hoisted.flowRef.current.selectedPatientId = null
+    hoisted.flowRef.current.selectedExaminationId = null
+    hoisted.flowRef.current.caseId = null
+    mountShell()
+    await flushPromises()
+    expect(hoisted.flowRef.current.patientExaminationId).toBe(314)
+    expect(hoisted.flowRef.current.selectedPatientId).toBe(42)
+    expect(hoisted.flowRef.current.selectedExaminationId).toBe(9)
+    expect(hoisted.flowRef.current.caseId).toBe('case-uuid-314')
+  })
+
+  it('does not overwrite context with a case lookup that finishes after leaving reporting', async () => {
+    const pendingCases = deferred<{ data: PatientCase[] }>()
+    const originalGet = requireDefined(
+      hoisted.axiosApi.get.getMockImplementation(),
+      'GET implementation'
+    )
+    hoisted.axiosApi.get.mockImplementation((url, ...args) =>
+      url === 'cases/' ? pendingCases.promise : originalGet(url, ...args)
+    )
+    const wrapper = mountShell()
+    await flushPromises()
+    wrapper.unmount()
+    hoisted.flowRef.current.caseId = 'new-case'
+    pendingCases.resolve({ data: [] })
+    await flushPromises()
+    expect(hoisted.flowRef.current.caseId).toBe('new-case')
+  })
+
   it('discards a late bootstrap response after a rapid examination switch', async () => {
     const delayedFirstDetail = deferred<{ data: Record<string, unknown> }>()
     const defaultGet = hoisted.axiosApi.get.getMockImplementation()

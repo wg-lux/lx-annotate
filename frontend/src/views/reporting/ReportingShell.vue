@@ -558,7 +558,7 @@
               >
                 <RouterLink
                   v-if="!isStepDisabled(item)"
-                  :to="item.to"
+                  :to="workflowTarget(item.to)"
                   class="workflow-step-btn btn btn-sm text-start"
                   :aria-current="isActive(item.to) ? 'page' : undefined"
                   :class="
@@ -1404,7 +1404,7 @@ const missingPersistedExamination = computed(() => {
   const detail = patientExaminationDetail.value
   return Boolean(
     detail &&
-    patientExaminationIdentityLoadedId.value === routePatientExaminationId.value &&
+    patientExaminationIdentityLoadedId.value === activePatientExaminationId.value &&
     !extractExaminationName(detail) &&
     extractExaminationId(detail) === null
   )
@@ -1484,11 +1484,10 @@ const emptyTemplateIdentity: ReportTemplateIdentity = {
   readiness: null
 }
 const routePatientExaminationId = computed<number | null>(() => {
-  const parsed = Number(route.params.patient_examination_id)
-  if (!Number.isFinite(parsed)) {
-    return null
-  }
-  return parsed > 0 ? parsed : null
+  const raw = route.params.patient_examination_id || readRecord(route.query).patient_examination_id
+  if (typeof raw !== 'string' && typeof raw !== 'number') return null
+  const parsed = Number(raw)
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null
 })
 const routePatientId = computed<number | null>(() => {
   const query = readRecord(route.query)
@@ -1568,6 +1567,13 @@ const navItems = computed(() => [
     requiresPatientExamination: false
   },
   { label: 'Arbeitsliste', to: '/reporting', requiresPatientExamination: false },
+  { label: 'Fallanlage', to: '/reporting/case-setup', requiresPatientExamination: false },
+  {
+    label: 'Medikation und Laborwerte',
+    to: '/reporting/medication',
+    requiresCase: true,
+    requiresPatientExamination: false
+  },
   {
     label: 'Befunde',
     to: findingsStepTarget.value,
@@ -1638,7 +1644,9 @@ const activeKbVersion = computed(() => terminology.activeBundle?.version || '')
 
 const selectedPatientExaminationOption = computed(
   () =>
-    patientExaminationOptions.value.find((entry) => entry.id === routePatientExaminationId.value) ||
+    patientExaminationOptions.value.find(
+      (entry) => entry.id === activePatientExaminationId.value
+    ) ||
     patientExaminationOptions.value.find((entry) => entry.id === flow.patientExaminationId) ||
     null
 )
@@ -1683,7 +1691,7 @@ let lastReconciledBundleIdentity: string | null = null
 function isBootstrapContextCurrent(context: DraftBootstrapContext): boolean {
   return (
     context.generation === draftBootstrapGeneration &&
-    context.patientExaminationId === routePatientExaminationId.value &&
+    context.patientExaminationId === activePatientExaminationId.value &&
     context.bundleKey === activeBundleIdentityKey.value &&
     context.moduleName === activeKbModule.value &&
     context.moduleVersion === activeKbVersion.value
@@ -2592,7 +2600,7 @@ function buildFindingStatusRow(params: {
 }
 
 function findingStatusTarget(row: FindingStatusRow) {
-  const patientExaminationId = flow.patientExaminationId || routePatientExaminationId.value
+  const patientExaminationId = activePatientExaminationId.value
   if (!patientExaminationId) {
     return { path: route.path, hash: `#${row.anchorId}` }
   }
@@ -2798,7 +2806,7 @@ async function reconcileActiveTerminology() {
     templateName: flow.currentRuntimeDraft?.templateName || flow.selectedTemplateName,
     templateIdentity: null
   })
-  const patientExaminationId = routePatientExaminationId.value
+  const patientExaminationId = activePatientExaminationId.value
   if (patientExaminationId) {
     await hydrateDraftForRoutePatientExamination(patientExaminationId)
   }
@@ -3170,7 +3178,7 @@ async function ensureCaseForPatientExamination(patientExaminationId: number): Pr
     const rows = await fetchPatientCases({ patientExaminationId })
     if (
       requestGeneration !== caseOptionsRequestGeneration ||
-      patientExaminationId !== routePatientExaminationId.value
+      patientExaminationId !== activePatientExaminationId.value
     ) {
       return
     }
@@ -3207,7 +3215,7 @@ async function onCaseSelect(caseId: string): Promise<void> {
   if (!patientCase) {
     return
   }
-  const currentPatientExaminationId = routePatientExaminationId.value || flow.patientExaminationId
+  const currentPatientExaminationId = activePatientExaminationId.value
   const examinationIds = new Set(patientCase.patientExaminations.map((row) => row.id))
   if (currentPatientExaminationId && examinationIds.has(currentPatientExaminationId)) {
     activateCase(patientCase)
@@ -3296,7 +3304,7 @@ async function ensureCurrentPatientExaminationOption(patientExaminationId: numbe
     )
     if (
       requestGeneration !== patientOptionsRequestGeneration ||
-      patientExaminationId !== routePatientExaminationId.value
+      patientExaminationId !== activePatientExaminationId.value
     ) {
       return
     }
@@ -3385,7 +3393,7 @@ function onExaminationSelection(rawValue: string): void {
 }
 
 function examinationRecoveryContext(examinationId: number) {
-  const patientExaminationId = routePatientExaminationId.value
+  const patientExaminationId = activePatientExaminationId.value
   const examination = examinations.value.find((entry) => entry.id === examinationId)
   if (
     !patientExaminationId ||
@@ -3429,7 +3437,7 @@ async function assignMissingExamination(examinationId: number): Promise<void> {
   const { patientExaminationId, examination } = context
   examinationRecoverySaving.value = true
   examinationRecoveryError.value = null
-  const isCurrent = () => routePatientExaminationId.value === patientExaminationId
+  const isCurrent = () => activePatientExaminationId.value === patientExaminationId
   const endpoint = r(endpoints.examination.patientExaminationDetail(patientExaminationId))
   try {
     await draftBootstrapInFlight.value?.promise
@@ -3583,7 +3591,7 @@ async function onTemplateSelectionChange(name: string, select?: HTMLSelectElemen
     restoreTemplateSelect(select, previousName)
     return
   }
-  if (!flow.patientExaminationId || !routePatientExaminationId.value) {
+  if (!flow.patientExaminationId || !activePatientExaminationId.value) {
     templateSelectionError.value = 'Bitte wählen Sie zuerst eine Patientenuntersuchung.'
     restoreTemplateSelect(select, previousName)
     return
@@ -4283,7 +4291,7 @@ async function validateHydratedRuntimeDraft(
 }
 
 async function hydrateDraftForRoutePatientExamination(patientExaminationId: number) {
-  if (patientExaminationId !== routePatientExaminationId.value) {
+  if (patientExaminationId !== activePatientExaminationId.value) {
     return
   }
   const requestedKey = `${String(patientExaminationId)}:${activeBundleIdentityKey.value || 'loading'}`
@@ -4294,7 +4302,7 @@ async function hydrateDraftForRoutePatientExamination(patientExaminationId: numb
   }
 
   const option = findPatientExaminationOption(patientExaminationId)
-  if (patientExaminationId !== routePatientExaminationId.value) {
+  if (patientExaminationId !== activePatientExaminationId.value) {
     return
   }
   reconcilePatientExaminationContext(patientExaminationId, option)
@@ -4457,7 +4465,7 @@ function hasVerifiedExaminationWithoutCase(
 
 const mediaPreloadContext = computed(() => {
   const patientCase = selectedPatientCase.value
-  const patientExaminationId = routePatientExaminationId.value || flow.patientExaminationId
+  const patientExaminationId = activePatientExaminationId.value
   const patientId = flow.selectedPatientId
   if (!patientId) return null
   if (patientCase) {
@@ -4524,11 +4532,28 @@ function isActive(path: string): boolean {
   return route.path === path
 }
 
+function workflowTarget(path: string) {
+  const returnTo = readRecord(route.query).returnTo
+  return {
+    path,
+    query: {
+      ...(flow.selectedPatientId ? { patient_id: String(flow.selectedPatientId) } : {}),
+      ...(activePatientExaminationId.value
+        ? { patient_examination_id: String(activePatientExaminationId.value) }
+        : {}),
+      ...(flow.caseId ? { case_id: flow.caseId } : {}),
+      ...(typeof returnTo === 'string' ? { returnTo } : {})
+    }
+  }
+}
+
 function isStepDisabled(item: {
+  requiresCase?: boolean
   requiresPatientExamination?: boolean
   requiresVerifiedTemplate?: boolean
 }) {
   return Boolean(
+    (item.requiresCase && (!flow.caseId || !flow.selectedPatientId)) ||
     (item.requiresPatientExamination && !flow.patientExaminationId) ||
     (item.requiresVerifiedTemplate && !hasVerifiedTemplateContext.value)
   )
@@ -4537,13 +4562,14 @@ function isStepDisabled(item: {
 function stepStatusLabel(item: {
   label: string
   to: string
+  requiresCase?: boolean
   requiresPatientExamination?: boolean
   requiresVerifiedTemplate?: boolean
 }) {
   if (isActive(item.to)) {
     return 'Aktuell'
   }
-  if (item.requiresPatientExamination && !flow.patientExaminationId) {
+  if (isStepDisabled({ ...item, requiresVerifiedTemplate: false })) {
     return 'Fall wählen'
   }
   if (item.requiresVerifiedTemplate && !hasVerifiedTemplateContext.value) {
@@ -4559,12 +4585,12 @@ function stepStatusLabel(item: {
 }
 
 watch(
-  [() => flow.selectedPatientId, routePatientExaminationId, () => readRecord(route.query).case_id],
+  [() => flow.selectedPatientId, activePatientExaminationId, () => readRecord(route.query).case_id],
   async ([patientId, patientExaminationId]) => {
     const watchGeneration = ++routeContextWatchGeneration
     const isCurrent = () =>
       watchGeneration === routeContextWatchGeneration &&
-      patientExaminationId === routePatientExaminationId.value
+      patientExaminationId === activePatientExaminationId.value
     if (patientId) {
       await fetchPatientExaminationOptions(patientId)
       if (!isCurrent()) {
@@ -4663,6 +4689,10 @@ onMounted(() => {
   void Promise.all([patientStore.fetchPatients(), examinationStore.fetchExaminations()])
 })
 onBeforeUnmount(() => {
+  routeContextWatchGeneration += 1
+  patientOptionsRequestGeneration += 1
+  caseOptionsRequestGeneration += 1
+  draftBootstrapGeneration += 1
   mediaPreloadRequestGeneration += 1
   flow.clearMediaPreload()
 })

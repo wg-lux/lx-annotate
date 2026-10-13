@@ -196,6 +196,28 @@ The reporting process is designed as a sequence inside `ReportingShell`.
 
 Without this step, later pages cannot calculate requirement logic reliably.
 
+#### Medication assignment and navigation context
+
+The reporting workflow menu exposes **Fallanlage** and **Medikation und
+Laborwerte**. Medication assignment opens `/reporting/medication` for the selected
+patient and persisted case; select a case first to enable this link. Medication
+and laboratory records remain associated with that case.
+
+Reporting links carry `patient_id`, `case_id`, and `patient_examination_id` when
+available. The examination ID identifies a persisted patient examination, not an
+examination type. Pages without an examination in their path restore the active
+examination from this query or the existing authenticated reporting session.
+The medication page's return link preserves these identifiers.
+
+Video annotation passes the selected video's linked patient examination into
+case setup. Videos without a linked examination open case resolution with their
+file ID and media type. Anonymization validation also passes this media identity
+into case resolution. Return links identify the originating media; navigating
+does not itself create or change a persisted media assignment.
+Unsubmitted patient edits and examination selections in anonymization validation
+are kept in its media-scoped draft when opening reporting, just as when opening
+correction. They are restored on return and still require explicit validation.
+
 ### Step 2: Template & Requirement Sets
 
 - Route: `/reporting/<patient_examination_id>/template-requirements`

@@ -6,7 +6,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 const route = useRoute()
 const returnTo = computed(() => {
-  const value = route?.query.returnTo
+  const value = route.query.returnTo
   return typeof value === 'string' && (value === '/hub-export' || value.startsWith('/hub-export?')) ? value : null
 })
 </script>

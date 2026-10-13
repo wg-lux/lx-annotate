@@ -954,6 +954,15 @@ class HubExportApiTests(TestCase):
         video.save(update_fields=["sensitive_meta"])
         video.state.ready_for_export = False
         video.state.save(update_fields=["ready_for_export"])
+        overview = self.client.get("/api/hub-export/overview/")
+        self.assertEqual(overview.status_code, 200)
+        self.assertFalse(
+            next(
+                row
+                for row in overview.json()["items"]
+                if row["resource_kind"] == "video"
+            )["eligible"]
+        )
         response = self.client.post(f"/api/hub-export/videos/{video.pk}/preflight/")
         self.assertEqual(
             {b["code"] for b in response.json()["blockers"]},
@@ -1030,9 +1039,9 @@ class HubExportApiTests(TestCase):
         history.refresh_from_db()
         self.assertEqual(history.status, "running")
 
-
     def test_preflight_wrong_storage_key_rejects_without_altering_proof(self):
         from endoreg_db.utils.encryption.encrypted import EncryptedStorage
+
         video = self._recovery_video()
         field = VideoFile._meta.get_field("processed_file")
         storage = field.storage
@@ -1046,33 +1055,278 @@ class HubExportApiTests(TestCase):
         self.assertNotEqual(response.json()["verification"], "fresh_payload")
         video.state.refresh_from_db()
         self.assertEqual(video.state.processed_file_sha256, digest)
-        self.assertFalse(OutboundHubTransferJob.objects.filter(video_file=video).exists())
+        self.assertFalse(
+            OutboundHubTransferJob.objects.filter(video_file=video).exists()
+        )
 
     def test_preflight_requires_receipt_for_the_current_artifact(self):
-        from lx_dtypes.models.contracts.hub_media_envelope import HubMediaEnvelopeReceipt
+        from lx_dtypes.models.contracts.hub_media_envelope import (
+            HubMediaEnvelopeReceipt,
+        )
+
         video = self._recovery_video()
         key = f"site-node__video__{video.raw_video_hash}__processed_v1"
         receipt = HubMediaEnvelopeReceipt(
-            transfer_key=key, source_node_key="site-node", source_center_key=self.center.center_key,
-            target_node_key="hub-node", resource_kind="video", resource_hash=video.raw_video_hash,
-            processed_media_hash=video.processed_video_hash, plaintext_sha256=video.processed_video_hash,
-            plaintext_size=video.processed_file.size, ciphertext_size=video.processed_file.size,
-            recipient_key_id="a" * 64, ciphertext_sha256="b" * 64, envelope_fingerprint_sha256="c" * 64,
-            receiver_transfer_id="receiver-id", processing_decision="skip_processing_preserved_state",
+            transfer_key=key,
+            source_node_key="site-node",
+            source_center_key=self.center.center_key,
+            target_node_key="hub-node",
+            resource_kind="video",
+            resource_hash=video.raw_video_hash,
+            processed_media_hash=video.processed_video_hash,
+            plaintext_sha256=video.processed_video_hash,
+            plaintext_size=video.processed_file.size,
+            ciphertext_size=video.processed_file.size,
+            recipient_key_id="a" * 64,
+            ciphertext_sha256="b" * 64,
+            envelope_fingerprint_sha256="c" * 64,
+            receiver_transfer_id="receiver-id",
+            processing_decision="skip_processing_preserved_state",
         )
         job = OutboundHubTransferJob.objects.create(
-            video_file=video, source_center=self.center, target_node=self.hub_node,
-            resource_kind="video", transfer_key=key, local_status="completed",
-            remote_transfer_id="receiver-id", remote_transfer_status="applied",
+            video_file=video,
+            source_center=self.center,
+            target_node=self.hub_node,
+            resource_kind="video",
+            transfer_key=key,
+            local_status="completed",
+            remote_transfer_id="receiver-id",
+            remote_transfer_status="applied",
             envelope_receipt=receipt.model_dump(mode="json"),
         )
         url = f"/api/hub-export/videos/{video.pk}/preflight/"
         self.assertTrue(self.client.post(url).json()["completed_current_artifact"])
-        stale_receipt = receipt.model_copy(update={"processed_media_hash": "d" * 64, "plaintext_sha256": "d" * 64})
-        job.envelope_receipt = stale_receipt.model_dump(mode="json")
-        job.save(update_fields=["envelope_receipt"])
+        stale_receipt = receipt.model_copy(
+            update={"processed_media_hash": "d" * 64, "plaintext_sha256": "d" * 64}
+        )
+        # Simulate historical persisted evidence; normal model writes reject this mismatch.
+        OutboundHubTransferJob.objects.filter(pk=job.pk).update(
+            envelope_receipt=stale_receipt.model_dump(mode="json")
+        )
         result = self.client.post(url).json()
         self.assertFalse(result["completed_current_artifact"])
         self.assertEqual(result["blockers"][0]["code"], "receipt")
         job.refresh_from_db()
         self.assertEqual(job.local_status, "completed")
+
+    def _cleanup_recovery_fixture(self, inspect, *, source=True):
+        from datetime import timedelta
+        from endoreg_db.models.media.video.video_processing import (
+            VideoProcessingHistory,
+        )
+        from endoreg_db.services.annotations.segment_validation_workflow import (
+            blackening_history_config,
+        )
+
+        from endoreg_db.config.env import get_celery_ffmpeg_media_queue
+
+        queue = get_celery_ffmpeg_media_queue()
+        self.operator.is_superuser = True
+        self.operator.save(update_fields=["is_superuser"])
+        video = self._recovery_video(source=source)
+        history = VideoProcessingHistory.objects.create(
+            video=video,
+            operation="reprocessing",
+            status="pending",
+            task_id="old-cleanup-task",
+            config=blackening_history_config(only_validated=True, queue=queue),
+        )
+        VideoProcessingHistory.objects.filter(pk=history.pk).update(
+            created_at=timezone.now() - timedelta(days=2)
+        )
+        inspector = inspect.return_value
+        inspector.active_queues.return_value = {"worker": [{"name": queue}]}
+        inspector.active.return_value = {"worker": []}
+        inspector.reserved.return_value = {"worker": []}
+        inspector.scheduled.return_value = {"worker": []}
+        return video, history
+
+    @patch.dict(
+        os.environ,
+        {
+            "VIDEO_POST_VALIDATION_JOB_MODE": "celery",
+            "CELERY_FFMPEG_MEDIA_REQUIRE_SECURE_TRANSPORT": "false",
+        },
+    )
+    @patch("endoreg_db.tasks.run_video_post_validation_rebuild_task.apply_async")
+    @patch("celery.current_app.control.inspect")
+    def test_reviewed_cleanup_restart_reuses_dispatcher_and_rejects_replay(
+        self, inspect, dispatch
+    ):
+        from types import SimpleNamespace
+
+        video, history = self._cleanup_recovery_fixture(inspect)
+        dispatch.return_value = SimpleNamespace(id="new-cleanup-task")
+        preview = self.client.post(
+            f"/api/hub-export/videos/{video.pk}/inspect-recovery/"
+        ).json()
+        self.assertTrue(preview["recovery_allowed"])
+        request = {
+            "preview_token": preview["preview_token"],
+            "queue_and_consumers_reviewed": True,
+            "confirm_frame_rollback": True,
+        }
+        url = f"/api/hub-export/videos/{video.pk}/restart-cleanup/"
+        response = self.client.post(
+            url, data=json.dumps(request), content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["status"], "queued")
+        self.assertNotEqual(response.json()["history_id"], history.pk)
+        history.refresh_from_db()
+        self.assertEqual(history.status, "failure")
+        self.assertTrue(dispatch.call_args.kwargs["kwargs"]["only_validated"])
+        self.assertEqual(dispatch.call_count, 1)
+        replay = self.client.post(
+            url, data=json.dumps(request), content_type="application/json"
+        )
+        self.assertEqual(replay.status_code, 409)
+        self.assertEqual(dispatch.call_count, 1)
+        self.assertFalse(
+            OutboundHubTransferJob.objects.filter(video_file=video).exists()
+        )
+
+    @patch(
+        "endoreg_db.services.jobs.video_post_validation_jobs.dispatch_video_post_validation_rebuild"
+    )
+    @patch("celery.current_app.control.inspect")
+    def test_cleanup_restart_rechecks_live_task_review_and_permission(
+        self, inspect, dispatch
+    ):
+        video, history = self._cleanup_recovery_fixture(inspect)
+        preview = self.client.post(
+            f"/api/hub-export/videos/{video.pk}/inspect-recovery/"
+        ).json()
+        request = {
+            "preview_token": preview["preview_token"],
+            "queue_and_consumers_reviewed": False,
+            "confirm_frame_rollback": True,
+        }
+        url = f"/api/hub-export/videos/{video.pk}/restart-cleanup/"
+        self.assertEqual(
+            self.client.post(
+                url, data=json.dumps(request), content_type="application/json"
+            ).status_code,
+            400,
+        )
+        request["queue_and_consumers_reviewed"] = True
+        inspect.return_value.active.return_value = {
+            "worker": [{"id": "old-cleanup-task"}]
+        }
+        self.assertEqual(
+            self.client.post(
+                url, data=json.dumps(request), content_type="application/json"
+            ).status_code,
+            409,
+        )
+        self.operator.is_superuser = False
+        self.operator.save(update_fields=["is_superuser"])
+        self.assertEqual(
+            self.client.post(
+                url, data=json.dumps(request), content_type="application/json"
+            ).status_code,
+            403,
+        )
+        history.refresh_from_db()
+        self.assertEqual(history.status, "pending")
+        dispatch.assert_not_called()
+
+    @patch("celery.current_app.control.inspect")
+    def test_cleanup_restart_refuses_missing_source_and_active_media(self, inspect):
+        from endoreg_db.services.media.operation_gate import create_video_stream_lease
+
+        video, history = self._cleanup_recovery_fixture(inspect, source=False)
+        url = f"/api/hub-export/videos/{video.pk}/inspect-recovery/"
+        self.assertFalse(self.client.post(url).json()["recovery_allowed"])
+        video.raw_file.save("retained-source.mp4", ContentFile(b"retained source"))
+        create_video_stream_lease(video, file_type="processed")
+        preview = self.client.post(url).json()
+        self.assertFalse(preview["recovery_allowed"])
+        self.assertIsNone(preview["preview_token"])
+
+    @patch(
+        "endoreg_db.services.jobs.video_post_validation_jobs.dispatch_video_post_validation_rebuild"
+    )
+    @patch("celery.current_app.control.inspect")
+    def test_cleanup_restart_rejects_tampered_and_expired_preview(
+        self, inspect, dispatch
+    ):
+        import time
+
+        video, history = self._cleanup_recovery_fixture(inspect)
+        preview = self.client.post(
+            f"/api/hub-export/videos/{video.pk}/inspect-recovery/"
+        ).json()
+        self.assertTrue(preview["recovery_allowed"], preview)
+        request = {
+            "preview_token": preview["preview_token"],
+            "queue_and_consumers_reviewed": True,
+            "confirm_frame_rollback": True,
+        }
+        url = f"/api/hub-export/videos/{video.pk}/restart-cleanup/"
+        with patch("django.core.signing.time.time", return_value=time.time() + 301):
+            self.assertEqual(
+                self.client.post(
+                    url, data=json.dumps(request), content_type="application/json"
+                ).status_code,
+                409,
+            )
+        request["preview_token"] += "tampered"
+        self.assertEqual(
+            self.client.post(
+                url, data=json.dumps(request), content_type="application/json"
+            ).status_code,
+            409,
+        )
+        history.refresh_from_db()
+        self.assertEqual(history.status, "pending")
+        dispatch.assert_not_called()
+
+    @patch.dict(
+        os.environ,
+        {
+            "VIDEO_POST_VALIDATION_JOB_MODE": "celery",
+            "CELERY_FFMPEG_MEDIA_REQUIRE_SECURE_TRANSPORT": "false",
+        },
+    )
+    @patch("endoreg_db.tasks.run_video_post_validation_rebuild_task.apply_async")
+    @patch("celery.current_app.control.inspect")
+    def test_reviewed_running_cleanup_uses_shared_rollback_and_retains_media(
+        self, inspect, dispatch
+    ):
+        from types import SimpleNamespace
+        from endoreg_db.services.jobs.video_task_cleanup import (
+            rollback_video_frame_artifacts,
+        )
+
+        video, history = self._cleanup_recovery_fixture(inspect)
+        history.status = "running"
+        history.save(update_fields=["status"])
+        processed_hash = get_file_hash(video.processed_file)
+        dispatch.return_value = SimpleNamespace(id="restarted-running-task")
+        preview = self.client.post(
+            f"/api/hub-export/videos/{video.pk}/inspect-recovery/"
+        ).json()
+        self.assertTrue(preview["recovery_allowed"], preview)
+        request = {
+            "preview_token": preview["preview_token"],
+            "queue_and_consumers_reviewed": True,
+            "confirm_frame_rollback": True,
+        }
+        with patch(
+            "endoreg_db.services.jobs.video_post_validation_jobs.rollback_video_frame_artifacts",
+            wraps=rollback_video_frame_artifacts,
+        ) as rollback:
+            response = self.client.post(
+                f"/api/hub-export/videos/{video.pk}/restart-cleanup/",
+                data=json.dumps(request),
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["status"], "queued")
+        rollback.assert_called_once()
+        history.refresh_from_db()
+        self.assertEqual(history.status, "failure")
+        video.refresh_from_db()
+        self.assertEqual(get_file_hash(video.processed_file), processed_hash)
+        self.assertTrue(video.raw_file.storage.exists(video.raw_file.name))

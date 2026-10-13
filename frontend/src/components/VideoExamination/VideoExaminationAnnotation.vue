@@ -898,12 +898,14 @@
               <p class="small text-muted mb-4">
                 Öffnen Sie dort den passenden Patientenfall und führen Sie die Dokumentation weiter.
               </p>
-              <RouterLink
+              <button
                 class="btn btn-primary"
-                to="/reporting/case-setup"
+                type="button"
+                :disabled="openingReporting"
+                @click="openReporting"
               >
                 Zur Dokumentation wechseln
-              </RouterLink>
+              </button>
             </div>
           </div>
         </div>
@@ -1173,6 +1175,42 @@ const timelineLabels = computed(() => {
 
 function getVideoOverviewItem(videoId: number) {
   return overview.value.find((o) => o.id === videoId && o.mediaType === 'video')
+}
+
+const openingReporting = ref(false)
+async function openReporting(): Promise<void> {
+  const videoId = selectedVideoId.value
+  if (videoId === null) {
+    await router.push('/reporting/case-setup')
+    return
+  }
+  openingReporting.value = true
+  try {
+    const { data } = await axiosInstance.get<{
+      linkedPatientExaminationId?: number | null
+      pseudoExamination?: { linkedPatientExaminationId?: number | null } | null
+    }>(r(endpoints.media.videoCaseResolution(videoId)))
+    if (selectedVideoId.value !== videoId) return
+    const examinationId =
+      data.linkedPatientExaminationId ?? data.pseudoExamination?.linkedPatientExaminationId
+    const linked =
+      typeof examinationId === 'number' && Number.isSafeInteger(examinationId) && examinationId > 0
+    await router.push({
+      path: linked ? '/reporting/case-setup' : '/reporting/case-resolution',
+      query: {
+        fileId: String(videoId),
+        mediaType: 'video',
+        returnTo: `/video-untersuchung?video=${String(videoId)}`,
+        ...(linked ? { patient_examination_id: String(examinationId) } : {})
+      }
+    })
+  } catch (error) {
+    showErrorMessage(
+      `Die Fallzuordnung konnte nicht geladen werden: ${getRequestErrorMessage(error)}`
+    )
+  } finally {
+    openingReporting.value = false
+  }
 }
 
 function getVideoAnonymizationStatus(videoId: number): string {

@@ -64,7 +64,7 @@ const hoisted = vi.hoisted(() => ({
       clearAllLocalLocks: ReturnType<typeof vi.fn>
     }
   },
-  route: { query: {} as Record<string, string> },
+  route: { query: {} },
   routerPush: vi.fn(),
   cancelImport: vi.fn(),
   deleteMediaFile: vi.fn()

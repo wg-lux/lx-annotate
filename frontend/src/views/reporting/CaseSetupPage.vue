@@ -204,7 +204,12 @@
           class="btn btn-outline-primary btn-sm me-2"
           :to="{
             path: '/reporting/medication',
-            query: { patient_id: flow.selectedPatientId, case_id: flow.caseId }
+            query: {
+              ...route.query,
+              patient_id: flow.selectedPatientId,
+              case_id: flow.caseId,
+              patient_examination_id: flow.patientExaminationId
+            }
           }"
         >
           Medikation und Laborwerte zuordnen

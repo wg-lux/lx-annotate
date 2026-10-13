@@ -291,6 +291,8 @@ def build_hub_export_privacy_summary(
 
 def _sync_rejection_reason(blocked_reason: str) -> HubExportRejectionReason:
     reasons = {
+        "identity evidence missing": HubExportRejectionReason.IDENTITY_EVIDENCE,
+        "processed media integrity lost": HubExportRejectionReason.INTEGRITY_LOST,
         "source center missing": HubExportRejectionReason.MISSING_CENTER,
         "processed media missing": HubExportRejectionReason.MISSING_PROCESSED_FILE,
         "processed media hash missing": HubExportRejectionReason.MISSING_PROCESSED_HASH,
@@ -378,6 +380,10 @@ def _job_overview_fields(
 
 
 def _payload_repair_hint(error: str) -> str:
+    if error.removeprefix("Hub transfer configuration or payload rejected: ") == (
+        "Verified frame provenance is unavailable or inconsistent for this recording."
+    ):
+        error = "Actual frame provenance is unavailable for this recording"
     reasons = {
         "SensitiveMeta with patient_hash and examination_hash is required for hub transfer.": (
             "Patient and examination identity metadata is missing. Complete metadata "
@@ -613,9 +619,13 @@ def _collect_video_overview(
         readiness = resolve_video_hub_export_state(video)
         recovery = video_recovery_assessment(video, readiness)
         eligible = readiness.transfer_eligible and not recovery.blockers
-        blocked_reason = readiness.blocked_reason or (
-            recovery.blockers[0].detail if recovery.blockers else ""
-        )
+        blocked_reason = readiness.blocked_reason
+        if not blocked_reason and recovery.blockers:
+            blocked_reason = (
+                "identity evidence missing"
+                if recovery.blockers[0].code == "identity_evidence"
+                else "processed media integrity lost"
+            )
         video_job = jobs_by_key.get(("video", video_id))
         marked_for_upload = video_job is not None
         source_center_key = video.center.center_key if video.center else None

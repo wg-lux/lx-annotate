@@ -268,6 +268,59 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       }
     })
 
+  it('carries the selected video assignment into reporting and resolves an unlinked video separately', async () => {
+    routerMocks.query = { video: '8' }
+    const wrapper = mountComponent()
+    await flushPromises()
+    const button = requireDefined(
+      findButtonByText(wrapper, 'Zur Dokumentation wechseln'),
+      'Reporting button'
+    )
+    apiMocks.get.mockResolvedValueOnce(apiResponse({ linkedPatientExaminationId: 314 }))
+    await button.trigger('click')
+    await flushPromises()
+    expect(apiMocks.get).toHaveBeenCalledWith('media/videos/8/case-resolution/')
+    expect(routerMocks.push).toHaveBeenLastCalledWith({
+      path: '/reporting/case-setup',
+      query: {
+        fileId: '8',
+        mediaType: 'video',
+        returnTo: '/video-untersuchung?video=8',
+        patient_examination_id: '314'
+      }
+    })
+    await selectVideoFromDropdown(wrapper, 'already-segment-validated.mp4')
+    apiMocks.get.mockResolvedValueOnce(apiResponse({ linkedPatientExaminationId: null }))
+    await button.trigger('click')
+    await flushPromises()
+    expect(routerMocks.push).toHaveBeenLastCalledWith({
+      path: '/reporting/case-resolution',
+      query: {
+        fileId: '10',
+        mediaType: 'video',
+        returnTo: '/video-untersuchung?video=10'
+      }
+    })
+    wrapper.unmount()
+  })
+
+  it('keeps the video open when its reporting assignment cannot be resolved', async () => {
+    routerMocks.query = { video: '8' }
+    const wrapper = mountComponent()
+    await flushPromises()
+    apiMocks.get.mockRejectedValueOnce(new Error('Assignment unavailable'))
+    const button = requireDefined(
+      findButtonByText(wrapper, 'Zur Dokumentation wechseln'),
+      'Reporting button'
+    )
+    await button.trigger('click')
+    await flushPromises()
+    expect(routerMocks.push).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Die Fallzuordnung konnte nicht geladen werden')
+    expect(button.attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
+  })
+
   const findButtonByText = (wrapper: ReturnType<typeof mount>, text: string) =>
     wrapper.findAll('button').find((button) => button.text().includes(text))
 

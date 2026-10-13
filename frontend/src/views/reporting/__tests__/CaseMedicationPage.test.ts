@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 }))
 vi.mock('vue-router', () => ({
   useRoute: () => mocks.route,
-  RouterLink: { template: '<a><slot /></a>' }
+  RouterLink: { props: ['to'], template: '<a :data-to="JSON.stringify(to)"><slot /></a>' }
 }))
 vi.mock('@/api/casesApi', () => ({ fetchPatientCases: mocks.cases }))
 vi.mock('@/api/patientService', () => ({ patientService: { getMedicalLedger: mocks.ledger } }))
@@ -73,6 +73,17 @@ async function form(kind = 'medication') {
 }
 
 describe('case medication and laboratory entry', () => {
+  it('keeps the examination and case in the return link', async () => {
+    Object.assign(mocks.route.query, { patient_examination_id: '314' })
+    const wrapper = mount(CaseMedicationPage)
+    await flushPromises()
+    expect(JSON.parse(wrapper.get('a').attributes('data-to') || '{}')).toEqual({
+      path: '/reporting/case-setup',
+      query: { patient_id: '7', case_id: 'case-7', patient_examination_id: '314' }
+    })
+    wrapper.unmount()
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.route = reactive({ query: { patient_id: '7', case_id: 'case-7' } })

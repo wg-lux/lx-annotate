@@ -582,7 +582,9 @@
             <tbody>
               <tr
                 v-for="item in filteredItems"
+                :id="`hub-export-${item.resourceKind}-${String(item.id)}`"
                 :key="`${item.resourceKind}-${String(item.id)}`"
+                :class="{ 'table-active': item.resourceKind === 'video' && item.id === selectedVideoId }"
               >
                 <td class="readiness-action-cell">
                   <template v-if="item.resourceKind === 'video'">
@@ -592,12 +594,20 @@
                     <p v-if="assessment(item)?.checkedAt" class="small">Prüfung: {{ formatTimestamp(assessment(item)!.checkedAt!) }} · {{ assessment(item)?.verification === 'fresh_payload' ? 'Payload und Bytes geprüft' : 'Voraussetzungen offen' }}</p>
                     <p v-if="assessment(item)?.checkedAt" class="small">Transportkonfiguration: {{ assessment(item)?.transportConfiguration === 'configured' ? 'vorhanden; Worker und Empfänger separat prüfen' : 'nicht bestätigt; Administration prüfen' }}</p>
                     <button v-if="assessment(item)?.checkedAt" type="button" class="btn btn-outline-secondary btn-sm" :disabled="recoveryBusy !== null" @click="repeatPreflight(item)">Vorprüfung wiederholen</button>
-                    <p v-if="assessment(item)?.completedCurrentArtifact" class="small">Empfang des aktuellen Artefakts bestätigt.</p>
+                    <p v-if="assessment(item)?.completedCurrentArtifact" class="small">Gespeicherter Empfangsnachweis passt zum aktuellen Artefakt.</p>
                     <div v-if="inspections[item.id]" class="small" role="status">
-                      <p>Auftragsalter: {{ inspections[item.id].ageSeconds ?? 'unbekannt' }} s · Queue: {{ inspections[item.id].queue }}</p>
-                      <p>Worker verfügbar: {{ observationLabel(inspections[item.id].workerAvailable) }} · Task beobachtet: {{ observationLabel(inspections[item.id].taskObserved) }}</p>
-                      <p>Letzter Fortschritt: {{ inspections[item.id].lastObservedProgress ?? 'unbekannt' }} · Beobachtung: {{ formatTimestamp(inspections[item.id].inspectionAt) }}</p>
-                      <p>{{ inspections[item.id].detail }}</p>
+                      <p>Auftragsalter: {{ inspections[item.id]?.ageSeconds ?? 'unbekannt' }} s · Queue: {{ inspections[item.id]?.queue }}</p>
+                      <p>Worker verfügbar: {{ observationLabel(inspections[item.id]?.workerAvailable ?? null) }} · Task beobachtet: {{ observationLabel(inspections[item.id]?.taskObserved ?? null) }}</p>
+                      <p>Letzter Fortschritt: {{ inspections[item.id]?.lastObservedProgress ?? 'unbekannt' }} · Beobachtung: {{ formatTimestamp(inspections[item.id]?.inspectionAt ?? '') }}</p>
+                      <p>Zustand: {{ inspections[item.id]?.status }} · Alte Historie: {{ inspections[item.id]?.staleCandidate ? 'ja' : 'nein' }} · Aktive Medienoperation: {{ inspections[item.id]?.activeMediaOperation ? 'ja' : 'nein' }} · Originalquelle vorhanden: {{ inspections[item.id]?.retainedSourcePresent ? 'ja' : 'nein' }}</p>
+                      <p>{{ inspections[item.id]?.detail }}</p>
+                      <fieldset v-if="inspections[item.id]?.recoveryAllowed" :disabled="recoveryBusy !== null">
+                        <legend class="small fw-semibold">Administrator-Wiederanlauf für Video {{ item.id }}</legend>
+                        <label class="d-block"><input v-model="queueReviewedIds" type="checkbox" :value="item.id" :data-test="`hub-recovery-queue-${String(item.id)}`" /> Ich habe Broker-Queue und alle Verbraucher geprüft; dieser Auftrag ist nicht mehr aktiv oder eingeplant.</label>
+                        <label class="d-block"><input v-model="rollbackConfirmedIds" type="checkbox" :value="item.id" :data-test="`hub-recovery-rollback-${String(item.id)}`" /> Alte Historien dürfen beendet und Frame-Artefakte zurückgerollt werden. Die Validierung muss anschließend geprüft werden.</label>
+                        <button type="button" class="btn btn-outline-warning btn-sm" :disabled="!queueReviewedIds.includes(item.id) || !rollbackConfirmedIds.includes(item.id)" :data-test="`hub-recovery-restart-${String(item.id)}`" @click="restartCleanup(item)">Geprüften Wiederanlauf starten</button>
+                        <p class="small">Beide Bestätigungen sind erforderlich. Die Vorschau gilt fünf Minuten; der Server prüft den Zustand erneut.</p>
+                      </fieldset>
                     </div>
                   </template>
                 </td>
@@ -732,7 +742,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   useHubExportStore,
   type HubExportAnonymizationStatus,
@@ -756,11 +766,14 @@ const offloadingEligibleVideos = ref(false)
 const retryingJobIds = ref<Set<string>>(new Set())
 const initialFilters = new URLSearchParams(window.location.search)
 const initialKind = initialFilters.get('kind')
+const selectedVideoId = Number(initialFilters.get('video')) || null
 const resourceKindFilter = ref<'all' | HubExportItem['resourceKind']>(initialKind === 'video' || initialKind === 'report' ? initialKind : 'all')
 const needsActionOnly = ref(initialFilters.get('needsAction') === '1')
 const preflights = ref<Partial<Record<number, HubRecoveryAssessment>>>({})
 const inspections = ref<Partial<Record<number, HubCleanupInspection>>>({})
 const recoveryBusy = ref<number | null>(null)
+const queueReviewedIds = ref<number[]>([])
+const rollbackConfirmedIds = ref<number[]>([])
 const recoveryMessage = ref('')
 const recoveryError = ref('')
 type PhysicalStorageStateFilter = 'all' | 'present' | 'missing'
@@ -897,7 +910,7 @@ const actionLabel = (action: HubRecoveryAction) => ({
 }[action])
 const observationLabel = (value: boolean | null) => value === null ? 'unbekannt' : value ? 'ja' : 'nicht beobachtet'
 const nextStepLink = (item: HubExportItem): string | undefined => {
-  const returnTo = `/hub-export?${new URLSearchParams({ needsAction: needsActionOnly.value ? '1' : '0', kind: resourceKindFilter.value, storage: physicalStorageStateFilter.value })}`
+  const returnTo = `/hub-export?${new URLSearchParams({ video: String(item.id), needsAction: needsActionOnly.value ? '1' : '0', kind: resourceKindFilter.value, storage: physicalStorageStateFilter.value })}`
   const params = new URLSearchParams({ returnTo })
   switch (nextAction(item)) {
     case 'repair_processing':
@@ -910,6 +923,24 @@ const nextStepLink = (item: HubExportItem): string | undefined => {
       params.set('video', String(item.id))
       return `/video-untersuchung?${params}`
     default: return undefined
+  }
+}
+const restartCleanup = async (item: HubExportItem) => {
+  const token = inspections.value[item.id]?.previewToken
+  if (!token || recoveryBusy.value !== null || !queueReviewedIds.value.includes(item.id) || !rollbackConfirmedIds.value.includes(item.id)) return
+  recoveryBusy.value = item.id
+  recoveryError.value = ''
+  try {
+    await hubExportStore.restartCleanup(item.id, token)
+    recoveryMessage.value = `Wiederanlauf für Video ${String(item.id)} eingeplant. Abschluss und erneute Validierung prüfen.`
+    await refreshOverview()
+  } catch {
+    recoveryError.value = 'Wiederanlauf nicht bestätigt. Auftrag prüfen und eine neue Vorschau laden; nicht automatisch erneut starten.'
+  } finally {
+    inspections.value[item.id] = undefined
+    queueReviewedIds.value = queueReviewedIds.value.filter(id => id !== item.id)
+    rollbackConfirmedIds.value = rollbackConfirmedIds.value.filter(id => id !== item.id)
+    recoveryBusy.value = null
   }
 }
 const repeatPreflight = async (item: HubExportItem) => {
@@ -940,6 +971,8 @@ const runNextStep = async (item: HubExportItem) => {
         break
       case 'inspect_recovery':
         inspections.value[item.id] = await hubExportStore.inspectRecovery(item.id)
+        queueReviewedIds.value = queueReviewedIds.value.filter(id => id !== item.id)
+        rollbackConfirmedIds.value = rollbackConfirmedIds.value.filter(id => id !== item.id)
         recoveryMessage.value = `Wiederherstellungsprüfung für Video ${String(item.id)} abgeschlossen. Es wurde kein Auftrag gestartet.`
         break
       case 'check_export_readiness':
@@ -1340,6 +1373,10 @@ watch(
 
 onMounted(async () => {
   await refreshOverview()
+  if (selectedVideoId !== null) {
+    await nextTick()
+    document.getElementById(`hub-export-video-${String(selectedVideoId)}`)?.querySelector<HTMLElement>('[data-test^="hub-next-step-"]')?.focus()
+  }
 })
 
 onBeforeUnmount(stopPolling)

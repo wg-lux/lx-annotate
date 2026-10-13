@@ -545,8 +545,13 @@
                 >
                   <details class="mb-3 border rounded p-3">
                     <summary>Hinweise zur Release-Artefakt-Prüfung</summary>
-                    <div class="mt-3" role="status">
-                      <p class="small mb-2">Zusätzliche Artefaktprüfung – blockiert die Bestätigung nicht.</p>
+                    <div
+                      class="mt-3"
+                      role="status"
+                    >
+                      <p class="small mb-2">
+                        Zusätzliche Artefaktprüfung – blockiert die Bestätigung nicht.
+                      </p>
                       <div
                         v-if="isLoadingVideoAnonymization"
                         class="d-flex align-items-center gap-2"
@@ -966,6 +971,7 @@
                     <RouterLink
                       class="btn btn-outline-secondary btn-sm"
                       :to="caseResolutionRoute"
+                      @click="rememberValidationDraft()"
                     >
                       Fallauflösung öffnen
                     </RouterLink>
@@ -1002,7 +1008,10 @@ import { createRuntimeLogger } from '@/utils/runtimeLogger'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { isAxiosError } from 'axios'
 import { endpoints } from '@/types/api/endpoints'
-import { useAnonymizationValidationDraftStore, type EditableValidationPatient as Editable } from '@/stores/anonymizationValidationDraftStore'
+import {
+  useAnonymizationValidationDraftStore,
+  type EditableValidationPatient as Editable
+} from '@/stores/anonymizationValidationDraftStore'
 import type { VideoAnonymizationStatus } from '@/types/anonymizationPipeline'
 import {
   caseLinkageStatusBadgeClass,
@@ -1578,6 +1587,13 @@ const linkedPatientExaminationId = computed(() => {
   ])
   return typeof value === 'number' && value > 0 ? value : null
 })
+const confirmedPatientExaminationId = computed(() =>
+  toPositiveInteger(
+    caseResolution.value?.linkedPatientExaminationId ??
+      caseResolution.value?.pseudoExamination?.linkedPatientExaminationId ??
+      currentItem.value?.patientExaminationId
+  )
+)
 const linkageStatus = computed(() =>
   resolveCaseLinkageStatus({
     matchStatus: caseResolution.value?.matchStatus,
@@ -1612,6 +1628,11 @@ const validationReturnPath = computed(() =>
 const caseResolutionRoute = computed(() => ({
   path: '/reporting/case-resolution',
   query: {
+    ...validationFileQuery(resolveFileIdFromContext(), sourceMediaScope.value),
+    ...(currentItem.value?.patientId ? { patient_id: String(currentItem.value.patientId) } : {}),
+    ...(confirmedPatientExaminationId.value
+      ? { patient_examination_id: String(confirmedPatientExaminationId.value) }
+      : {}),
     preferredExamination: 'colonoscopy',
     returnTo: validationReturnPath.value
   }
@@ -2110,9 +2131,34 @@ function persistCurrentFileId(): void {
   }
 }
 
+function rememberValidationDraft(
+  file_id = resolveFileIdFromContext(),
+  media_type = sourceMediaScope.value
+): void {
+  if (file_id === null || (media_type !== 'pdf' && media_type !== 'video')) return
+  validation_drafts.draft = {
+    file_id,
+    media_type,
+    patient: { ...editedPatient.value },
+    anonymized_text: editedAnonymizedText.value,
+    examination_date: examinationDate.value,
+    tags: [...selectedTags.value],
+    custom_tag_input: customTagInput.value,
+    validation_comment: validationComment.value,
+    document_type: selectedDocumentType.value,
+    patient_examination_option: selectedPatientExaminationOption.value,
+    manual_patient_examination_id: manualPatientExaminationId.value,
+    no_more_names_confirmation: noMoreNamesConfirmation.value
+  }
+}
+
 function restore_validation_draft(): void {
   const draft = validation_drafts.draft
-  if (draft && draft.file_id === resolveFileIdFromContext() && draft.media_type === sourceMediaScope.value) {
+  if (
+    draft &&
+    draft.file_id === resolveFileIdFromContext() &&
+    draft.media_type === sourceMediaScope.value
+  ) {
     editedPatient.value = { ...draft.patient }
     editedAnonymizedText.value = draft.anonymized_text
     examinationDate.value = draft.examination_date
@@ -2516,7 +2562,7 @@ const navigateAfterApproval = async (
   validateResponseData?: unknown
 ) => {
   if (mediaKind === 'video') {
-    await router.push({ name: 'Video-Untersuchung', query: { video: String(approvedFileId) } })
+    await router.push({ name: 'Video-Untersuchung', query: { video: String(approvedFileId), ...(route.query.returnTo ? { returnTo: route.query.returnTo } : {}) } })
     return
   }
 
@@ -2781,20 +2827,7 @@ const navigateToCorrection = async () => {
       return
     }
     const media_type = sourceMediaScope.value || (isVideo.value ? 'video' : 'pdf')
-    validation_drafts.draft = {
-      file_id: correctionFileId,
-      media_type,
-      patient: { ...editedPatient.value },
-      anonymized_text: editedAnonymizedText.value,
-      examination_date: examinationDate.value,
-      tags: [...selectedTags.value],
-      custom_tag_input: customTagInput.value,
-      validation_comment: validationComment.value,
-      document_type: selectedDocumentType.value,
-      patient_examination_option: selectedPatientExaminationOption.value,
-      manual_patient_examination_id: manualPatientExaminationId.value,
-      no_more_names_confirmation: noMoreNamesConfirmation.value
-    }
+    rememberValidationDraft(correctionFileId, media_type)
     await router.push({
       name: 'Anonymisierung Korrektur',
       params: { fileId: String(correctionFileId) },

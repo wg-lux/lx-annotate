@@ -23,8 +23,9 @@ vi.mock('@/types/api/endpoints', () => ({
   endpoints: {
     hubExport: {
       overview: 'hub-export/overview/',
-      preflight: (id: number) => `hub-export/videos/${id}/preflight/`,
-      inspectRecovery: (id: number) => `hub-export/videos/${id}/inspect-recovery/`,
+      restartCleanup: (id: number) => `hub-export/videos/${String(id)}/restart-cleanup/`,
+      preflight: (id: number) => `hub-export/videos/${String(id)}/preflight/`,
+      inspectRecovery: (id: number) => `hub-export/videos/${String(id)}/inspect-recovery/`,
       mark: 'hub-export/mark/',
       offloadEligibleVideos: 'hub-export/offload-eligible-videos/',
       retry: (jobId: string) => `hub-export/jobs/${jobId}/retry/`,
@@ -1169,6 +1170,49 @@ describe('hub recovery guidance', () => {
     expect(wrapper.text()).not.toContain('Erneut versuchen')
     wrapper.unmount()
   })
+  it('restores filters and keyboard focus to the selected video on return', async () => {
+    const originalUrl = window.location.href
+    window.history.replaceState({}, '', '/hub-export?video=38&needsAction=1&kind=video')
+    hoisted.get.mockResolvedValue({ data: overview('preflight') })
+    const wrapper = mount(HubExportOverviewComponent, { attachTo: document.body })
+    try {
+      await flushPromises()
+      expect(wrapper.get('#hub-export-video-38').classes()).toContain('table-active')
+      const button = wrapper.get<HTMLButtonElement>('[data-test="hub-next-step-38"]')
+      expect(document.activeElement).toBe(button.element)
+      expect(button.element.tabIndex).toBe(0)
+      expect((wrapper.get('[data-test="hub-needs-action"]').element as HTMLInputElement).checked).toBe(true)
+    } finally {
+      wrapper.unmount()
+      window.history.replaceState({}, '', originalUrl)
+    }
+  })
+
+  it('requires both administrator confirmations before a reviewed cleanup restart', async () => {
+    hoisted.get.mockResolvedValue({ data: overview('inspect_recovery') })
+    hoisted.post.mockResolvedValueOnce({ data: { queue: 'frame_extraction', workerAvailable: true, taskObserved: false,
+      lastObservedProgress: null, inspectionAt: '2026-10-13T10:00:00Z', historyId: 7, status: 'pending', ageSeconds: 9000,
+      staleCandidate: true, recoveryAllowed: true, previewToken: 'signed-preview', activeMediaOperation: false,
+      retainedSourcePresent: true, detail: 'Review the broker and all consumers.' } }).mockResolvedValueOnce({ data: { status: 'queued' } })
+    const wrapper = mount(HubExportOverviewComponent)
+    await flushPromises()
+    await wrapper.get('[data-test="hub-next-step-38"]').trigger('click')
+    await flushPromises()
+    const restart = wrapper.get<HTMLButtonElement>('[data-test="hub-recovery-restart-38"]')
+    expect(restart.element.disabled).toBe(true)
+    await wrapper.get('[data-test="hub-recovery-queue-38"]').setValue(true)
+    expect(restart.element.disabled).toBe(true)
+    await wrapper.get('[data-test="hub-recovery-rollback-38"]').setValue(true)
+    await restart.trigger('click')
+    await flushPromises()
+    expect(hoisted.post).toHaveBeenLastCalledWith('/api/hub-export/videos/38/restart-cleanup/', {
+      preview_token: 'signed-preview', queue_and_consumers_reviewed: true, confirm_frame_rollback: true
+    })
+    expect(wrapper.text()).toContain('Wiederanlauf für Video 38 eingeplant')
+    expect(wrapper.find('[data-test="hub-recovery-restart-38"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it.each([
     ['repair_processing', '/anonymisierung/uebersicht', 'video'],
     ['review_anonymization', '/anonymisierung/validierung', 'fileId'],
@@ -1178,7 +1222,7 @@ describe('hub recovery guidance', () => {
     const wrapper = mount(HubExportOverviewComponent)
     await flushPromises()
     await wrapper.get('[data-test="hub-needs-action"]').setValue(true)
-    const link = new URL(wrapper.get('[data-test="hub-next-step-38"]').attributes('href'), 'https://example.test')
+    const link = new URL(wrapper.get<HTMLAnchorElement>('[data-test="hub-next-step-38"]').element.href)
     expect(link.pathname).toBe(path)
     expect(link.searchParams.get(key)).toBe('38')
     expect(link.searchParams.get('returnTo')).toContain('needsAction=1')
