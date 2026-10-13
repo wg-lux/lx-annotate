@@ -110,9 +110,15 @@ def test_production_hls_real_redis_worker_loss_and_visibility(tmp_path: Path) ->
                 distribution = importlib.metadata.distribution(package)
                 for module_name in modules:
                     module = importlib.import_module(module_name)
-                    relative_path = module_name.replace(".", "/") + ".py"
-                    record = next(p for p in distribution.files if str(p) == relative_path)
                     module_path = Path(module.__file__).resolve()
+                    records = [p for p in (distribution.files or ())
+                               if Path(distribution.locate_file(p)).resolve() == module_path]
+                    assert len(records) == 1, (
+                        f"Release attestation requires one wheel RECORD entry for {module_name} "
+                        f"at {module_path}; found {len(records)}. Install the release wheels "
+                        "instead of editable source checkouts before running this lane."
+                    )
+                    record = records[0]
                     assert Path(distribution.locate_file(record)).resolve() == module_path
                     digest = hashlib.sha256(module_path.read_bytes()).digest()
                     assert record.hash and record.hash.mode == "sha256"

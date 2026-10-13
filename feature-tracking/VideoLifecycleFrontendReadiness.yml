@@ -244,6 +244,10 @@ definition_of_done:
     Historical raw-video failures remain in the audit data and never override validation; queued or failed
     processed-video derivatives remain visibly pending or failed.
   - Reimport regenerates missing metadata or explicitly reports that only state repair was performed.
+  - Explicit single-video reset previews and audits revoked downstream approvals, preserves media, metadata,
+    annotations and transfer history, and resumes the same video through fenced processing.
+  - Reset rejects missing sources, integrity loss, active media work and registered transfers; ordinary
+    repair and bulk operations never implicitly reset clinical approval.
   - A partial import cannot become ANONYMIZED solely because metadata exists.
   - On a central hub, users from every center can discover, read, and prepare training data from validated
     processed videos after original raw-video deletion, through the mounted backend routes.
@@ -334,8 +338,17 @@ definition_of_done:
         identities; API anonymization and annotation statuses validated. Misleading failure was historical
         raw HLS; processed generation 173 queued, legacy generation 1 rejected as stale. No database validation
         repair warranted.
-    assessed_by: codex-gc10-20260908-diagnostics
-    assessed_at: '2026-09-08T14:36:27.795133Z'
+    note: '2026-10-12: Added single-video repair-panel preview and explicit reset to import, atomic approval
+      revocation/audit, artifact and annotation preservation, and blockers for source/integrity loss,
+      active processing/media work and registered transfers. Start uses the existing-record fenced processing
+      path in endoreg-db. pytest tests/api/test_video_lifecycle_readiness.py -q --tb=short: 37 passed;
+      focused repair/transcode/hub API group previously 88 passed; five frontend repair/overview/export
+      suites 103 passed. Targeted Pyright, Ruff and ESLint passed. Vue source compilation passed; full
+      ESLint has an existing AnonymizationValidationComponent attribute-order warning. Exact commands
+      and operational findings are in docs/guides/hub-export-workflow.md. Coordinated deployment and real-media
+      backfill acceptance remain outstanding; no production reset performed.'
+    assessed_by: codex-hub-gc09-20261012
+    assessed_at: '2026-10-12T15:39:35.712201Z'
 - id: scoped_lifecycle_actions
   category: security
   title: Recovery and hub export enforce operator and center authorization
@@ -677,3 +690,38 @@ definition_of_done:
       nine-criterion tracker in endoreg-db and is not inferred from frontend or SQLite tests.
     assessed_by: codex-video-readiness-20260907
     assessed_at: '2026-09-07T11:38:33.394188Z'
+- id: device_mask_authoring
+  category: functionality
+  title: Draw and select reusable device masks on a single video frame
+  acceptance:
+  - A loaded original frame can be paused and captured in browser memory; dragging defines the retained
+    image rectangle in source pixels.
+  - Reverse drags, resized displays and image bounds are handled; cancelled or tiny selections are not
+    saved and navigation clears the snapshot.
+  - Saving associates coordinates and reference dimensions with a device name and unique mask identity;
+    no frame image is uploaded.
+  - Saved masks are selectable through the authenticated endoreg-db catalogue; correction jobs persist
+    validated coordinate snapshots and retain human review.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run videoMasks, VideoMaskEditor and AnonymizationCorrectionComponent tests, TypeScript,
+      ESLint and paired backend mask tests.
+    timeout_seconds: 900
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: test
+      reference: 11 Vitest tests passed across the mask API, drawing component and correction component;
+        includes draw-save-select submission and cancelled/out-of-bounds selections.
+    - kind: command
+      reference: vue-tsc application build and tsconfig.vitest.json check passed; focused ESLint passed.
+        New catalogue OpenAPI path and profile schemas generated from paired endoreg-db source; existing
+        unrelated snapshot content retained.
+    - kind: test
+      reference: 'endoreg-db mask service/API: 10 passed. lx-dtypes shared loader: 7 passed. Anonymizer:
+        205 main regressions plus 55 model/report follow-up tests passed.'
+    note: Local source implementation and tests; deployed browser acceptance and coordinated package release
+      remain outstanding.
+    assessed_by: codex-model-loading-20261012
+    assessed_at: '2026-10-12T11:53:00Z'

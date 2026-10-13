@@ -37,10 +37,35 @@ export type HubExportIntegrityStatus =
   | 'processed_media_unreadable'
   | 'processed_media_hash_mismatch'
 
+export type HubRecoveryAction = 'repair_processing' | 'review_anonymization' | 'review_segments' |
+  'check_export_readiness' | 'preflight' | 'inspect_recovery' | 'administrator_recovery' | 'mark' | 'send' | 'retry'
+export interface HubRecoveryAssessment {
+  verification: 'stored_metadata' | 'fresh_payload'
+  blockers: { code: string; detail: string; action: HubRecoveryAction }[]
+  allowedActions: HubRecoveryAction[]
+  checkedAt: string | null
+  completedCurrentArtifact: boolean
+  transportConfiguration?: 'not_checked' | 'configured' | 'unavailable'
+}
+export interface HubCleanupInspection {
+  queue: string
+  workerAvailable: boolean | null
+  taskObserved: boolean | null
+  lastObservedProgress: string | null
+  inspectionAt: string
+  historyId: number | null
+  status: string | null
+  ageSeconds: number | null
+  staleCandidate: boolean
+  recoveryAllowed: boolean
+  detail: string
+}
+
 export interface HubExportItem {
   id: number
   resourceKind: 'video' | 'report'
   filename: string
+  recovery?: HubRecoveryAssessment
   anonymizationStatus: HubExportAnonymizationStatus
   segmentAnnotationStatus: HubExportSegmentAnnotationStatus
   exportIntegrityStatus: HubExportIntegrityStatus
@@ -204,6 +229,12 @@ export const useHubExportStore = defineStore('hubExport', {
     markedItems: (state) => state.items.filter((item) => item.markedForUpload)
   },
   actions: {
+    async preflightVideo(id: number): Promise<HubRecoveryAssessment> {
+      return hubExportService.preflightVideo(id)
+    },
+    async inspectRecovery(id: number): Promise<HubCleanupInspection> {
+      return hubExportService.inspectRecovery(id)
+    },
     async fetchOverview(targetNodeKey?: string | null) {
       this.loading = true
       this.error = null

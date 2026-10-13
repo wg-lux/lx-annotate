@@ -64,6 +64,7 @@ const hoisted = vi.hoisted(() => ({
       clearAllLocalLocks: ReturnType<typeof vi.fn>
     }
   },
+  route: { query: {} as Record<string, string> },
   routerPush: vi.fn(),
   cancelImport: vi.fn(),
   deleteMediaFile: vi.fn()
@@ -74,6 +75,7 @@ vi.mock('@/api/anonymizationOperations', () => ({
 }))
 
 vi.mock('vue-router', () => ({
+  useRoute: () => hoisted.route,
   useRouter: () => ({
     push: hoisted.routerPush
   })
@@ -214,7 +216,16 @@ function buildQuarantinedVideoFile(overrides: Record<string, unknown> = {}) {
 }
 
 describe('AnonymizationOverviewComponent', () => {
+  it('selects the repair panel by video ID and preserves a safe return link', async () => {
+    hoisted.route.query = { video: String(VIDEO_FILE_ID), returnTo: '/hub-export?needsAction=1' }
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    expect(wrapper.findComponent({ name: 'VideoBackfillRepairPanel' }).props('videoId')).toBe(VIDEO_FILE_ID)
+    expect(wrapper.get('[data-test="hub-recovery-return"]').attributes('href')).toBe('/hub-export?needsAction=1')
+  })
+
   beforeEach(() => {
+    hoisted.route.query = {}
     vi.clearAllMocks()
 
     hoisted.anonymizationStoreRef.current = reactive({

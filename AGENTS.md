@@ -20,6 +20,25 @@ After implementation:
 3. Report what passed, what failed, and any residual risk.
 4. Documentation language for this project is english
 
+## Source of Truth & Context Protocol
+
+- Begin each task with the root `structure.yml`. Follow its `submodules` top-down
+  to the relevant domain/service/package manifests, then read their entrypoints
+  and contracts. Use targeted searches within that scope instead of broad
+  repository grepping. Respect responsibilities and explicit module boundaries.
+- Shared clinical/storage behavior belongs to `endoreg_db`; knowledge-base and
+  lookup schemas belong to `lx_dtypes`. Manifests map ownership and do not replace
+  canonical contracts or feature readiness evidence.
+- Whenever adding, removing, or renaming files or changing architectural
+  boundaries, update the corresponding `structure.yml` files in the same
+  changeset. Preserve custom fields; avoid manifests for trivial folders and
+  exhaustive file inventories. See `docs/agent_context.md` for path conventions.
+- Scope subagents to a local directory tree, ancestor manifests, relevant
+  contracts, and verification commands; read both domains for crossing changes.
+- Before concluding any prompt or submitting a pull request, run
+  `python scripts/lint_structure.py` and resolve all reported drift. Run the
+  relevant tests as well when changing the validator or context contracts.
+
 ## Deployment Source Hygiene Feature Workflow
 
 Changes involving production deployment sources, release worktrees, temporary

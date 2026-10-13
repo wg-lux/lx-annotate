@@ -32,12 +32,15 @@ class RepairTranscodeRequest(BaseModel):
 class VideoRepairRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     dry_run: StrictBool = False
+    reset_to: Literal["import"] | None = None
     transcode: RepairTranscodeRequest | None = None
     after_video_id: int = Field(default=0, ge=0, strict=True)
     batch_size: int = Field(default=100, ge=1, le=100, strict=True)
 
     @model_validator(mode="after")
     def validate_transcode_intent(self) -> VideoRepairRequest:
+        if self.reset_to is not None and self.transcode is not None:
+            raise ValueError("Reset cannot be combined with a transcode.")
         if self.dry_run and self.transcode is not None:
             raise ValueError("Dry-run repair cannot submit transcode jobs.")
         if self.transcode is None and (self.after_video_id or self.batch_size != 100):
@@ -114,7 +117,9 @@ def repair_video_state(video: VideoFile, *, dry_run: bool = False) -> dict[str, 
     }
 
 
-def _repair_one(video_id: int, *, dry_run: bool) -> dict[str, Any]:
+def _repair_one(
+    video_id: int, *, dry_run: bool, reset_to: str | None = None, actor=None
+) -> dict[str, Any]:
     from endoreg_db.services.media import operation_gate
 
     with transaction.atomic():
@@ -138,6 +143,12 @@ def _repair_one(video_id: int, *, dry_run: bool) -> dict[str, Any]:
                 "missing": ["active_transcode"],
                 "annotations_preserved": True,
             }
+        if reset_to is not None:
+            from lx_annotate.services.video_state_reconciliation import (
+                reset_video_for_backfill,
+            )
+
+            return reset_video_for_backfill(video, actor=actor, dry_run=dry_run)
         return repair_video_state(video, dry_run=dry_run)
 
 
@@ -216,6 +227,8 @@ class VideoStateRepairView(APIView):
             options = VideoRepairRequest.model_validate(request.data)
         except ValidationError:
             return Response({"error": "Invalid video repair options."}, status=400)
+        if options.reset_to is not None and pk is None:
+            return Response({"error": "Reset requires one explicit video."}, status=400)
         if options.transcode is not None:
             from lx_annotate.services.video_transcode_jobs import (
                 TranscodeSubmissionError,
@@ -252,7 +265,12 @@ class VideoStateRepairView(APIView):
             selected = selected[: options.batch_size]
         else:
             selected = list(videos)
-        items = [_repair_one(video.pk, dry_run=dry_run) for video in selected]
+        items = [
+            _repair_one(
+                video.pk, dry_run=dry_run, reset_to=options.reset_to, actor=request.user
+            )
+            for video in selected
+        ]
 
         summary = {
             key: sum(item["status"] == key for item in items)

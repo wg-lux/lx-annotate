@@ -110,6 +110,7 @@ else:
 
 # --- DEBUG / LOG GUARD ---
 SECRET_KEY = config.secret_key
+SECRET_KEY_FALLBACKS = config.secret_key_fallbacks
 
 # Fallback Logic
 if not SECRET_KEY:
@@ -645,23 +646,6 @@ _validate_hub_transfer_security_contract()
 # 2. CORE SETTINGS
 # -----------------------------------------------------------------------------
 
-SECRET_KEY = config.secret_key
-if not SECRET_KEY:
-    if _is_dev_settings or os.getenv("DJANGO_DEBUG", "").lower() in {
-        "1",
-        "true",
-        "yes",
-    }:
-        SECRET_KEY = "django-insecure-dev-only-change-me-000000000000"
-        print(
-            "WARNING: Using fallback SECRET_KEY for development. "
-            "Set DJANGO_SECRET_KEY in .env for a stable value.",
-        )
-    else:
-        raise RuntimeError(
-            "DJANGO_SECRET_KEY is missing. Set DJANGO_SECRET_KEY or "
-            "DJANGO_SECRET_KEY_FILE in the environment or .env file.",
-        )
 DEBUG = config.debug
 ALLOWED_HOSTS = config.allowed_hosts
 CORS_ALLOWED_ORIGINS = config.cors_allowed_origins
@@ -860,7 +844,19 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_SCHEMA_CLASS": "lx_annotate.openapi.ApplicationAutoSchema",
+}
+
+# Stable names for identical catalog choices shared by multiple record types.
+SPECTACULAR_SETTINGS = {
+    "ENUM_NAME_OVERRIDES": {
+        "CountDistributionTypeEnum": ["uniform", "normal"],
+        "NumericValueDistributionReferenceDistributionTypeEnum": [
+            "uniform",
+            "normal",
+            "skewed_normal",
+        ],
+    },
 }
 
 # Keycloak

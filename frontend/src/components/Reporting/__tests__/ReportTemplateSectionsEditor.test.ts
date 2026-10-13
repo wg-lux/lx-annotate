@@ -98,10 +98,33 @@ describe('Report template draft editor boundary', () => {
     expect(next.validator.name).toBe('rule')
     expect(next.finding).toBe('polyp')
     await wrapper.setProps({ modelValue: next })
-    expect(wrapper.findAll('.badge').map((badge) => badge.text())).toEqual(['size', 'location'])
+    expect(wrapper.findAll('.badge').map((badge) => badge.text())).toEqual(['size ×', 'location ×'])
+    await wrapper.get('[aria-label="location aus Anforderungen entfernen"]').trigger('click')
+    expect(
+      wrapper.emitted<[ReportTemplateBuilderFinding]>('update:modelValue')?.at(-1)?.[0].validator
+        .condition.thenRequires
+    ).toEqual(['size'])
     await required(
       wrapper.findAll('button').find((button) => button.text() === 'Entfernen')
     ).trigger('click')
     expect(wrapper.emitted('remove')).toHaveLength(1)
+  })
+
+  it('constructs membership conditions as a list of choice identifiers', async () => {
+    const original = finding()
+    original.validator.condition.comparator = 'in'
+    const wrapper = mount(ReportTemplateFindingEditor, {
+      props: {
+        modelValue: original,
+        findingOptions: [],
+        classificationOptions: options
+      }
+    })
+    await wrapper.get('[data-testid="validator-values"]').setValue('snare_hot\nsnare_both')
+    expect(
+      wrapper.emitted<[ReportTemplateBuilderFinding]>('update:modelValue')?.at(-1)?.[0].validator
+        .condition.values
+    ).toEqual(['snare_hot', 'snare_both'])
+    expect(original.validator.condition.values).toBeUndefined()
   })
 })

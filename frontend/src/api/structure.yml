@@ -1,0 +1,33 @@
+version: 1
+tier: package
+path: "frontend/src/api"
+parent: "../../structure.yml"
+summary: "Typed frontend API adapters and canonical request/response case conversion."
+responsibilities:
+  - "Build stable snake_case request contracts and expose typed UI responses."
+  - "Respect endoreg and dtypes endpoint ownership."
+boundaries:
+  - "Do not duplicate case conversion in individual callers."
+  - "Lookup requirement failures are advisory and must preserve suggested_actions."
+entrypoints:
+  - name: "HTTP client"
+    file: "axiosInstance.ts"
+    purpose: "Prefixes and case conversion"
+  - name: "clinical concepts"
+    file: "coreConcepts.ts"
+    purpose: "Shared clinical API adapters"
+  - name: "hub export"
+    file: "hubExportService.ts"
+    purpose: "Hub export API client"
+dependencies:
+  internal: ["lx_annotate","openapi"]
+  external: ["Axios","camelcase-keys","snakecase-keys"]
+submodules: []
+contracts:
+  - name: "API contract"
+    doc: "../../../docs/guides/openapi-type-generation.md"
+  - name: "lookup source guidance"
+    doc: "../../../AGENTS.md"
+tests:
+  directory: "__tests__"
+  command: "npm --prefix frontend run test:unit -- --run src/api/__tests__/apiPrefixContract.test.ts"

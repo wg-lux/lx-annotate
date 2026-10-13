@@ -274,6 +274,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/dtypes-api/report-templates/builder/package": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Export Report Template Package */
+        post: operations["lx_dtypes_django_api_report_template_routes_export_report_template_package"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dtypes-api/report-templates/builder/templates": {
         parameters: {
             query?: never;
@@ -565,6 +582,32 @@ export type paths = {
 export type webhooks = Record<string, never>;
 export type components = {
     schemas: {
+        /** BuildReportTemplatePackageRequest */
+        BuildReportTemplatePackageRequest: {
+            /** Depends On */
+            depends_on: string[];
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Examination */
+            examination: string;
+            /** File Name */
+            file_name: string;
+            /** Module Name */
+            module_name: string;
+            /** Module Version */
+            module_version: string;
+            /** Package Name */
+            package_name: string;
+            /** Package Version */
+            package_version: string;
+            /** Sections */
+            sections?: components["schemas"]["ReportTemplateBuilderSection"][];
+            /** Template Name */
+            template_name: string;
+        };
         /** ImportTerminologyBundleResponse */
         ImportTerminologyBundleResponse: {
             /** Counts */
@@ -969,8 +1012,9 @@ export type components = {
             comparator: "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "in" | "not_in";
             /** Then Requires */
             then_requires?: string[];
-            /** Value */
-            value?: unknown;
+            value?: components["schemas"]["ValidationScalar"] | null;
+            /** Values */
+            values?: components["schemas"]["ValidationScalar"][];
         };
         /** SaveReportTemplateRequest */
         SaveReportTemplateRequest: {
@@ -1035,6 +1079,7 @@ export type components = {
             /** Version */
             version: string;
         };
+        ValidationScalar: string | number | boolean;
     };
     responses: never;
     parameters: never;
@@ -1432,6 +1477,28 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    lx_dtypes_django_api_report_template_routes_export_report_template_package: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BuildReportTemplatePackageRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {

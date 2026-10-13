@@ -414,6 +414,12 @@
       </section>
     </form>
 
+    <DatasetManager ref="dataset_manager" @changed="loadSavedOptions" />
+    <button v-if="selectedCohortId" class="btn btn-outline-danger mb-3" :disabled="saving" @click="delete_selected_study">Studie löschen</button>
+    <StudyTableImport
+      :cohort="selectedCohortId ? Number(selectedCohortId) : null"
+      @imported="import_completed"
+    />
     <template v-if="preview">
       <div
         class="alert alert-info mt-3"
@@ -627,11 +633,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, toRaw, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, toRaw, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { type StudyCohortPreviewFilters, type StudyCohortPreviewResponse } from '@/api/studyApi'
 import { fetchAiDatasetOptions, type AiDatasetOption } from '@/api/aiDatasetApi'
 import StudyMetadataEditor from '@/components/StudyMetadataEditor.vue'
+import DatasetManager from '@/components/AiDataset/DatasetManager.vue'
+import { delete_study } from '@/api/datasetLifecycleApi'
+import StudyTableImport from '@/components/StudyTableImport.vue'
 import {
   fetchStudyCohorts,
   fetchStudyDefinition,
@@ -649,8 +658,10 @@ const studyName = ref('')
 const hypothesis = ref('')
 const studyMetadata = ref(emptyStudyMetadata())
 const savedCohorts = ref<SavedStudyCohort[]>([])
+const dataset_manager = ref<InstanceType<typeof DatasetManager> | null>(null)
 const datasetOptions = ref<AiDatasetOption[]>([])
 const selectedCohortId = ref('')
+const savedFormSignature = ref('')
 const selectedDatasetIds = ref<number[]>([])
 const saving = ref(false)
 const downloading = ref(false)
@@ -755,7 +766,20 @@ function readableError(error: unknown): string {
   return 'Kohortenvorschau konnte nicht geladen werden.'
 }
 
+function formSignature(): string {
+  return JSON.stringify({
+    name: studyName.value,
+    hypothesis: hypothesis.value,
+    filters: requestFilters(),
+    datasetIds: [...selectedDatasetIds.value].sort((a, b) => a - b),
+    studyMetadata: studyMetadata.value
+  })
+}
+
 function previewValidationError(): string {
+  if (selectedCohortId.value && formSignature() !== savedFormSignature.value) {
+    return 'Bitte Änderungen an der gespeicherten Kohorte vor der Vorschau speichern.'
+  }
   if (!studyName.value.trim() || !hypothesis.value.trim()) {
     return 'Bitte Studienname und Hypothese formulieren.'
   }
@@ -786,7 +810,8 @@ async function previewCohort(): Promise<void> {
         filters: requestFilters(),
         datasetIds: [...selectedDatasetIds.value]
       },
-      controller.signal
+      controller.signal,
+      selectedCohortId.value ? Number(selectedCohortId.value) : undefined
     )
     if (controller.signal.aborted || activeController !== controller) return
     cohortExportStore.capture(name, description, result)
@@ -801,6 +826,25 @@ async function previewCohort(): Promise<void> {
       loading.value = false
     }
   }
+}
+
+async function import_completed(): Promise<void> {
+  await dataset_manager.value?.reload()
+  await loadSavedOptions()
+  await previewCohort()
+}
+
+async function delete_selected_study(): Promise<void> {
+  if (!selectedCohortId.value || !window.confirm('Studie und ihre Verknüpfungen löschen? Datensätze und klinische Daten bleiben erhalten.')) return
+  saving.value = true
+  try {
+    await delete_study(Number(selectedCohortId.value))
+    selectedCohortId.value = ''
+    preview.value = null
+    await loadSavedOptions()
+    selectCohort()
+  } catch (error) { errorMessage.value = readableError(error) }
+  finally { saving.value = false }
 }
 
 async function loadSavedOptions(): Promise<void> {
@@ -821,6 +865,7 @@ function selectCohort(): void {
   studyMetadata.value = copyStudyMetadata(cohort?.studyMetadata)
   selectedDatasetIds.value = [...(cohort?.datasetIds ?? [])]
   applySavedFilters(cohort?.filters ?? {})
+  savedFormSignature.value = formSignature()
 }
 
 function copyStudyMetadata(metadata: StudyMetadata | undefined): StudyMetadata {
@@ -862,6 +907,8 @@ async function saveCohort(): Promise<void> {
     )
     savedCohorts.value = [...savedCohorts.value.filter((row) => row.id !== cohort.id), cohort]
     selectedCohortId.value = String(cohort.id)
+    selectCohort()
+    await nextTick()
     savedMessage.value =
       'Kohorte und Datensatzverknüpfungen gespeichert. Patienten werden bei jeder Vorschau erneut geprüft.'
   } catch (error) {

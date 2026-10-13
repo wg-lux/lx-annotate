@@ -1,0 +1,36 @@
+version: 1
+tier: service
+path: "lx_annotate/hub"
+parent: "../structure.yml"
+summary: "Outbound hub export and storage orchestration with typed transfer envelopes and job lifecycle."
+responsibilities:
+  - "Validate export eligibility and prepare typed payloads."
+  - "Coordinate transfer workers, receipts, reconciliation, and cleanup."
+boundaries:
+  - "Raw media export and master-key transmission are prohibited."
+  - "Required mTLS must fail closed; shared secrets only authenticate requests."
+entrypoints:
+  - name: "contracts"
+    file: "hub_export_contracts.py"
+    purpose: "Typed export requests and resource kinds"
+  - name: "worker"
+    file: "hub_export_worker.py"
+    purpose: "Execute export jobs"
+  - name: "envelope"
+    file: "hub_export_envelope.py"
+    purpose: "Encrypted transfer envelope integration"
+dependencies:
+  internal: ["lx_annotate"]
+  external: ["Pydantic","endoreg-db","lx-dtypes","mTLS"]
+submodules: []
+contracts:
+  - name: "export workflow"
+    doc: "../../docs/guides/hub-export-workflow.md"
+  - name: "storage balancing"
+    doc: "../../docs/guides/hub-storage-load-balancing.md"
+tests:
+  directory: "../../tests/hub"
+  command: "python -m pytest tests/hub/test_hub_export_payloads.py -q"
+
+files:
+  - hub_export_recovery.py

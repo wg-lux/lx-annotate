@@ -9,7 +9,7 @@ from endoreg_db.models.state.anonymization import AnonymizationState
 from lx_annotate.hub import hub_export_payloads
 from lx_annotate.hub.hub_export_payloads import (
     TransferPayload,
-    _build_sensitive_meta_payload,
+    build_hub_identity_payload,
     _require_eligible_anonymization_status,
     _require_processed_file,
     _require_value,
@@ -218,7 +218,7 @@ def test_non_anonymized_status_is_rejected() -> None:
 )
 def test_sensitive_meta_requires_both_pseudonymous_hashes(sensitive_meta) -> None:
     with pytest.raises(ValueError, match="patient_hash and examination_hash"):
-        _build_sensitive_meta_payload(sensitive_meta)
+        build_hub_identity_payload(sensitive_meta)
 
 
 @pytest.mark.parametrize("value", [None, ""])

@@ -306,92 +306,36 @@ def test_file_watcher_service_fails_when_intake_path_is_not_directory(
         watcher.FileWatcherService()
 
 
-def test_completed_report_cleanup_uses_typed_wrapper(monkeypatch, tmp_path):
+@pytest.mark.parametrize("kind", ["report", "video"])
+def test_completed_handoff_preserves_new_arrival(monkeypatch, tmp_path, kind):
     import lx_annotate.file_watcher as watcher
 
-    report_path = tmp_path / "report.pdf"
-    report_path.write_bytes(b"%PDF")
-    deleted = []
+    source = tmp_path / ("report.pdf" if kind == "report" else "video.mp4")
+    source.write_bytes(b"original input")
     handler = watcher.AutoProcessingHandler()
 
-    monkeypatch.setattr(watcher, "is_intake_path", lambda _path: True)
-    monkeypatch.setattr(watcher, "ensure_directory", lambda path: path)
-    monkeypatch.setattr(handler, "_resolve_default_center", lambda: object())
-    monkeypatch.setattr(
-        watcher,
-        "process_watcher_file",
-        lambda **_kwargs: SimpleNamespace(
+    def completed_handoff(**_kwargs):
+        source.write_bytes(b"new arrival")
+        return SimpleNamespace(
             is_complete=True,
-            id="completed-report",
-        ),
-    )
-    monkeypatch.setattr(
-        watcher,
-        "safe_unlink_file",
-        lambda path: deleted.append(path),
-    )
-
-    try:
-        handler._process_report(report_path)
-    finally:
-        handler.shutdown()
-
-    assert deleted == [report_path]
-
-
-def test_completed_video_cleanup_uses_typed_wrapper(monkeypatch, tmp_path):
-    import lx_annotate.file_watcher as watcher
-
-    video_path = tmp_path / "video.mp4"
-    video_path.write_bytes(b"video")
-    deleted = []
-    handler = watcher.AutoProcessingHandler()
-    video = SimpleNamespace(
-        raw_video_hash="video-hash",
-        pk=None,
-        sensitive_meta=None,
-        active_raw_file=None,
-    )
-    upload_job = SimpleNamespace(
-        id="completed-video",
-        status="done",
-        error_detail="",
-        is_complete=True,
-        is_successful=True,
-        content_hash="video-hash",
-        processing_provenance={},
-        sensitive_meta_id=None,
-        refresh_from_db=lambda **_kwargs: None,
-    )
-    video_manager = SimpleNamespace(
-        filter=lambda **_kwargs: SimpleNamespace(first=lambda: video)
-    )
+            is_successful=True,
+            id="completed-import",
+            refresh_from_db=lambda **kwargs: None,
+        )
 
     monkeypatch.setattr(watcher, "is_intake_path", lambda _path: True)
     monkeypatch.setattr(watcher, "check_storage_capacity", lambda *_args: None)
     monkeypatch.setattr(handler, "_resolve_default_center", lambda: object())
-    monkeypatch.setattr(
-        watcher,
-        "process_watcher_file",
-        lambda **_kwargs: upload_job,
-    )
-    monkeypatch.setattr(
-        watcher,
-        "VideoFile",
-        SimpleNamespace(objects=video_manager),
-    )
-    monkeypatch.setattr(
-        watcher,
-        "safe_unlink_file",
-        lambda path: deleted.append(path),
-    )
-
+    monkeypatch.setattr(watcher, "process_watcher_file", completed_handoff)
     try:
-        handler._process_video(video_path)
+        if kind == "report":
+            handler._process_report(source)
+        else:
+            handler._process_video(source)
     finally:
         handler.shutdown()
 
-    assert deleted == [video_path]
+    assert source.read_bytes() == b"new arrival"
 
 
 def test_file_watcher_has_no_raw_filesystem_mutations():

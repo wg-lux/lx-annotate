@@ -19,17 +19,17 @@ from endoreg_db.models import (
     RawPdfFile,
     VideoFile,
 )
+from endoreg_db.services.centers.access import resolve_allowed_center_ids
 from endoreg_db.services.studies.cohort import (
     StudyCohortFilters,
     parse_study_cohort_filters,
 )
-from endoreg_db.utils.permissions import EnvironmentAwarePermission, is_debug_mode
 from openpyxl import Workbook
 from openpyxl.cell import WriteOnlyCell
 from openpyxl.styles import Font, PatternFill
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -86,11 +86,13 @@ class StudyExportPatientReadPermission(BasePermission):
         self, request: Request, view: object
     ) -> bool:
         del view
-        if is_debug_mode():
-            return True
         user = request.user
         if not getattr(user, "is_authenticated", False):
             return False
+        if not getattr(user, "is_active", False):
+            return False
+        if getattr(user, "is_superuser", False):
+            return True
         groups = getattr(user, "groups", None)
         if groups is None:
             return False
@@ -98,8 +100,8 @@ class StudyExportPatientReadPermission(BasePermission):
         return satisfies(roles, "patient:read")
 
 
-def _pseudonymous_cases() -> QuerySet[PatientExamination]:
-    return (
+def _pseudonymous_cases(user: object) -> QuerySet[PatientExamination]:
+    cases = (
         PatientExamination.objects.select_related(
             "patient",
             "patient__center",
@@ -112,13 +114,16 @@ def _pseudonymous_cases() -> QuerySet[PatientExamination]:
         .exclude(patient__patient_hash="")
     )
 
+    allowed = resolve_allowed_center_ids(user)
+    return cases if allowed is None else cases.filter(patient__center_id__in=allowed)
+
 
 def _sorted_strings(values: Iterable[object]) -> list[str]:
     return sorted({str(value).strip() for value in values if str(value).strip()})
 
 
-def build_study_export_options() -> StudyExportOptions:
-    cases = _pseudonymous_cases()
+def build_study_export_options(user: object) -> StudyExportOptions:
+    cases = _pseudonymous_cases(user)
     case_ids = cases.values("pk")
     examinations = cases.values_list("examination__name", flat=True)
     findings = PatientFinding.objects.filter(
@@ -179,6 +184,8 @@ def _cohort_filter_mapping(query_params: Mapping[str, Any]) -> Mapping[str, Any]
 
 def parse_study_export_selection(
     query_params: Mapping[str, Any],
+    *,
+    user: object,
 ) -> StudyExportSelection:
     mode = str(query_params.get("mode", "criteria") or "criteria").strip()
     if mode not in {"criteria", "cohort"}:
@@ -221,7 +228,7 @@ def parse_study_export_selection(
     if not selection.has_criteria:
         raise ValueError("Select at least one examination, finding, or indication.")
 
-    options = build_study_export_options()
+    options = build_study_export_options(user)
     for label, selected, available in (
         ("examination", selection.examinations, options["examinations"]),
         ("finding", selection.findings, options["findings"]),
@@ -242,8 +249,10 @@ def _parse_grouping(query_params: Mapping[str, Any]) -> StudyExportGrouping:
 
 def _matching_cases(
     selection: StudyExportSelection,
+    *,
+    user: object,
 ) -> QuerySet[PatientExamination]:
-    cases = _pseudonymous_cases()
+    cases = _pseudonymous_cases(user)
     if selection.examinations:
         cases = cases.filter(examination__name__in=selection.examinations)
     if selection.findings:
@@ -260,8 +269,10 @@ def _matching_cases(
 
 def _export_cases(
     selection: StudyExportSelection,
+    *,
+    user: object,
 ) -> tuple[QuerySet[PatientExamination], int]:
-    matching_cases = _matching_cases(selection)
+    matching_cases = _matching_cases(selection, user=user)
     active_findings = PatientFinding.objects.filter(is_active=True).select_related(
         "finding"
     )
@@ -287,6 +298,10 @@ def _export_cases(
         .exclude(processed_file="")
         .only("pk", "examination_id")
     )
+    allowed = resolve_allowed_center_ids(user)
+    if allowed is not None:
+        eligible_report_files = eligible_report_files.filter(center_id__in=allowed)
+        eligible_videos = eligible_videos.filter(center_id__in=allowed)
     prefetches = (
         Prefetch("patient_findings", queryset=active_findings),
         Prefetch("indications", queryset=indications),
@@ -295,7 +310,9 @@ def _export_cases(
         Prefetch("video_files", queryset=eligible_videos),
     )
     if selection.mode == "cohort":
-        cases = _pseudonymous_cases().filter(pk__in=selection.patient_examination_ids)
+        cases = _pseudonymous_cases(user).filter(
+            pk__in=selection.patient_examination_ids
+        )
         if cases.count() != len(selection.patient_examination_ids):
             raise ValueError(
                 "The study cohort contains an unavailable patient examination."
@@ -337,7 +354,7 @@ def _export_cases(
         patient__patient_hash=OuterRef("patient__patient_hash"),
     )
     cases = (
-        _pseudonymous_cases()
+        _pseudonymous_cases(user)
         .annotate(
             scoped_identity_match=Exists(scoped_match),
             unscoped_identity_match=Exists(unscoped_match),
@@ -564,7 +581,7 @@ def build_study_export_workbook(
     metadata_sheet.append(["Pseudonymous", "Yes"])
     metadata_sheet.append(["Row count", row_count])
     filter_semantics = (
-        "Exact reviewed StudyCohortPage snapshot"
+        "Reviewed examination IDs with current authorized values"
         if selection.mode == "cohort"
         else "OR within categories; AND across categories"
     )
@@ -588,22 +605,21 @@ def _selection_from_request(request: Request) -> StudyExportSelection:
         if isinstance(request_values, Mapping)
         else {}
     )
-    return parse_study_export_selection(mapping)
+    return parse_study_export_selection(mapping, user=request.user)
 
 
 @api_view(["GET"])
-@permission_classes([EnvironmentAwarePermission, StudyExportPatientReadPermission])
+@permission_classes([IsAuthenticated, StudyExportPatientReadPermission])
 def study_export_options(request: Request) -> Response:
-    del request
-    return Response(build_study_export_options(), status=status.HTTP_200_OK)
+    return Response(build_study_export_options(request.user), status=status.HTTP_200_OK)
 
 
 @api_view(["GET", "POST"])
-@permission_classes([EnvironmentAwarePermission, StudyExportPatientReadPermission])
+@permission_classes([IsAuthenticated, StudyExportPatientReadPermission])
 def study_export_xlsx(request: Request) -> Response | HttpResponse:
     try:
         selection = _selection_from_request(request)
-        cases, row_count = _export_cases(selection)
+        cases, row_count = _export_cases(selection, user=request.user)
     except ValueError as exc:
         return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -643,4 +659,5 @@ def study_export_xlsx(request: Request) -> Response | HttpResponse:
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     response["X-Export-Row-Count"] = str(row_count)
     response["X-Content-Type-Options"] = "nosniff"
+    response["Cache-Control"] = "private, no-store"
     return response

@@ -5,7 +5,6 @@ from types import ModuleType, SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-from django.core.exceptions import ObjectDoesNotExist
 
 from lx_annotate import file_watcher
 
@@ -87,64 +86,6 @@ def test_processing_stack_preload_marks_success(monkeypatch) -> None:
 )
 def test_internal_watcher_files_are_ignored(path: str, expected: bool) -> None:
     assert file_watcher.should_ignore_file(path) is expected
-
-
-def test_unsaved_video_cannot_have_materialized_prediction_segments() -> None:
-    assert file_watcher._has_prediction_segments(SimpleNamespace(pk=None)) is False
-
-
-@pytest.mark.parametrize(
-    ("sequences", "expected"),
-    [
-        (None, None),
-        ({}, False),
-        ({"outside": []}, False),
-        ({"outside": [(1, 4)]}, True),
-    ],
-)
-def test_prediction_ranges_distinguish_missing_empty_and_materialized_results(
-    sequences: object,
-    expected: bool | None,
-) -> None:
-    video = SimpleNamespace(sequences=sequences)
-    assert file_watcher._prediction_sequences_have_ranges(video) is expected
-
-
-def test_prediction_pipeline_is_incomplete_before_required_state_flags() -> None:
-    video = SimpleNamespace(
-        pk=None,
-        state=SimpleNamespace(
-            initial_prediction_completed=False,
-            lvs_created=False,
-        ),
-    )
-
-    assert file_watcher._prediction_pipeline_complete(video) is False
-
-
-def test_prediction_pipeline_fails_closed_when_state_resolution_fails() -> None:
-    class BrokenVideo:
-        raw_video_hash = "broken-state"
-
-        @property
-        def state(self):
-            raise RuntimeError("state relation unavailable")
-
-        def get_or_create_state(self):
-            raise RuntimeError("database unavailable")
-
-    assert file_watcher._prediction_pipeline_complete(BrokenVideo()) is False
-
-
-def test_missing_sensitive_meta_relation_is_not_treated_as_present() -> None:
-    class VideoWithoutSensitiveMeta:
-        sensitive_meta_id = None
-
-        @property
-        def sensitive_meta(self):
-            raise ObjectDoesNotExist("missing relation")
-
-    assert file_watcher._video_has_sensitive_meta(VideoWithoutSensitiveMeta()) is False
 
 
 @pytest.mark.parametrize(

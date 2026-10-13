@@ -320,3 +320,184 @@ def test_processed_repair_preserves_approval_and_other_center_jobs(
         job.refresh_from_db()
         assert job.status == "error"
         assert job.error_code == "processing_failed"
+
+
+@pytest.fixture
+def backfill_video(operator, master_key):
+    _, center = operator
+    return VideoFile.objects.create(
+        center=center,
+        meta={},
+        raw_video_hash="a" * 64,
+        processed_video_hash="b" * 64,
+        raw_file=ContentFile(b"retained raw source", name="backfill-raw.mp4"),
+        processed_file=ContentFile(
+            b"retained reviewed media", name="backfill-processed.mp4"
+        ),
+        sensitive_meta=create_hub_sensitive_meta(center=center),
+        state=VideoState.objects.create(
+            processing_started=True,
+            sensitive_meta_processed=True,
+            frames_extracted=True,
+            anonymized=True,
+            anonymization_validated=True,
+            segment_annotations_created=True,
+            segment_annotations_validated=True,
+            outside_segments_removed=True,
+            ready_for_export=True,
+            ready_for_export_by="clinical-reviewer",
+            ready_for_export_at=timezone.now(),
+            processed_file_sha256="b" * 64,
+        ),
+    )
+
+
+def test_backfill_reset_previews_revokes_approval_and_preserves_artifacts(
+    client, operator, backfill_video
+):
+    from endoreg_db.models.state.audit_ledger import AuditLedger
+
+    video = backfill_video
+    original = (
+        video.raw_file.name,
+        video.processed_file.name,
+        video.sensitive_meta_id,
+        video.raw_video_hash,
+        video.processed_video_hash,
+    )
+    url = f"/api/runtime/videos/{video.pk}/repair/"
+    preview = client.post(
+        url, {"reset_to": "import", "dry_run": True}, content_type="application/json"
+    )
+    assert preview.status_code == 200
+    assert preview.json()["items"][0]["status"] == "repaired"
+    video.state.refresh_from_db()
+    assert video.state.ready_for_export
+    assert not AuditLedger.objects.filter(action="reset_for_backfill").exists()
+
+    response = client.post(url, {"reset_to": "import"}, content_type="application/json")
+    assert response.status_code == 200
+    video.refresh_from_db()
+    video.state.refresh_from_db()
+    assert str(video.state.anonymization_status) == "not_started"
+    assert not video.state.ready_for_export
+    assert not video.state.segment_annotations_validated
+    assert video.state.segment_annotations_created
+    assert not video.state.processed_file_sha256
+    assert original == (
+        video.raw_file.name,
+        video.processed_file.name,
+        video.sensitive_meta_id,
+        video.raw_video_hash,
+        video.processed_video_hash,
+    )
+    assert video.raw_file.storage.exists(video.raw_file.name)
+    assert video.processed_file.storage.exists(video.processed_file.name)
+    audit = AuditLedger.objects.get(action="reset_for_backfill")
+    assert audit.user_id == operator[0].pk
+    assert audit.data["before"]["anonymization_validated"] is True
+    assert audit.data["after"]["anonymization_validated"] is False
+    repeated = client.post(url, {"reset_to": "import"}, content_type="application/json")
+    assert repeated.json()["items"][0]["status"] == "consistent"
+    assert AuditLedger.objects.filter(action="reset_for_backfill").count() == 1
+
+
+@pytest.mark.parametrize(
+    "blocker",
+    [
+        "source_media",
+        "integrity_failure",
+        "missing_integrity",
+        "active_processing",
+        "registered_or_active_transfer",
+        "active_media_operation",
+    ],
+)
+def test_backfill_reset_rejects_unsafe_boundaries(
+    client, backfill_video, blocker, monkeypatch
+):
+    from endoreg_db.models import NetworkNode
+
+    from lx_annotate.models import OutboundHubTransferJob
+    from lx_annotate.services import video_state_reconciliation as reconcile
+
+    video = backfill_video
+    if blocker == "source_media":
+        video.raw_file = ""
+        video.save(update_fields=["raw_file"])
+    elif blocker == "integrity_failure":
+        video.meta = {**(video.meta or {}), "integrity_status": "lost"}
+        video.save(update_fields=["meta"])
+    elif blocker == "missing_integrity":
+        video.meta = None
+        video.save(update_fields=["meta"])
+        blocker = "integrity_failure"
+    elif blocker == "active_processing":
+        video.processing_history.create(operation="anonymize", status="running")
+    elif blocker == "registered_or_active_transfer":
+        target = NetworkNode.objects.create(node_key="backfill-hub", role="central_hub")
+        OutboundHubTransferJob.objects.create(
+            video_file=video,
+            source_center=video.center,
+            target_node=target,
+            resource_kind="video",
+            transfer_key="backfill-transfer",
+            local_status="failed",
+            remote_transfer_id="registered-transfer",
+        )
+    else:
+
+        def busy(**kwargs):
+            raise reconcile.MediaOperationDeferred("active")
+
+        monkeypatch.setattr(reconcile, "defer_if_video_media_busy", busy)
+    response = client.post(
+        f"/api/runtime/videos/{video.pk}/repair/",
+        {"reset_to": "import"},
+        content_type="application/json",
+    )
+    assert response.status_code == 200
+    assert response.json()["items"][0]["missing"] == [blocker]
+    video.state.refresh_from_db()
+    assert video.state.ready_for_export
+
+
+def test_backfill_reset_is_explicit_scoped_and_audited(
+    client, operator, backfill_video, monkeypatch
+):
+    from endoreg_db.models.state.audit_ledger import AuditLedger
+
+    assert (
+        client.post(
+            "/api/runtime/videos/repair/",
+            {"reset_to": "import"},
+            content_type="application/json",
+        ).status_code
+        == 400
+    )
+    url = f"/api/runtime/videos/{backfill_video.pk}/repair/"
+    assert (
+        client.post(
+            url, {"reset_to": "validated"}, content_type="application/json"
+        ).status_code
+        == 400
+    )
+    user, _ = operator
+    user.groups.clear()
+    user.groups.add(Group.objects.get_or_create(name="data:read")[0])
+    assert (
+        client.post(
+            url, {"reset_to": "import"}, content_type="application/json"
+        ).status_code
+        == 403
+    )
+    user.groups.add(Group.objects.get_or_create(name="data:write")[0])
+
+    def audit_unavailable(**kwargs):
+        raise RuntimeError("audit unavailable")
+
+    monkeypatch.setattr(AuditLedger.objects, "create", audit_unavailable)
+    with pytest.raises(RuntimeError, match="audit unavailable"):
+        client.post(url, {"reset_to": "import"}, content_type="application/json")
+    backfill_video.state.refresh_from_db()
+    assert backfill_video.state.ready_for_export

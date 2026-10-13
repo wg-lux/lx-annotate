@@ -2,6 +2,8 @@ import axiosInstance, { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
 import type {
   HubEligibleVideoOffloadResult,
+  HubRecoveryAssessment,
+  HubCleanupInspection,
   HubExportOverviewResponse,
   HubExportRetryResult,
   VideoExportReadinessCandidate
@@ -13,6 +15,14 @@ export interface HubExportResourceRef {
 }
 
 export const hubExportService = {
+  async preflightVideo(id: number): Promise<HubRecoveryAssessment> {
+    const { data } = await axiosInstance.post<HubRecoveryAssessment>(r(endpoints.hubExport.preflight(id)))
+    return data
+  },
+  async inspectRecovery(id: number): Promise<HubCleanupInspection> {
+    const { data } = await axiosInstance.post<HubCleanupInspection>(r(endpoints.hubExport.inspectRecovery(id)))
+    return data
+  },
   async fetchOverview(targetNodeKey?: string | null): Promise<HubExportOverviewResponse> {
     const params = targetNodeKey ? { target_node_key: targetNodeKey } : undefined
     const { data } = await axiosInstance.get<HubExportOverviewResponse>(

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from endoreg_db.models import (
@@ -32,6 +32,7 @@ BASE = "/endoreg-api/media/studies/cohorts/"
 @pytest.fixture
 def setup_cohorts(master_key):
     user = User.objects.create_user(username="cohort-owner")
+    user.groups.add(Group.objects.get_or_create(name="patient:write")[0])
     center = Center.objects.create(name="cohort-center")
     PortalUserInfo.objects.create(user=user).centers.add(center)
     client = APIClient()
@@ -231,6 +232,7 @@ def test_definition_download_round_trips_shared_yaml_and_stays_outside_terminolo
     assert parsed.cohorts[0].dataset_refs == [parsed.datasets[0].definition_id]
     assert not settings.TERMINOLOGY_ROOT.exists()
     other = User.objects.create_user(username="definition-non-owner")
+    other.groups.add(Group.objects.get_or_create(name="patient:read")[0])
     client.force_authenticate(other)
     assert client.get(f"{BASE}{cohort_id}/definition/").status_code == 404
 
@@ -487,3 +489,62 @@ def test_invalid_persisted_definition_snapshot_rejected(setup_cohorts, snapshot)
             filters={"limit": 100},
             definition_snapshot=snapshot,
         )
+
+
+def test_saved_preview_uses_current_persisted_definition_and_scope(setup_cohorts):
+    client, user, center, datasets = setup_cohorts
+    first, _ = add_video(center, datasets[0])
+    second, _ = add_video(center, datasets[1])
+    saved = client.post(BASE, definition([datasets[0].pk]), format="json")
+    assert saved.status_code == 201
+    cohort = StudyCohort.objects.get(pk=saved.data["id"])
+    forged = {
+        **definition([datasets[1].pk]),
+        "cohort_id": cohort.pk,
+        "filters": {"has_video": False},
+    }
+    preview = client.post(f"{BASE}preview/", forged, format="json")
+    assert preview.status_code == 200, preview.data
+    assert [row["patient_examination_id"] for row in preview.data["cases"]] == [
+        first.pk
+    ]
+    cohort.datasets.set([datasets[1]])
+    preview = client.post(f"{BASE}preview/", forged, format="json")
+    assert [row["patient_examination_id"] for row in preview.data["cases"]] == [
+        second.pk
+    ]
+    cohort.filters = {"has_video": False}
+    cohort.save()
+    assert client.post(f"{BASE}preview/", forged, format="json").data["cases"] == []
+    PortalUserInfo.objects.get(user=user).centers.clear()
+    assert client.post(f"{BASE}preview/", forged, format="json").status_code == 403
+
+
+@pytest.mark.parametrize("debug", [False, True])
+def test_read_role_cannot_mutate_cohorts_and_debug_grants_no_role(
+    setup_cohorts, settings, debug
+):
+    settings.DEBUG = debug
+    client, user, _, _ = setup_cohorts
+    saved = client.post(BASE, definition(), format="json")
+    assert saved.status_code == 201
+    user.groups.set([Group.objects.get_or_create(name="patient:read")[0]])
+    assert client.get(BASE).status_code == 200
+    assert client.post(BASE, definition(), format="json").status_code == 403
+    assert (
+        client.put(
+            f"{BASE}{saved.data['id']}/", definition(), format="json"
+        ).status_code
+        == 403
+    )
+    assert client.delete(f"{BASE}{saved.data['id']}/").status_code == 403
+    assert (
+        client.post(f"{BASE}preview/", definition(), format="json").status_code == 200
+    )
+    user.groups.clear()
+    assert (
+        client.post(f"{BASE}preview/", definition(), format="json").status_code == 403
+    )
+    assert (
+        client.get("/endoreg-api/media/studies/case-export/options/").status_code == 403
+    )

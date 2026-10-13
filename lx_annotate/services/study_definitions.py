@@ -7,6 +7,7 @@ from pathlib import Path
 
 import yaml
 from django.conf import settings
+from endoreg_db.models.other.study_cohort import StudyCohort
 from endoreg_db.utils.file_operations import atomic_write_file, ensure_directory
 from lx_dtypes.models.contracts.study_setup import (
     StudyCohortDefinition,
@@ -14,8 +15,6 @@ from lx_dtypes.models.contracts.study_setup import (
     StudySetupDefinition,
 )
 from lx_dtypes.utils.study_setup_yaml import parse_study_setup_yaml
-
-from lx_annotate.models import StudyCohort
 
 
 def study_document(cohort: StudyCohort) -> StudySetupDefinition:

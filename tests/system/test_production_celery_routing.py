@@ -130,6 +130,51 @@ def test_production_settings_reject_unusable_identity_salt(
     assert "inline-test-salt-must-not-enable-production" not in result.stderr
 
 
+def test_production_settings_export_signing_generations(tmp_path: Path) -> None:
+    import yaml
+
+    env = _production_settings_environment(tmp_path)
+    active = tmp_path / "active-signing"
+    retiring = tmp_path / "retiring-signing"
+    manifest = tmp_path / "signing.yml"
+    active.write_text("active-production-signing-test-" * 3)
+    retiring.write_text("retiring-production-signing-test-" * 3)
+    manifest.write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "active": str(active),
+                "retiring": [str(retiring)],
+            }
+        )
+    )
+    for path in (active, retiring, manifest):
+        path.chmod(0o600)
+    env["DJANGO_SIGNING_KEYRING_FILE"] = str(manifest)
+    env.pop("DJANGO_SECRET_KEY", None)
+    env.pop("DJANGO_SECRET_KEY_FILE", None)
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            textwrap.dedent("""
+            from django.conf import settings
+            from django.core.signing import Signer
+            assert settings.SECRET_KEY == "active-production-signing-test-" * 3
+            assert settings.SECRET_KEY_FALLBACKS == ["retiring-production-signing-test-" * 3]
+            old = Signer(key=settings.SECRET_KEY_FALLBACKS[0], fallback_keys=[]).sign("probe")
+            assert Signer().unsign(old) == "probe"
+        """),
+        ],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_production_settings_export_hub_transfer_routes(tmp_path: Path) -> None:
     probe = textwrap.dedent(
         """

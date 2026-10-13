@@ -409,8 +409,9 @@ const showRetryImport = (file: FileItem) =>
 const showRepairVideo = (file: FileItem) =>
   !file.importOnly &&
   file.mediaType === 'video' &&
-  needsReimport(file) &&
-  canUseImportAction(file, 'safe_reimport')
+  canUseImportAction(file, 'safe_reimport') &&
+  (needsReimport(file) ||
+    ['validated', 'done_processing_anonymization'].includes(file.anonymizationStatus))
 
 const showReimportPdf = (file: FileItem) =>
   !file.importOnly &&
@@ -450,8 +451,7 @@ export const getOverviewActions = (file: FileItem): OverviewAction[] => {
       visible: showRepairVideo(file),
       label: 'Zustand reparieren',
       buttonClass: 'btn btn-outline-info',
-      title:
-        'Gespeicherten Zustand prüfen und reparieren; fehlende Metadaten werden nicht neu erzeugt',
+      title: 'Zustand prüfen oder für eine erneute Verarbeitung zurücksetzen',
       icon: 'ni ni-bold-right'
     },
     {

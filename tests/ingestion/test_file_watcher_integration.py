@@ -4,17 +4,13 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 from django.test import override_settings
 from endoreg_db.models import (
     Center,
-    InformationSource,
-    Label,
-    LabelType,
-    LabelVideoSegment,
     UploadJob,
-    VideoFile,
 )
 from endoreg_db.services.hub.ingest import process_watcher_file
 from endoreg_db.utils.file_operations import atomic_write_file
@@ -93,8 +89,6 @@ def test_inflight_slot_is_released_after_processing_finishes(monkeypatch, tmp_pa
     video_path = tmp_path / "video.mp4"
     video_path.write_bytes(b"test")
 
-    monkeypatch.setattr(handler, "_wait_for_file_stable", lambda path: False)
-
     handler.on_created(FileCreatedEvent(str(video_path)))
     assert len(executor.submissions) == 1
     assert str(video_path) in handler.in_flight_files
@@ -133,6 +127,7 @@ def test_process_existing_files_skips_temp_handoff_files(monkeypatch, tmp_path):
     submitted_count = service._process_existing_files()
 
     assert submitted_count == 2
+    assert executor.submissions[0][1] == (str(final_report),)
     submitted_paths = {args[0] for _fn, args, _kwargs in executor.submissions}
     assert submitted_paths == {str(final_video), str(final_report)}
 
@@ -146,6 +141,74 @@ def test_intake_zone_helpers_classify_paths():
     assert not file_watcher.is_intake_path(
         file_watcher.MANAGED_VAULT_ROOT / "videos" / "vault.mp4"
     )
+
+
+@pytest.mark.parametrize(
+    ("root_name", "suffix", "processor"),
+    [
+        ("INTAKE_REPORT_DIR", suffix, "_process_report")
+        for suffix in ("pdf", "txt", "TXT")
+    ]
+    + [
+        ("INTAKE_VIDEO_DIR", suffix, "_process_video")
+        for suffix in ("mp4", "avi", "mov", "mkv", "webm", "m4v")
+    ]
+    + [
+        ("INTAKE_PREANONYMIZED_DIR", suffix, "_process_pseudonymized")
+        for suffix in ("pdf", "txt", "mp4")
+    ],
+)
+def test_nested_format_scan_and_dispatch(
+    monkeypatch, tmp_path, root_name, suffix, processor
+):
+    root = tmp_path / root_name
+    monkeypatch.setattr(file_watcher, root_name, root)
+    handler, executor = make_handler(monkeypatch)
+    path = root / suffix.lower() / "batch" / f"document.{suffix}"
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"input")
+    calls = []
+    monkeypatch.setattr(handler, processor, calls.append)
+    service = file_watcher.FileWatcherService.__new__(file_watcher.FileWatcherService)
+    service.handler = handler
+    assert list(service._iter_unprocessed_files(root, {f".{suffix.lower()}"})) == [path]
+    handler._submit_file(str(path))
+    handler._submit_file(str(path))
+    assert len(executor.submissions) == 1
+    fn, args, kwargs = executor.submissions.pop()
+    fn(*args, **kwargs)
+    assert calls == [path]
+    assert handler.in_flight_files == set()
+
+
+@pytest.mark.parametrize(
+    "directory", [".staging", "batch.part", "_processing", "~backup"]
+)
+def test_nested_unpublished_reports_are_ignored(monkeypatch, tmp_path, directory):
+    handler, _ = make_handler(monkeypatch)
+    path = tmp_path / directory / "report.txt"
+    path.parent.mkdir()
+    path.write_text("input")
+    service = file_watcher.FileWatcherService.__new__(file_watcher.FileWatcherService)
+    service.handler = handler
+    assert (
+        list(service._iter_unprocessed_files(tmp_path, handler.report_extensions)) == []
+    )
+
+
+def test_nested_symlink_directory_is_not_processed(monkeypatch, tmp_path):
+    root = tmp_path / "reports"
+    root.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "report.txt").write_text("input")
+    (root / "txt").symlink_to(outside, target_is_directory=True)
+    monkeypatch.setattr(file_watcher, "INTAKE_REPORT_DIR", root)
+    handler, _ = make_handler(monkeypatch)
+    calls = []
+    monkeypatch.setattr(handler, "_process_report", calls.append)
+    handler._process_file(str(root / "txt" / "report.txt"))
+    assert calls == []
 
 
 def test_managed_vault_helper_classifies_paths():
@@ -238,7 +301,7 @@ def test_handler_process_report_delegates_to_shared_hub_ingest(monkeypatch, tmp_
     report_path.write_bytes(b"%PDF-1.4 delegated report")
 
     center = SimpleNamespace(center_key=handler.default_center_key)
-    upload_job = SimpleNamespace(is_successful=True, id="job-1")
+    upload_job = SimpleNamespace(is_complete=True, id="job-1")
 
     monkeypatch.setattr(handler, "_resolve_default_center", lambda: center)
     monkeypatch.setattr(
@@ -255,6 +318,10 @@ def test_handler_process_report_delegates_to_shared_hub_ingest(monkeypatch, tmp_
 
     try:
         handler._process_report(report_path)
+        # Hub ingest owns source cleanup. A file now at this path could be a
+        # new arrival and must not be deleted again by the watcher.
+        assert report_path.exists()
+        assert str(report_path) in handler.processed_files
     finally:
         report_path.unlink(missing_ok=True)
 
@@ -283,47 +350,74 @@ def test_handler_process_report_defers_not_ready_source(monkeypatch):
         report_path.unlink(missing_ok=True)
 
 
-def test_handler_process_video_delegates_to_shared_hub_ingest(monkeypatch, tmp_path):
-    handler = file_watcher.AutoProcessingHandler()
-    video_path = file_watcher.INTAKE_VIDEO_DIR / "delegated-video.mp4"
-    video_path.write_bytes(b"video-bytes")
-
+@pytest.mark.parametrize("complete", [False, True])
+def test_handler_process_video_delegates_to_shared_hub_ingest(
+    monkeypatch, tmp_path, complete
+):
+    handler, _ = make_handler(monkeypatch)
+    monkeypatch.setattr(file_watcher, "INTAKE_VIDEO_DIR", tmp_path)
+    video_path = tmp_path / "delegated-video.mp4"
+    video_path.write_bytes(b"original input")
     center = SimpleNamespace(center_key=handler.default_center_key)
-    upload_job = SimpleNamespace(
-        content_hash="video-hash",
-        processing_provenance={"content_hash": "video-hash"},
-    )
-    video_file = SimpleNamespace(
-        raw_video_hash="video-hash",
-        sensitive_meta=None,
-        active_raw_file=None,
-        pipe_1=lambda **kwargs: True,
-    )
+    calls = []
+
+    def ingest_video(**kwargs):
+        calls.append(kwargs)
+        # A new arrival after backend handoff belongs to the next import.
+        video_path.write_bytes(b"next input")
+        return SimpleNamespace(
+            is_complete=complete,
+            is_successful=complete,
+            id="job-1",
+            status="anonymized" if complete else "processing",
+            refresh_from_db=lambda **kwargs: None,
+        )
 
     monkeypatch.setattr(handler, "_resolve_default_center", lambda: center)
-    monkeypatch.setattr(
-        file_watcher,
-        "process_watcher_file",
-        lambda **kwargs: (
-            kwargs["file_path"] == video_path
-            and kwargs["file_type"] == "video"
-            and kwargs["center"] is center
-            and kwargs["processor_name"] == handler.default_processor
-            and kwargs["source_system"] == "watcher"
-            and upload_job
-        ),
-    )
-    monkeypatch.setattr(
-        file_watcher.VideoFile.objects,
-        "filter",
-        lambda **kwargs: SimpleNamespace(first=lambda: video_file),
-    )
-    monkeypatch.setattr(file_watcher, "unload_ollama_model", lambda model_name: None)
+    monkeypatch.setattr(handler, "_check_video_storage_capacity", lambda path: True)
+    monkeypatch.setattr(file_watcher, "process_watcher_file", ingest_video)
+    with patch(
+        "endoreg_db.services.video_files.temporal_inference.dispatch_video_temporal_inference"
+    ) as dispatch:
+        handler._process_file(str(video_path))
+    dispatch.assert_not_called()
+    assert calls == [
+        {
+            "file_path": video_path,
+            "file_type": "video",
+            "center": center,
+            "processor_name": handler.default_processor,
+            "prediction_model_name": handler.default_model,
+            "source_system": "watcher",
+        }
+    ]
+    assert video_path.read_bytes() == b"next input"
+    assert handler.in_flight_files == set()
 
-    try:
-        handler._process_video(video_path)
-    finally:
-        video_path.unlink(missing_ok=True)
+
+@pytest.mark.parametrize("kind", ["report", "video", "preanonymized"])
+def test_not_ready_source_can_be_scanned_again(monkeypatch, tmp_path, kind):
+    root_name = {
+        "report": "INTAKE_REPORT_DIR",
+        "video": "INTAKE_VIDEO_DIR",
+        "preanonymized": "INTAKE_PREANONYMIZED_DIR",
+    }[kind]
+    monkeypatch.setattr(file_watcher, root_name, tmp_path)
+    handler, _ = make_handler(monkeypatch)
+    source = tmp_path / ("input.mp4" if kind == "video" else "input.txt")
+    source.write_bytes(b"partial input")
+    monkeypatch.setattr(handler, "_resolve_default_center", lambda: object())
+    monkeypatch.setattr(handler, "_check_video_storage_capacity", lambda path: True)
+
+    def not_ready(**kwargs):
+        raise file_watcher.WatcherFileNotReadyError("still writing")
+
+    monkeypatch.setattr(file_watcher, "process_watcher_file", not_ready)
+    monkeypatch.setattr(file_watcher, "process_preanonymized_watcher_file", not_ready)
+    handler._process_file(str(source))
+    assert source.read_bytes() == b"partial input"
+    assert str(source) not in handler.processed_files
+    assert handler.in_flight_files == set()
 
 
 def test_scripts_file_watcher_compatibility_exports_handoff_helpers():
@@ -332,52 +426,14 @@ def test_scripts_file_watcher_compatibility_exports_handoff_helpers():
 
 
 @pytest.mark.django_db
-def test_prediction_pipeline_complete_requires_materialized_prediction_segments():
-    center = Center.objects.create(name="Watcher Prediction Center")
-    video = VideoFile.objects.create(
-        center=center, raw_video_hash="watcher-pred-ranges"
-    )
-    state = video.get_or_create_state()
-    state.initial_prediction_completed = True
-    state.lvs_created = True
-    state.save(update_fields=["initial_prediction_completed", "lvs_created"])
-    video.sequences = {"outside": [(1, 4)]}
-    video.save(update_fields=["sequences"])
-
-    assert file_watcher._prediction_pipeline_complete(video) is False
-
-    label_type = LabelType.objects.create(name="watcher-video")
-    label = Label.objects.create(name="outside", label_type=label_type)
-    prediction_source, _ = InformationSource.objects.get_or_create(name="prediction")
-    LabelVideoSegment.objects.create(
-        video_file=video,
-        label=label,
-        start_frame_number=1,
-        end_frame_number=4,
-        source=prediction_source,
-    )
-
-    assert file_watcher._prediction_pipeline_complete(video) is True
-
-
-@pytest.mark.django_db
-def test_prediction_pipeline_complete_allows_empty_prediction_result():
-    center = Center.objects.create(name="Watcher Empty Prediction Center")
-    video = VideoFile.objects.create(center=center, raw_video_hash="watcher-pred-empty")
-    state = video.get_or_create_state()
-    state.initial_prediction_completed = True
-    state.lvs_created = True
-    state.save(update_fields=["initial_prediction_completed", "lvs_created"])
-    video.sequences = {}
-    video.save(update_fields=["sequences"])
-
-    assert file_watcher._prediction_pipeline_complete(video) is True
-
-
-@pytest.mark.django_db
-def test_process_watcher_file_creates_upload_job_for_report(monkeypatch, tmp_path):
+@pytest.mark.parametrize(
+    ("suffix", "content_type"), [("pdf", "application/pdf"), ("txt", "text/plain")]
+)
+def test_process_watcher_file_creates_upload_job_for_report(
+    monkeypatch, tmp_path, suffix, content_type
+):
     center = Center.objects.create(name="Watcher Test Center")
-    report_path = tmp_path / "watcher-report.pdf"
+    report_path = tmp_path / f"watcher-report.{suffix}"
     report_path.write_bytes(b"%PDF-1.4 watcher report")
 
     monkeypatch.setattr(
@@ -392,6 +448,7 @@ def test_process_watcher_file_creates_upload_job_for_report(monkeypatch, tmp_pat
     )
 
     db_job = UploadJob.objects.get(id=upload_job.pk)
+    assert db_job.content_type == content_type
     assert db_job.source_center_id == center.pk
     assert db_job.ingest_mode == UploadJob.IngestMode.WATCHER
     assert db_job.source_system == "watcher"

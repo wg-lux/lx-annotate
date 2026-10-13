@@ -4,12 +4,13 @@ from __future__ import annotations
 import base64
 import hashlib
 import os
-from pathlib import Path
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.core.files.base import ContentFile
 from django.test import TestCase
 from django.utils import timezone
+from endoreg_db.exceptions import MediaOperationDeferred
 from endoreg_db.models import (
     Center,
     Frame,
@@ -21,12 +22,11 @@ from endoreg_db.models import (
     PatientExaminationReport,
     RawPdfFile,
     RawPdfState,
-    UploadJob,
     VideoFile,
     VideoState,
 )
+from endoreg_db.models.media.operation_lease import MediaOperationLease
 
-from lx_annotate.file_watcher import AutoProcessingHandler
 from lx_annotate.hub.hub_export_payloads import (
     build_transfer_payload,
     validate_transfer_payload,
@@ -35,6 +35,7 @@ from lx_annotate.models import OutboundHubTransferJob
 from tests.hub_payload_helpers import (
     create_hub_sensitive_meta,
     hub_report_pdf_bytes,
+    hub_video_artifact,
     verify_hub_report_artifact,
 )
 
@@ -67,7 +68,8 @@ class HubExportPayloadTests(TestCase):
         return validated
 
     def test_builds_and_validates_video_transfer_payload(self):
-        processed_hash = hashlib.sha256(b"processed-video").hexdigest()
+        source_hash, processed_bytes = hub_video_artifact()
+        processed_hash = hashlib.sha256(processed_bytes).hexdigest()
         state = VideoState.objects.create(
             anonymized=True,
             sensitive_meta_processed=True,
@@ -86,7 +88,7 @@ class HubExportPayloadTests(TestCase):
             center=self.center,
             state=state,
             sensitive_meta=create_hub_sensitive_meta(center=self.center),
-            raw_video_hash="video-hash-1",
+            raw_video_hash=source_hash,
             processed_video_hash=processed_hash,
             original_file_name="video-1.mp4",
             suffix=".mp4",
@@ -96,7 +98,7 @@ class HubExportPayloadTests(TestCase):
             width=320,
             height=240,
             processed_file=ContentFile(
-                b"processed-video",
+                processed_bytes,
                 name="video-1-processed.mp4",
             ),
         )
@@ -105,13 +107,13 @@ class HubExportPayloadTests(TestCase):
             video_file=video,
             source_center=self.center,
             target_node=self.hub_node,
-            transfer_key="site-node__video__video-hash-1__processed_v1",
+            transfer_key=f"site-node__video__{source_hash}__processed_v1",
         )
 
         payload = build_transfer_payload(outbound_job=job, source_node=self.site_node)
 
         self.assertEqual(payload["resource_kind"], "video")
-        self.assertEqual(payload["resource_hash"], "video-hash-1")
+        self.assertEqual(payload["resource_hash"], source_hash)
         self.assertEqual(
             payload["transfer_mode"],
             OutboundHubTransferJob.TransferMode.METADATA_AND_PROCESSED_MEDIA,
@@ -131,10 +133,16 @@ class HubExportPayloadTests(TestCase):
         self.assertEqual(validated["target_node"].node_key, "hub-node")
 
         # Reprocessing changes the exported artifact, never the import identity.
-        upload_job = UploadJob(content_hash=video.raw_video_hash)
         original_pk = video.pk
         original_key = payload["transfer_key"]
-        video.processed_file.save("reprocessed.mp4", ContentFile(b"reprocessed-video"))
+        repeated_source_hash, reprocessed_bytes = hub_video_artifact(reprocessed=True)
+        self.assertEqual(repeated_source_hash, source_hash)
+        with self.assertRaises(MediaOperationDeferred):
+            video.processed_file.save("reprocessed.mp4", ContentFile(reprocessed_bytes))
+        MediaOperationLease.objects.filter(video_id=video.pk).update(
+            expires_at=timezone.now() - timedelta(seconds=1)
+        )
+        video.processed_file.save("reprocessed.mp4", ContentFile(reprocessed_bytes))
         from endoreg_db.utils.hashs import get_file_hash
 
         video.processed_video_hash = get_file_hash(video.processed_file)
@@ -155,11 +163,7 @@ class HubExportPayloadTests(TestCase):
             video.raw_video_hash,
         )
         self.assertNotEqual(video.processed_video_hash, processed_hash)
-        resolved = AutoProcessingHandler._resolve_uploaded_video(
-            upload_job,
-            Path("original.mp4"),
-        )
-        assert resolved is not None
+        resolved = VideoFile.objects.get(raw_video_hash=source_hash, center=self.center)
         self.assertEqual(resolved.pk, original_pk)
 
     def test_rejects_inconsistent_processed_video_hash_metadata(self):
@@ -415,7 +419,8 @@ class HubExportPayloadTests(TestCase):
             build_transfer_payload(outbound_job=job, source_node=self.site_node)
 
     def test_serializes_positive_annotations_and_safe_final_report_metadata(self):
-        processed_hash = hashlib.sha256(b"processed-video").hexdigest()
+        source_hash, processed_bytes = hub_video_artifact()
+        processed_hash = hashlib.sha256(processed_bytes).hexdigest()
         state = VideoState.objects.create(
             anonymized=True,
             sensitive_meta_processed=True,
@@ -436,7 +441,7 @@ class HubExportPayloadTests(TestCase):
             state=state,
             sensitive_meta=sensitive_meta,
             examination=sensitive_meta.pseudo_examination,
-            raw_video_hash="video-hash-rows",
+            raw_video_hash=source_hash,
             processed_video_hash=processed_hash,
             original_file_name="Patient_Max_Mustermann.mp4",
             suffix=".mp4",
@@ -446,7 +451,7 @@ class HubExportPayloadTests(TestCase):
             width=320,
             height=240,
             processed_file=ContentFile(
-                b"processed-video",
+                processed_bytes,
                 name="Patient_Max_Mustermann_processed.mp4",
             ),
         )
@@ -526,7 +531,7 @@ class HubExportPayloadTests(TestCase):
             video_file=video,
             source_center=self.center,
             target_node=self.hub_node,
-            transfer_key="site-node__video__video-hash-rows__processed_v1",
+            transfer_key=f"site-node__video__{source_hash}__processed_v1",
         )
 
         payload = build_transfer_payload(outbound_job=job, source_node=self.site_node)
@@ -537,9 +542,9 @@ class HubExportPayloadTests(TestCase):
             [
                 {
                     "annotation_id": positive.pk,
-                    "raw_video_hash": "video-hash-rows",
+                    "raw_video_hash": source_hash,
                     "frame_number": 7,
-                    "frame_relative_path": "frames/video-hash-rows/00000007.jpg",
+                    "frame_relative_path": f"frames/{source_hash}/00000007.jpg",
                     "frame_timestamp": 0.28,
                     "label_name": "lesion_visible",
                     "value": True,
@@ -554,7 +559,7 @@ class HubExportPayloadTests(TestCase):
                 {
                     "source_node_key": "site-node",
                     "source_segment_id": segment.pk,
-                    "raw_video_hash": "video-hash-rows",
+                    "raw_video_hash": source_hash,
                     "start_frame_number": 5,
                     "end_frame_number_exclusive": 10,
                     "label_name": "lesion_visible",

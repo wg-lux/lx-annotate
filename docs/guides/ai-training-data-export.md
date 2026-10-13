@@ -226,6 +226,69 @@ labels with known annotations.
 
 ## Practical Checks
 
+### Protected release candidates
+
+`build_release_candidate` prepares processed MP4 videos and their saved frame
+and non-prediction segment annotations under the encrypted storage root. It
+does not authorize or perform public distribution. Readiness is tracked in
+[`ClinicalPublicationReadiness.yml`](../../feature-tracking/ClinicalPublicationReadiness.yml).
+
+Run `python manage.py build_release_candidate --help` in the application
+environment. Required arguments are `--plan-id`, `--user-id`, `--label-codes`,
+`--ages-at-examination`, and `--transformation-version`. The user must be active
+and authorized for every participating center. The plan must already exist.
+Both input files are YAML mappings: internal label ID to an explicitly selected
+public code, and video ID to curator-verified age at examination (0–125).
+Keep these input files inside the institution's protected evidence boundary.
+Do not derive age from generated display demographics. Missing or extra age
+entries fail; no birth date, exact age, calendar date, name, gender, center,
+staff identity, source filename or internal identifier enters the manifest.
+
+The output reports a random release ID and SHA-256 manifest digest, with
+`published: false`. Artifacts reside below `release_candidates/<release-id>/`;
+both the media and `manifest.json` are ciphertext. Read them only through
+`EncryptedStorage`. Each build assigns independent UUIDv4 patient/video IDs,
+stores five-year age bands (`age_band_start` through `age_band_start + 4`), and
+preserves the saved test holdout (`validation_fold: null`) and validation folds.
+Repeated media digests are rejected. Cross-site patient reconciliation remains
+an institutional prerequisite; local patient IDs do not establish it.
+
+The v1 allowlist is executable in `lx_annotate/schemas/publication.py`. Each
+video record includes its release/schema identity, random patient/video IDs,
+age band, fold, processed-byte checksum and size, integer presentation timestamps,
+rational time base, and half-open frame/segment labels. Unknown fields, floats,
+out-of-range coordinates and changed record digests fail validation. Public
+codes are restricted to ASCII letters, numbers, dots, underscores and hyphens.
+Canonical JSON sorts object keys, uses compact separators and ASCII encoding,
+preserves array order, and includes explicit nulls. Integers remain within the
+exact JavaScript integer range. A schema change requires a new version.
+
+The packager checks existing review/integrity gates and persisted canonical
+processed timelines, locks selected database records, streams storage-mediated
+plaintext directly into encrypted candidate storage, and checks the copied
+bytes against their approval digest. It writes and verifies the manifest last,
+then records `release_candidate_built` with the manifest digest and split-plan
+reference in the protected audit ledger. Failures remove candidate artifacts;
+cleanup errors propagate. Storage lock metadata may remain. A process kill can
+leave encrypted orphan candidates; it is not a successful build or release.
+
+Use `verify_release_candidate(storage=..., release_id=...,
+expected_manifest_sha256=...)` before consuming a candidate. Retain the expected
+digest independently in the evidence archive. This checks every record and
+media byte but is not a digital signature. Rebuilding creates new IDs; verifying
+the same frozen candidate is deterministic. Byte-identical media remain
+linkable across releases even with new IDs, so cross-release disclosure review
+is still required. The v1 command does not package PDFs, infer annotation
+adjudication, perform hidden-channel redaction, or integrate model training.
+
+Public release requires a separately accepted media/text/metadata review,
+scientific assessment, lawful-processing decision, and institutional authority
+bound to this exact manifest. No public download endpoint is enabled by this
+command. The current transaction spans media copying; large-cohort contention
+and crash recovery require operational evaluation before production adoption.
+
+### Training export checks
+
 Before handing an export to model training, verify:
 
 - The source video was anonymization-validated.

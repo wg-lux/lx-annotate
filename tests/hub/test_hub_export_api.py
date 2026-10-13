@@ -33,6 +33,7 @@ from lx_annotate.models import OutboundHubTransferJob
 from tests.hub_payload_helpers import (
     create_hub_sensitive_meta,
     hub_report_pdf_bytes,
+    hub_video_artifact,
     verify_hub_report_artifact,
 )
 
@@ -77,6 +78,8 @@ class HubExportApiTests(TestCase):
             center=self.center,
             state=self.report_state,
             pdf_hash="report-hash-1",
+            sensitive_meta=create_hub_sensitive_meta(center=self.center),
+            anonymized_text="Reviewed anonymous report",
             file=ContentFile(hub_report_pdf_bytes("raw"), name="report-1.pdf"),
             processed_file=ContentFile(
                 hub_report_pdf_bytes("processed"),
@@ -287,6 +290,41 @@ class HubExportApiTests(TestCase):
         self.assertNotIn("super-secret", item["last_error"])
         self.assertNotIn("/protected/clinical", item["last_error"])
 
+    def test_overview_explains_only_allowlisted_payload_failures(self) -> None:
+        from lx_annotate.hub.hub_export_jobs import _operator_failure_detail
+
+        job = OutboundHubTransferJob(
+            local_status=OutboundHubTransferJob.LocalStatus.FAILED,
+            failure_class=OutboundHubTransferJob.FailureClass.CONFIGURATION_REJECTION,
+        )
+        cases = [
+            (
+                "SensitiveMeta with patient_hash and examination_hash is required for hub transfer.",
+                "Complete metadata review",
+            ),
+            (
+                "SensitiveMeta must include patient_hash and examination_hash for hub transfer.",
+                "identity hashes are missing",
+            ),
+            (
+                "Actual frame provenance is unavailable for this recording",
+                "Retrying alone cannot repair",
+            ),
+            (
+                "Actual frame provenance is unavailable for this recording /private secret",
+                "configuration or payload was rejected",
+            ),
+        ]
+        for reason, expected in cases:
+            with self.subTest(reason=reason):
+                job.last_error = (
+                    "Hub transfer configuration or payload rejected: " + reason
+                )
+                detail = _operator_failure_detail(job)
+                self.assertIn(expected, detail)
+                self.assertNotIn("/private", detail)
+                self.assertNotIn("secret", detail)
+
     @patch("lx_annotate.tasks.run_outbound_hub_transfer_job_task.delay")
     def test_operator_retry_locks_base_row_and_requeues_same_failed_job(
         self,
@@ -345,6 +383,43 @@ class HubExportApiTests(TestCase):
         self.assertGreaterEqual(len(job_selects), 2)
         self.assertNotIn(" JOIN ", job_selects[0].upper())
         self.assertIn(" JOIN ", job_selects[1].upper())
+
+    @patch("lx_annotate.tasks.run_outbound_hub_transfer_job_task.delay")
+    def test_operator_retry_preserves_failure_until_identity_metadata_is_repaired(
+        self,
+        delay_mock,
+    ) -> None:
+        response = self.client.post(
+            "/api/hub-export/mark/",
+            data={"resources": [{"id": self.report.pk, "resource_kind": "report"}]},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        job = OutboundHubTransferJob.objects.get(raw_pdf_file=self.report)
+        job.local_status = OutboundHubTransferJob.LocalStatus.FAILED
+        job.failure_class = OutboundHubTransferJob.FailureClass.CONFIGURATION_REJECTION
+        job.last_error = (
+            "Hub transfer configuration or payload rejected: SensitiveMeta with "
+            "patient_hash and examination_hash is required for hub transfer."
+        )
+        job.save(update_fields=["local_status", "failure_class", "last_error"])
+        original_error, original_key = job.last_error, job.transfer_key
+        self.report.sensitive_meta = None
+        self.report.save(update_fields=["sensitive_meta"])
+
+        response = self.client.post(
+            f"/api/hub-export/jobs/{job.pk}/retry/",
+            data={},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("Complete metadata review", response.content.decode())
+        job.refresh_from_db()
+        self.assertEqual(job.local_status, OutboundHubTransferJob.LocalStatus.FAILED)
+        self.assertEqual(job.last_error, original_error)
+        self.assertEqual(job.transfer_key, original_key)
+        delay_mock.assert_not_called()
 
     @patch("lx_annotate.tasks.run_outbound_hub_transfer_job_task.delay")
     def test_operator_retry_rejects_non_failed_job(self, delay_mock) -> None:
@@ -607,7 +682,7 @@ class HubExportApiTests(TestCase):
     @override_settings(LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE=False)
     @patch("lx_annotate.tasks.run_outbound_hub_transfer_job_task.delay")
     def test_bulk_video_offload_retries_existing_failed_job(self, delay_mock):
-        processed_content = b"retryable-anonymized-video"
+        source_hash, processed_content = hub_video_artifact()
         processed_hash = hashlib.sha256(processed_content).hexdigest()
         video_state = VideoState.objects.create(
             anonymized=True,
@@ -625,7 +700,14 @@ class HubExportApiTests(TestCase):
         video = VideoFile.objects.create(
             center=self.center,
             state=video_state,
-            raw_video_hash="retryable-video-hash",
+            raw_video_hash=source_hash,
+            sensitive_meta=create_hub_sensitive_meta(center=self.center),
+            suffix=".mp4",
+            fps=25.0,
+            duration=1.0,
+            frame_count=25,
+            width=320,
+            height=240,
             processed_video_hash=processed_hash,
             original_file_name="retryable-video.mp4",
             processed_file=ContentFile(processed_content, name="retryable-video.mp4"),
@@ -674,6 +756,28 @@ class HubExportApiTests(TestCase):
         )
         self.assertEqual(job.last_error, "")
         delay_mock.assert_called_once_with(str(job.pk), self.site_node.node_key)
+
+        from endoreg_db.models.media.video.frame_provenance import VideoFrameProvenance
+
+        VideoFrameProvenance.objects.all().delete()
+        job.local_status = OutboundHubTransferJob.LocalStatus.FAILED
+        job.failure_class = OutboundHubTransferJob.FailureClass.CONFIGURATION_REJECTION
+        job.last_error = "Actual frame provenance is unavailable for this recording"
+        job.save(update_fields=["local_status", "failure_class", "last_error"])
+        delay_mock.reset_mock()
+        with self.captureOnCommitCallbacks(execute=True):
+            blocked = self.client.post(
+                "/api/hub-export/offload-eligible-videos/",
+                data={"target_node_key": "hub-node"},
+                content_type="application/json",
+            )
+        self.assertEqual(blocked.status_code, 200)
+        self.assertEqual(blocked.json()["queued_count"], 0)
+        self.assertEqual(blocked.json()["skipped_count"], 1)
+        job.refresh_from_db()
+        self.assertEqual(job.local_status, OutboundHubTransferJob.LocalStatus.FAILED)
+        self.assertEqual(job.transfer_key, original_transfer_key)
+        delay_mock.assert_not_called()
 
     def test_hub_export_overview_reports_not_ready_when_multiple_hubs_exist(self):
         NetworkNode.objects.create(
@@ -769,3 +873,206 @@ class HubExportApiTests(TestCase):
     def test_overview_denies_centerless_operator(self):
         PortalUserInfo.objects.get(user=self.operator).centers.clear()
         self.assertEqual(self.client.get("/api/hub-export/overview/").status_code, 403)
+
+    def _recovery_video(self, *, provenance=True, source=True):
+        raw_hash, content = hub_video_artifact()
+        digest = hashlib.sha256(content).hexdigest()
+        state = VideoState.objects.create(
+            anonymized=True,
+            sensitive_meta_processed=True,
+            processing_started=True,
+            anonymization_validated=True,
+            outside_segments_removed=True,
+            segment_annotations_created=True,
+            segment_annotations_validated=True,
+            ready_for_export=True,
+            ready_for_export_at=timezone.now(),
+            ready_for_export_by="test-suite",
+            processed_file_sha256=digest,
+        )
+        return VideoFile.objects.create(
+            center=self.center,
+            state=state,
+            sensitive_meta=create_hub_sensitive_meta(center=self.center),
+            raw_video_hash=raw_hash if provenance else "a" * 64,
+            raw_file=ContentFile(b"retained source", name="recovery-source.mp4")
+            if source
+            else "",
+            processed_video_hash=digest,
+            processed_file=ContentFile(content, name="recovery.mp4"),
+            fps=25,
+            duration=1,
+            frame_count=25,
+            width=320,
+            height=240,
+        )
+
+    @patch("lx_annotate.tasks.run_outbound_hub_transfer_job_task.delay")
+    def test_preflight_without_job_verifies_sender_payload_without_mutation(
+        self, dispatch
+    ):
+        from endoreg_db.models.media.operation_lease import MediaOperationLease
+
+        video = self._recovery_video()
+        before = VideoState.objects.filter(pk=video.state_id).values().get()
+        response = self.client.post(f"/api/hub-export/videos/{video.pk}/preflight/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["blockers"], [])
+        self.assertEqual(response.json()["verification"], "fresh_payload")
+        self.assertEqual(response.json()["allowed_actions"], ["mark"])
+        self.assertFalse(
+            OutboundHubTransferJob.objects.filter(video_file=video).exists()
+        )
+        self.assertFalse(MediaOperationLease.objects.filter(video=video).exists())
+        self.assertEqual(
+            before, VideoState.objects.filter(pk=video.state_id).values().get()
+        )
+        dispatch.assert_not_called()
+
+    def test_stored_ready_missing_provenance_offers_retained_source_repair(self):
+        video = self._recovery_video(provenance=False)
+        overview = self.client.get("/api/hub-export/overview/").json()
+        row = next(
+            item for item in overview["items"] if item["resource_kind"] == "video"
+        )
+        self.assertEqual(row["recovery"]["verification"], "stored_metadata")
+        response = self.client.post(f"/api/hub-export/videos/{video.pk}/preflight/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["blockers"][0]["code"], "provenance")
+        self.assertEqual(response.json()["allowed_actions"], ["repair_processing"])
+
+    def test_missing_source_provenance_recovery_requires_administrator(self):
+        video = self._recovery_video(provenance=False, source=False)
+        response = self.client.post(f"/api/hub-export/videos/{video.pk}/preflight/")
+        self.assertEqual(response.json()["allowed_actions"], ["administrator_recovery"])
+        video.refresh_from_db()
+        self.assertTrue(video.processed_file.storage.exists(video.processed_file.name))
+
+    def test_identity_and_export_proof_are_distinct_recovery_blockers(self):
+        video = self._recovery_video()
+        video.sensitive_meta = None
+        video.save(update_fields=["sensitive_meta"])
+        video.state.ready_for_export = False
+        video.state.save(update_fields=["ready_for_export"])
+        response = self.client.post(f"/api/hub-export/videos/{video.pk}/preflight/")
+        self.assertEqual(
+            {b["code"] for b in response.json()["blockers"]},
+            {"identity_evidence", "export_proof"},
+        )
+
+    def test_preflight_rejects_wrong_center_and_missing_permission(self):
+        video = self._recovery_video()
+        PortalUserInfo.objects.get(user=self.operator).centers.clear()
+        self.assertEqual(
+            self.client.post(
+                f"/api/hub-export/videos/{video.pk}/preflight/"
+            ).status_code,
+            403,
+        )
+        PortalUserInfo.objects.get(user=self.operator).centers.add(self.center)
+        self.operator.groups.clear()
+        self.assertEqual(
+            self.client.post(
+                f"/api/hub-export/videos/{video.pk}/preflight/"
+            ).status_code,
+            403,
+        )
+
+    def test_cleanup_inspection_requires_administrator(self):
+        video = self._recovery_video()
+        self.assertEqual(
+            self.client.post(
+                f"/api/hub-export/videos/{video.pk}/inspect-recovery/"
+            ).status_code,
+            403,
+        )
+
+    @patch("celery.current_app.control.inspect")
+    def test_cleanup_inspection_old_live_and_unknown_never_restarts_work(self, inspect):
+        from datetime import timedelta
+        from endoreg_db.models.media.video.video_processing import (
+            VideoProcessingHistory,
+        )
+        from endoreg_db.services.annotations.segment_validation_workflow import (
+            blackening_history_config,
+        )
+
+        self.operator.is_superuser = True
+        self.operator.save(update_fields=["is_superuser"])
+        video = self._recovery_video()
+        history = VideoProcessingHistory.objects.create(
+            video=video,
+            operation="reprocessing",
+            status="running",
+            task_id="cleanup-task",
+            config=blackening_history_config(
+                only_validated=False, queue="frame_extraction"
+            ),
+        )
+        VideoProcessingHistory.objects.filter(pk=history.pk).update(
+            created_at=timezone.now() - timedelta(days=2)
+        )
+        inspector = inspect.return_value
+        inspector.active_queues.return_value = {
+            "worker": [{"name": "frame_extraction"}]
+        }
+        inspector.active.return_value = {"worker": [{"id": "cleanup-task"}]}
+        inspector.reserved.return_value = {"worker": []}
+        inspector.scheduled.return_value = {"worker": []}
+        url = f"/api/hub-export/videos/{video.pk}/inspect-recovery/"
+        data = self.client.post(url).json()
+        self.assertTrue(data["stale_candidate"])
+        self.assertTrue(data["task_observed"])
+        self.assertFalse(data["recovery_allowed"])
+        inspector.active.return_value = None
+        data = self.client.post(url).json()
+        self.assertIsNone(data["task_observed"])
+        history.refresh_from_db()
+        self.assertEqual(history.status, "running")
+
+
+    def test_preflight_wrong_storage_key_rejects_without_altering_proof(self):
+        from endoreg_db.utils.encryption.encrypted import EncryptedStorage
+        video = self._recovery_video()
+        field = VideoFile._meta.get_field("processed_file")
+        storage = field.storage
+        with storage.open(video.processed_file.name, "rb") as handle:
+            content = handle.read()
+        digest = hashlib.sha256(content).hexdigest()
+        wrong = EncryptedStorage(location=storage.path(""), master_key=b"1" * 32)
+        with patch.object(field, "storage", wrong):
+            response = self.client.post(f"/api/hub-export/videos/{video.pk}/preflight/")
+        self.assertEqual(response.json()["blockers"][0]["code"], "integrity")
+        self.assertNotEqual(response.json()["verification"], "fresh_payload")
+        video.state.refresh_from_db()
+        self.assertEqual(video.state.processed_file_sha256, digest)
+        self.assertFalse(OutboundHubTransferJob.objects.filter(video_file=video).exists())
+
+    def test_preflight_requires_receipt_for_the_current_artifact(self):
+        from lx_dtypes.models.contracts.hub_media_envelope import HubMediaEnvelopeReceipt
+        video = self._recovery_video()
+        key = f"site-node__video__{video.raw_video_hash}__processed_v1"
+        receipt = HubMediaEnvelopeReceipt(
+            transfer_key=key, source_node_key="site-node", source_center_key=self.center.center_key,
+            target_node_key="hub-node", resource_kind="video", resource_hash=video.raw_video_hash,
+            processed_media_hash=video.processed_video_hash, plaintext_sha256=video.processed_video_hash,
+            plaintext_size=video.processed_file.size, ciphertext_size=video.processed_file.size,
+            recipient_key_id="a" * 64, ciphertext_sha256="b" * 64, envelope_fingerprint_sha256="c" * 64,
+            receiver_transfer_id="receiver-id", processing_decision="skip_processing_preserved_state",
+        )
+        job = OutboundHubTransferJob.objects.create(
+            video_file=video, source_center=self.center, target_node=self.hub_node,
+            resource_kind="video", transfer_key=key, local_status="completed",
+            remote_transfer_id="receiver-id", remote_transfer_status="applied",
+            envelope_receipt=receipt.model_dump(mode="json"),
+        )
+        url = f"/api/hub-export/videos/{video.pk}/preflight/"
+        self.assertTrue(self.client.post(url).json()["completed_current_artifact"])
+        stale_receipt = receipt.model_copy(update={"processed_media_hash": "d" * 64, "plaintext_sha256": "d" * 64})
+        job.envelope_receipt = stale_receipt.model_dump(mode="json")
+        job.save(update_fields=["envelope_receipt"])
+        result = self.client.post(url).json()
+        self.assertFalse(result["completed_current_artifact"])
+        self.assertEqual(result["blockers"][0]["code"], "receipt")
+        job.refresh_from_db()
+        self.assertEqual(job.local_status, "completed")

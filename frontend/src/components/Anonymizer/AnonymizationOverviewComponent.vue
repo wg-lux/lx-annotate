@@ -1,5 +1,6 @@
 <template>
   <div class="container-fluid py-4">
+    <HubRecoveryReturnLink />
     <div class="card">
       <div class="card-header pb-0 d-flex justify-content-between align-items-center">
         <h4 class="mb-0">Anonymisierungs-Übersicht</h4>
@@ -142,6 +143,14 @@
           </button>
         </div>
 
+        <VideoBackfillRepairPanel
+          v-if="repairVideoTarget"
+          :key="repairVideoTarget.id"
+          :video-id="repairVideoTarget.id"
+          @close="repairVideoTarget = null"
+          @repair="repairSelectedVideo"
+        />
+
         <!-- Files Table -->
         <div
           v-if="availableFiles.length"
@@ -183,7 +192,7 @@
                 :media-type-badge-class="mediaStore.getMediaTypeBadgeClass(file.mediaType)"
                 @retry-import="retryUploadJob"
                 @cancel-import="cancelImport"
-                @repair-video="reimportVideo"
+                @repair-video="repairVideoTarget = $event"
                 @reimport-pdf="reimportPdf"
                 @start-anonymization="startAnonymization"
                 @correct="correctFile"
@@ -293,8 +302,9 @@
 </template>
 
 <script setup lang="ts">
+import HubRecoveryReturnLink from '@/components/Export/HubRecoveryReturnLink.vue'
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAnonymizationValidationDraftStore } from '@/stores/anonymizationValidationDraftStore'
 import { useAnonymizationStore, type FileItem } from '@/stores/anonymizationStore'
 import { useMediaTypeStore, type MediaItem } from '@/stores/mediaTypeStore'
@@ -308,6 +318,7 @@ import {
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
 import AnonymizationOverviewRow from './AnonymizationOverviewRow.vue'
 import OverviewStorageSummary from './OverviewStorageSummary.vue'
+import VideoBackfillRepairPanel from './VideoBackfillRepairPanel.vue'
 import OverviewTranscodePanel from './OverviewTranscodePanel.vue'
 import {
   canCancelImport,
@@ -322,6 +333,7 @@ const runtimeLogger = createRuntimeLogger('anonymization-overview')
 
 // Composables
 const router = useRouter()
+const route = useRoute()
 const anonymizationStore = useAnonymizationStore()
 const validation_drafts = useAnonymizationValidationDraftStore()
 const mediaStore = useMediaTypeStore()
@@ -345,6 +357,7 @@ const getFileKey = (file: FileItem): string => {
 const isRefreshing = ref(false)
 const isRepairingVideoStates = ref(false)
 const videoStateRepairMessage = ref('')
+const repairVideoTarget = ref<FileItem | null>(null)
 const transcodeRefreshToken = ref(0)
 let bulkTranscodeAttempt: {
   option: TranscodeOption
@@ -370,6 +383,13 @@ const MONITORING_REFRESH_INTERVAL_MS = 15000
 
 // Computed properties
 const overviewFiles = computed(() => anonymizationStore.overview)
+watch([() => route?.query.video, overviewFiles], ([videoId, files]) => {
+  const id = Number(videoId)
+  if (Number.isSafeInteger(id) && id > 0) {
+    repairVideoTarget.value = files.find(file => file.mediaType === 'video' && Number(file.id) === id) ?? null
+  }
+}, { immediate: true })
+
 const availableFiles = computed(() =>
   overviewFiles.value.filter((file) => {
     const matchesResourceType =
@@ -587,6 +607,13 @@ const annotateFile = async (file: FileItem) => {
       video: String(file.id)
     }
   })
+}
+
+const repairSelectedVideo = async () => {
+  const file = repairVideoTarget.value
+  if (!file) return
+  repairVideoTarget.value = null
+  await reimportVideo(file)
 }
 
 const reimportVideo = async (file: FileItem) => {

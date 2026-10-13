@@ -10,11 +10,73 @@ tracking:
   state: active
   history: []
 source_documents:
+- path: docs/guides/ai-training-data-export.md
+  disposition: reference
+  note: Protected candidate contract; T01-T32 evidence map is docs/publications/infrastructure-software-evaluation.yml.
 - path: docs/guides/hub-export-workflow.md
   disposition: reference
   note: 'Related manuscript: docs/publications/clinical-data-workflow.yml; its readiness concerns are
     tracked here.'
 definition_of_done:
+- id: manuscript_identity_compatibility
+  category: security
+  title: Demographic identities remain migratable and detected ambiguities fail closed
+  acceptance:
+  - Preserve demographic matching and tested identity-secret migration, reject detected encoding or salt
+    ambiguity for manual review, and document that identical demographic inputs cannot distinguish people.
+  - Public candidate metadata uses five-year age bands from curator-verified ages and excludes birth dates
+    and generated display demographics.
+  - Clinical handling of reported identical-demographic patients and same-day encounters, retained mappings,
+    backup restoration and identity correction or erasure has approved evidence.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the T09-T14 responses and software tests, then obtain the outstanding clinical
+      and operational evidence. Do not change persisted identity algorithms without a reviewed migration.
+    timeout_seconds: 300
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: document
+      reference: docs/publications/infrastructure-software-evaluation.yml
+    - kind: test
+      reference: tests/hub/test_hub_export_worker.py
+    note: 'User selected demographic matching with detected ambiguity blocked for review, and five-year
+      public age bands. Existing identity/rotation regression run: 106 tests plus 4 subtests passed. Final
+      candidate/split run: 37 passed. Clinical collision reconciliation, full erasure/retention and deployed
+      restoration remain unverified. 2026-10-12: sender reuses backend metadata erasure before its first
+      HTTP request; erasure failure prevents registration. Full worker suite 26 passed, followed by 2
+      focused tests with final backend guards. Final integration needs sibling endoreg-db and lx-data-models
+      source; installed lx-dtypes lacks finding_extraction. Coordinated package rollout required. No live
+      deployment or full erasure acceptance.'
+    assessed_by: codex-identity-audit-20261012
+    assessed_at: '2026-10-12T10:15:42.692361Z'
+- id: manuscript_live_drills
+  category: operations
+  title: Named sender and receiver complete independent transport and restore drills
+  acceptance:
+  - Record exact installed releases and successful runtime prerequisites on gc-02 and gs-02 before testing.
+  - Verify real certificate negotiation, identity and proxy-header rejection, replay, acknowledgement
+    loss, interruption and restoration using an approved disposable artifact.
+  - Complete an approved isolated cleanup and restore drill without altering required retained clinical
+    copies.
+  required: true
+  verification:
+    kind: manual
+    instructions: Resolve named runtime blockers and deployment-source readiness first, then follow the
+      LuxNix enrollment and restore runbooks. Local in-process tests are insufficient.
+    timeout_seconds: 300
+  assessment:
+    status: blocked
+    evidence:
+    - kind: document
+      reference: docs/publications/infrastructure-software-evaluation.yml
+    note: gc-02 certificate issuer failed and transfer worker inactive; gs-02 migration failed, web and
+      nginx inactive. Receiver SSH succeeds. Installed receiver lx-annotate1.4.2/endoreg-db1.4.1/lx-dtypes0.4.1
+      differs from local tested dependencies. No live transfer, certificate rotation, cleanup or restore
+      drill executed.
+    assessed_by: codex-infra-todos-20261007
+    assessed_at: '2026-10-07T15:01:09.394160Z'
 - id: encrypted_consumption
   category: security
   title: Encrypted artifacts are consumed within a bounded plaintext scope
@@ -140,6 +202,11 @@ definition_of_done:
   - Public-release metadata allowlist, dataset-scoped identifiers, patient-disjoint partitions and immutable
     release manifest require a separately defined and reviewed contract; training exports are not public-release
     approval.
+  - Protected processed-video candidates use strict versioned fields, random release-scoped identifiers,
+    saved patient partitions, reviewed label codes and artifact-bound canonical timelines (T21, T25).
+  - Candidate copies remain encrypted; changed or unreadable media, stale membership, invalid annotations
+    and manifest tampering fail closed. Public distribution requires separate manifest-bound acceptance
+    (T22, T26).
   required: true
   verification:
     kind: manual
@@ -148,17 +215,23 @@ definition_of_done:
       are not public-release approval.
     timeout_seconds: 300
   assessment:
-    status: blocked
+    status: in_progress
     evidence:
     - kind: review
       reference: docs/publications/clinical-data-workflow.yml Sections 4.7 and 5; docs/guides/ai-training-data-export.md
         documents internal identifiers, annotators and timestamps in research exports.
-    note: The manuscript proposes a public-release workflow, but the reviewed training exports are not
-      evidence of an implemented public-release policy. A reviewed field allowlist, identifier/linkage
-      contract, partition policy and release authorization model are needed before implementation-specific
-      acceptance tests can be defined.
-    assessed_by: codex-infrastructure-manuscript-20260910
-    assessed_at: '2026-09-10T07:49:48.524588Z'
+    - kind: code
+      reference: lx_annotate/schemas/publication.py; lx_annotate/services/publication.py; lx_annotate/management/commands/build_release_candidate.py
+    - kind: test
+      reference: 'Final candidate/partition suite: 37 passed in 43.48s; includes 18 candidate tests for
+        encrypted copying, five-year age bands, membership, digests, wrong keys, tamper, cleanup/error
+        propagation, audit proof and management command.'
+    note: Protected processed-MP4 candidate implementation passes focused verification. Public distribution,
+      PDF packaging, clinical adjudication/provenance, model-training integration, cross-site identity
+      reconciliation, manifest signing and institutional acceptance remain unresolved; not production
+      or publication approval.
+    assessed_by: codex-infra-todos-20261007
+    assessed_at: '2026-10-07T15:06:57.917959Z'
 - id: clinical_disclosure_evaluation
   category: requirements
   title: Clinical disclosure and annotation quality have measured evidence
@@ -220,7 +293,11 @@ definition_of_done:
     - kind: review
       reference: Ruff check passed for both new test modules and both changed hub modules; git diff --check
         passed for production changes; final test run 112 passed, 19 blocked by an existing import mismatch.
-    note: Exact positive and negative regression outcomes, production changes and remaining blockers are
-      recorded here. No claim of production or publication readiness is made.
-    assessed_by: codex-infrastructure-manuscript-20260910
-    assessed_at: '2026-09-10T07:49:53.130780Z'
+    - kind: document
+      reference: docs/publications/infrastructure-software-evaluation.yml
+    note: Records 44 final audit tests, 106 backend tests plus 4 subtests, 114 application integration
+      tests before final age extension, and 37 final candidate/partition tests. Counts overlap and must
+      not be summed. Historical 89-case baseline is preserved separately. All 32 manuscript TODOs receive
+      an evidence-based response; open clinical, operational and implementation work is explicit.
+    assessed_by: codex-infra-todos-20261007
+    assessed_at: '2026-10-07T15:01:12.001301Z'

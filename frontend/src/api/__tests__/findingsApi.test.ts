@@ -129,12 +129,14 @@ describe('findingsApi canonical routing', () => {
     await findingsApi.createPatientFinding({
       patientExamination: 35,
       finding: 7,
+      instance_id: '8c723c8e-f27b-4173-af83-523558af184b',
       classifications: [{ classification: 11, choice: 44 }]
     })
 
     expect(hoisted.axios.post).toHaveBeenCalledWith('/dtypes-api/patient-findings/', {
       patientExamination: 35,
       finding: 7,
+      instance_id: '8c723c8e-f27b-4173-af83-523558af184b',
       classifications: [{ classification: 11, choice: 44 }]
     })
   })

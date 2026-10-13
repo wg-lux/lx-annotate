@@ -7,6 +7,91 @@ import pytest
 from lx_annotate.settings import config
 
 
+@pytest.mark.parametrize("retiring", [True, False])
+def test_signing_manifest_overlap_and_retirement(tmp_path, monkeypatch, retiring):
+    import yaml
+    from django.core.signing import BadSignature, Signer
+
+    for variable in (
+        "DJANGO_SECRET_KEY",
+        "DJANGO_SECRET_KEY_FILE",
+        "DJANGO_SIGNING_KEYRING_FILE",
+    ):
+        monkeypatch.delenv(variable, raising=False)
+    active = tmp_path / "active"
+    previous = tmp_path / "previous"
+    active.write_text("new-signing-generation-" * 3)
+    previous.write_text("previous-signing-generation-" * 3)
+    manifest = tmp_path / "ring.yml"
+    manifest.write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "active": str(active),
+                "retiring": [str(previous)] if retiring else [],
+            }
+        )
+    )
+    for path in (active, previous, manifest):
+        path.chmod(0o600)
+    monkeypatch.setenv("DJANGO_SIGNING_KEYRING_FILE", str(manifest))
+    # A configured ring takes precedence even over a missing single-key file.
+    monkeypatch.setenv("DJANGO_SECRET_KEY_FILE", str(tmp_path / "missing"))
+    resolved = config.load_config()
+    signer = Signer(
+        key=resolved.secret_key, fallback_keys=resolved.secret_key_fallbacks
+    )
+    old_signature = Signer(key=previous.read_text(), fallback_keys=[]).sign("payload")
+    assert signer.unsign(signer.sign("payload")) == "payload"
+    if retiring:
+        assert signer.unsign(old_signature) == "payload"
+    else:
+        with pytest.raises(BadSignature):
+            signer.unsign(old_signature)
+
+
+@pytest.mark.parametrize(
+    "failure", ["missing", "public", "malformed", "duplicate", "unsafe_key"]
+)
+def test_signing_manifest_fails_closed(tmp_path, monkeypatch, failure):
+    import yaml
+
+    key = tmp_path / "active"
+    key.write_text(
+        "short" if failure == "unsafe_key" else "new-signing-generation-" * 3
+    )
+    key.chmod(0o600)
+    manifest = tmp_path / "ring.yml"
+    if failure != "missing":
+        manifest.write_text(
+            "["
+            if failure == "malformed"
+            else yaml.safe_dump(
+                {
+                    "schema_version": 1,
+                    "active": str(key),
+                    "retiring": [],
+                }
+            )
+            + ("schema_version: 1\n" if failure == "duplicate" else "")
+        )
+        manifest.chmod(0o644 if failure == "public" else 0o600)
+    monkeypatch.setenv("DJANGO_SIGNING_KEYRING_FILE", str(manifest))
+    monkeypatch.setenv("DJANGO_SECRET_KEY", "otherwise-valid-single-key-" * 3)
+    with pytest.raises(ValueError):
+        config.load_config()
+
+
+def test_no_signing_manifest_disables_implicit_fallbacks(monkeypatch):
+    monkeypatch.delenv("DJANGO_SIGNING_KEYRING_FILE", raising=False)
+    monkeypatch.delenv("DJANGO_SECRET_KEY_FILE", raising=False)
+    resolved = config.AppConfig(
+        secret_key="existing-inline-signing-key-" * 3,
+        secret_key_fallbacks=["unrequested-retiring-key-" * 3],
+    )
+    assert resolved.secret_key_fallbacks == []
+
+
 def test_runtime_root_loaded_before_endoreg_path_resolution(tmp_path, monkeypatch):
     from endoreg_db.utils.paths import clear_runtime_paths_cache, get_runtime_paths
 

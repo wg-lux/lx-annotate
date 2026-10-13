@@ -15,6 +15,14 @@ repos:
         pass_filenames: false
   - repo: local
     hooks:
+      - id: structure-manifests
+        name: hierarchical context schema and drift
+        entry: python scripts/lint_structure.py
+        language: python
+        additional_dependencies: [PyYAML==6.0.3]
+        pass_filenames: false
+        always_run: true
+
       - id: pyright
         name: pyright type check
         entry: pyright lx_annotate

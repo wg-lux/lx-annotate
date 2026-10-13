@@ -1349,7 +1349,7 @@ function applyLoadedIndicationOptions(
     .sort((a, b) => a.label.localeCompare(b.label, 'de', { numeric: true }))
   if (!indicationOptions.value.length && errors.length) {
     indicationOptionsError.value =
-      'Indikationsoptionen konnten aus der aktuellen Backend-Antwort nicht abgeleitet werden.'
+      'Die Indikationen konnten nicht geladen werden. Bitte versuchen Sie es erneut.'
   }
   indicationOptionsLoading.value = false
 }
@@ -1378,12 +1378,19 @@ async function loadIndicationCatalog(context?: EditorContext) {
   }
 
   if (selectedExaminationId) {
-    const pathSuffix = patientExaminationId
-      ? `examinations/${String(selectedExaminationId)}/indications/?patient_examination_id=${String(patientExaminationId)}`
-      : `examinations/${String(selectedExaminationId)}/indications/`
-    await appendIndicationPayload(indicationPayloads, loadErrors, 'indication-catalog', () =>
-      axiosInstance.get<unknown>(dtypesApi(pathSuffix))
-    )
+    await appendIndicationPayload(indicationPayloads, loadErrors, 'indication-catalog', () => {
+      const catalogContext = getCatalogContext()
+      return axiosInstance.get<unknown>(
+        dtypesApi(`examinations/${String(selectedExaminationId)}/indications/`),
+        {
+          params: {
+            module_name: catalogContext?.moduleName,
+            module_version: catalogContext?.moduleVersion,
+            patient_examination_id: patientExaminationId || undefined
+          }
+        }
+      )
+    })
     await appendIndicationPayload(indicationPayloads, loadErrors, 'examination-detail', () =>
       axiosInstance.get(dtypesApi(`examinations/${String(selectedExaminationId)}/`))
     )

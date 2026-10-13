@@ -1,5 +1,6 @@
 <template>
   <div class="container-fluid py-4">
+    <HubRecoveryReturnLink />
     <VideoFeedbackAlert
       v-if="errorMessage"
       :message="errorMessage"
@@ -688,9 +689,21 @@
           v-if="selectedVideoId && isSelectedVideoViewable"
           class="mt-3"
         >
+          <div
+            v-if="selectedVideoId === validationRequestVideoId"
+            id="segment-validation-waiting-message"
+            class="alert alert-info validation-submitted-alert"
+            data-test="segment-validation-waiting"
+            role="status"
+            aria-live="assertive"
+          >
+            <strong>Validierung wurde gestartet.</strong>
+            Die Segmentprüfung und das Schwärzen der Outside-Frames laufen. Bitte warten Sie und
+            drücken Sie den Button nicht erneut. Der Status wird automatisch aktualisiert.
+          </div>
           <!-- Show different button based on annotation status -->
           <div
-            v-if="isAnnotationFinished(selectedVideoId)"
+            v-else-if="isAnnotationFinished(selectedVideoId)"
             class="alert alert-success d-flex align-items-center validation-status-alert"
           >
             <i class="ni ni-check-bold ni-2x me-3 text-success"></i>
@@ -786,18 +799,6 @@
             "
             class="d-flex flex-column align-items-center"
           >
-            <div
-              v-if="selectedVideoId === validationRequestVideoId"
-              id="segment-validation-waiting-message"
-              class="alert alert-info validation-submitted-alert"
-              data-test="segment-validation-waiting"
-              role="status"
-              aria-live="assertive"
-            >
-              <strong>Validierung wurde gestartet.</strong>
-              Die Segmentprüfung und das Schwärzen der Outside-Frames laufen. Bitte warten Sie und
-              drücken Sie den Button nicht erneut. Der Status wird automatisch aktualisiert.
-            </div>
             <button
               class="btn validation-action-button d-inline-flex align-items-center justify-content-center gap-2"
               :class="{
@@ -947,6 +948,7 @@
 </template>
 
 <script setup lang="ts">
+import HubRecoveryReturnLink from '@/components/Export/HubRecoveryReturnLink.vue'
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import {
   useVideoStore,
@@ -3105,12 +3107,10 @@ const prepareSegmentValidationPayload = (
     return null
   }
 
-  validationRequestVideoId.value = videoId
   const confirmed = confirm(
     `Möchten Sie alle ${String(segments.length)} Segmentannotationen von Video ${String(videoId)} als validiert markieren? Außerhalb-Segmente werden danach geschwärzt.`
   )
   if (!confirmed) {
-    validationRequestVideoId.value = null
     return null
   }
   return segments
@@ -3160,6 +3160,10 @@ const submitVideoSegments = async (videoId: number): Promise<void> => {
   }
 
   try {
+    clearErrorMessage()
+    clearSuccessMessage()
+    validationRequestVideoId.value = videoId
+    await nextTick()
     const response = await axiosInstance.post(
       r(`media/videos/${String(videoId)}/segments/validate-bulk/`),
       {

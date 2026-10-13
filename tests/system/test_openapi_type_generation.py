@@ -15,11 +15,25 @@ from endoreg_db.urls import ninja_api
 from endoreg_db.urls import urlpatterns as endoreg_urlpatterns
 from endoreg_db.utils.file_operations import atomic_write_file
 
-from lx_annotate.management.commands.export_openapi import API_DEFINITIONS
+from lx_annotate.management.commands.export_openapi import (
+    API_DEFINITIONS,
+    _merge_endoreg_schemas,
+)
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 FRONTEND_ROOT = REPOSITORY_ROOT / "frontend"
 TYPESCRIPT_BINARY = FRONTEND_ROOT / "node_modules/.bin/openapi-typescript"
+
+
+def test_shared_canonical_schemas_merge_only_when_identical() -> None:
+    canonical = {"components": {"schemas": {"JsonValue": {"type": "string"}}}}
+    assert (
+        _merge_endoreg_schemas(canonical, canonical)["components"]
+        == canonical["components"]
+    )
+    incompatible = {"components": {"schemas": {"JsonValue": {"type": "number"}}}}
+    with pytest.raises(CommandError, match="duplicate Endoreg schema names"):
+        _merge_endoreg_schemas(canonical, incompatible)
 
 
 def _export(output_dir: Path, typescript_output_dir: Path | None = None) -> None:
@@ -225,3 +239,43 @@ def test_case_documents_schema_describes_records_not_a_string(tmp_path: Path) ->
         assert documents["type"] == "array"
         assert documents["items"]["type"] == "object"
         assert documents["readOnly"] is True
+
+
+def test_drf_schema_has_unambiguous_operations_and_patient_parameters(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from drf_spectacular.drainage import GENERATOR_STATS
+
+    from lx_annotate.openapi import ApplicationAutoSchema
+
+    GENERATOR_STATS.reset()
+    schema = SchemaGenerator(patterns=endoreg_urlpatterns).get_schema(
+        request=None,
+        public=True,
+    )
+    assert capsys.readouterr().err == ""
+    operation_ids = []
+    patient_parameters: set[str] = set()
+    for path, path_item in schema["paths"].items():
+        for method, operation in path_item.items():
+            if method not in {
+                "get",
+                "post",
+                "put",
+                "patch",
+                "delete",
+                "head",
+                "options",
+            }:
+                continue
+            operation_ids.append(operation["operationId"])
+            for parameter in operation.get("parameters", []):
+                if parameter["name"] in {"medication_id", "schedule_id"}:
+                    patient_parameters.add(parameter["name"])
+                    assert parameter["in"] == "path"
+                    assert parameter["required"] is True
+                    assert parameter["schema"]["type"] == "integer"
+    assert patient_parameters == {"medication_id", "schedule_id"}
+    assert len(operation_ids) == len(set(operation_ids))
+    for (path, method), operation_id in ApplicationAutoSchema.operation_ids.items():
+        assert schema["paths"][path][method.lower()]["operationId"] == operation_id

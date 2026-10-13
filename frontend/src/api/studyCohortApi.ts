@@ -101,11 +101,12 @@ export async function saveStudyCohort(
 
 export async function previewStudyCohort(
   definition: StudyCohortDefinition,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  cohort_id?: number
 ): Promise<StudyCohortPreviewResponse> {
   const { data } = await axiosInstance.post<StudyCohortPreviewResponse>(
     r(`${path}preview/`),
-    payload(definition),
+    { ...payload(definition), ...(cohort_id === undefined ? {} : { cohort_id }) },
     { signal }
   )
   return data

@@ -1,6 +1,79 @@
 {
   "components": {
     "schemas": {
+      "BuildReportTemplatePackageRequest": {
+        "properties": {
+          "depends_on": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Depends On",
+            "type": "array"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "examination": {
+            "minLength": 1,
+            "title": "Examination",
+            "type": "string"
+          },
+          "file_name": {
+            "minLength": 1,
+            "title": "File Name",
+            "type": "string"
+          },
+          "module_name": {
+            "minLength": 1,
+            "title": "Module Name",
+            "type": "string"
+          },
+          "module_version": {
+            "minLength": 1,
+            "title": "Module Version",
+            "type": "string"
+          },
+          "package_name": {
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "title": "Package Name",
+            "type": "string"
+          },
+          "package_version": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^\\S+$",
+            "title": "Package Version",
+            "type": "string"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/ReportTemplateBuilderSection"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "template_name": {
+            "minLength": 1,
+            "title": "Template Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "module_name",
+          "module_version",
+          "file_name",
+          "template_name",
+          "examination",
+          "package_name",
+          "package_version",
+          "depends_on"
+        ],
+        "title": "BuildReportTemplatePackageRequest",
+        "type": "object"
+      },
       "ImportTerminologyBundleResponse": {
         "properties": {
           "counts": {
@@ -1208,7 +1281,21 @@
             "type": "array"
           },
           "value": {
-            "title": "Value"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValidationScalar"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationScalar"
+            },
+            "title": "Values",
+            "type": "array"
           }
         },
         "title": "ReportTemplateBuilderValidatorCondition",
@@ -1383,6 +1470,22 @@
         ],
         "title": "TerminologyBundleVersion",
         "type": "object"
+      },
+      "ValidationScalar": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
       }
     }
   },
@@ -2104,6 +2207,28 @@
           }
         },
         "summary": "Builder Report Templates By Examination"
+      }
+    },
+    "/dtypes-api/report-templates/builder/package": {
+      "post": {
+        "operationId": "lx_dtypes_django_api_report_template_routes_export_report_template_package",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuildReportTemplatePackageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Export Report Template Package"
       }
     },
     "/dtypes-api/report-templates/builder/templates": {

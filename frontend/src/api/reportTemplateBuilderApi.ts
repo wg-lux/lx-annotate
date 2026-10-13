@@ -20,7 +20,8 @@ export type ReportTemplateBuilderFindingValidator = {
   condition: {
     classification: string
     comparator: 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'not_in'
-    value: string
+    value: string | number
+    values?: string[]
     thenRequires: string[]
   }
 }
@@ -60,6 +61,53 @@ export type SaveReportTemplateDefinitionResponse = {
   recordsWritten: number
   lifecycleStatus: ReportTemplateLifecycleStatus
   readiness: ReportTemplateBuilderReadiness | null
+}
+
+export type BuildReportTemplatePackageRequest = SaveReportTemplateDefinitionRequest & {
+  packageName: string
+  packageVersion: string
+  dependsOn: string[]
+}
+
+export type ReportTemplatePackage = {
+  packageName: string
+  configYaml: string
+  reportTemplatesYaml: string
+  validatorsYaml: string
+}
+
+export async function buildReportTemplatePackage(
+  payload: BuildReportTemplatePackageRequest
+): Promise<ReportTemplatePackage> {
+  const { data } = await axiosInstance.post<unknown>(
+    dtypesApi('report-templates/builder/package'),
+    payload
+  )
+  if (!isRecord(data) || (data.packageName ?? data.package_name) !== payload.packageName) {
+    throw new Error('Die Paketantwort gehört nicht zum angeforderten Studienpaket.')
+  }
+  const result = {
+    packageName: payload.packageName,
+    configYaml: responseString(data.configYaml ?? data.config_yaml, '', 'configYaml'),
+    reportTemplatesYaml: responseString(
+      data.reportTemplatesYaml ?? data.report_templates_yaml,
+      '',
+      'reportTemplatesYaml'
+    ),
+    validatorsYaml: responseString(
+      data.validatorsYaml ?? data.validators_yaml,
+      '',
+      'validatorsYaml'
+    )
+  }
+  if (
+    ![result.configYaml, result.reportTemplatesYaml, result.validatorsYaml].every((text) =>
+      text.trim()
+    )
+  ) {
+    throw new Error('Die Paketantwort enthält nicht alle drei YAML-Dateien.')
+  }
+  return result
 }
 
 export type ReportTemplateBuilderReadiness = {

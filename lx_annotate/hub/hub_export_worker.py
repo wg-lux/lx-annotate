@@ -12,6 +12,9 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from endoreg_db.models import NetworkNode
+from endoreg_db.services.privacy.quality_evaluation import (
+    clear_sensitive_meta_direct_identifiers,
+)
 from lx_dtypes.models.contracts.hub_media_envelope import (
     HubMediaEnvelopeReceipt,
     validate_hub_media_receipt_matches_envelope,
@@ -677,6 +680,10 @@ def run_outbound_transfer_job(
             source_node=source_node,
         )
         validate_transfer_payload(payload)
+        resource = outbound_job.video_file or outbound_job.raw_pdf_file
+        if resource is None or resource.sensitive_meta is None:
+            raise ValueError("Hub transfer requires committed sensitive metadata")
+        clear_sensitive_meta_direct_identifiers(resource.sensitive_meta)
         registration_url = hub_transfer_url(outbound_job.target_node)
     except (NetworkNode.DoesNotExist, InvalidTag, OSError, ValueError) as exc:
         return mark_outbound_job_failure(

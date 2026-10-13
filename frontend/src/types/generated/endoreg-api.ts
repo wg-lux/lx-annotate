@@ -321,6 +321,22 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/endoreg-api/cases/research-export/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cases_research_export_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/endoreg-api/cases/{case_id}/": {
         parameters: {
             query?: never;
@@ -388,6 +404,38 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/endoreg-api/cases/{case_id}/research-export/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cases_research_export_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/endoreg-api/cases/{case_id}/select-examination/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cases_select_examination_retrieve"];
+        put?: never;
+        post: operations["cases_select_examination_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/endoreg-api/centers/": {
         parameters: {
             query?: never;
@@ -433,6 +481,54 @@ export type paths = {
         get: operations["check_pe_exist_retrieve"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/endoreg-api/examination-revisions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["examination_revisions_list"];
+        put?: never;
+        post: operations["examination_revisions_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/endoreg-api/examination-revisions/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["examination_revisions_retrieve"];
+        put: operations["examination_revisions_update"];
+        post?: never;
+        delete: operations["examination_revisions_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/endoreg-api/examination-revisions/{id}/finalize/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["examination_revisions_finalize_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -606,7 +702,7 @@ export type paths = {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["media_management_force_remove_destroy"];
+        delete: operations["media_management_force_remove_legacy_destroy"];
         options?: never;
         head?: never;
         patch?: never;
@@ -622,7 +718,7 @@ export type paths = {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["media_management_force_remove_destroy_2"];
+        delete: operations["media_management_force_remove_destroy"];
         options?: never;
         head?: never;
         patch?: never;
@@ -857,15 +953,15 @@ export type paths = {
             cookie?: never;
         };
         /** @description PDF media management API for listing and detail retrieval. */
-        get: operations["media_pdfs_retrieve"];
+        get: operations["media_pdfs_list"];
         put?: never;
         post?: never;
         /** @description PDF media management API for listing and detail retrieval. */
-        delete: operations["media_pdfs_destroy"];
+        delete: operations["media_pdfs_collection_destroy"];
         options?: never;
         head?: never;
         /** @description PDF media management API for listing and detail retrieval. */
-        patch: operations["media_pdfs_partial_update"];
+        patch: operations["media_pdfs_collection_partial_update"];
         trace?: never;
     };
     "/endoreg-api/media/pdfs/sensitive-metadata/": {
@@ -881,7 +977,7 @@ export type paths = {
          *     List sensitive metadata for reports only.
          *     Replaces legacy /api/pdf/sensitivemeta/list/
          */
-        get: operations["media_pdfs_sensitive_metadata_retrieve"];
+        get: operations["media_pdfs_sensitive_metadata_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -898,15 +994,15 @@ export type paths = {
             cookie?: never;
         };
         /** @description PDF media management API for listing and detail retrieval. */
-        get: operations["media_pdfs_retrieve_2"];
+        get: operations["media_pdfs_retrieve"];
         put?: never;
         post?: never;
         /** @description PDF media management API for listing and detail retrieval. */
-        delete: operations["media_pdfs_destroy_2"];
+        delete: operations["media_pdfs_destroy"];
         options?: never;
         head?: never;
         /** @description PDF media management API for listing and detail retrieval. */
-        patch: operations["media_pdfs_partial_update_2"];
+        patch: operations["media_pdfs_partial_update"];
         trace?: never;
     };
     "/endoreg-api/media/pdfs/{id}/apply-redactions/": {
@@ -946,6 +1042,23 @@ export type paths = {
          *     Return read-only case resolution hints for a validated or pending PDF.
          */
         post: operations["media_pdfs_case_resolution_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/endoreg-api/media/pdfs/{id}/finding-suggestions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Base class that supplies the mandatory fallback schema metadata. */
+        get: operations["media_pdfs_finding_suggestions_retrieve"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1017,7 +1130,7 @@ export type paths = {
          *     Get or update sensitive metadata for a report.
          *     report-scoped: Uses report ID to locate related sensitive metadata.
          */
-        get: operations["media_pdfs_sensitive_metadata_retrieve_2"];
+        get: operations["media_pdfs_sensitive_metadata_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1218,6 +1331,24 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/endoreg-api/media/studies/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Base class that supplies the mandatory fallback schema metadata. */
+        get: operations["media_studies_list"];
+        put?: never;
+        /** @description Base class that supplies the mandatory fallback schema metadata. */
+        post: operations["media_studies_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/endoreg-api/media/studies/cohort-preview/": {
         parameters: {
             query?: never;
@@ -1235,6 +1366,60 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/endoreg-api/media/studies/table-mappings/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Base class that supplies the mandatory fallback schema metadata. */
+        get: operations["media_studies_table_mappings_list"];
+        put?: never;
+        /** @description Base class that supplies the mandatory fallback schema metadata. */
+        post: operations["media_studies_table_mappings_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/endoreg-api/media/studies/table-mappings/{mapping_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Base class that supplies the mandatory fallback schema metadata. */
+        get: operations["media_studies_table_mappings_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/endoreg-api/media/studies/{study_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Base class that supplies the mandatory fallback schema metadata. */
+        get: operations["media_studies_retrieve"];
+        /** @description Base class that supplies the mandatory fallback schema metadata. */
+        put: operations["media_studies_update"];
+        post?: never;
+        /** @description Base class that supplies the mandatory fallback schema metadata. */
+        delete: operations["media_studies_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/endoreg-api/media/videos/": {
         parameters: {
             query?: never;
@@ -1243,7 +1428,7 @@ export type paths = {
             cookie?: never;
         };
         /** @description Video media management API for listing and detail operations. */
-        get: operations["media_videos_retrieve"];
+        get: operations["media_videos_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1273,7 +1458,7 @@ export type paths = {
          *       "information_source_name": "prediction_annotation"
          *     }
          */
-        post: operations["media_videos_ensure_prediction_segment_annotations_create"];
+        post: operations["media_videos_ensure_prediction_segment_annotations_bulk_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1299,7 +1484,7 @@ export type paths = {
          *       "information_source_name": "manual_annotation"
          *     }
          */
-        post: operations["media_videos_ensure_segment_annotations_create"];
+        post: operations["media_videos_ensure_segment_annotations_bulk_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1350,6 +1535,24 @@ export type paths = {
         get: operations["media_videos_labels_list_retrieve"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/endoreg-api/media/videos/masks/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description List or create immutable device mask profiles. */
+        get: operations["media_videos_masks_retrieve"];
+        put?: never;
+        /** @description List or create immutable device mask profiles. */
+        post: operations["media_videos_masks_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1441,7 +1644,7 @@ export type paths = {
             cookie?: never;
         };
         /** @description Base class that supplies the mandatory fallback schema metadata. */
-        get: operations["media_videos_retrieve_2"];
+        get: operations["media_videos_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1578,7 +1781,7 @@ export type paths = {
          *       "information_source_name": "prediction_annotation"
          *     }
          */
-        post: operations["media_videos_ensure_prediction_segment_annotations_create_2"];
+        post: operations["media_videos_ensure_prediction_segment_annotations_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1603,7 +1806,24 @@ export type paths = {
          *       "information_source_name": "manual_annotation"
          *     }
          */
-        post: operations["media_videos_ensure_segment_annotations_create_2"];
+        post: operations["media_videos_ensure_segment_annotations_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/endoreg-api/media/videos/{id}/finding-suggestions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Base class that supplies the mandatory fallback schema metadata. */
+        get: operations["media_videos_finding_suggestions_retrieve"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1816,7 +2036,7 @@ export type paths = {
          *
          *     Modern replacement for: /api/video-segments/?video_id=<pk>
          */
-        get: operations["media_videos_segments_retrieve"];
+        get: operations["media_videos_segments_list"];
         put?: never;
         /**
          * @description Video-specific segments endpoint.
@@ -2124,7 +2344,7 @@ export type paths = {
          *
          *     Modern replacement for: /api/video-segments/<segment_id>/
          */
-        get: operations["media_videos_segments_retrieve_2"];
+        get: operations["media_videos_segments_retrieve"];
         put?: never;
         post?: never;
         /**
@@ -2799,6 +3019,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/endoreg-api/patients/{id}/medical-terminology/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description List canonical medication, laboratory and unit definitions for entry. */
+        get: operations["patients_medical_terminology_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/endoreg-api/patients/{id}/medication-schedules/": {
         parameters: {
             query?: never;
@@ -3121,7 +3358,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        get: operations["settings_application_model_training_runs_retrieve"];
+        get: operations["settings_application_model_training_runs_list"];
         put?: never;
         post: operations["settings_application_model_training_runs_create"];
         delete?: never;
@@ -3137,7 +3374,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        get: operations["settings_application_model_training_runs_retrieve_2"];
+        get: operations["settings_application_model_training_runs_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3153,7 +3390,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        get: operations["settings_application_network_nodes_retrieve"];
+        get: operations["settings_application_network_nodes_list"];
         put?: never;
         post: operations["settings_application_network_nodes_create"];
         delete?: never;
@@ -3169,7 +3406,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        get: operations["settings_application_network_nodes_retrieve_2"];
+        get: operations["settings_application_network_nodes_retrieve"];
         put?: never;
         post?: never;
         delete: operations["settings_application_network_nodes_destroy"];
@@ -3331,6 +3568,22 @@ export type JsonValue = null | string | number | boolean | JsonValue[] | {
 };
 export type components = {
     schemas: {
+        /** AiModelReference */
+        AiModelReference: {
+            /** Description */
+            description: string | null;
+            /** Model Subtype */
+            model_subtype: string | null;
+            model_type: components["schemas"]["CatalogIdentity"] | null;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "ai_model";
+            video_segmentation_labelset: components["schemas"]["CatalogIdentity"] | null;
+        };
         Case: {
             /** Format: date-time */
             admission_date: string;
@@ -3376,12 +3629,1023 @@ export type components = {
              */
             readonly updated_at: string;
         };
+        /** CaseExaminationSelection */
+        CaseExaminationSelection: {
+            /** Expected Version */
+            expected_version: number;
+            /** Revision Id */
+            revision_id: number;
+        };
+        /** CaseStudyExportSelection */
+        CaseStudyExportSelection: {
+            /** Case Ids */
+            case_ids: string[];
+            /**
+             * Output
+             * @default xlsx
+             */
+            output: components["schemas"]["OutputEnum"];
+        };
+        /** CatalogIdentity */
+        CatalogIdentity: {
+            /** Name */
+            name: string;
+            /**
+             * Version
+             * @default null
+             */
+            version: number | null;
+        };
         /** @description Serializer für Center-Modell */
         Center: {
             readonly center_key: string;
             readonly display_name: string;
             readonly id: number;
             readonly name: string;
+        };
+        /** CenterReference */
+        CenterReference: {
+            /** Center Key */
+            center_key: string;
+            /** Display Name */
+            display_name: string;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "center";
+        };
+        /** CenterResourceReference */
+        CenterResourceReference: {
+            center: components["schemas"]["CatalogIdentity"];
+            /** Name */
+            name: string | null;
+            /** Quantity */
+            quantity: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "center_resource";
+            resource: components["schemas"]["CatalogIdentity"];
+            transport_emission_factor: components["schemas"]["CatalogIdentity"] | null;
+            unit: components["schemas"]["CatalogIdentity"] | null;
+            use_emission_factor: components["schemas"]["CatalogIdentity"] | null;
+            /** Year */
+            year: number;
+        };
+        /** CenterWasteReference */
+        CenterWasteReference: {
+            center: components["schemas"]["CatalogIdentity"];
+            emission_factor: components["schemas"]["CatalogIdentity"] | null;
+            /** Quantity */
+            quantity: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "center_waste";
+            unit: components["schemas"]["CatalogIdentity"] | null;
+            waste: components["schemas"]["CatalogIdentity"];
+            /** Year */
+            year: number;
+        };
+        /**
+         * ClassificationNumericalDescriptorDefinition
+         * @description Persisted numerical descriptor definition used by the YAML knowledge base.
+         */
+        ClassificationNumericalDescriptorDefinition: {
+            /**
+             * Default
+             * @default null
+             */
+            default: number | null;
+            /**
+             * Description
+             * @default null
+             */
+            description: string | null;
+            /**
+             * Distribution
+             * @default null
+             */
+            distribution: ("normal" | "uniform") | null;
+            /**
+             * Max
+             * @default null
+             */
+            max: number | null;
+            /**
+             * Mean
+             * @default null
+             */
+            mean: number | null;
+            /**
+             * Min
+             * @default null
+             */
+            min: number | null;
+            /** Required */
+            required: boolean;
+            /**
+             * Std
+             * @default null
+             */
+            std: number | null;
+            /** Unit */
+            unit: string;
+        };
+        /**
+         * ClassificationSubcategoryDefinition
+         * @description Persisted knowledge-base definition accepted by EndoReg 0.2.9.
+         */
+        ClassificationSubcategoryDefinition: {
+            /** Choices */
+            choices: string[];
+            /**
+             * Default
+             * @default null
+             */
+            default: string | null;
+            /**
+             * Description
+             * @default null
+             */
+            description: string | null;
+            /**
+             * Probability
+             * @default null
+             */
+            probability: number[] | null;
+            /**
+             * Required
+             * @default null
+             */
+            required: boolean | null;
+        };
+        /** ContraindicationReference */
+        ContraindicationReference: {
+            /** Description */
+            description: string | null;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "contraindication";
+        };
+        /** @enum {string} */
+        CountDistributionTypeEnum: "uniform" | "normal";
+        /** DateValueDistributionReference */
+        DateValueDistributionReference: {
+            /** Date Max */
+            date_max: string | null;
+            /** Date Mean */
+            date_mean: string | null;
+            /** Date Min */
+            date_min: string | null;
+            /** Date Std Dev */
+            date_std_dev: number | null;
+            /** Description */
+            description: string | null;
+            /** Distribution Type */
+            distribution_type: components["schemas"]["CountDistributionTypeEnum"];
+            /** Mode */
+            mode: components["schemas"]["ModeEnum"];
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "date_value_distribution";
+            /** Timedelta Days Max */
+            timedelta_days_max: number | null;
+            /** Timedelta Days Mean */
+            timedelta_days_mean: number | null;
+            /** Timedelta Days Min */
+            timedelta_days_min: number | null;
+            /** Timedelta Days Std Dev */
+            timedelta_days_std_dev: number | null;
+        };
+        /** DiseaseClassificationChoiceReference */
+        DiseaseClassificationChoiceReference: {
+            disease_classification: components["schemas"]["CatalogIdentity"];
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "disease_classification_choice";
+        };
+        /** DiseaseClassificationReference */
+        DiseaseClassificationReference: {
+            disease: components["schemas"]["CatalogIdentity"];
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "disease_classification";
+        };
+        /** DiseaseReference */
+        DiseaseReference: {
+            /** Name */
+            name: string;
+            /** Numerical Descriptors */
+            numerical_descriptors: {
+                [key: string]: components["schemas"]["ClassificationNumericalDescriptorDefinition"];
+            };
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "disease";
+            /** Subcategories */
+            subcategories: {
+                [key: string]: components["schemas"]["ClassificationSubcategoryDefinition"];
+            };
+        };
+        /** DtypesRecordClassificationChoiceDescriptorPayload */
+        DtypesRecordClassificationChoiceDescriptorPayload: {
+            /** Classification Choice Descriptor */
+            classification_choice_descriptor: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at?: string;
+            /** Descriptor Value */
+            descriptor_value: string | number | boolean | string[];
+            /** External Ids */
+            external_ids?: {
+                [key: string]: string;
+            };
+            /** Patient Finding Classification Choice */
+            patient_finding_classification_choice: string;
+            /** Tags */
+            tags?: string | string[];
+            /** Uuid */
+            uuid?: string;
+        };
+        /** DtypesRecordClassificationChoicePayload */
+        DtypesRecordClassificationChoicePayload: {
+            /** Classification */
+            classification: string;
+            /** Classification Choice */
+            classification_choice: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at?: string;
+            /** External Ids */
+            external_ids?: {
+                [key: string]: string;
+            };
+            /** Patient Finding Classification Choice Descriptors */
+            patient_finding_classification_choice_descriptors?: components["schemas"]["DtypesRecordClassificationChoiceDescriptorPayload"][];
+            /** Patient Finding Classifications */
+            patient_finding_classifications: string;
+            /** Tags */
+            tags?: string | string[];
+            /** Uuid */
+            uuid?: string;
+        };
+        /** DtypesRecordClassificationGroupPayload */
+        DtypesRecordClassificationGroupPayload: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at?: string;
+            /** External Ids */
+            external_ids?: {
+                [key: string]: string;
+            };
+            /** Patient Finding */
+            patient_finding: string;
+            /** Patient Finding Classification Choices */
+            patient_finding_classification_choices?: components["schemas"]["DtypesRecordClassificationChoicePayload"][];
+            /** Tags */
+            tags?: string | string[];
+            /** Uuid */
+            uuid?: string;
+        };
+        /** DtypesRecordFindingPayload */
+        DtypesRecordFindingPayload: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at?: string;
+            /** External Ids */
+            external_ids?: {
+                [key: string]: string;
+            };
+            /** Finding */
+            finding: string;
+            /** Patient Examination */
+            patient_examination: string;
+            /** Patient Finding Classifications */
+            patient_finding_classifications?: components["schemas"]["DtypesRecordClassificationGroupPayload"][];
+            /** Patient Finding Interventions */
+            patient_finding_interventions?: components["schemas"]["DtypesRecordInterventionGroupPayload"][];
+            /** Tags */
+            tags?: string | string[];
+            /** Uuid */
+            uuid?: string;
+        };
+        /** DtypesRecordIndicationClassificationDescriptorPayload */
+        DtypesRecordIndicationClassificationDescriptorPayload: {
+            /** Classification Choice Descriptor */
+            classification_choice_descriptor: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at?: string;
+            /** Descriptor Value */
+            descriptor_value: string | number | boolean | string[];
+            /** External Ids */
+            external_ids?: {
+                [key: string]: string;
+            };
+            /** Patient Indication Classification */
+            patient_indication_classification: string;
+            /** Tags */
+            tags?: string | string[];
+            /** Uuid */
+            uuid?: string;
+        };
+        /** DtypesRecordIndicationClassificationPayload */
+        DtypesRecordIndicationClassificationPayload: {
+            /** Classification */
+            classification: string;
+            /** Classification Choice */
+            classification_choice: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at?: string;
+            /** External Ids */
+            external_ids?: {
+                [key: string]: string;
+            };
+            /** Patient Indication */
+            patient_indication: string;
+            /** Patient Indication Classification Descriptors */
+            patient_indication_classification_descriptors?: components["schemas"]["DtypesRecordIndicationClassificationDescriptorPayload"][];
+            /** Tags */
+            tags?: string | string[];
+            /** Uuid */
+            uuid?: string;
+        };
+        /** DtypesRecordIndicationPayload */
+        DtypesRecordIndicationPayload: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at?: string;
+            /** External Ids */
+            external_ids?: {
+                [key: string]: string;
+            };
+            /** Indication */
+            indication: string;
+            /** Patient Examination */
+            patient_examination: string;
+            /** Patient Indication Classifications */
+            patient_indication_classifications?: components["schemas"]["DtypesRecordIndicationClassificationPayload"][];
+            /** Tags */
+            tags?: string | string[];
+            /** Uuid */
+            uuid?: string;
+        };
+        /** DtypesRecordInterventionGroupPayload */
+        DtypesRecordInterventionGroupPayload: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at?: string;
+            /** External Ids */
+            external_ids?: {
+                [key: string]: string;
+            };
+            /** Patient Finding */
+            patient_finding: string;
+            /** Patient Finding Interventions */
+            patient_finding_interventions?: components["schemas"]["DtypesRecordInterventionPayload"][];
+            /** Tags */
+            tags?: string | string[];
+            /** Uuid */
+            uuid?: string;
+        };
+        /** DtypesRecordInterventionPayload */
+        DtypesRecordInterventionPayload: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at?: string;
+            /** External Ids */
+            external_ids?: {
+                [key: string]: string;
+            };
+            /** Intervention */
+            intervention: string;
+            /** Patient Finding Interventions */
+            patient_finding_interventions: string;
+            /** Tags */
+            tags?: string | string[];
+            /** Uuid */
+            uuid?: string;
+        };
+        /**
+         * DtypesRecordPersistencePayload
+         * @description Complete, strict JSON contract persisted by an LXDM host application.
+         */
+        DtypesRecordPersistencePayload: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at?: string;
+            /**
+             * Date
+             * @default null
+             */
+            date: string | null;
+            /** Examination */
+            examination: string;
+            /** Examiners */
+            examiners?: string | string[];
+            /** External Ids */
+            external_ids?: {
+                [key: string]: string;
+            };
+            /**
+             * Knowledge Base Module
+             * @default null
+             */
+            knowledge_base_module: string | null;
+            /**
+             * Knowledge Base Version
+             * @default null
+             */
+            knowledge_base_version: string | null;
+            /** Patient */
+            patient: string;
+            /** Patient Findings */
+            patient_findings?: components["schemas"]["DtypesRecordFindingPayload"][];
+            /** Patient Indications */
+            patient_indications?: components["schemas"]["DtypesRecordIndicationPayload"][];
+            /** Tags */
+            tags?: string | string[];
+            /** Uuid */
+            uuid?: string;
+        };
+        /** EmissionFactorReference */
+        EmissionFactorReference: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "emission_factor";
+            unit: components["schemas"]["CatalogIdentity"] | null;
+            /** Value */
+            value: number;
+        };
+        /** EndoscopeReference */
+        EndoscopeReference: {
+            center: components["schemas"]["CatalogIdentity"] | null;
+            endoscope_type: components["schemas"]["CatalogIdentity"] | null;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "endoscope";
+            /** Sn */
+            sn: string;
+        };
+        /** EndoscopeTypeReference */
+        EndoscopeTypeReference: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "endoscope_type";
+        };
+        /** EndoscopyProcessorReference */
+        EndoscopyProcessorReference: {
+            /** Centers */
+            centers: components["schemas"]["CatalogIdentity"][];
+            /** Endoscope Image Height */
+            endoscope_image_height: number;
+            /** Endoscope Image Width */
+            endoscope_image_width: number;
+            /** Endoscope Image X */
+            endoscope_image_x: number;
+            /** Endoscope Image Y */
+            endoscope_image_y: number;
+            /** Endoscope Sn Height */
+            endoscope_sn_height: number | null;
+            /** Endoscope Sn Width */
+            endoscope_sn_width: number | null;
+            /** Endoscope Sn X */
+            endoscope_sn_x: number | null;
+            /** Endoscope Sn Y */
+            endoscope_sn_y: number | null;
+            /** Endoscope Type Height */
+            endoscope_type_height: number | null;
+            /** Endoscope Type Width */
+            endoscope_type_width: number | null;
+            /** Endoscope Type X */
+            endoscope_type_x: number | null;
+            /** Endoscope Type Y */
+            endoscope_type_y: number | null;
+            /** Examination Date Height */
+            examination_date_height: number;
+            /** Examination Date Width */
+            examination_date_width: number;
+            /** Examination Date X */
+            examination_date_x: number;
+            /** Examination Date Y */
+            examination_date_y: number;
+            /** Examination Time Height */
+            examination_time_height: number | null;
+            /** Examination Time Width */
+            examination_time_width: number | null;
+            /** Examination Time X */
+            examination_time_x: number | null;
+            /** Examination Time Y */
+            examination_time_y: number | null;
+            /** Image Height */
+            image_height: number;
+            /** Image Width */
+            image_width: number;
+            /** Name */
+            name: string;
+            /** Patient Dob Height */
+            patient_dob_height: number;
+            /** Patient Dob Width */
+            patient_dob_width: number;
+            /** Patient Dob X */
+            patient_dob_x: number;
+            /** Patient Dob Y */
+            patient_dob_y: number;
+            /** Patient First Name Height */
+            patient_first_name_height: number;
+            /** Patient First Name Width */
+            patient_first_name_width: number;
+            /** Patient First Name X */
+            patient_first_name_x: number;
+            /** Patient First Name Y */
+            patient_first_name_y: number;
+            /** Patient Last Name Height */
+            patient_last_name_height: number;
+            /** Patient Last Name Width */
+            patient_last_name_width: number;
+            /** Patient Last Name X */
+            patient_last_name_x: number;
+            /** Patient Last Name Y */
+            patient_last_name_y: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "endoscopy_processor";
+        };
+        /** EventReference */
+        EventReference: {
+            /** Description */
+            description: string | null;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "event";
+        };
+        /** ExaminationAnnotationSnapshot */
+        ExaminationAnnotationSnapshot: {
+            /** Annotation Id */
+            annotation_id: number;
+            /** Annotator */
+            annotator: string;
+            /** Artifact Sha256 */
+            artifact_sha256: string;
+            /**
+             * Float Value
+             * @default null
+             */
+            float_value: number | null;
+            /** Frame Id */
+            frame_id: number;
+            /** Frame Number */
+            frame_number: number;
+            /**
+             * Information Source Id
+             * @default null
+             */
+            information_source_id: number | null;
+            /**
+             * Information Source Name
+             * @default null
+             */
+            information_source_name: string | null;
+            /** Label Name */
+            label_name: string;
+            /**
+             * Model Meta Id
+             * @default null
+             */
+            model_meta_id: number | null;
+            /** Presentation Timestamp */
+            presentation_timestamp: number;
+            /** Stream Time Base Den */
+            stream_time_base_den: number;
+            /** Stream Time Base Num */
+            stream_time_base_num: number;
+            /** Value */
+            value: boolean;
+        };
+        /**
+         * ExaminationClinicalContent
+         * @description Editable complete clinical snapshot, including repeated descriptors and values.
+         */
+        ExaminationClinicalContent: {
+            examination: components["schemas"]["DtypesRecordPersistencePayload"];
+            /** Lab Values */
+            lab_values?: components["schemas"]["PatientLabValueCreate"][];
+            /** Medications */
+            medications?: components["schemas"]["PatientMedicationCreate"][];
+        };
+        /** ExaminationEvidence */
+        ExaminationEvidence: {
+            /** Annotations */
+            annotations?: components["schemas"]["ExaminationAnnotationSnapshot"][];
+            /** Lab Value Ids */
+            lab_value_ids?: number[];
+            /** Medication Ids */
+            medication_ids?: number[];
+            /**
+             * Processed Sha256
+             * @default null
+             */
+            processed_sha256: string | null;
+            /**
+             * Report Id
+             * @default null
+             */
+            report_id: number | null;
+            /**
+             * Report Template Hash
+             * @default null
+             */
+            report_template_hash: string | null;
+            /**
+             * Report Template Name
+             * @default null
+             */
+            report_template_name: string | null;
+            /**
+             * Report Template Version
+             * @default null
+             */
+            report_template_version: string | null;
+            /**
+             * Report Text
+             * @default null
+             */
+            report_text: string | null;
+            /**
+             * Report Version
+             * @default null
+             */
+            report_version: number | null;
+            /** Table Import Ids */
+            table_import_ids?: number[];
+            /**
+             * Video Id
+             * @default null
+             */
+            video_id: number | null;
+        };
+        /** ExaminationEvidenceSelection */
+        ExaminationEvidenceSelection: {
+            /**
+             * Annotator
+             * @default null
+             */
+            annotator: string | null;
+            /** Lab Value Ids */
+            lab_value_ids?: number[];
+            /** Medication Ids */
+            medication_ids?: number[];
+            /**
+             * Report Id
+             * @default null
+             */
+            report_id: number | null;
+            /**
+             * Video Id
+             * @default null
+             */
+            video_id: number | null;
+        };
+        /** ExaminationIndicationClassificationChoiceReference */
+        ExaminationIndicationClassificationChoiceReference: {
+            /** Name */
+            name: string;
+            /** Numerical Descriptors */
+            numerical_descriptors: {
+                [key: string]: components["schemas"]["ClassificationNumericalDescriptorDefinition"];
+            };
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "examination_indication_classification_choice";
+            /** Subcategories */
+            subcategories: {
+                [key: string]: components["schemas"]["ClassificationSubcategoryDefinition"];
+            };
+        };
+        /** ExaminationIndicationClassificationReference */
+        ExaminationIndicationClassificationReference: {
+            /** Choices */
+            choices: components["schemas"]["CatalogIdentity"][];
+            /** Description */
+            description: string | null;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "examination_indication_classification";
+        };
+        /** ExaminationIndicationReference */
+        ExaminationIndicationReference: {
+            /** Classifications */
+            classifications: components["schemas"]["CatalogIdentity"][];
+            /** Description */
+            description: string | null;
+            /** Expected Interventions */
+            expected_interventions: components["schemas"]["CatalogIdentity"][];
+            /** Information Sources */
+            information_sources: components["schemas"]["CatalogIdentity"][];
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "examination_indication";
+        };
+        /** ExaminationReference */
+        ExaminationReference: {
+            /** Description */
+            description: string | null;
+            /** Examination Times */
+            examination_times: components["schemas"]["CatalogIdentity"][];
+            /** Examination Types */
+            examination_types: components["schemas"]["CatalogIdentity"][];
+            /** Findings */
+            findings: components["schemas"]["CatalogIdentity"][];
+            /** Indications */
+            indications: components["schemas"]["CatalogIdentity"][];
+            /** Information Sources */
+            information_sources: components["schemas"]["CatalogIdentity"][];
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "examination";
+        };
+        /** ExaminationRevisionCreate */
+        ExaminationRevisionCreate: {
+            /** Patient Examination Id */
+            patient_examination_id: number;
+            selection?: components["schemas"]["ExaminationEvidenceSelection"];
+            /**
+             * Source Revision Id
+             * @default null
+             */
+            source_revision_id: number | null;
+            /** Title */
+            title: string;
+        };
+        /** ExaminationRevisionRead */
+        ExaminationRevisionRead: {
+            /** Finalized At */
+            finalized_at: string | null;
+            /** Id */
+            id: number;
+            /** Patient Examination Id */
+            patient_examination_id: number;
+            snapshot: components["schemas"]["ExaminationRevisionSnapshot"];
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+        };
+        /** ExaminationRevisionSnapshot */
+        ExaminationRevisionSnapshot: {
+            content: components["schemas"]["ExaminationClinicalContent"];
+            evidence: components["schemas"]["ExaminationEvidence"];
+            /**
+             * Schema Version
+             * @default 1.0
+             * @constant
+             */
+            schema_version: "1.0";
+        };
+        /** ExaminationRevisionUpdate */
+        ExaminationRevisionUpdate: {
+            content: components["schemas"]["ExaminationClinicalContent"];
+            /** Expected Version */
+            expected_version: number;
+            /** Title */
+            title: string;
+        };
+        /** ExaminationRevisionVersion */
+        ExaminationRevisionVersion: {
+            /** Expected Version */
+            expected_version: number;
+        };
+        /** ExaminationTimeReference */
+        ExaminationTimeReference: {
+            /** Information Sources */
+            information_sources: components["schemas"]["CatalogIdentity"][];
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "examination_time";
+            /** Time Types */
+            time_types: components["schemas"]["CatalogIdentity"][];
+        };
+        /** ExaminationTimeTypeReference */
+        ExaminationTimeTypeReference: {
+            /** Examinations */
+            examinations: components["schemas"]["CatalogIdentity"][];
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "examination_time_type";
+        };
+        /** ExaminationTypeReference */
+        ExaminationTypeReference: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "examination_type";
+        };
+        /** FindingClassificationChoiceReference */
+        FindingClassificationChoiceReference: {
+            /** Description */
+            description: string;
+            /** Name */
+            name: string;
+            /** Numerical Descriptors */
+            numerical_descriptors: {
+                [key: string]: components["schemas"]["ClassificationNumericalDescriptorDefinition"];
+            };
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "finding_classification_choice";
+            /** Subcategories */
+            subcategories: {
+                [key: string]: components["schemas"]["ClassificationSubcategoryDefinition"];
+            };
+        };
+        /** FindingClassificationReference */
+        FindingClassificationReference: {
+            /** Choices */
+            choices: components["schemas"]["CatalogIdentity"][];
+            /** Classification Types */
+            classification_types: components["schemas"]["CatalogIdentity"][];
+            /** Description */
+            description: string;
+            /** Finding Types */
+            finding_types: components["schemas"]["CatalogIdentity"][];
+            /** Information Sources */
+            information_sources: components["schemas"]["CatalogIdentity"][];
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "finding_classification";
+        };
+        /** FindingClassificationTypeReference */
+        FindingClassificationTypeReference: {
+            /** Description */
+            description: string;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "finding_classification_type";
+        };
+        /** FindingInterventionReference */
+        FindingInterventionReference: {
+            /** Description */
+            description: string | null;
+            /** Information Sources */
+            information_sources: components["schemas"]["CatalogIdentity"][];
+            /** Intervention Types */
+            intervention_types: components["schemas"]["CatalogIdentity"][];
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "finding_intervention";
+        };
+        /** FindingInterventionTypeReference */
+        FindingInterventionTypeReference: {
+            /** Description */
+            description: string | null;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "finding_intervention_type";
+        };
+        /** FindingReference */
+        FindingReference: {
+            /** Caused By Interventions */
+            caused_by_interventions: components["schemas"]["CatalogIdentity"][];
+            /** Description */
+            description: string | null;
+            /** Finding Classifications */
+            finding_classifications: components["schemas"]["CatalogIdentity"][];
+            /** Finding Interventions */
+            finding_interventions: components["schemas"]["CatalogIdentity"][];
+            /** Finding Types */
+            finding_types: components["schemas"]["CatalogIdentity"][];
+            /** Information Sources */
+            information_sources: components["schemas"]["CatalogIdentity"][];
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "finding";
+        };
+        /** FindingTypeReference */
+        FindingTypeReference: {
+            /** Description */
+            description: string | null;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "finding_type";
         };
         /** @description Serializer für Gender-Modell */
         Gender: {
@@ -3390,9 +4654,341 @@ export type components = {
             readonly id: number;
             name: string;
         };
+        /** GenderReference */
+        GenderReference: {
+            /** Abbreviation */
+            abbreviation: string | null;
+            /** Description */
+            description: string | null;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "gender";
+        };
+        /** InformationSourceReference */
+        InformationSourceReference: {
+            /** Abbreviation */
+            abbreviation: string | null;
+            /** Date */
+            date: string | null;
+            /** Description */
+            description: string | null;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "information_source";
+            /** Url */
+            url: string | null;
+        };
+        /** InformationSourceTypeReference */
+        InformationSourceTypeReference: {
+            /** Description */
+            description: string | null;
+            /** Information Sources */
+            information_sources: components["schemas"]["CatalogIdentity"][];
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "information_source_type";
+        };
         JsonNull: null;
+        JsonObject: {
+            [key: string]: components["schemas"]["JsonValue"];
+        };
         JsonScalar: string | number | boolean;
         JsonValue: JsonValue;
+        /** LabValueNormalRangeBandPayload */
+        LabValueNormalRangeBandPayload: {
+            /**
+             * Max
+             * @default null
+             */
+            max: number | null;
+            /**
+             * Min
+             * @default null
+             */
+            min: number | null;
+        };
+        /** LabValueNormalRangeData */
+        LabValueNormalRangeData: {
+            /** @default null */
+            female: components["schemas"]["LabValueNormalRangeBandPayload"] | null;
+            /** @default null */
+            male: components["schemas"]["LabValueNormalRangeBandPayload"] | null;
+            /**
+             * Max
+             * @default null
+             */
+            max: number | null;
+            /**
+             * Min
+             * @default null
+             */
+            min: number | null;
+            /** @default null */
+            other: components["schemas"]["LabValueNormalRangeBandPayload"] | null;
+        };
+        /** LabValueReference */
+        LabValueReference: {
+            /** Abbreviation */
+            abbreviation: string | null;
+            /** Bound Adjustment Factor */
+            bound_adjustment_factor: number;
+            default_date_value_distribution: components["schemas"]["CatalogIdentity"] | null;
+            default_multiple_categorical_value_distribution: components["schemas"]["CatalogIdentity"] | null;
+            default_normal_range: components["schemas"]["LabValueNormalRangeData"] | null;
+            default_numerical_value_distribution: components["schemas"]["CatalogIdentity"] | null;
+            default_single_categorical_value_distribution: components["schemas"]["CatalogIdentity"] | null;
+            default_unit: components["schemas"]["CatalogIdentity"] | null;
+            /** Name */
+            name: string;
+            /** Normal Range Age Dependent */
+            normal_range_age_dependent: boolean;
+            /** Normal Range Gender Dependent */
+            normal_range_gender_dependent: boolean;
+            /** Normal Range Special Case */
+            normal_range_special_case: boolean;
+            /** Numeric Precision */
+            numeric_precision: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "lab_value";
+        };
+        /** LabelReference */
+        LabelReference: {
+            /** Description */
+            description: string | null;
+            label_type: components["schemas"]["CatalogIdentity"] | null;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "label";
+        };
+        /** LabelSetReference */
+        LabelSetReference: {
+            /** Description */
+            description: string | null;
+            /** Labels */
+            labels: components["schemas"]["CatalogIdentity"][];
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "label_set";
+            /** Version */
+            version: number;
+        };
+        /** LabelTypeReference */
+        LabelTypeReference: {
+            /** Description */
+            description: string | null;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "label_type";
+        };
+        /** MaterialReference */
+        MaterialReference: {
+            emission_factor: components["schemas"]["CatalogIdentity"] | null;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "material";
+        };
+        /** MedicationIndicationReference */
+        MedicationIndicationReference: {
+            /** Disease Classification Choices */
+            disease_classification_choices: components["schemas"]["CatalogIdentity"][];
+            /** Diseases */
+            diseases: components["schemas"]["CatalogIdentity"][];
+            /** Events */
+            events: components["schemas"]["CatalogIdentity"][];
+            indication_type: components["schemas"]["CatalogIdentity"];
+            /** Medication Schedules */
+            medication_schedules: components["schemas"]["CatalogIdentity"][];
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "medication_indication";
+            /** Sources */
+            sources: components["schemas"]["CatalogIdentity"][];
+        };
+        /** MedicationIndicationTypeReference */
+        MedicationIndicationTypeReference: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "medication_indication_type";
+        };
+        /** MedicationIntakeTimeReference */
+        MedicationIntakeTimeReference: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "medication_intake_time";
+            /** Repeats */
+            repeats: string;
+            /**
+             * Time
+             * Format: time
+             */
+            time: string;
+        };
+        /** MedicationReference */
+        MedicationReference: {
+            /** Adapt To Age */
+            adapt_to_age: boolean;
+            /** Adapt To Hepatic Function */
+            adapt_to_hepatic_function: boolean;
+            /** Adapt To Indication */
+            adapt_to_indication: boolean;
+            /** Adapt To Renal Function */
+            adapt_to_renal_function: boolean;
+            /** Adapt To Risk */
+            adapt_to_risk: boolean;
+            /** Adapt To Weight */
+            adapt_to_weight: boolean;
+            default_unit: components["schemas"]["CatalogIdentity"];
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "medication";
+        };
+        /** MedicationScheduleReference */
+        MedicationScheduleReference: {
+            /** Description */
+            description: string | null;
+            /** Dose */
+            dose: number;
+            /** Intake Times */
+            intake_times: components["schemas"]["CatalogIdentity"][];
+            medication: components["schemas"]["CatalogIdentity"];
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "medication_schedule";
+            /** Therapy Duration D */
+            therapy_duration_d: number | null;
+            unit: components["schemas"]["CatalogIdentity"];
+        };
+        /** @enum {string} */
+        ModeEnum: "date" | "timedelta";
+        /** ModelTypeReference */
+        ModelTypeReference: {
+            /** Description */
+            description: string | null;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "model_type";
+        };
+        /** MultipleCategoricalValueDistributionReference */
+        MultipleCategoricalValueDistributionReference: {
+            /** Categories */
+            categories: {
+                [key: string]: number;
+            };
+            /** Count Distribution Type */
+            count_distribution_type: components["schemas"]["CountDistributionTypeEnum"];
+            /** Count Mean */
+            count_mean: number | null;
+            /** Count Std Dev */
+            count_std_dev: number | null;
+            /** Max Count */
+            max_count: number;
+            /** Min Count */
+            min_count: number;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "multiple_categorical_value_distribution";
+        };
+        /** NumericValueDistributionReference */
+        NumericValueDistributionReference: {
+            /** Distribution Type */
+            distribution_type: components["schemas"]["NumericValueDistributionReferenceDistributionTypeEnum"];
+            /** Max Descriptor */
+            max_descriptor: string;
+            /** Max Value */
+            max_value: number | null;
+            /** Mean */
+            mean: number | null;
+            /** Min Descriptor */
+            min_descriptor: string;
+            /** Min Value */
+            min_value: number | null;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "numeric_value_distribution";
+            /** Skewness */
+            skewness: number | null;
+            /** Std Dev */
+            std_dev: number | null;
+        };
+        /** @enum {string} */
+        NumericValueDistributionReferenceDistributionTypeEnum: "uniform" | "normal" | "skewed_normal";
+        /** OrganReference */
+        OrganReference: {
+            /** Description */
+            description: string | null;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "organ";
+        };
+        /** @enum {string} */
+        OutputEnum: "json" | "xlsx";
         PatchedCase: {
             /** Format: date-time */
             admission_date?: string;
@@ -3473,6 +5069,46 @@ export type components = {
             };
             readonly patient_name?: string;
         };
+        /** PatientMedicationUpdate */
+        PatchedPatientMedicationUpdate: {
+            /**
+             * Active
+             * @default null
+             */
+            active: boolean | null;
+            /** @default null */
+            dosage: components["schemas"]["JsonValue"];
+            /**
+             * End At
+             * @default null
+             */
+            end_at: string | null;
+            /**
+             * Intake Times
+             * @default null
+             */
+            intake_times: string[] | null;
+            /**
+             * Medication
+             * @default null
+             */
+            medication: string | null;
+            /**
+             * Medication Indication
+             * @default null
+             */
+            medication_indication: string | null;
+            /**
+             * Start At
+             * @default null
+             */
+            start_at: string | null;
+            /**
+             * Unit
+             * @default null
+             */
+            unit: string | null;
+        };
         Patient: {
             /** @description Berechnet das Alter des Patienten */
             readonly age: number | null;
@@ -3489,6 +5125,52 @@ export type components = {
             last_name: string;
             patient_hash?: string | null;
             phone?: string | null;
+        };
+        /** PatientDiseaseCreate */
+        PatientDiseaseCreate: {
+            /** Classification Choices */
+            classification_choices?: string[];
+            /** Disease */
+            disease: string;
+            /**
+             * End Date
+             * @default null
+             */
+            end_date: string | null;
+            numerical_descriptors?: components["schemas"]["JsonObject"];
+            /**
+             * Start Date
+             * @default null
+             */
+            start_date: string | null;
+            subcategories?: components["schemas"]["JsonObject"];
+        };
+        /** PatientEventCreate */
+        PatientEventCreate: {
+            /**
+             * Classification Choice
+             * @default null
+             */
+            classification_choice: string | null;
+            /**
+             * Date End
+             * @default null
+             */
+            date_end: string | null;
+            /**
+             * Date Start
+             * Format: date
+             */
+            date_start: string;
+            /**
+             * Description
+             * @default null
+             */
+            description: string | null;
+            /** Event */
+            event: string;
+            numerical_descriptors?: components["schemas"]["JsonObject"];
+            subcategories?: components["schemas"]["JsonObject"];
         };
         PatientExamination: {
             /** Format: date */
@@ -3568,6 +5250,311 @@ export type components = {
             /** Version */
             version: number;
         };
+        /** PatientLabSampleCreate */
+        PatientLabSampleCreate: {
+            /**
+             * Date
+             * Format: date-time
+             */
+            date: string;
+            /** Sample Type */
+            sample_type: string;
+            /** Values */
+            values?: components["schemas"]["PatientLabValueCreate"][];
+        };
+        /** PatientLabSampleTypeReference */
+        PatientLabSampleTypeReference: {
+            /** Description */
+            description: string | null;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "patient_lab_sample_type";
+        };
+        /** PatientLabValueCreate */
+        PatientLabValueCreate: {
+            /** Lab Value */
+            lab_value: string;
+            normal_range?: components["schemas"]["LabValueNormalRangeData"];
+            /**
+             * Timestamp
+             * Format: date-time
+             */
+            timestamp: string;
+            /**
+             * Unit
+             * @default null
+             */
+            unit: string | null;
+            /**
+             * Value
+             * @default null
+             */
+            value: number | null;
+            /**
+             * Value Str
+             * @default null
+             */
+            value_str: string | null;
+        };
+        /** PatientMedicalLedger */
+        PatientMedicalLedger: {
+            /** Created At */
+            created_at?: unknown;
+            /** Diseases */
+            diseases?: unknown;
+            /** Events */
+            events?: unknown;
+            /** External Ids */
+            external_ids?: unknown;
+            /** Lab Samples */
+            lab_samples?: unknown;
+            /** Lab Values */
+            lab_values?: unknown;
+            /** Medication Schedules */
+            medication_schedules?: unknown;
+            /** Medications */
+            medications?: unknown;
+            /** Patient */
+            patient: unknown;
+            /** Tags */
+            tags?: unknown;
+            /** Uuid */
+            uuid?: unknown;
+        };
+        /** PatientMedicalLedgerCreate */
+        PatientMedicalLedgerCreate: {
+            /**
+             * Case Id
+             * @default null
+             */
+            case_id: number | null;
+            /** Diseases */
+            diseases?: components["schemas"]["PatientDiseaseCreate"][];
+            /** Events */
+            events?: components["schemas"]["PatientEventCreate"][];
+            /** Lab Samples */
+            lab_samples?: components["schemas"]["PatientLabSampleCreate"][];
+            /** Lab Values */
+            lab_values?: components["schemas"]["PatientLabValueCreate"][];
+            /** Medication Schedules */
+            medication_schedules?: components["schemas"]["PatientMedicationScheduleAggregateCreate"][];
+            /** Medications */
+            medications?: components["schemas"]["PatientMedicationCreate"][];
+            /** Patient */
+            patient: string;
+        };
+        /** PatientMedication */
+        PatientMedication: {
+            /** Active */
+            active?: unknown;
+            /** Created At */
+            created_at?: unknown;
+            dosage?: unknown;
+            /** End At */
+            end_at?: unknown;
+            /** External Ids */
+            external_ids?: unknown;
+            /** Intake Times */
+            intake_times?: unknown;
+            /** Medication */
+            medication: unknown;
+            /** Medication Indication */
+            medication_indication?: unknown;
+            /** Patient */
+            patient: unknown;
+            /** Start At */
+            start_at?: unknown;
+            /** Tags */
+            tags?: unknown;
+            /** Unit */
+            unit?: unknown;
+            /** Uuid */
+            uuid?: unknown;
+        };
+        /** PatientMedicationCreate */
+        PatientMedicationCreate: {
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** @default null */
+            dosage: components["schemas"]["JsonValue"];
+            /**
+             * End At
+             * @default null
+             */
+            end_at: string | null;
+            /** Intake Times */
+            intake_times?: string[];
+            /** Medication */
+            medication: string;
+            /**
+             * Medication Indication
+             * @default null
+             */
+            medication_indication: string | null;
+            /**
+             * Start At
+             * @default null
+             */
+            start_at: string | null;
+            /**
+             * Unit
+             * @default null
+             */
+            unit: string | null;
+        };
+        /** PatientMedicationScheduleAggregateCreate */
+        PatientMedicationScheduleAggregateCreate: {
+            /** Medication Indices */
+            medication_indices?: number[];
+        };
+        /** PdfTypeReference */
+        PdfTypeReference: {
+            /** Cut Off Above Lines */
+            cut_off_above_lines: components["schemas"]["CatalogIdentity"][];
+            /** Cut Off Below Lines */
+            cut_off_below_lines: components["schemas"]["CatalogIdentity"][];
+            endoscope_info_line: components["schemas"]["CatalogIdentity"];
+            examiner_info_line: components["schemas"]["CatalogIdentity"];
+            /** Name */
+            name: string;
+            patient_info_line: components["schemas"]["CatalogIdentity"];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "pdf_type";
+        };
+        /** ProductGroupReference */
+        ProductGroupReference: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "product_group";
+        };
+        /** ProductMaterialReference */
+        ProductMaterialReference: {
+            /** Component */
+            component: string;
+            material: components["schemas"]["CatalogIdentity"];
+            product: components["schemas"]["CatalogIdentity"];
+            /** Quantity */
+            quantity: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "product_material";
+            unit: components["schemas"]["CatalogIdentity"];
+        };
+        /** ProductReference */
+        ProductReference: {
+            /** Name */
+            name: string;
+            product_group: components["schemas"]["CatalogIdentity"] | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "product";
+            transport_route: components["schemas"]["CatalogIdentity"] | null;
+        };
+        /** ProductWeightReference */
+        ProductWeightReference: {
+            /** Manufacturer */
+            manufacturer: number | null;
+            /** Measured */
+            measured: number | null;
+            /** Name */
+            name: string | null;
+            product: components["schemas"]["CatalogIdentity"];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "product_weight";
+            unit: components["schemas"]["CatalogIdentity"] | null;
+            /** Verified */
+            verified: number | null;
+        };
+        /** ProfessionReference */
+        ProfessionReference: {
+            /** Description */
+            description: string | null;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "profession";
+        };
+        /** QualificationReference */
+        QualificationReference: {
+            /** Description */
+            description: string | null;
+            /** Is Active */
+            is_active: boolean;
+            /** Name */
+            name: string;
+            /** Qualification Types */
+            qualification_types: components["schemas"]["CatalogIdentity"][];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "qualification";
+        };
+        /** QualificationTypeReference */
+        QualificationTypeReference: {
+            /** Description */
+            description: string | null;
+            /** Is Active */
+            is_active: boolean;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "qualification_type";
+        };
+        /** ReferenceCatalogPayload */
+        ReferenceCatalogPayload: {
+            /** Records */
+            records: components["schemas"]["ReferenceRecord"][];
+            /**
+             * Schema Version
+             * @default 1.0
+             * @constant
+             */
+            schema_version: "1.0";
+        };
+        /** ReferenceProductReference */
+        ReferenceProductReference: {
+            emission_factor_package: components["schemas"]["CatalogIdentity"] | null;
+            emission_factor_product: components["schemas"]["CatalogIdentity"] | null;
+            emission_factor_total: components["schemas"]["CatalogIdentity"] | null;
+            /** Name */
+            name: string;
+            product: components["schemas"]["CatalogIdentity"];
+            product_group: components["schemas"]["CatalogIdentity"];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "reference_product";
+        };
+        ReferenceRecord: components["schemas"]["AiModelReference"] | components["schemas"]["CenterReference"] | components["schemas"]["ContraindicationReference"] | components["schemas"]["DateValueDistributionReference"] | components["schemas"]["DiseaseReference"] | components["schemas"]["DiseaseClassificationReference"] | components["schemas"]["DiseaseClassificationChoiceReference"] | components["schemas"]["EndoscopeReference"] | components["schemas"]["EndoscopeTypeReference"] | components["schemas"]["EndoscopyProcessorReference"] | components["schemas"]["EventReference"] | components["schemas"]["ExaminationReference"] | components["schemas"]["ExaminationIndicationReference"] | components["schemas"]["ExaminationIndicationClassificationReference"] | components["schemas"]["ExaminationIndicationClassificationChoiceReference"] | components["schemas"]["ExaminationTimeReference"] | components["schemas"]["ExaminationTimeTypeReference"] | components["schemas"]["ExaminationTypeReference"] | components["schemas"]["FindingReference"] | components["schemas"]["FindingClassificationReference"] | components["schemas"]["FindingClassificationChoiceReference"] | components["schemas"]["FindingClassificationTypeReference"] | components["schemas"]["FindingInterventionReference"] | components["schemas"]["FindingInterventionTypeReference"] | components["schemas"]["FindingTypeReference"] | components["schemas"]["GenderReference"] | components["schemas"]["InformationSourceReference"] | components["schemas"]["InformationSourceTypeReference"] | components["schemas"]["LabValueReference"] | components["schemas"]["LabelReference"] | components["schemas"]["LabelSetReference"] | components["schemas"]["LabelTypeReference"] | components["schemas"]["MedicationReference"] | components["schemas"]["MedicationIndicationReference"] | components["schemas"]["MedicationIndicationTypeReference"] | components["schemas"]["MedicationIntakeTimeReference"] | components["schemas"]["MedicationScheduleReference"] | components["schemas"]["ModelTypeReference"] | components["schemas"]["MultipleCategoricalValueDistributionReference"] | components["schemas"]["NumericValueDistributionReference"] | components["schemas"]["OrganReference"] | components["schemas"]["PatientLabSampleTypeReference"] | components["schemas"]["PdfTypeReference"] | components["schemas"]["ReportReaderFlagReference"] | components["schemas"]["RiskReference"] | components["schemas"]["RiskTypeReference"] | components["schemas"]["SingleCategoricalValueDistributionReference"] | components["schemas"]["TagReference"] | components["schemas"]["UnitReference"] | components["schemas"]["VideoSegmentationLabelReference"] | components["schemas"]["VideoSegmentationLabelSetReference"] | components["schemas"]["CenterResourceReference"] | components["schemas"]["CenterWasteReference"] | components["schemas"]["EmissionFactorReference"] | components["schemas"]["MaterialReference"] | components["schemas"]["ProductReference"] | components["schemas"]["ProductGroupReference"] | components["schemas"]["ProductMaterialReference"] | components["schemas"]["ProductWeightReference"] | components["schemas"]["ProfessionReference"] | components["schemas"]["QualificationReference"] | components["schemas"]["QualificationTypeReference"] | components["schemas"]["ReferenceProductReference"] | components["schemas"]["ResourceReference"] | components["schemas"]["ShiftReference"] | components["schemas"]["ShiftTypeReference"] | components["schemas"]["TransportRouteReference"] | components["schemas"]["WasteReference"];
         /** ReportFrameCandidate */
         ReportFrameCandidate: {
             /** Frame Number */
@@ -3609,6 +5596,59 @@ export type components = {
             [key: string]: components["schemas"]["ReportJsonValue"];
         };
         ReportJsonValue: components["schemas"]["JsonValue"] | components["schemas"]["JsonNull"];
+        /** ReportReaderFlagReference */
+        ReportReaderFlagReference: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "report_reader_flag";
+            /** Value */
+            value: string;
+        };
+        /** ResourceReference */
+        ResourceReference: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "resource";
+        };
+        /** RiskReference */
+        RiskReference: {
+            /** Description */
+            description: string | null;
+            /** Name */
+            name: string;
+            /** Name De */
+            name_de: string | null;
+            /** Name En */
+            name_en: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "risk";
+            risk_type: components["schemas"]["CatalogIdentity"] | null;
+            /** Risk Value */
+            risk_value: number | null;
+        };
+        /** RiskTypeReference */
+        RiskTypeReference: {
+            /** Description */
+            description: string | null;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "risk_type";
+        };
         /** SegmentAttachedFindingSchema */
         SegmentAttachedFindingSchema: {
             /** Finding Id */
@@ -3692,6 +5732,147 @@ export type components = {
             selection_source: string | null;
             /** Updated At */
             updated_at: string | null;
+        };
+        /** ShiftReference */
+        ShiftReference: {
+            /** Description */
+            description: string | null;
+            /** Is Active */
+            is_active: boolean;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "shift";
+            /** Required Qualifications */
+            required_qualifications: components["schemas"]["CatalogIdentity"][];
+            /** Shift Types */
+            shift_types: components["schemas"]["CatalogIdentity"][];
+        };
+        /** ShiftTypeReference */
+        ShiftTypeReference: {
+            /** Description */
+            description: string | null;
+            /** Is Active */
+            is_active: boolean;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "shift_type";
+        };
+        /** SingleCategoricalValueDistributionReference */
+        SingleCategoricalValueDistributionReference: {
+            /** Categories */
+            categories: {
+                [key: string]: number;
+            };
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "single_categorical_value_distribution";
+        };
+        /** TagReference */
+        TagReference: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "tag";
+        };
+        /** TransportRouteReference */
+        TransportRouteReference: {
+            /** Distance */
+            distance: number;
+            emission_factor: components["schemas"]["CatalogIdentity"] | null;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "transport_route";
+            unit: components["schemas"]["CatalogIdentity"] | null;
+        };
+        /** UnitReference */
+        UnitReference: {
+            /** Abbreviation */
+            abbreviation: string | null;
+            /** Description */
+            description: string | null;
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "unit";
+        };
+        VideoMaskCatalogue: {
+            masks: components["schemas"]["VideoMaskProfile"][];
+        };
+        VideoMaskCoordinates: {
+            height: number;
+            image_height: number;
+            image_width: number;
+            width: number;
+            x: number;
+            y: number;
+        };
+        VideoMaskProfile: {
+            device_name: string;
+            label: string;
+            mask: components["schemas"]["VideoMaskCoordinates"];
+            name: string;
+        };
+        /** VideoSegmentationLabelReference */
+        VideoSegmentationLabelReference: {
+            /** Color */
+            color: string | null;
+            /** Description */
+            description: string | null;
+            /** Name */
+            name: string;
+            /** Order Priority */
+            order_priority: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "video_segmentation_label";
+        };
+        /** VideoSegmentationLabelSetReference */
+        VideoSegmentationLabelSetReference: {
+            /** Description */
+            description: string | null;
+            /** Labels */
+            labels: components["schemas"]["CatalogIdentity"][];
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "video_segmentation_label_set";
+        };
+        /** WasteReference */
+        WasteReference: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            record_type: "waste";
         };
     };
     responses: never;
@@ -4079,6 +6260,34 @@ export interface operations {
             };
         };
     };
+    cases_research_export_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaseStudyExportSelection"];
+                "application/x-www-form-urlencoded": components["schemas"]["CaseStudyExportSelection"];
+                "multipart/form-data": components["schemas"]["CaseStudyExportSelection"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                };
+            };
+        };
+    };
     cases_retrieve: {
         parameters: {
             query?: never;
@@ -4255,6 +6464,88 @@ export interface operations {
             };
         };
     };
+    cases_research_export_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                };
+            };
+        };
+    };
+    cases_select_examination_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Patient Examination Id */
+                        patient_examination_id: number;
+                        /** Revision Id */
+                        revision_id: number;
+                    }[];
+                };
+            };
+        };
+    };
+    cases_select_examination_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaseExaminationSelection"];
+                "application/x-www-form-urlencoded": components["schemas"]["CaseExaminationSelection"];
+                "multipart/form-data": components["schemas"]["CaseExaminationSelection"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Patient Examination Id */
+                        patient_examination_id: number;
+                        /** Revision Id */
+                        revision_id: number;
+                    };
+                };
+            };
+        };
+    };
     centers_list: {
         parameters: {
             query?: never;
@@ -4313,6 +6604,149 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Patient"];
+                };
+            };
+        };
+    };
+    examination_revisions_list: {
+        parameters: {
+            query: {
+                patient_examination_id: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExaminationRevisionRead"][];
+                };
+            };
+        };
+    };
+    examination_revisions_create: {
+        parameters: {
+            query: {
+                patient_examination_id: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExaminationRevisionCreate"];
+                "application/x-www-form-urlencoded": components["schemas"]["ExaminationRevisionCreate"];
+                "multipart/form-data": components["schemas"]["ExaminationRevisionCreate"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExaminationRevisionRead"];
+                };
+            };
+        };
+    };
+    examination_revisions_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExaminationRevisionRead"];
+                };
+            };
+        };
+    };
+    examination_revisions_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExaminationRevisionUpdate"];
+                "application/x-www-form-urlencoded": components["schemas"]["ExaminationRevisionUpdate"];
+                "multipart/form-data": components["schemas"]["ExaminationRevisionUpdate"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExaminationRevisionRead"];
+                };
+            };
+        };
+    };
+    examination_revisions_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    examination_revisions_finalize_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExaminationRevisionVersion"];
+                "application/x-www-form-urlencoded": components["schemas"]["ExaminationRevisionVersion"];
+                "multipart/form-data": components["schemas"]["ExaminationRevisionVersion"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExaminationRevisionRead"];
                 };
             };
         };
@@ -4493,7 +6927,7 @@ export interface operations {
             };
         };
     };
-    media_management_force_remove_destroy: {
+    media_management_force_remove_legacy_destroy: {
         parameters: {
             query?: never;
             header?: never;
@@ -4513,7 +6947,7 @@ export interface operations {
             };
         };
     };
-    media_management_force_remove_destroy_2: {
+    media_management_force_remove_destroy: {
         parameters: {
             query?: never;
             header?: never;
@@ -4776,11 +7210,85 @@ export interface operations {
             };
         };
     };
-    media_pdfs_retrieve: {
+    media_pdfs_list: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    media_pdfs_collection_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    media_pdfs_collection_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    media_pdfs_sensitive_metadata_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    media_pdfs_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -4798,7 +7306,9 @@ export interface operations {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                id: number;
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -4813,82 +7323,6 @@ export interface operations {
         };
     };
     media_pdfs_partial_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No response body */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    media_pdfs_sensitive_metadata_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No response body */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    media_pdfs_retrieve_2: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No response body */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    media_pdfs_destroy_2: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No response body */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    media_pdfs_partial_update_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -4949,6 +7383,26 @@ export interface operations {
         };
     };
     media_pdfs_case_resolution_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    media_pdfs_finding_suggestions_retrieve: {
         parameters: {
             query?: never;
             header?: never;
@@ -5029,7 +7483,7 @@ export interface operations {
             };
         };
     };
-    media_pdfs_sensitive_metadata_retrieve_2: {
+    media_pdfs_sensitive_metadata_retrieve: {
         parameters: {
             query?: never;
             header?: never;
@@ -5242,6 +7696,42 @@ export interface operations {
             };
         };
     };
+    media_studies_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    media_studies_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     media_studies_cohort_preview_retrieve: {
         parameters: {
             query?: never;
@@ -5260,7 +7750,123 @@ export interface operations {
             };
         };
     };
-    media_videos_retrieve: {
+    media_studies_table_mappings_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    media_studies_table_mappings_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    media_studies_table_mappings_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mapping_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    media_studies_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                study_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    media_studies_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                study_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    media_studies_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                study_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    media_videos_list: {
         parameters: {
             query?: never;
             header?: never;
@@ -5296,7 +7902,7 @@ export interface operations {
             };
         };
     };
-    media_videos_ensure_prediction_segment_annotations_create: {
+    media_videos_ensure_prediction_segment_annotations_bulk_create: {
         parameters: {
             query?: never;
             header?: never;
@@ -5314,7 +7920,7 @@ export interface operations {
             };
         };
     };
-    media_videos_ensure_segment_annotations_create: {
+    media_videos_ensure_segment_annotations_bulk_create: {
         parameters: {
             query?: never;
             header?: never;
@@ -5383,6 +7989,50 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    media_videos_masks_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoMaskCatalogue"];
+                };
+            };
+        };
+    };
+    media_videos_masks_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VideoMaskProfile"];
+                "application/x-www-form-urlencoded": components["schemas"]["VideoMaskProfile"];
+                "multipart/form-data": components["schemas"]["VideoMaskProfile"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoMaskProfile"];
+                };
             };
         };
     };
@@ -5482,7 +8132,7 @@ export interface operations {
             };
         };
     };
-    media_videos_retrieve_2: {
+    media_videos_retrieve: {
         parameters: {
             query?: never;
             header?: never;
@@ -5642,7 +8292,7 @@ export interface operations {
             };
         };
     };
-    media_videos_ensure_prediction_segment_annotations_create_2: {
+    media_videos_ensure_prediction_segment_annotations_create: {
         parameters: {
             query?: never;
             header?: never;
@@ -5662,7 +8312,27 @@ export interface operations {
             };
         };
     };
-    media_videos_ensure_segment_annotations_create_2: {
+    media_videos_ensure_segment_annotations_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    media_videos_finding_suggestions_retrieve: {
         parameters: {
             query?: never;
             header?: never;
@@ -5885,7 +8555,7 @@ export interface operations {
             };
         };
     };
-    media_videos_segments_retrieve: {
+    media_videos_segments_list: {
         parameters: {
             query?: never;
             header?: never;
@@ -6105,7 +8775,7 @@ export interface operations {
             };
         };
     };
-    media_videos_segments_retrieve_2: {
+    media_videos_segments_retrieve: {
         parameters: {
             query?: never;
             header?: never;
@@ -7144,7 +9814,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Patient"];
+                    "application/json": components["schemas"]["PatientMedicalLedger"];
                 };
             };
         };
@@ -7161,9 +9831,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Patient"];
-                "application/x-www-form-urlencoded": components["schemas"]["Patient"];
-                "multipart/form-data": components["schemas"]["Patient"];
+                "application/json": components["schemas"]["PatientMedicalLedgerCreate"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatientMedicalLedgerCreate"];
+                "multipart/form-data": components["schemas"]["PatientMedicalLedgerCreate"];
             };
         };
         responses: {
@@ -7172,7 +9842,29 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Patient"];
+                    "application/json": components["schemas"]["PatientMedicalLedger"];
+                };
+            };
+        };
+    };
+    patients_medical_terminology_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this patient. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferenceCatalogPayload"];
                 };
             };
         };
@@ -7212,7 +9904,7 @@ export interface operations {
             path: {
                 /** @description A unique integer value identifying this patient. */
                 id: number;
-                schedule_id: string;
+                schedule_id: number;
             };
             cookie?: never;
         };
@@ -7246,9 +9938,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Patient"];
-                "application/x-www-form-urlencoded": components["schemas"]["Patient"];
-                "multipart/form-data": components["schemas"]["Patient"];
+                "application/json": components["schemas"]["PatientMedicationCreate"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatientMedicationCreate"];
+                "multipart/form-data": components["schemas"]["PatientMedicationCreate"];
             };
         };
         responses: {
@@ -7257,7 +9949,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Patient"];
+                    "application/json": components["schemas"]["PatientMedication"];
                 };
             };
         };
@@ -7269,15 +9961,15 @@ export interface operations {
             path: {
                 /** @description A unique integer value identifying this patient. */
                 id: number;
-                medication_id: string;
+                medication_id: number;
             };
             cookie?: never;
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["PatchedPatient"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedPatient"];
-                "multipart/form-data": components["schemas"]["PatchedPatient"];
+                "application/json": components["schemas"]["PatchedPatientMedicationUpdate"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedPatientMedicationUpdate"];
+                "multipart/form-data": components["schemas"]["PatchedPatientMedicationUpdate"];
             };
         };
         responses: {
@@ -7286,7 +9978,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Patient"];
+                    "application/json": components["schemas"]["PatientMedication"];
                 };
             };
         };
@@ -7615,7 +10307,7 @@ export interface operations {
             };
         };
     };
-    settings_application_model_training_runs_retrieve: {
+    settings_application_model_training_runs_list: {
         parameters: {
             query?: never;
             header?: never;
@@ -7651,7 +10343,7 @@ export interface operations {
             };
         };
     };
-    settings_application_model_training_runs_retrieve_2: {
+    settings_application_model_training_runs_retrieve: {
         parameters: {
             query?: never;
             header?: never;
@@ -7671,7 +10363,7 @@ export interface operations {
             };
         };
     };
-    settings_application_network_nodes_retrieve: {
+    settings_application_network_nodes_list: {
         parameters: {
             query?: never;
             header?: never;
@@ -7707,7 +10399,7 @@ export interface operations {
             };
         };
     };
-    settings_application_network_nodes_retrieve_2: {
+    settings_application_network_nodes_retrieve: {
         parameters: {
             query?: never;
             header?: never;

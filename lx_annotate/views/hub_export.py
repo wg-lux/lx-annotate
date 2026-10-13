@@ -216,3 +216,41 @@ def hub_export_unmark(request):
         },
         status=status.HTTP_200_OK,
     )
+
+
+@api_view(["POST"])
+@authentication_classes([SessionAuthentication])
+@permission_classes([IsAuthenticated, LifecyclePolicyPermission])
+def hub_export_preflight(request, video_id):
+    from lx_annotate.hub.hub_export_recovery import preflight_video
+
+    try:
+        result = preflight_video(
+            video_id, allowed_center_ids=lifecycle_center_ids(request.user)
+        )
+    except ObjectDoesNotExist:
+        return Response(
+            {"detail": "Video not found."}, status=status.HTTP_404_NOT_FOUND
+        )
+    return Response(result.model_dump(mode="json"))
+
+
+@api_view(["POST"])
+@authentication_classes([SessionAuthentication])
+@permission_classes([IsAuthenticated, LifecyclePolicyPermission])
+def hub_export_inspect_recovery(request, video_id):
+    from lx_annotate.hub.hub_export_recovery import inspect_cleanup, scoped_video
+    from lx_annotate.permissions import user_has_global_center_scope_admin
+
+    if not user_has_global_center_scope_admin(request.user):
+        return Response(
+            {"detail": "Administrator recovery inspection is required."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    try:
+        video = scoped_video(video_id, lifecycle_center_ids(request.user))
+    except ObjectDoesNotExist:
+        return Response(
+            {"detail": "Video not found."}, status=status.HTTP_404_NOT_FOUND
+        )
+    return Response(inspect_cleanup(video))

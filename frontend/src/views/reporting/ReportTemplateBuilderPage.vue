@@ -659,8 +659,107 @@
           :finding-options="findingOptions"
           :classification-options="classificationOptions"
         />
+        <p class="small text-muted mt-3">
+          Validatoren werden beim jeweiligen Befund über „Regel für diesen Befund aktivieren“
+          konstruiert. Wählen Sie eine Anwesenheitsregel oder eine Bedingung mit benötigten
+          Klassifikationen. Bedingt benötigte Felder bleiben in der Klassifikationsliste optional.
+        </p>
       </div>
     </div>
+
+    <section
+      class="card shadow-sm"
+      aria-labelledby="study-package-title"
+    >
+      <div class="card-header">
+        <h6
+          id="study-package-title"
+          class="mb-0"
+        >
+          Studienpaket und config.yaml
+        </h6>
+      </div>
+      <div class="card-body">
+        <p class="small text-muted">
+          Erstellt aus den bearbeiteten Sektionen einen herunterladbaren Entwurf mit
+          report_templates.yml, validators.yml und config.yaml. Verwenden Sie neue Paket- und
+          Vorlagennamen. Abhängigkeiten müssen bei der Installation verfügbar sein. Die Paketversion
+          ist unabhängig von der Version des geladenen Ausgangsmoduls.
+        </p>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label
+              for="study-package-name"
+              class="form-label"
+              >Paketname</label
+            >
+            <input
+              id="study-package-name"
+              v-model="packageName"
+              class="form-control"
+            />
+          </div>
+          <div class="col-md-3">
+            <label
+              for="study-package-version"
+              class="form-label"
+              >Paketversion</label
+            >
+            <input
+              id="study-package-version"
+              v-model="packageVersion"
+              class="form-control"
+            />
+          </div>
+          <div class="col-md-5">
+            <label
+              for="study-package-dependencies"
+              class="form-label"
+              >Abhängigkeiten (eine pro Zeile)</label
+            >
+            <textarea
+              id="study-package-dependencies"
+              v-model="packageDependencies"
+              class="form-control"
+            />
+            <small class="text-muted"
+              >Das Ausgangsmodul {{ moduleName }} wird immer aufgenommen.</small
+            >
+          </div>
+        </div>
+        <div class="d-flex gap-2 mt-3">
+          <button
+            class="btn btn-outline-primary"
+            :disabled="packageLoading || !canBuildPackage"
+            @click="previewPackage"
+          >
+            Paketdateien erzeugen
+          </button>
+          <button
+            class="btn btn-outline-success"
+            :disabled="!packagePreview"
+            @click="downloadPackage"
+          >
+            Studienpaket herunterladen
+          </button>
+        </div>
+        <p class="small text-muted mt-2">
+          Der Download veröffentlicht oder installiert nichts. Coverage-Matrix und fachliche
+          Freigabe gehören zur anschließenden Veröffentlichung.
+        </p>
+        <div
+          v-for="file in packageFiles"
+          :key="file.name"
+          class="mt-3"
+        >
+          <h6>{{ file.name }}</h6>
+          <pre
+            class="small bg-light p-3 rounded"
+            :data-testid="file.name"
+            >{{ file.content }}</pre>
+        </div>
+      </div>
+    </section>
 
     <div
       v-if="showSavePrompt"
@@ -713,6 +812,8 @@
 
 <script setup lang="ts">
 import { computed, inject, onMounted, ref, watch } from 'vue'
+import { strToU8, zipSync } from 'fflate'
+import { saveDownload } from '@/utils/saveDownload'
 import ReportTemplateSectionsEditor from '@/components/Reporting/ReportTemplateSectionsEditor.vue'
 import ReportTemplateBrandingEditor from '@/components/Reporting/ReportTemplateBrandingEditor.vue'
 import {
@@ -726,6 +827,9 @@ import {
 import { fetchKnowledgeBaseGraphSnapshot } from '@/api/knowledgeBaseGraphApi'
 import {
   saveReportTemplateDefinition,
+  buildReportTemplatePackage,
+  type ReportTemplatePackage,
+  type SaveReportTemplateDefinitionRequest,
   fetchReportTemplateReadiness,
   publishReportTemplate,
   unpublishReportTemplate,
@@ -764,6 +868,32 @@ const examination = ref('')
 const templateDescription = ref('')
 const fileName = ref('')
 const sections = ref<ReportTemplateBuilderSection[]>([])
+const packageName = ref('')
+const packageVersion = ref('0.1.0')
+const packageDependencies = ref('')
+const packagePreview = ref<ReportTemplatePackage | null>(null)
+const packageLoading = ref(false)
+let packageDraftGeneration = 0
+const canBuildPackage = computed(() =>
+  Boolean(
+    captureBuilderRequestIdentity() &&
+    /^[a-z][a-z0-9_]*$/.test(packageName.value) &&
+    packageName.value !== moduleName.value &&
+    packageVersion.value.trim() &&
+    templateName.value.trim() &&
+    examination.value.trim() &&
+    sections.value.length
+  )
+)
+const packageFiles = computed(() =>
+  packagePreview.value
+    ? [
+        { name: 'config.yaml', content: packagePreview.value.configYaml },
+        { name: 'report_templates.yml', content: packagePreview.value.reportTemplatesYaml },
+        { name: 'validators.yml', content: packagePreview.value.validatorsYaml }
+      ]
+    : []
+)
 const showSavePrompt = ref(false)
 const saving = ref(false)
 const errorMessage = ref<string | null>(null)
@@ -1393,6 +1523,84 @@ async function reloadWorkspace() {
   }
 }
 
+function definitionPayload(identity: BuilderRequestIdentity): SaveReportTemplateDefinitionRequest {
+  return {
+    moduleName: identity.moduleName,
+    moduleVersion: identity.moduleVersion,
+    fileName: fileName.value || templateName.value,
+    templateName: templateName.value,
+    examination: examination.value,
+    description: templateDescription.value,
+    sections: sections.value
+  }
+}
+
+async function previewPackage(): Promise<void> {
+  const identity = captureBuilderRequestIdentity()
+  if (!identity || !canBuildPackage.value || packageLoading.value) return
+  const generation = packageDraftGeneration
+  packageLoading.value = true
+  packagePreview.value = null
+  clearMessages()
+  try {
+    const result = await buildReportTemplatePackage({
+      ...definitionPayload(identity),
+      packageName: packageName.value,
+      packageVersion: packageVersion.value.trim(),
+      dependsOn: [
+        ...new Set([
+          identity.moduleName,
+          ...packageDependencies.value
+            .split('\n')
+            .map((name) => name.trim())
+            .filter(Boolean)
+        ])
+      ]
+    })
+    if (generation === packageDraftGeneration && isBuilderRequestIdentityCurrent(identity))
+      packagePreview.value = result
+  } catch (error: unknown) {
+    if (generation === packageDraftGeneration && isBuilderRequestIdentityCurrent(identity)) {
+      setError(reportingApiErrorMessage(error, 'Studienpaket konnte nicht erzeugt werden.'))
+    }
+  } finally {
+    packageLoading.value = false
+  }
+}
+
+function downloadPackage(): void {
+  const preview = packagePreview.value
+  if (!preview) return
+  const files = Object.fromEntries(
+    packageFiles.value.map((file) => [`${preview.packageName}/${file.name}`, strToU8(file.content)])
+  )
+  const archive: unknown = zipSync(files)
+  if (!(archive instanceof Uint8Array)) throw new TypeError('Ungültiges Paketarchiv.')
+  saveDownload(
+    new Blob([new Uint8Array(archive)], { type: 'application/zip' }),
+    `${preview.packageName}.zip`
+  )
+}
+
+watch(
+  [
+    packageName,
+    packageVersion,
+    packageDependencies,
+    moduleName,
+    runtimeKnowledgeBaseVersion,
+    templateName,
+    examination,
+    templateDescription,
+    sections
+  ],
+  () => {
+    packageDraftGeneration += 1
+    packagePreview.value = null
+  },
+  { deep: true }
+)
+
 async function saveTemplate() {
   const identity = captureBuilderRequestIdentity()
   if (!canSave.value || !identity) {
@@ -1402,15 +1610,7 @@ async function saveTemplate() {
   saving.value = true
   clearMessages()
   try {
-    const result = await saveReportTemplateDefinition({
-      moduleName: identity.moduleName,
-      moduleVersion: identity.moduleVersion,
-      fileName: fileName.value,
-      templateName: templateName.value,
-      examination: examination.value,
-      description: templateDescription.value,
-      sections: sections.value
-    })
+    const result = await saveReportTemplateDefinition(definitionPayload(identity))
     if (requestGeneration !== saveRequestGeneration || !isBuilderRequestIdentityCurrent(identity)) {
       return
     }

@@ -200,6 +200,25 @@
       >
         <h6 class="mb-2">Nächster Schritt</h6>
         <RouterLink
+          v-if="flow.caseId && flow.selectedPatientId"
+          class="btn btn-outline-primary btn-sm me-2"
+          :to="{
+            path: '/reporting/medication',
+            query: { patient_id: flow.selectedPatientId, case_id: flow.caseId }
+          }"
+        >
+          Medikation und Laborwerte zuordnen
+        </RouterLink>
+        <RouterLink
+          v-if="flow.caseId && flow.selectedPatientId"
+          class="btn btn-outline-primary btn-sm me-2"
+          :to="{
+            path: '/reporting/examination-records',
+            query: { patient_id: flow.selectedPatientId, case_id: flow.caseId }
+          }"
+          >Untersuchungsfassungen und Fallabschluss</RouterLink
+        >
+        <RouterLink
           class="btn btn-dark btn-sm"
           :class="{ disabled: !flow.patientExaminationId }"
           :to="nextRoute"
@@ -214,9 +233,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { createCaseWithExamination } from '@/api/casesApi'
+import { createCaseWithExamination, examinationCreationIdentity } from '@/api/casesApi'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { usePatientStore } from '@/stores/patientStore'
+import { useTerminologyStore } from '@/stores/terminologyStore'
 import { useExaminationStore } from '@/stores/examinationStore'
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore'
 import type { PatientExamination } from '@/stores/patientExaminationStore'
@@ -225,6 +245,7 @@ import { requireResolvedReportingExamination } from './reportingExaminationResol
 
 const flow = useReportingFlowStore()
 const patientStore = usePatientStore()
+const terminology = useTerminologyStore()
 const examinationStore = useExaminationStore()
 const patientExaminationStore = usePatientExaminationStore()
 const route = useRoute()
@@ -333,7 +354,8 @@ async function createPatientExaminationContext() {
       patientExamination: {
         patient: selectedPatient.patientHash || `patient_${String(flow.selectedPatientId)}`,
         examination: selectedExam.name,
-        dateStart: formattedDate
+        dateStart: formattedDate,
+        ...examinationCreationIdentity(terminology.activeBundle)
       }
     })
 

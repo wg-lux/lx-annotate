@@ -66,12 +66,12 @@ def test_ai_dataset_dropdown_rejects_empty_dataset_name(client):
         (
             {"name": "dataset", "dataset_type": 7},
             "dataset_type",
-            "Input should be 'image' or 'video'",
+            "Input should be 'image', 'video' or 'clinical'",
         ),
         (
             {"name": "dataset", "dataset_type": "audio"},
             "dataset_type",
-            "Input should be 'image' or 'video'",
+            "Input should be 'image', 'video' or 'clinical'",
         ),
         (
             {"name": "dataset", "ai_model_type": 7},

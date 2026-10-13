@@ -62,12 +62,23 @@ export type CreateCaseWithExaminationPayload = {
     patient: string
     examination: string
     dateStart: string
+    knowledgeBaseModule: string
+    knowledgeBaseVersion: string
   }
 }
 
 export type CreateCaseWithExaminationResponse = {
   case: PatientCase
   patientExamination: CasePatientExamination
+}
+
+export function examinationCreationIdentity(
+  bundle: { moduleName: string; version: string } | null
+) {
+  if (!bundle) {
+    throw new Error('Bitte zuerst ein versioniertes Terminologiepaket auswählen.')
+  }
+  return { knowledgeBaseModule: bundle.moduleName, knowledgeBaseVersion: bundle.version }
 }
 
 export type AttachCaseDocumentPayload = {
@@ -291,6 +302,10 @@ export async function createPatientCase(payload: CreatePatientCasePayload): Prom
 export async function createCaseWithExamination(
   payload: CreateCaseWithExaminationPayload
 ): Promise<CreateCaseWithExaminationResponse> {
+  const { knowledgeBaseModule, knowledgeBaseVersion } = payload.patientExamination
+  if (!knowledgeBaseModule.trim() || !knowledgeBaseVersion.trim()) {
+    throw new Error('Bitte zuerst ein versioniertes Terminologiepaket auswählen.')
+  }
   const response = await axiosInstance.post<unknown>(
     r(endpoints.case.createWithExamination),
     payload

@@ -37,10 +37,38 @@ eligibility:
   scope: Filtering precedes preview limits and summary aggregation, retaining existing pseudonymous and media eligibility restrictions.
   empty_metadata: Adds no protocol restriction and preserves existing cohorts.
 access:
-  - Existing authenticated patient-read permissions apply to save, preview and download.
+  - Authenticated patient-read permissions apply to preview and download; patient-write permissions apply to cohort creation, edits, deletion and link mutations. DEBUG never grants these roles.
   - Downloads require cohort ownership and current access to every linked dataset.
   - The document contains protocol metadata and dataset configuration only, never patient rows or media.
 rollout:
   - Install the coordinated lx-dtypes build containing study_setup and study_metadata contracts.
-  - Apply lx_annotate migration 0011_studycohort_definition_snapshot before using the updated application.
+  - Apply the coordinated endoreg-db and lx-annotate migrations, including endoreg_db 0100_study_setup_import; Study and StudyCohort are owned by endoreg-db.
   - CONFIG_ROOT inherits the host runtime volume's at-rest protection; no new key or independent environment root is introduced.
+
+setup_import:
+  api: POST /endoreg-api/media/studies/setup-import/
+  request: "JSON: {yaml: <UTF-8 YAML text>, mode: validate | dry_run | import}; default mode is validate."
+  commands:
+    - python manage.py import_study_setup validate study.yml --actor-id <authorized-user-id>
+    - python manage.py import_study_setup dry-run study.yml --actor-id <authorized-user-id>
+    - python manage.py import_study_setup import study.yml --actor-id <authorized-user-id>
+  authorization: An active authenticated actor requires patient-write authorization and an authorized center; participating center keys must be accessible. YAML cannot supply ownership or permissions. DEBUG never bypasses import authorization.
+  validation: The bounded shared YAML parser rejects duplicate keys, aliases, unknown fields and unresolved document-local dataset references; exact terminology dependencies must resolve locally.
+  planning: Validate and dry-run perform the same checks without storing rows or configuration files; response maps show document identities and dataset-cohort links.
+  persistence: Apply endoreg_db migration 0100_study_setup_import. Existing AIDataSet, Study and StudyCohort models own persisted definitions and links; StudySetupImport stores the validated original document, owner, version, digest and row mappings atomically.
+  repeat: Same owner, definition ID, version and canonical content return unchanged row mappings; a different content digest conflicts. Formatting and YAML comments do not change identity.
+  edits: A replay never overwrites subsequent user edits. A new definition version creates new rows and retains the original receipt. Deleted imported rows require a new version.
+  concurrency: Imports serialize on the actor row and the database uniquely constrains owner, definition ID and version.
+  effects: No patient records, annotation attachments, active application dataset selection, terminology activation, training jobs or media exports are created by setup import.
+  reload: Reload existing dataset and saved-cohort lists after import. Preview with cohort_id reads the currently stored filters and dataset links and rechecks current access.
+  provenance: Import receipts preserve definitions, not evaluated populations or clinical values. A reviewed immutable export snapshot and full backup/restore proof remain separate readiness contracts.
+  compatibility: Requires coordinated lx-dtypes and endoreg-db builds containing StudySetupImportReceipt and StudySetupImport, respectively; older installed packages are incompatible.
+  errors: Invalid requests and definitions return 422 with schema issue paths and codes where available, without echoing input values. Immutable identity conflicts or corrupt receipts return 409; missing permission returns 403.
+  downloads: Each imported cohort has its own host definition and stable UUID. Downloads contain only that cohort and its linked dataset definitions; the import receipt retains the original multi-cohort document and row mapping.
+  replay_access: Replays validate the receipt identity and digest and recheck access to both original datasets and current cohort dataset links.
+review_and_export:
+  unsaved_edits: Save changes to an existing cohort before previewing it; the server always evaluates the saved definition when a cohort ID is supplied.
+  legacy_workbook: The cohort workbook contains reviewed examination IDs with current authorized values. It is not an immutable clinical-value snapshot.
+  selected_revisions: Case research exports use explicitly selected finalized examination revisions. Canonical SelectedCaseExport contracts validate workbook input; conflicting revision identities and duplicate case identities are rejected.
+  xlsx_limits: Values exceeding the Excel text-cell limit or containing unsupported control characters fail with a JSON-export suggestion rather than being silently truncated. Long numeric identifiers remain exact decimal text.
+  caching: Clinical workbook responses use private, no-store caching.

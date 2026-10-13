@@ -25,6 +25,11 @@ from lx_dtypes.models.contracts import (
 )
 
 from ..models import OutboundHubTransferJob
+from .hub_export_contracts import (
+    HubPayloadRejected,
+    HubRecoveryAction,
+    HubRecoveryBlocker,
+)
 from .hub_export_state import (
     has_usable_processed_artifact,
     is_report_hub_export_eligible,
@@ -157,22 +162,24 @@ def _require_eligible_anonymization_status(
         )
 
 
-def _build_sensitive_meta_payload(
+def build_hub_identity_payload(
     sensitive_meta: SensitiveMeta | None,
 ) -> SensitiveMetaPayload:
-    if sensitive_meta is None:
-        raise ValueError(
-            "SensitiveMeta with patient_hash and examination_hash is required "
-            "for hub transfer.",
-        )
-
-    patient_hash = str(sensitive_meta.patient_hash or "").strip()
-    examination_hash = str(sensitive_meta.examination_hash or "").strip()
-    if not patient_hash or not examination_hash:
-        raise ValueError(
-            "SensitiveMeta must include patient_hash and examination_hash for "
-            "hub transfer.",
-        )
+    patient_hash = str(getattr(sensitive_meta, "patient_hash", "") or "").strip()
+    examination_hash = str(
+        getattr(sensitive_meta, "examination_hash", "") or ""
+    ).strip()
+    try:
+        _require_sha256(patient_hash, field_name="patient_hash")
+        _require_sha256(examination_hash, field_name="examination_hash")
+    except ValueError as exc:
+        raise HubPayloadRejected(
+            HubRecoveryBlocker(
+                code="identity_evidence",
+                detail="SensitiveMeta must include patient_hash and examination_hash for hub transfer.",
+                action=HubRecoveryAction.ADMINISTRATOR_RECOVERY,
+            )
+        ) from exc
 
     return {
         "patient_hash": patient_hash,
@@ -189,7 +196,15 @@ def _require_value(value: Any, *, field_name: str) -> Any:
 def _validated_video_hashes(video: VideoFile) -> tuple[Any, str, str]:
     readiness = resolve_video_hub_export_state(video, verify_processed_media=True)
     if not readiness.transfer_eligible:
-        raise ValueError(readiness.transfer_validation_error)
+        raise HubPayloadRejected(
+            HubRecoveryBlocker(
+                code="integrity"
+                if readiness.anonymization_ready and readiness.segment_annotations_final
+                else "export_proof",
+                detail=readiness.transfer_validation_error,
+                action=HubRecoveryAction.ADMINISTRATOR_RECOVERY,
+            )
+        )
     state = video.state
     if state is None:
         raise ValueError("VideoFile.state must exist for outbound hub transfer.")
@@ -248,7 +263,7 @@ def _build_video_rows(video: VideoFile, *, source_node_key: str) -> dict[str, An
             state,
             state_processed_hash=state_processed_hash,
         ),
-        "sensitive_meta": _build_sensitive_meta_payload(video.sensitive_meta),
+        "sensitive_meta": build_hub_identity_payload(video.sensitive_meta),
         "processing_history": {
             "file_hash": processed_video_hash,
             "success": not bool(getattr(state, "processing_error", False)),
@@ -335,7 +350,7 @@ def _build_report_rows(report: RawPdfFile) -> dict[str, Any]:
             state,
             processed_file_sha256=processed_file_sha256,
         ),
-        "sensitive_meta": _build_sensitive_meta_payload(report.sensitive_meta),
+        "sensitive_meta": build_hub_identity_payload(report.sensitive_meta),
         "processing_history": {
             "file_hash": report.pdf_hash,
             "success": not bool(getattr(state, "processing_error", False)),
@@ -567,6 +582,25 @@ def build_transfer_payload(
             "cleanup_policy": "retain_all",
         },
     }
+    if outbound_job.resource_kind == OutboundHubTransferJob.ResourceKind.VIDEO:
+        from endoreg_db.services.hub.video_provenance import export_video_provenance
+
+        if outbound_job.video_file is None:
+            raise ValueError("Video provenance requires the transfer video")
+        try:
+            provenance = export_video_provenance(outbound_job.video_file)
+        except ValueError as exc:
+            raise HubPayloadRejected(
+                HubRecoveryBlocker(
+                    code="provenance",
+                    detail="Verified frame provenance is unavailable or inconsistent for this recording.",
+                    action=HubRecoveryAction.REPAIR_PROCESSING,
+                )
+            ) from exc
+        payload["provenance"]["video_frame_provenance"] = provenance.model_dump(
+            mode="json"
+        )
+
     return payload
 
 

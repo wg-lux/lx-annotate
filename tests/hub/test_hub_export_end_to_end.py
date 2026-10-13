@@ -46,6 +46,7 @@ from tests.hub_payload_helpers import (
     create_hub_sensitive_meta,
     hub_report_pdf_bytes,
     hub_transfer_status_payload,
+    hub_video_artifact,
     verify_hub_report_artifact,
 )
 
@@ -736,7 +737,7 @@ class HubExportEndToEndTests(TestCase):
         # Arrange
         self.site_node.set_shared_secret("super-secret")
         self.site_node.save(update_fields=["shared_secret_hash", "updated_at"])
-        plaintext_media = b"processed-video"
+        source_hash, plaintext_media = hub_video_artifact()
         processed_hash = hashlib.sha256(plaintext_media).hexdigest()
         video_state = VideoState.objects.create(
             anonymized=True,
@@ -755,7 +756,7 @@ class HubExportEndToEndTests(TestCase):
             center=self.center,
             state=video_state,
             sensitive_meta=create_hub_sensitive_meta(center=self.center),
-            raw_video_hash="video-hash-1",
+            raw_video_hash=source_hash,
             processed_video_hash=processed_hash,
             original_file_name="video-1.mp4",
             suffix=".mp4",

@@ -38,6 +38,16 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
             component: () => import('@/views/reporting/CaseSetupPage.vue')
           },
           {
+            path: 'medication',
+            name: 'Reporting Medikation und Labor',
+            component: () => import('@/views/reporting/CaseMedicationPage.vue')
+          },
+          {
+            path: 'examination-records',
+            name: 'Reporting Untersuchungsfassungen',
+            component: () => import('@/views/reporting/CaseExaminationRecordsPage.vue')
+          },
+          {
             path: ':patient_examination_id/template-requirements',
             name: 'Reporting Template und Anforderungssets',
             redirect: (to) => {

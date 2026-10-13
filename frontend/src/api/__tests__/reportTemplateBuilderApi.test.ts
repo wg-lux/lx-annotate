@@ -5,7 +5,8 @@ import {
   normalizeBuilderReadiness,
   publishReportTemplate,
   saveReportTemplateDefinition,
-  unpublishReportTemplate
+  unpublishReportTemplate,
+  buildReportTemplatePackage
 } from '@/api/reportTemplateBuilderApi'
 
 const hoisted = vi.hoisted(() => ({
@@ -20,6 +21,37 @@ vi.mock('@/api/axiosInstance', () => ({
 
 describe('reportTemplateBuilderApi', () => {
   beforeEach(() => vi.clearAllMocks())
+
+  it.each([false, true])('validates all package response files (missing: %s)', async (missing) => {
+    hoisted.post.mockResolvedValue({
+      data: {
+        package_name: 'study',
+        config_yaml: 'name: study',
+        report_templates_yaml: '[]',
+        ...(missing ? {} : { validators_yaml: '[]' })
+      }
+    })
+    const request = buildReportTemplatePackage({
+      moduleName: 'source',
+      moduleVersion: '1.0.0',
+      fileName: 'templates',
+      templateName: 'study_template',
+      examination: 'colonoscopy',
+      description: '',
+      sections: [],
+      packageName: 'study',
+      packageVersion: '0.1.0',
+      dependsOn: ['source']
+    })
+    if (missing) await expect(request).rejects.toThrow('drei YAML-Dateien')
+    else
+      await expect(request).resolves.toEqual({
+        packageName: 'study',
+        configYaml: 'name: study',
+        reportTemplatesYaml: '[]',
+        validatorsYaml: '[]'
+      })
+  })
 
   it('normalizes readiness and preserves blocking errors', () => {
     expect(

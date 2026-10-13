@@ -16,6 +16,7 @@ import {
   attachCaseDocument,
   createCaseWithExamination,
   createPatientCase,
+  examinationCreationIdentity,
   fetchPatientCases,
   type PatientCase
 } from '@/api/casesApi'
@@ -149,6 +150,14 @@ describe('casesApi', () => {
     expect(result).toEqual(patientCase)
   })
 
+  it('requires a selected bundle for examination creation', () => {
+    expect(() => examinationCreationIdentity(null)).toThrow('Terminologiepaket')
+    expect(examinationCreationIdentity({ moduleName: 'coloreg', version: '0.3.0' })).toEqual({
+      knowledgeBaseModule: 'coloreg',
+      knowledgeBaseVersion: '0.3.0'
+    })
+  })
+
   it('creates a case and its first examination atomically', async () => {
     const response = {
       case: patientCase,
@@ -160,7 +169,9 @@ describe('casesApi', () => {
       patientExamination: {
         patient: 'patient-hash',
         examination: 'colonoscopy',
-        dateStart: '2026-07-23'
+        dateStart: '2026-07-23',
+        knowledgeBaseModule: 'coloreg',
+        knowledgeBaseVersion: '0.3.0'
       }
     }
 
@@ -172,6 +183,29 @@ describe('casesApi', () => {
     )
     expect(result).toEqual(response)
   })
+
+  it.each([
+    ['', '0.3.0'],
+    ['coloreg', ''],
+    ['', '']
+  ])(
+    'rejects incomplete creation identity %s@%s before sending a request',
+    async (knowledgeBaseModule, knowledgeBaseVersion) => {
+      await expect(
+        createCaseWithExamination({
+          admissionDate: '2026-07-23T08:00:00Z',
+          patientExamination: {
+            patient: 'patient-hash',
+            examination: 'colonoscopy',
+            dateStart: '2026-07-23',
+            knowledgeBaseModule,
+            knowledgeBaseVersion
+          }
+        })
+      ).rejects.toThrow('Terminologiepaket')
+      expect(hoisted.axios.post).not.toHaveBeenCalled()
+    }
+  )
 
   it('attaches one existing document through the case-scoped API', async () => {
     hoisted.axios.post.mockResolvedValue({ data: patientCase })

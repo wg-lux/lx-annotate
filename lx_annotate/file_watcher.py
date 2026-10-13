@@ -16,19 +16,13 @@ from pathlib import Path
 from typing import Iterator, Set
 
 import requests
-from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import Q
 from django.db.models.fields.files import FieldFile
 from endoreg_db.exceptions import InsufficientStorageError
 from endoreg_db.models import (
     Center,
     EndoscopyProcessor,
-    LabelVideoSegment,
-    UploadJob,
-    VideoFile,
 )
 from endoreg_db.services.hub.ingest import (
-    UploadProvenance,
     process_preanonymized_watcher_file,
     process_watcher_file,
 )
@@ -42,7 +36,7 @@ from endoreg_db.services.runtime.environment_readiness import (
 from endoreg_db.services.video_files._imports import (
     check_storage_capacity,
 )
-from endoreg_db.utils.file_operations import ensure_directory, safe_unlink_file
+from endoreg_db.utils.file_operations import ensure_directory
 from endoreg_db.utils.paths import get_runtime_paths
 from endoreg_db.utils.storage import ensure_local_file
 from watchdog.events import (  # type: ignore[import-not-found]
@@ -208,80 +202,6 @@ def managed_media_temp_path(
         yield local_path
 
 
-def _has_prediction_segments(video_file: VideoFile) -> bool:
-    video_pk = getattr(video_file, "pk", None)
-    if video_pk is None:
-        return False
-
-    try:
-        return (
-            LabelVideoSegment.objects.filter(video_file=video_file)
-            .filter(Q(prediction_meta__isnull=False) | Q(source__name="prediction"))
-            .exists()
-        )
-    except Exception as exc:
-        logger.warning(
-            "Could not check prediction segments for video %s: %s",
-            getattr(video_file, "raw_video_hash", video_pk),
-            exc,
-        )
-        return False
-
-
-def _prediction_sequences_have_ranges(video_file: VideoFile) -> bool | None:
-    sequences = getattr(video_file, "sequences", None)
-    if not isinstance(sequences, dict):
-        return None
-    return any(bool(sequence_list) for sequence_list in sequences.values())
-
-
-def _prediction_pipeline_complete(video_file: VideoFile) -> bool:
-    try:
-        state = getattr(video_file, "state", None)
-    except Exception:
-        state = None
-
-    if state is None:
-        get_state = getattr(video_file, "get_or_create_state", None)
-        if callable(get_state):
-            try:
-                state = get_state()
-            except Exception as exc:
-                logger.warning(
-                    "Could not resolve video state for %s: %s",
-                    getattr(video_file, "raw_video_hash", "<unknown>"),
-                    exc,
-                )
-                return False
-
-    initial_prediction_completed = getattr(state, "initial_prediction_completed", False)
-    lvs_created = getattr(state, "lvs_created", False)
-    has_prediction_segments = _has_prediction_segments(video_file)
-
-    if not (initial_prediction_completed and lvs_created):
-        return False
-
-    if has_prediction_segments:
-        return True
-
-    has_prediction_ranges = _prediction_sequences_have_ranges(video_file)
-    if has_prediction_ranges is False:
-        logger.info(
-            "Video %s completed prediction with no segment ranges to materialize.",
-            getattr(
-                video_file, "raw_video_hash", getattr(video_file, "pk", "<unknown>")
-            ),
-        )
-        return True
-
-    logger.warning(
-        "Video %s has lvs_created=True but no prediction LabelVideoSegment rows. "
-        "Treating prediction pipeline as incomplete so pipe_1 can materialize rows for the KI segment view.",
-        getattr(video_file, "raw_video_hash", getattr(video_file, "pk", "<unknown>")),
-    )
-    return False
-
-
 def _resolve_center_by_key(center_key: str) -> Center:
     center = Center.objects.filter(center_key=center_key).first()
     if center is None:
@@ -317,15 +237,6 @@ def _normalize_center_reference(center_reference: str) -> str:
     if not normalized_reference:
         raise ValueError("Watcher default center reference must not be empty")
     return normalized_reference
-
-
-def _video_has_sensitive_meta(video_file: VideoFile) -> bool:
-    if getattr(video_file, "sensitive_meta_id", None) is not None:
-        return True
-    try:
-        return getattr(video_file, "sensitive_meta", None) is not None
-    except ObjectDoesNotExist:
-        return False
 
 
 class IntakeVideoImportService:
@@ -408,13 +319,13 @@ def unload_ollama_model(model_name: str = "llama3.2:1b") -> None:
 def should_ignore_file(file_path: str | Path) -> bool:
     """Skip internal/temporary files and quarantine paths."""
     p = Path(file_path)
-    if is_in_progress_handoff_path(p):
+    if any(is_in_progress_handoff_path(part) for part in p.parts):
         return True
     if p.suffix == ".lock":
         return True
     if any(part == "_processing" for part in p.parts):
         return True
-    if p.name.startswith(".") or p.name.startswith("~"):
+    if any(part.startswith((".", "~")) for part in p.parts):
         return True
     return False
 
@@ -428,8 +339,8 @@ class AutoProcessingHandler(FileSystemEventHandler):
         self.in_flight_files: Set[str] = set()
         self.files_lock = threading.Lock()
         self.video_extensions = {".mp4", ".avi", ".mov", ".mkv", ".webm", ".m4v"}
-        self.report_extensions = {".pdf"}
-        self.pseudonymized_extensions = {".pdf", ".mp4"}
+        self.report_extensions = {".pdf", ".txt"}
+        self.pseudonymized_extensions = {".pdf", ".txt", ".mp4"}
 
         from django.conf import settings
 
@@ -539,8 +450,8 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 logger.debug("Skipping ignored file: %s", path)
                 return
 
-            if not self._wait_for_file_stable(path):
-                logger.warning("File not stable after waiting: %s", path)
+            if any(candidate.is_symlink() for candidate in (path, *path.parents)):
+                logger.warning("Ignoring symbolic link in watcher input path")
                 return
 
             file_extension = path.suffix.lower()
@@ -548,19 +459,19 @@ class AutoProcessingHandler(FileSystemEventHandler):
             logger.debug("Parent: %s", parent_dir)
 
             if (
-                parent_dir == INTAKE_VIDEO_DIR
+                _is_relative_to(parent_dir, INTAKE_VIDEO_DIR)
                 and file_extension in self.video_extensions
             ):
                 logger.info("New video detected: %s", path)
                 self._process_video(path)
             elif (
-                parent_dir == INTAKE_REPORT_DIR
+                _is_relative_to(parent_dir, INTAKE_REPORT_DIR)
                 and file_extension in self.report_extensions
             ):
                 logger.info("New report detected: %s", path)
                 self._process_report(path)
             elif (
-                parent_dir == self.pseudonymized_dir
+                _is_relative_to(parent_dir, self.pseudonymized_dir)
                 and file_extension in self.pseudonymized_extensions
             ):
                 logger.info("New pseudonymized file detected: %s", path)
@@ -571,45 +482,6 @@ class AutoProcessingHandler(FileSystemEventHandler):
             logger.error("Error processing file %s: %s", file_path, exc, exc_info=True)
         finally:
             self._release_processing_slot(path_key)
-
-    def _wait_for_file_stable(
-        self,
-        path: Path,
-        timeout: int = 900,
-        stable_checks_required: int = 10,
-        interval: float = 2.0,
-    ) -> bool:
-        if not path.exists() or should_ignore_file(path):
-            return False
-
-        last_size = -1
-        stable_checks = 0
-        deadline = time.monotonic() + timeout
-
-        while time.monotonic() < deadline:
-            try:
-                current_size = path.stat().st_size
-            except OSError as exc:
-                logger.debug("Error checking file size for %s: %s", path, exc)
-                time.sleep(interval)
-                continue
-
-            if current_size <= 0:
-                stable_checks = 0
-            elif current_size == last_size:
-                stable_checks += 1
-                if stable_checks >= stable_checks_required:
-                    logger.info("File stable: %s (%s bytes)", path, current_size)
-                    return True
-            else:
-                stable_checks = 0
-                last_size = current_size
-                logger.debug("File still changing: %s (%s bytes)", path, current_size)
-
-            time.sleep(interval)
-
-        logger.warning("Timed out waiting for stable file: %s", path)
-        return False
 
     def _check_video_storage_capacity(self, video_path: Path) -> bool:
         try:
@@ -626,55 +498,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
             logger.warning("Storage check failed, proceeding anyway: %s", storage_error)
         return True
 
-    @staticmethod
-    def _video_hash_from_upload_job(upload_job: UploadJob) -> str:
-        raw_video_hash = str(getattr(upload_job, "content_hash", "") or "").strip()
-        if raw_video_hash:
-            return raw_video_hash
-        provenance: UploadProvenance = (
-            getattr(upload_job, "processing_provenance", None) or {}
-        )
-        return str(provenance.get("content_hash", "")).strip()
-
-    @staticmethod
-    def _resolve_uploaded_video(
-        upload_job: UploadJob,
-        video_path: Path,
-    ) -> VideoFile | None:
-        raw_video_hash = AutoProcessingHandler._video_hash_from_upload_job(upload_job)
-        video_file = (
-            VideoFile.objects.filter(raw_video_hash=raw_video_hash).first()
-            if raw_video_hash
-            else None
-        )
-        if video_file is None:
-            logger.warning(
-                "Watcher upload job completed but no VideoFile could be resolved for %s",
-                video_path,
-            )
-        return video_file
-
-    @staticmethod
-    def _log_missing_sensitive_meta(
-        upload_job: UploadJob,
-        video_file: VideoFile,
-    ) -> None:
-        if _video_has_sensitive_meta(video_file):
-            return
-        if getattr(upload_job, "sensitive_meta_id", None) is not None:
-            logger.warning(
-                "SensitiveMeta was created for upload job %s but is not "
-                "linked to VideoFile %s",
-                upload_job.id,
-                video_file.raw_video_hash,
-            )
-            return
-        logger.warning(
-            "Video imported but no SensitiveMeta created: %s",
-            video_file.raw_video_hash,
-        )
-
-    def _import_video(self, video_path: Path) -> VideoFile | None:
+    def _import_video(self, video_path: Path) -> None:
         try:
             source_center = self._resolve_default_center()
             upload_job = process_watcher_file(
@@ -712,15 +536,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 )
                 return None
 
-            video_file = self._resolve_uploaded_video(upload_job, video_path)
-            if video_file is None:
-                return None
-            self._log_missing_sensitive_meta(upload_job, video_file)
-            logger.info(
-                "Video imported through shared hub ingest: %s",
-                video_file.raw_video_hash,
-            )
-            return video_file
+            logger.info("Video imported through shared hub ingest: %s", upload_job.id)
         except WatcherFileNotReadyError as not_ready_error:
             logger.info(
                 "Video watcher source is not ready yet, deferring: %s (%s)",
@@ -743,55 +559,6 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 logger.error("Import failed for %s: %s", video_path, import_error)
             self._unmark_processed(str(video_path))
         return None
-
-    def _queue_video_segmentation(
-        self,
-        *,
-        video_file: VideoFile,
-        raw_video_hash: str,
-        video_path: Path,
-    ) -> bool:
-        if not getattr(video_file, "pk", None):
-            return True
-        if not video_path.exists():
-            if _prediction_pipeline_complete(video_file):
-                logger.info(
-                    "Video %s already has completed prediction segments. "
-                    "Bypassing AI pipeline.",
-                    raw_video_hash,
-                )
-                return False
-            logger.info(
-                "Watcher source for video %s was cleaned up after ingest; "
-                "queuing AI pipeline.",
-                raw_video_hash,
-            )
-        try:
-            from endoreg_db.models import AiModel
-            from endoreg_db.services.video_files.temporal_inference import (
-                dispatch_video_temporal_inference,
-            )
-
-            ai_model = AiModel.objects.get(name=self.default_model)
-            model_meta = ai_model.get_latest_version()
-            dispatch_result = dispatch_video_temporal_inference(
-                video_id=video_file.pk,
-                model_meta_id=model_meta.pk,
-                replace_prediction_segments=True,
-                delete_frames_after=True,
-            )
-            logger.info(
-                "Video segmentation queued for %s on %s queue: "
-                "task=%s history=%s status=%s",
-                video_file.raw_video_hash,
-                dispatch_result.queue,
-                dispatch_result.task_id,
-                dispatch_result.history_id,
-                dispatch_result.status,
-            )
-        except Exception as exc:
-            logger.error("Error queuing video segmentation: %s", exc, exc_info=True)
-        return True
 
     def _handle_video_processing_error(
         self, video_path: Path, processing_error: Exception
@@ -826,21 +593,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
             if not self._check_video_storage_capacity(video_path):
                 return
 
-            video_file = self._import_video(video_path)
-            if video_file is None:
-                return
-            raw_video_hash = video_file.raw_video_hash
-            if not self._queue_video_segmentation(
-                video_file=video_file,
-                raw_video_hash=raw_video_hash,
-                video_path=video_path,
-            ):
-                return
-
-            logger.info("Video processing completed: %s", video_path)
-            if video_path.exists():
-                logger.info("Source video still exists: %s", video_path)
-                safe_unlink_file(video_path)
+            self._import_video(video_path)
         except Exception as exc:
             self._handle_video_processing_error(video_path, exc)
 
@@ -873,17 +626,10 @@ class AutoProcessingHandler(FileSystemEventHandler):
                         "Report imported through shared hub ingest: %s",
                         upload_job.id,
                     )
-                    try:
-                        if report_path.exists():
-                            safe_unlink_file(report_path)
-                    except Exception as exc:
-                        logger.error(
-                            "Error removing report file %s: %s", report_path, exc
-                        )
                 else:
                     logger.info(
-                        "Report import skipped (already being processed): %s",
-                        report_path,
+                        "Report handed to shared hub ingest: %s",
+                        upload_job.id,
                     )
                     self._unmark_processed(str(report_path))
             except WatcherFileNotReadyError as not_ready_error:
@@ -963,10 +709,10 @@ class FileWatcherService:
     def start(self) -> None:
         try:
             self._validate_django_setup()
-            self.observer.schedule(self.handler, str(self.video_dir), recursive=False)
-            self.observer.schedule(self.handler, str(self.report_dir), recursive=False)
+            self.observer.schedule(self.handler, str(self.video_dir), recursive=True)
+            self.observer.schedule(self.handler, str(self.report_dir), recursive=True)
             self.observer.schedule(
-                self.handler, str(self.pseudonymized_dir), recursive=False
+                self.handler, str(self.pseudonymized_dir), recursive=True
             )
             self.observer.start()
             logger.info("File watcher service started successfully")
@@ -1028,9 +774,10 @@ class FileWatcherService:
         directory: Path,
         extensions: Set[str],
     ) -> Iterator[Path]:
-        for candidate in directory.glob("*"):
+        for candidate in directory.rglob("*"):
             if (
                 candidate.is_file()
+                and not candidate.is_symlink()
                 and candidate.suffix.lower() in extensions
                 and not should_ignore_file(candidate)
             ):
@@ -1043,13 +790,13 @@ class FileWatcherService:
     def _process_existing_files(self) -> int:
         submitted_count = 0
         intake_groups = (
-            (self.video_dir, self.handler.video_extensions, "video"),
             (self.report_dir, self.handler.report_extensions, "report"),
             (
                 self.pseudonymized_dir,
                 self.handler.pseudonymized_extensions,
                 "pseudonymized file",
             ),
+            (self.video_dir, self.handler.video_extensions, "video"),
         )
 
         for directory, extensions, file_kind in intake_groups:
@@ -1069,10 +816,10 @@ class FileWatcherService:
         if not self.observer.is_alive():
             logger.error("Observer thread died, restarting...")
             self.observer = Observer()
-            self.observer.schedule(self.handler, str(self.video_dir), recursive=False)
-            self.observer.schedule(self.handler, str(self.report_dir), recursive=False)
+            self.observer.schedule(self.handler, str(self.video_dir), recursive=True)
+            self.observer.schedule(self.handler, str(self.report_dir), recursive=True)
             self.observer.schedule(
-                self.handler, str(self.pseudonymized_dir), recursive=False
+                self.handler, str(self.pseudonymized_dir), recursive=True
             )
             self.observer.start()
 

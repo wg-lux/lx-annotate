@@ -23,6 +23,8 @@ vi.mock('@/types/api/endpoints', () => ({
   endpoints: {
     hubExport: {
       overview: 'hub-export/overview/',
+      preflight: (id: number) => `hub-export/videos/${id}/preflight/`,
+      inspectRecovery: (id: number) => `hub-export/videos/${id}/inspect-recovery/`,
       mark: 'hub-export/mark/',
       offloadEligibleVideos: 'hub-export/offload-eligible-videos/',
       retry: (jobId: string) => `hub-export/jobs/${jobId}/retry/`,
@@ -684,12 +686,12 @@ describe('HubExportOverviewComponent', () => {
     expect(wrapper.get('[data-test="hub-transfer-active-count"]').text()).toContain('1')
     expect(wrapper.get('[data-test="hub-transfer-attention-count"]').text()).toContain('1')
     expect(wrapper.get('[data-test="hub-transfer-prerequisite-count"]').text()).toContain('1')
-    expect(wrapper.get('[data-test="hub-transfer-overall-progress"]').text()).toContain('50 %')
+    expect(wrapper.get('[data-test="hub-transfer-overall-progress"]').text()).toContain('keine Byteanzeige')
     expect(wrapper.get('[data-test="hub-transfer-progress-video-51"]').text()).toContain(
       'Datei wird übertragen'
     )
     expect(wrapper.get('[data-test="hub-transfer-progress-report-52"]').text()).toContain(
-      'Wartet auf erneuten Versuch'
+      'Prüfung erforderlich'
     )
     expect(wrapper.text()).toContain('Node-Autorisierung abgelehnt')
     expect(wrapper.text()).toContain('Die Segmentbereinigung läuft noch.')
@@ -1113,11 +1115,73 @@ describe('HubExportOverviewComponent', () => {
     const wrapper = mount(HubExportOverviewComponent)
     await flushPromises()
 
+    expect(wrapper.text()).toContain('Prüfung erforderlich')
+    expect(wrapper.text()).not.toContain('Wartet auf erneuten Versuch')
     const retryButton = wrapper.get('[data-test="hub-export-retry-job-91"]')
     expect(retryButton.text()).toBe('Erneut versuchen')
     await retryButton.trigger('click')
     await flushPromises()
 
     expect(hoisted.post).toHaveBeenCalledWith('/api/hub-export/jobs/job-91/retry/')
+  })
+})
+
+
+describe('hub recovery guidance', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    setActivePinia(createPinia())
+  })
+  const overview = (action: string, blockers: object[] = []) => ({
+    selectedTargetNodeKey: 'hub-node', sourceNodeKey: 'site-node', hubNodes: [], configReady: true, configError: '',
+    items: [{ id: 38, resourceKind: 'video', filename: 'selected-video', anonymizationStatus: 'validated',
+      segmentAnnotationStatus: 'validated', exportIntegrityStatus: 'persisted_verified', processedMediaPresent: true,
+      sourceCenterKey: 'center-a', markedForUpload: false, outboundStatus: '', lastError: '', eligible: true,
+      recovery: { verification: 'stored_metadata', blockers, allowedActions: [action], checkedAt: null, completedCurrentArtifact: false }
+    }]
+  })
+  it('includes videos without jobs and preserves selection during refresh', async () => {
+    hoisted.get.mockResolvedValue({ data: overview('preflight') })
+    const wrapper = mount(HubExportOverviewComponent)
+    await flushPromises()
+    await wrapper.get('[data-test="hub-needs-action"]').setValue(true)
+    expect(wrapper.text()).toContain('Handlungsbedarf (1)')
+    await wrapper.get('[data-test="hub-export-select-video-38"]').setValue(true)
+    await useHubExportStore().fetchOverview()
+    await flushPromises()
+    expect((wrapper.get('[data-test="hub-export-select-video-38"]').element as HTMLInputElement).checked).toBe(true)
+    expect(wrapper.text()).not.toContain('Freigegeben')
+    wrapper.unmount()
+  })
+  it('runs only preflight and announces a missing-source administrator action', async () => {
+    hoisted.get.mockResolvedValue({ data: overview('preflight') })
+    hoisted.post.mockResolvedValue({ data: { verification: 'stored_metadata', blockers: [{ code: 'provenance', detail: 'Authenticated provenance is missing.', action: 'administrator_recovery' }], allowedActions: ['administrator_recovery'], checkedAt: '2026-10-13T10:00:00Z', completedCurrentArtifact: false } })
+    const wrapper = mount(HubExportOverviewComponent, { attachTo: document.body })
+    await flushPromises()
+    const button = wrapper.get<HTMLButtonElement>('[data-test="hub-next-step-38"]')
+    button.element.focus()
+    expect(document.activeElement).toBe(button.element)
+    await button.trigger('click')
+    await flushPromises()
+    expect(hoisted.post).toHaveBeenCalledExactlyOnceWith('/api/hub-export/videos/38/preflight/')
+    expect(wrapper.text()).toContain('Administrator-Wiederherstellung anfordern')
+    expect(wrapper.find('[role="status"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('Erneut versuchen')
+    wrapper.unmount()
+  })
+  it.each([
+    ['repair_processing', '/anonymisierung/uebersicht', 'video'],
+    ['review_anonymization', '/anonymisierung/validierung', 'fileId'],
+    ['review_segments', '/video-untersuchung', 'video']
+  ])('links %s to the selected video and retains originating filters', async (action, path, key) => {
+    hoisted.get.mockResolvedValue({ data: overview(action) })
+    const wrapper = mount(HubExportOverviewComponent)
+    await flushPromises()
+    await wrapper.get('[data-test="hub-needs-action"]').setValue(true)
+    const link = new URL(wrapper.get('[data-test="hub-next-step-38"]').attributes('href'), 'https://example.test')
+    expect(link.pathname).toBe(path)
+    expect(link.searchParams.get(key)).toBe('38')
+    expect(link.searchParams.get('returnTo')).toContain('needsAction=1')
+    wrapper.unmount()
   })
 })

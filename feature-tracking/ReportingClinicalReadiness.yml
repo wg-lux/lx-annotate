@@ -142,6 +142,9 @@ definition_of_done:
   - Tests cover reload recovery, autosave failure and conflict, stale template restore, localized label
     fallback, filters, and responsive long-label behavior.
   - Frontend type checks and focused reporting suites pass.
+  - After PDF approval, a verified patient examination without a clinical Case can display its own report
+    text through examination-scoped timeline requests. Failed, ambiguous or explicitly invalid case resolution
+    must not enable this path, and unrelated examination media must be rejected.
   required: true
   verification:
     kind: command
@@ -184,24 +187,32 @@ definition_of_done:
         and type-check:component-tests passed. Store suite rerun: 17 passed including session restoration.
         Browser acceptance with an installed coloreg bundle remains unverified.'
     - kind: test
-      reference: 'Classification validation feedback: 36 tests passed across FindingsCapturePage,
-        reportingValidationPresentation and reportTemplatesApi. Classification issues and open-rule
-        hints appear at the affected finding and clear after successful revalidation. Existing
-        classification-choice and descriptor serialization remains covered.'
+      reference: 'Classification validation feedback: 36 tests passed across FindingsCapturePage, reportingValidationPresentation
+        and reportTemplatesApi. Classification issues and open-rule hints appear at the affected finding
+        and clear after successful revalidation. Existing classification-choice and descriptor serialization
+        remains covered.'
     - kind: test
       reference: 'Indication validation integration: 37 tests passed across reportingIndicationsValidation,
-        reportTemplatesApi and FindingsCapturePage. Selected indications resolve against the pinned
-        examination catalog and serialize as patient_indications; changes trigger revalidation.
-        Missing identities and unresolved optional choices fail visibly. Component type checks and
-        focused ESLint passed. Flat catalog classifications do not provide optional choice identities;
-        those selections remain blocked until the catalog supplies an unambiguous choice mapping.'
-    note: Streamed annotation/report previews, ordered frame add/remove, positive-label browsing and last-click
-      fallback are implemented. 111 focused frontend tests, component/application type checks and lint
-      pass. Generated API freshness passes against edited endoreg-db/lx-dtypes sources. Selection is scoped
-      to examination/authentication and is not restored after browser reload. Clinical/browser acceptance
-      and coordinated package release remain outstanding.
-    assessed_by: codex-reporting-interventions-20260929
-    assessed_at: '2026-09-29T14:07:34.674203Z'
+        reportTemplatesApi and FindingsCapturePage. Selected indications resolve against the pinned examination
+        catalog and serialize as patient_indications; changes trigger revalidation. Missing identities
+        and unresolved optional choices fail visibly. Component type checks and focused ESLint passed.
+        Flat catalog classifications do not provide optional choice identities; those selections remain
+        blocked until the catalog supplies an unambiguous choice mapping.'
+    - kind: test
+      reference: '2026-10-08: 156 tests passed in four suites: AnonymizationValidationComponent (39),
+        ReportingShell.mediaPreload (64), ReportEditorPage (43), reportingTimelineApi (10). After lint-driven
+        helper extraction, ReportingShell.mediaPreload rerun: 64 passed. New coverage verifies report
+        text for a verified examination without a clinical Case, examination-scoped API parameters, rejection
+        of unrelated examination media, failed lookup and explicit invalid-case blocking. Existing ambiguity
+        and stale-response tests pass.'
+    - kind: command
+      reference: '2026-10-08: vue-tsc --noEmit -p tsconfig.app.json passed; scoped ESLint with --max-warnings
+        0 passed; git diff --check passed.'
+    note: Local source fix only; no deployment or live browser acceptance. Missing clinical Case no longer
+      clears examination-owned report media; no clinical ownership is invented. Existing case-backed patient-history
+      behavior remains covered.
+    assessed_by: codex-gc10-cleanup-review-20261007
+    assessed_at: '2026-10-08T14:06:26.438042Z'
 - id: observable_recovery_failures
   category: operations
   title: Draft recovery and identity failures are observable and actionable

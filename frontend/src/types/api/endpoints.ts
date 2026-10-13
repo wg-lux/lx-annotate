@@ -98,6 +98,8 @@ export const endpoints = {
   },
 
   hubExport: {
+    preflight: (id: number) => `hub-export/videos/${id}/preflight/`,
+    inspectRecovery: (id: number) => `hub-export/videos/${id}/inspect-recovery/`,
     overview: 'hub-export/overview/',
     mark: 'hub-export/mark/',
     offloadEligibleVideos: 'hub-export/offload-eligible-videos/',

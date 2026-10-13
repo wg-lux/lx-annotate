@@ -56,7 +56,13 @@ def _merge_endoreg_schemas(
     drf_components = dict(drf_schema.get("components", {}))
     ninja_schemas = dict(ninja_components.get("schemas", {}))
     drf_schemas = dict(drf_components.get("schemas", {}))
-    duplicate_schemas = set(ninja_schemas).intersection(drf_schemas)
+    # Shared canonical contracts may be reached by both API frameworks.
+    # Only incompatible definitions are a collision.
+    duplicate_schemas = {
+        name
+        for name in set(ninja_schemas).intersection(drf_schemas)
+        if ninja_schemas[name] != drf_schemas[name]
+    }
     if duplicate_schemas:
         raise CommandError(
             "Django Ninja and DRF expose duplicate Endoreg schema names: "

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AiDatasetSettingsPage from '../AiDatasetSettingsPage.vue'
 
+vi.mock('@/components/AiDataset/DatasetManager.vue', () => ({ default: { template: '<div />', methods: { reload: vi.fn() } } }))
 vi.mock('@/api/studyCohortApi', () => ({ fetchStudyCohorts: hoisted.fetchStudyCohorts }))
 
 const hoisted = vi.hoisted(() => ({

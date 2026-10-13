@@ -1,9 +1,11 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { computed, ref } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { strFromU8, unzipSync } from 'fflate'
 
 import ReportTemplateBuilderPage from '../ReportTemplateBuilderPage.vue'
 import { reportTemplateLifecycleContextKey } from '../reportTemplateLifecycleContext'
+import ReportTemplateSectionsEditor from '@/components/Reporting/ReportTemplateSectionsEditor.vue'
 
 const hoisted = vi.hoisted(() => ({
   fetchKnowledgeBaseGraphSnapshot: vi.fn(),
@@ -15,8 +17,12 @@ const hoisted = vi.hoisted(() => ({
   saveDefinition: vi.fn(),
   fetchReadiness: vi.fn(),
   publish: vi.fn(),
-  unpublish: vi.fn()
+  unpublish: vi.fn(),
+  buildPackage: vi.fn(),
+  saveDownload: vi.fn()
 }))
+
+vi.mock('@/utils/saveDownload', () => ({ saveDownload: hoisted.saveDownload }))
 
 vi.mock('@/api/knowledgeBaseGraphApi', () => ({
   fetchKnowledgeBaseGraphSnapshot: hoisted.fetchKnowledgeBaseGraphSnapshot
@@ -33,6 +39,7 @@ vi.mock('@/api/reportTemplatesApi', () => ({
 }))
 
 vi.mock('@/api/reportTemplateBuilderApi', () => ({
+  buildReportTemplatePackage: hoisted.buildPackage,
   saveReportTemplateDefinition: hoisted.saveDefinition,
   fetchReportTemplateReadiness: hoisted.fetchReadiness,
   publishReportTemplate: hoisted.publish,
@@ -122,6 +129,119 @@ describe('ReportTemplateBuilderPage publication integration', () => {
       readiness: null
     })
   })
+
+  it.each([false, true])(
+    'builds package files and discards stale drafts (changed: %s)',
+    async (changed) => {
+      const pending = deferred<{
+        packageName: string
+        configYaml: string
+        reportTemplatesYaml: string
+        validatorsYaml: string
+      }>()
+      hoisted.buildPackage.mockReturnValue(pending.promise)
+      const wrapper = mount(ReportTemplateBuilderPage, {
+        global: {
+          provide: {
+            [reportTemplateLifecycleContextKey as symbol]: {
+              activeModuleName: computed(() => 'report_template_examples'),
+              activeModuleVersion: computed(() => '1.0.0'),
+              activeExaminationName: computed(() => 'colonoscopy'),
+              notifyLifecycleChanged: vi.fn()
+            }
+          }
+        }
+      })
+      await flushPromises()
+      wrapper.findComponent(ReportTemplateSectionsEditor).vm.$emit('update:modelValue', [
+        {
+          id: 'section',
+          name: 'study_findings',
+          sectionType: 'findings',
+          description: '',
+          fields: [],
+          findings: [
+            {
+              finding: 'colon_polyp',
+              required: false,
+              multipleAllowed: true,
+              classifications: [],
+              validator: {
+                enabled: true,
+                name: 'study_rule',
+                operator: 'exists',
+                condition: { classification: '', comparator: 'eq', value: '', thenRequires: [] }
+              }
+            }
+          ]
+        }
+      ])
+      await wrapper.get('#study-package-name').setValue('my_study')
+      await wrapper.get('#study-package-version').setValue('0.2.0')
+      await wrapper.get('#study-package-dependencies').setValue('additional_terminology')
+      const generate = wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'Paketdateien erzeugen')
+      if (!generate) throw new Error('Package generation button missing')
+      await generate.trigger('click')
+      expect(hoisted.buildPackage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          packageName: 'my_study',
+          packageVersion: '0.2.0',
+          moduleVersion: '1.0.0',
+          dependsOn: ['report_template_examples', 'additional_terminology']
+        })
+      )
+      expect(hoisted.buildPackage.mock.calls[0]?.[0]).toMatchObject({
+        sections: [{ findings: [{ validator: { name: 'study_rule' } }] }]
+      })
+      if (changed) await wrapper.get('#study-package-version').setValue('0.3.0')
+      pending.resolve({
+        packageName: 'my_study',
+        configYaml: 'name: my_study\n',
+        reportTemplatesYaml: '- model: report_template\n',
+        validatorsYaml: '- model: findings_validator\n'
+      })
+      await flushPromises()
+      const download = wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'Studienpaket herunterladen')
+      if (!download) throw new Error('Download button missing')
+      if (changed) {
+        expect(wrapper.find('[data-testid="config.yaml"]').exists()).toBe(false)
+        expect(download.attributes('disabled')).toBeDefined()
+      } else {
+        expect(wrapper.get('[data-testid="config.yaml"]').text()).toContain('name: my_study')
+        expect(wrapper.get('[data-testid="validators.yml"]').text()).toContain('findings_validator')
+        await download.trigger('click')
+        expect(hoisted.saveDownload).toHaveBeenCalledWith(expect.any(Blob), 'my_study.zip')
+        const archive: unknown = hoisted.saveDownload.mock.calls[0]?.[0]
+        if (!(archive instanceof Blob)) throw new Error('Expected a ZIP Blob')
+        const bytes = await new Promise<ArrayBuffer>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => {
+            if (reader.result instanceof ArrayBuffer) resolve(reader.result)
+            else reject(new Error('Expected archive bytes'))
+          }
+          reader.onerror = () => { reject(new Error('Could not read archive')) }
+          reader.readAsArrayBuffer(archive)
+        })
+        const files = unzipSync(new Uint8Array(bytes))
+        expect(Object.keys(files).sort()).toEqual([
+          'my_study/config.yaml',
+          'my_study/report_templates.yml',
+          'my_study/validators.yml'
+        ])
+        const configBytes: unknown = files['my_study/config.yaml']
+        if (!(configBytes instanceof Uint8Array)) throw new Error('Missing config file')
+        expect(strFromU8(configBytes)).toBe('name: my_study\n')
+        await wrapper.get('#study-package-name').setValue('new_study')
+        expect(download.attributes('disabled')).toBeDefined()
+      }
+      expect(hoisted.saveDefinition).not.toHaveBeenCalled()
+      expect(hoisted.publish).not.toHaveBeenCalled()
+    }
+  )
 
   it('uses the shell module, loads drafts through preview, and notifies after publication', async () => {
     const notifyLifecycleChanged = vi.fn().mockResolvedValue(undefined)

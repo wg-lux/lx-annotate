@@ -11,6 +11,7 @@ const hoisted = vi.hoisted(() => ({
   routerPush: vi.fn()
 }))
 
+vi.mock('@/components/AiDataset/DatasetManager.vue', () => ({ default: { template: '<div />', methods: { reload: vi.fn() } } }))
 vi.mock('@/api/studyCohortApi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api/studyCohortApi')>()),
   previewStudyCohort: hoisted.fetchStudyCohortPreview,
@@ -18,6 +19,7 @@ vi.mock('@/api/studyCohortApi', async (importOriginal) => ({
   fetchStudyDefinition: hoisted.fetchStudyDefinition,
   saveStudyCohort: hoisted.saveStudyCohort
 }))
+vi.mock('@/components/StudyTableImport.vue', () => ({ default: { template: '<div />', methods: { reload: vi.fn() } } }))
 vi.mock('@/api/aiDatasetApi', () => ({ fetchAiDatasetOptions: hoisted.fetchAiDatasetOptions }))
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: hoisted.routerPush })
@@ -148,7 +150,8 @@ describe('StudyCohortPage', () => {
           limit: 100
         }
       },
-      expect.any(AbortSignal)
+      expect.any(AbortSignal),
+      undefined
     )
     expect(wrapper.get('[data-test="summary-case-count"]').text()).toBe('2')
     expect(wrapper.get('[data-test="summary-report-count"]').text()).toBe('3')
@@ -271,6 +274,21 @@ describe('StudyCohortPage', () => {
     expect(useStudyCohortExportStore().definition).toBeNull()
   })
 
+  it('requires saving edits before previewing a persisted cohort', async () => {
+    hoisted.fetchStudyCohorts.mockResolvedValue([{
+      id: 12, name: 'Saved study', hypothesis: 'Hypothesis',
+      filters: { limit: 100 }, datasetIds: [], updatedAt: '2026-10-13'
+    }])
+    const wrapper = mount(StudyCohortPage)
+    await flushPromises()
+    await wrapper.get('[data-test="saved-cohort"]').setValue('12')
+    await wrapper.get('[data-test="study-name"]').setValue('Unsaved title')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(hoisted.fetchStudyCohortPreview).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('vor der Vorschau speichern')
+  })
+
   it('loads and saves multiple dataset links on a persisted cohort', async () => {
     const saved = {
       id: 12,
@@ -315,7 +333,8 @@ describe('StudyCohortPage', () => {
     await flushPromises()
     expect(hoisted.fetchStudyCohortPreview).toHaveBeenCalledWith(
       expect.objectContaining({ datasetIds: [7, 8], studyMetadata: saved.studyMetadata }),
-      expect.any(AbortSignal)
+      expect.any(AbortSignal),
+      12
     )
   })
 

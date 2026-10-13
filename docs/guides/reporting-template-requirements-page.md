@@ -49,6 +49,28 @@ writing into `site-packages` at runtime. To author or change lifecycle state,
 first import an editable terminology bundle so the API can resolve one explicit,
 writable module root and version.
 
+## Authoring A Portable Study Draft
+
+In `ReportTemplateBuilderPage`, construct sections and findings in the draft editor.
+Enable a finding rule to require its presence, forbid it, or make classifications
+conditional. For `in` and `not_in`, enter one canonical choice identifier per line.
+Requirement chips can be removed. Keep conditionally required classifications optional
+in the finding's unconditional classification list.
+
+The **Studienpaket und config.yaml** panel accepts a new package name, its version,
+and additional dependencies. The source terminology module is always included.
+**Paketdateien erzeugen** renders `config.yaml`, `report_templates.yml`, and
+`validators.yml` using the backend's shared record builder. Inspect those previews,
+then download the ZIP. Changing the draft invalidates the preview and download.
+
+The ZIP contains a directory matching the package name. Its manifest selects both
+record files and its template selects the generated validator names. Dependencies
+are referenced, not bundled; provide their intended releases when registering the
+package. This is a draft export, not a coverage or publication approval. It neither
+changes installed package configuration nor registers, selects, or publishes a package.
+The authoring contract follows lx-data-models' `docs/guides/report-template-authoring.md`.
+The export endpoint requires the existing `report_template:write` capability.
+
 ## Examination And Indication Resolution Contract
 
 The reporting shell owns the active patient-examination context. It passes the

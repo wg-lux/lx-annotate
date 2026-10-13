@@ -806,6 +806,49 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     wrapper.unmount()
   })
 
+  it('shows validation progress before dispatch and hides stale errors on retry', async () => {
+    const wrapper = mountComponent()
+    try {
+      await flushPromises()
+      await selectVideoFromDropdown(wrapper, 'cleanup-failed.mp4')
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+      const validate = () =>
+        requireDefined(findButtonByText(wrapper, 'Validierung erneut starten'), 'Validate').trigger(
+          'click'
+        )
+
+      await validate()
+      expect(apiMocks.post).not.toHaveBeenCalled()
+      expect(wrapper.find('[data-test="segment-validation-waiting"]').exists()).toBe(false)
+
+      confirm.mockReturnValue(true)
+      apiMocks.post.mockRejectedValueOnce(new Error('validation request failed'))
+      await validate()
+      await flushPromises()
+      expect(wrapper.text()).toContain('Validierung fehlgeschlagen: validation request failed')
+      expect(wrapper.find('[data-test="segment-cleanup-failed"]').exists()).toBe(true)
+
+      let reject!: (error: Error) => void
+      apiMocks.post.mockImplementationOnce(() => {
+        expect(wrapper.find('[data-test="segment-validation-waiting"]').exists()).toBe(true)
+        expect(wrapper.find('[data-test="segment-cleanup-failed"]').exists()).toBe(false)
+        expect(wrapper.text()).not.toContain('validation request failed')
+        return new Promise((_resolve, rejectRequest) => {
+          reject = rejectRequest
+        })
+      })
+      await validate()
+      await flushPromises()
+      expect(wrapper.find('[data-test="segment-validation-waiting"]').exists()).toBe(true)
+      reject(new Error('retry failed'))
+      await flushPromises()
+      expect(wrapper.find('[data-test="segment-validation-waiting"]').exists()).toBe(false)
+      expect(wrapper.text()).toContain('Validierung fehlgeschlagen: retry failed')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('keeps delayed KI submission bound to its original video', async () => {
     const wrapper = mountComponent()
     await flushPromises()

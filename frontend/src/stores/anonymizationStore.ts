@@ -157,6 +157,7 @@ export interface VideoStateRepairResponse {
     changes: string[]
     missing: string[]
     annotationsPreserved: true
+    resetTo?: 'import'
   }>
   annotationsPreserved: true
   transcodes?: {
@@ -892,6 +893,15 @@ export const useAnonymizationStore = defineStore('anonymization', {
         this.error = `Videozustände konnten nicht repariert werden: ${detail}`
         return null
       }
+    },
+
+    async resetVideoForBackfill(fileId: number, dryRun: boolean): Promise<VideoStateRepairResponse> {
+      const { data } = await axiosInstance.post<VideoStateRepairResponse>(
+        r(endpoints.runtime.videoStateRepairOne(fileId)),
+        { dry_run: dryRun, reset_to: 'import' }
+      )
+      if (!dryRun) await this.fetchOverview()
+      return data
     },
 
     async resumeVideoMetadataImport(fileId: number, missing: string[]): Promise<boolean> {

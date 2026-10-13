@@ -269,7 +269,7 @@
                 data-test="hub-transfer-completed-count"
               >
                 <span class="sync-metric-value text-success">{{ completedTransferCount }}</span>
-                <span class="sync-metric-label">Abgeschlossen</span>
+                <span class="sync-metric-label">Historisch abgeschlossen</span>
               </div>
             </div>
             <div class="col-6 col-xl-3">
@@ -298,21 +298,10 @@
             data-test="hub-transfer-overall-progress"
           >
             <div class="d-flex justify-content-between gap-3 mb-2 text-sm">
-              <span class="fw-semibold">Gesamtfortschritt</span>
-              <span class="text-muted">{{ overallTransferProgress }} %</span>
+              <span class="fw-semibold">Transferphasen (keine Byteanzeige)</span>
+              <span class="text-muted">{{ completedTransferCount }} / {{ transferItems.length }} abgeschlossen</span>
             </div>
-            <div
-              class="progress"
-              role="progressbar"
-              :aria-valuenow="overallTransferProgress"
-              aria-valuemin="0"
-              aria-valuemax="100"
-            >
-              <div
-                class="progress-bar bg-primary"
-                :style="{ width: `${overallTransferProgress}%` }"
-              ></div>
-            </div>
+
           </div>
           <p
             v-else
@@ -475,12 +464,17 @@
           </div>
         </div>
 
+        <p role="status" aria-live="polite">{{ recoveryMessage }}</p>
         <div
           v-if="hubExportStore.items.length"
           class="hub-table-filter-bar"
           data-test="hub-export-table-filters"
           aria-label="Hub-Ressourcen filtern"
         >
+          <label class="form-check-label">
+            <input v-model="needsActionOnly" type="checkbox" data-test="hub-needs-action" />
+            Handlungsbedarf ({{ needsActionCount }})
+          </label>
           <div class="hub-table-filter-field">
             <label
               for="hub-resource-type-filter"
@@ -560,12 +554,14 @@
           <table class="table table-hover">
             <thead class="table-light">
               <tr>
+                <th>Nächster Schritt</th>
                 <th>Freigabe</th>
                 <th>
                   <input
                     type="checkbox"
                     class="form-check-input"
                     :checked="allSelectableChecked"
+                    aria-label="Alle geeigneten Ressourcen auswählen"
                     data-test="hub-export-select-all"
                     @change="toggleSelectAll"
                   />
@@ -586,14 +582,31 @@
             <tbody>
               <tr
                 v-for="item in filteredItems"
-                :key="`${item.resourceKind}-${item.id}`"
+                :key="`${item.resourceKind}-${String(item.id)}`"
               >
+                <td class="readiness-action-cell">
+                  <template v-if="item.resourceKind === 'video'">
+                    <a v-if="nextStepLink(item)" :href="nextStepLink(item)" class="btn btn-outline-primary btn-sm" :data-test="`hub-next-step-${String(item.id)}`">{{ actionLabel(nextAction(item)) }}</a>
+                    <button v-else type="button" class="btn btn-outline-primary btn-sm" :aria-disabled="recoveryBusy === item.id" :data-test="`hub-next-step-${String(item.id)}`" @click="runNextStep(item)">{{ actionLabel(nextAction(item)) }}</button>
+                    <p v-for="blocker in assessment(item)?.blockers" :key="blocker.code" class="small">{{ blocker.detail }}</p>
+                    <p v-if="assessment(item)?.checkedAt" class="small">Prüfung: {{ formatTimestamp(assessment(item)!.checkedAt!) }} · {{ assessment(item)?.verification === 'fresh_payload' ? 'Payload und Bytes geprüft' : 'Voraussetzungen offen' }}</p>
+                    <p v-if="assessment(item)?.checkedAt" class="small">Transportkonfiguration: {{ assessment(item)?.transportConfiguration === 'configured' ? 'vorhanden; Worker und Empfänger separat prüfen' : 'nicht bestätigt; Administration prüfen' }}</p>
+                    <button v-if="assessment(item)?.checkedAt" type="button" class="btn btn-outline-secondary btn-sm" :disabled="recoveryBusy !== null" @click="repeatPreflight(item)">Vorprüfung wiederholen</button>
+                    <p v-if="assessment(item)?.completedCurrentArtifact" class="small">Empfang des aktuellen Artefakts bestätigt.</p>
+                    <div v-if="inspections[item.id]" class="small" role="status">
+                      <p>Auftragsalter: {{ inspections[item.id].ageSeconds ?? 'unbekannt' }} s · Queue: {{ inspections[item.id].queue }}</p>
+                      <p>Worker verfügbar: {{ observationLabel(inspections[item.id].workerAvailable) }} · Task beobachtet: {{ observationLabel(inspections[item.id].taskObserved) }}</p>
+                      <p>Letzter Fortschritt: {{ inspections[item.id].lastObservedProgress ?? 'unbekannt' }} · Beobachtung: {{ formatTimestamp(inspections[item.id].inspectionAt) }}</p>
+                      <p>{{ inspections[item.id].detail }}</p>
+                    </div>
+                  </template>
+                </td>
                 <td class="readiness-action-cell">
                   <button
                     v-if="item.resourceKind === 'video'"
                     class="btn btn-outline-primary btn-sm mb-0"
                     :disabled="!canCheckReadiness(item) || checkingVideoIds.has(item.id)"
-                    :data-test="`hub-export-check-readiness-video-${item.id}`"
+                    :data-test="`hub-export-check-readiness-video-${String(item.id)}`"
                     @click="checkVideoReadiness(item)"
                   >
                     {{ videoReadinessLabel(item) }}
@@ -609,8 +622,9 @@
                     type="checkbox"
                     class="form-check-input"
                     :disabled="!item.eligible"
+                    :aria-label="`Für Hub auswählen: ${item.resourceKind} ${String(item.id)}`"
                     :checked="selectedKeys.has(selectionKey(item))"
-                    :data-test="`hub-export-select-${item.resourceKind}-${item.id}`"
+                    :data-test="`hub-export-select-${item.resourceKind}-${String(item.id)}`"
                     @change="toggleSelected(item)"
                   />
                 </td>
@@ -631,7 +645,7 @@
                     {{ statusLabel(item.anonymizationStatus) }}
                   </span>
                 </td>
-                <td :data-test="`hub-export-segment-status-${item.resourceKind}-${item.id}`">
+                <td :data-test="`hub-export-segment-status-${item.resourceKind}-${String(item.id)}`">
                   <span
                     v-if="item.resourceKind === 'video'"
                     class="badge"
@@ -645,7 +659,7 @@
                     >Nicht zutreffend</span
                   >
                 </td>
-                <td :data-test="`hub-export-integrity-status-${item.resourceKind}-${item.id}`">
+                <td :data-test="`hub-export-integrity-status-${item.resourceKind}-${String(item.id)}`">
                   <span
                     class="badge"
                     :class="integrityStatusBadgeClass(item.exportIntegrityStatus)"
@@ -667,7 +681,7 @@
                     {{ item.markedForUpload ? 'Ja' : 'Nein' }}
                   </span>
                 </td>
-                <td :data-test="`hub-export-marker-${item.resourceKind}-${item.id}`">
+                <td :data-test="`hub-export-marker-${item.resourceKind}-${String(item.id)}`">
                   <template v-if="item.markedForUpload">
                     <span class="d-block">{{ item.markedByUsername || 'unbekannt' }}</span>
                     <span
@@ -682,25 +696,12 @@
                 <td class="transfer-progress-cell">
                   <div
                     class="d-flex justify-content-between align-items-center gap-2 mb-1"
-                    :data-test="`hub-transfer-progress-${item.resourceKind}-${item.id}`"
+                    :data-test="`hub-transfer-progress-${item.resourceKind}-${String(item.id)}`"
                   >
                     <span class="text-sm fw-semibold">{{ transferStage(item).label }}</span>
-                    <span class="text-xs text-muted">{{ transferStage(item).progress }} %</span>
+
                   </div>
-                  <div
-                    class="progress transfer-progress"
-                    role="progressbar"
-                    :aria-label="`Transferfortschritt für ${item.filename}`"
-                    :aria-valuenow="transferStage(item).progress"
-                    aria-valuemin="0"
-                    aria-valuemax="100"
-                  >
-                    <div
-                      class="progress-bar"
-                      :class="transferStage(item).barClass"
-                      :style="{ width: `${transferStage(item).progress}%` }"
-                    ></div>
-                  </div>
+
                 </td>
                 <td class="small text-muted">
                   <span class="d-block">{{ itemNotice(item) }}</span>
@@ -709,7 +710,7 @@
                     type="button"
                     class="btn btn-outline-warning btn-sm mt-2 mb-0"
                     :disabled="
-                      retryingJobIds.has(item.outboundJobId) || !hubExportStore.configReady
+                      retryingJobIds.has(item.outboundJobId) || !hubExportStore.configReady || !item.eligible || Boolean(assessment(item)?.blockers.length)
                     "
                     :data-test="`hub-export-retry-${item.outboundJobId}`"
                     @click="retryFailedTransfer(item)"
@@ -737,6 +738,9 @@ import {
   type HubExportAnonymizationStatus,
   type HubExportIntegrityStatus,
   type HubExportItem,
+  type HubRecoveryAction,
+  type HubRecoveryAssessment,
+  type HubCleanupInspection,
   type HubExportPrivacyStatus,
   type HubExportSegmentAnnotationStatus
 } from '@/stores/hubExportStore'
@@ -750,11 +754,20 @@ const pollingTimer = ref<ReturnType<typeof setInterval> | null>(null)
 const checkingVideoIds = ref<Set<number>>(new Set())
 const offloadingEligibleVideos = ref(false)
 const retryingJobIds = ref<Set<string>>(new Set())
-const resourceKindFilter = ref<'all' | HubExportItem['resourceKind']>('all')
+const initialFilters = new URLSearchParams(window.location.search)
+const initialKind = initialFilters.get('kind')
+const resourceKindFilter = ref<'all' | HubExportItem['resourceKind']>(initialKind === 'video' || initialKind === 'report' ? initialKind : 'all')
+const needsActionOnly = ref(initialFilters.get('needsAction') === '1')
+const preflights = ref<Partial<Record<number, HubRecoveryAssessment>>>({})
+const inspections = ref<Partial<Record<number, HubCleanupInspection>>>({})
+const recoveryBusy = ref<number | null>(null)
+const recoveryMessage = ref('')
+const recoveryError = ref('')
 type PhysicalStorageStateFilter = 'all' | 'present' | 'missing'
-const physicalStorageStateFilter = ref<PhysicalStorageStateFilter>('all')
+const initialStorage = initialFilters.get('storage')
+const physicalStorageStateFilter = ref<PhysicalStorageStateFilter>(initialStorage === 'present' || initialStorage === 'missing' ? initialStorage : 'all')
 
-const operationError = computed(() => hubExportStore.mutationError || hubExportStore.error)
+const operationError = computed(() => recoveryError.value || hubExportStore.mutationError || hubExportStore.error)
 const configurationMessage = computed(
   () =>
     hubExportStore.configError ||
@@ -784,22 +797,20 @@ const COMPLETED_TRANSFER_STATUSES = new Set(['completed', 'applied'])
 const ATTENTION_TRANSFER_STATUSES = new Set(['failed', 'inconsistent'])
 
 interface TransferStage {
-  progress: number
   label: string
-  barClass: string
 }
 
 const TRANSFER_STAGES: Partial<Record<string, TransferStage>> = {
-  marked: { progress: 10, label: 'Vorgemerkt', barClass: 'bg-info' },
-  queued: { progress: 25, label: 'Eingeplant', barClass: 'bg-info' },
-  pending: { progress: 35, label: 'Wird vorbereitet', barClass: 'bg-info' },
-  registering: { progress: 45, label: 'Am Hub anmelden', barClass: 'bg-primary' },
-  awaiting_media: { progress: 60, label: 'Hub ist bereit', barClass: 'bg-primary' },
-  uploading: { progress: 80, label: 'Datei wird übertragen', barClass: 'bg-primary' },
-  completed: { progress: 100, label: 'Übertragen', barClass: 'bg-success' },
-  applied: { progress: 100, label: 'Im Hub übernommen', barClass: 'bg-success' },
-  failed: { progress: 20, label: 'Wartet auf erneuten Versuch', barClass: 'bg-warning' },
-  inconsistent: { progress: 20, label: 'Prüfung erforderlich', barClass: 'bg-warning' }
+  marked: { label: 'Vorgemerkt' },
+  queued: { label: 'Eingeplant' },
+  pending: { label: 'Wird vorbereitet' },
+  registering: { label: 'Am Hub anmelden' },
+  awaiting_media: { label: 'Hub ist bereit' },
+  uploading: { label: 'Datei wird übertragen' },
+  completed: { label: 'Übertragen' },
+  applied: { label: 'Im Hub übernommen' },
+  failed: { label: 'Prüfung erforderlich' },
+  inconsistent: { label: 'Prüfung erforderlich' }
 }
 
 const selectionKey = (item: HubExportItem) => `${item.resourceKind}:${String(item.id)}`
@@ -817,15 +828,21 @@ const requirementLabel = (reason?: string) => {
 }
 
 const transferStage = (item: HubExportItem): TransferStage => {
+  if (item.resourceKind === 'video' && COMPLETED_TRANSFER_STATUSES.has(item.outboundStatus) && !assessment(item)?.completedCurrentArtifact) {
+    return { label: 'Historischer Abschluss · Vorprüfung offen' }
+  }
   const normalizedStatus = item.outboundStatus.trim().toLowerCase()
+  if (normalizedStatus === 'failed' && item.failureClass === 'transient_retry') {
+    return { label: 'Vorübergehender Fehler' }
+  }
   const knownStage = TRANSFER_STAGES[normalizedStatus]
   if (knownStage) {
     return knownStage
   }
   if (!item.eligible) {
-    return { progress: 0, label: 'Voraussetzung offen', barClass: 'bg-secondary' }
+    return { label: 'Voraussetzung offen' }
   }
-  return { progress: 0, label: 'Bereit zur Auswahl', barClass: 'bg-secondary' }
+  return { label: 'Bereit zur Auswahl' }
 }
 
 const formatTimestamp = (value: string) => {
@@ -859,10 +876,87 @@ const itemNotice = (item: HubExportItem) => {
   }
   if (COMPLETED_TRANSFER_STATUSES.has(item.outboundStatus)) {
     return item.lastTransferTimestamp
-      ? `Abgeschlossen am ${formatTimestamp(item.lastTransferTimestamp)}`
-      : 'Sicher am Hub übernommen.'
+      ? `Historischer Abschluss am ${formatTimestamp(item.lastTransferTimestamp)}; aktuelles Artefakt separat prüfen.`
+      : 'Historischer Abschluss; aktuelles Artefakt separat prüfen.'
   }
   return transferStage(item).label
+}
+
+const assessment = (item: HubExportItem) => preflights.value[item.id] ?? item.recovery
+const needsAction = (item: HubExportItem) =>
+  Boolean(assessment(item)?.blockers.length) || !COMPLETED_TRANSFER_STATUSES.has(item.outboundStatus) ||
+  (item.resourceKind === 'video' && !assessment(item)?.completedCurrentArtifact)
+const needsActionCount = computed(() => hubExportStore.items.filter(needsAction).length)
+const nextAction = (item: HubExportItem): HubRecoveryAction => assessment(item)?.allowedActions.at(0) ?? 'preflight'
+const actionLabel = (action: HubRecoveryAction) => ({
+  repair_processing: 'Verarbeitung reparieren', review_anonymization: 'Anonymisierung prüfen',
+  review_segments: 'Segmente prüfen', check_export_readiness: 'Exportfreigabe prüfen',
+  preflight: 'Payload vorprüfen', inspect_recovery: 'Wiederherstellung untersuchen',
+  administrator_recovery: 'Administrator-Wiederherstellung anfordern', mark: 'Markierung prüfen',
+  send: 'Versand prüfen', retry: 'Transfer erneut prüfen'
+}[action])
+const observationLabel = (value: boolean | null) => value === null ? 'unbekannt' : value ? 'ja' : 'nicht beobachtet'
+const nextStepLink = (item: HubExportItem): string | undefined => {
+  const returnTo = `/hub-export?${new URLSearchParams({ needsAction: needsActionOnly.value ? '1' : '0', kind: resourceKindFilter.value, storage: physicalStorageStateFilter.value })}`
+  const params = new URLSearchParams({ returnTo })
+  switch (nextAction(item)) {
+    case 'repair_processing':
+      params.set('video', String(item.id))
+      return `/anonymisierung/uebersicht?${params}`
+    case 'review_anonymization':
+      params.set('fileId', String(item.id)); params.set('mediaType', 'video')
+      return `/anonymisierung/validierung?${params}`
+    case 'review_segments':
+      params.set('video', String(item.id))
+      return `/video-untersuchung?${params}`
+    default: return undefined
+  }
+}
+const repeatPreflight = async (item: HubExportItem) => {
+  if (recoveryBusy.value !== null) return
+  recoveryBusy.value = item.id
+  recoveryError.value = ''
+  try {
+    preflights.value[item.id] = await hubExportStore.preflightVideo(item.id)
+    recoveryMessage.value = `Vorprüfung für Video ${String(item.id)} abgeschlossen. Es wurde nichts freigegeben, markiert oder versendet.`
+  } catch {
+    recoveryError.value = 'Vorprüfung nicht möglich. Berechtigung und Dienstverfügbarkeit prüfen.'
+  } finally {
+    recoveryBusy.value = null
+  }
+}
+const runNextStep = async (item: HubExportItem) => {
+  if (recoveryBusy.value !== null) return
+  if (nextAction(item) === 'preflight') {
+    await repeatPreflight(item)
+    return
+  }
+  recoveryBusy.value = item.id
+  recoveryError.value = ''
+  try {
+    switch (nextAction(item)) {
+      case 'administrator_recovery':
+        recoveryMessage.value = `Administration kontaktieren: Video-ID ${String(item.id)}. Authentifizierte Identitätsnachweise, Provenienz oder Originalquelle wiederherstellen; vorhandene Artefakte erhalten.`
+        break
+      case 'inspect_recovery':
+        inspections.value[item.id] = await hubExportStore.inspectRecovery(item.id)
+        recoveryMessage.value = `Wiederherstellungsprüfung für Video ${String(item.id)} abgeschlossen. Es wurde kein Auftrag gestartet.`
+        break
+      case 'check_export_readiness':
+        await checkVideoReadiness(item)
+        break
+      case 'mark':
+      case 'send':
+      case 'retry':
+        recoveryMessage.value = 'Datenschutzübersicht und Auswahl prüfen; Markierung und Versand separat bestätigen.'
+        break
+      default: break
+    }
+  } catch {
+    recoveryError.value = 'Prüfung nicht möglich. Berechtigung und Dienstverfügbarkeit prüfen; kein Auftrag wurde gestartet.'
+  } finally {
+    recoveryBusy.value = null
+  }
 }
 
 const filteredItems = computed(() =>
@@ -874,14 +968,15 @@ const filteredItems = computed(() =>
       (physicalStorageStateFilter.value === 'present'
         ? item.processedMediaPresent
         : !item.processedMediaPresent)
-    return matchesResourceKind && matchesStorageState
+    return matchesResourceKind && matchesStorageState && (!needsActionOnly.value || needsAction(item))
   })
 )
 const hasActiveTableFilters = computed(
-  () => resourceKindFilter.value !== 'all' || physicalStorageStateFilter.value !== 'all'
+  () => needsActionOnly.value || resourceKindFilter.value !== 'all' || physicalStorageStateFilter.value !== 'all'
 )
 
 const resetTableFilters = () => {
+  needsActionOnly.value = false
   resourceKindFilter.value = 'all'
   physicalStorageStateFilter.value = 'all'
 }
@@ -921,13 +1016,7 @@ const attentionTransferCount = computed(
 const missingPrerequisiteCount = computed(
   () => hubExportStore.items.filter((item) => !item.eligible && !item.markedForUpload).length
 )
-const overallTransferProgress = computed(() => {
-  if (!transferItems.value.length) {
-    return 0
-  }
-  const total = transferItems.value.reduce((sum, item) => sum + transferStage(item).progress, 0)
-  return Math.round(total / transferItems.value.length)
-})
+
 
 const privacySummary = computed(() => hubExportStore.privacySummary)
 const currentUsername = computed(() => authStore.user?.username.trim() || 'nicht verfügbar')
@@ -955,7 +1044,7 @@ const hasVerifiedIntegrity = (item: HubExportItem) =>
   item.exportIntegrityStatus === 'persisted_verified' || item.exportIntegrityStatus === 'verified'
 const videoReadinessLabel = (item: HubExportItem) => {
   if (hasVerifiedIntegrity(item)) {
-    return 'Freigegeben'
+    return 'Nachweis gespeichert · Vorprüfung erforderlich'
   }
   return checkingVideoIds.value.has(item.id) ? 'Prüft …' : 'Exportfreigabe prüfen'
 }
@@ -1014,6 +1103,7 @@ const refreshOverview = async () => {
     const queryTarget = hubExportStore.hubNodes.length === 1 ? selectedTargetNodeKey.value : null
     const data = await hubExportStore.fetchOverview(queryTarget)
     selectedTargetNodeKey.value = data.selectedTargetNodeKey
+    preflights.value = {}
   } catch {
     // The store retains the status message so the page can inform the user.
   }

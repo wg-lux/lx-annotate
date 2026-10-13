@@ -118,9 +118,16 @@ definition_of_done:
     note: 'Valid PDF fixtures restore endoreg-db 1.3.6 parser contract without weakening production integrity.
       Large PDF remains at least 3 MiB. Final complete hub plus throttle suite: 238 passed in 28.38s;
       initial focused contract/schema suite: 103 passed in 34.90s. Project and changed-test Pyright: 0
-      errors; Ruff passed. Live installed-wheel deployment acceptance remains outstanding.'
-    assessed_by: codex-hub-diagnosis-20260923
-    assessed_at: '2026-09-23T14:14:30.685614Z'
+      errors; Ruff passed. Live installed-wheel deployment acceptance remains outstanding. 2026-10-12:
+      Read-only runtime diagnosis found gc-02 local configuration rejections for missing identity metadata
+      and actual frame provenance before remote registration; mTLS status probe reached gs-02. Added allowlisted
+      repair detail, terminal-failure UI text and full payload preflight on operator retry, preserving
+      failed-job identity and evidence on rejection. PYTHONPATH=/home/admin/endoreg-db .devenv/state/venv/bin/pytest
+      tests/hub -q --tb=short: 229 passed. Installed endoreg-db package cannot collect the full suite
+      because clear_sensitive_meta_direct_identifiers is missing; coordinated package deployment remains
+      required. No production retry or reset performed.'
+    assessed_by: codex-hub-gc09-20261012
+    assessed_at: '2026-10-12T15:38:49.914259Z'
 - id: fail_closed_security_boundary
   category: security
   title: Hub transfer remains fail closed across hostile internal networks

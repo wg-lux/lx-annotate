@@ -30,11 +30,13 @@ definition_of_done:
   - Runtime selections use intervention and localId fields, scoped to the owning finding occurrence.
   - Legacy string selections migrate on session and backend hydration without changing wire contracts.
   - Invalid intervention objects cannot silently rebuild a saved backend draft.
-  - Canonical terminology dependencies and deferred multiple-entry requirements are documented in English YAML.
+  - Canonical terminology dependencies and deferred multiple-entry requirements are documented in English
+    YAML.
   required: true
   verification:
     kind: manual
-    instructions: Run intervention contract, reporting store, findings capture, report editor, shell and runtime API tests, then application type checking and scoped lint.
+    instructions: Run intervention contract, reporting store, findings capture, report editor, shell and
+      runtime API tests, then application type checking and scoped lint.
     timeout_seconds: 1200
   assessment:
     status: in_progress
@@ -46,17 +48,19 @@ definition_of_done:
     - kind: test
       reference: frontend/src/views/reporting/__tests__/reportingInterventionContract.test.ts
     - kind: test
-      reference: '2026-10-01 focused reporting/API lane: 9 files, 201 passed, 1 pre-existing failure at FindingsCapturePage.test.ts:616; reproduced with original staged component and test.'
+      reference: '2026-10-01 focused reporting/API lane: 9 files, 201 passed, 1 pre-existing failure at
+        FindingsCapturePage.test.ts:616; reproduced with original staged component and test.'
     - kind: command
-      reference: 'vue-tsc --noEmit -p frontend/tsconfig.app.json passed.'
+      reference: vue-tsc --noEmit -p frontend/tsconfig.app.json passed.
     - kind: command
-      reference: 'Scoped ESLint passed excluding FindingsCapturePersistance.test.ts with its pre-existing line 453 error; git diff --check passed; tracker validate passed for all 54 definitions.'
-    note: Intervention object coverage passes, including legacy browser/backend migration, per-finding isolation,
-      stable occurrence identity, unchanged serialization and malformed backend rejection. The staged findings
-      test still expects validation to call persistCurrentRuntimeDraft, and the staged persistence test has
-      a pre-existing restrict-template-expressions lint error at line 453. Component-test type checking is
-      unavailable because tsconfig.component-tests.json was already deleted in the supplied working tree.
-      Multiple entry points are deliberately deferred; live browser acceptance was not performed.
+      reference: Scoped ESLint passed excluding FindingsCapturePersistance.test.ts with its pre-existing
+        line 453 error; git diff --check passed; tracker validate passed for all 54 definitions.
+    note: Intervention object coverage passes, including legacy browser/backend migration, per-finding
+      isolation, stable occurrence identity, unchanged serialization and malformed backend rejection.
+      The staged findings test still expects validation to call persistCurrentRuntimeDraft, and the staged
+      persistence test has a pre-existing restrict-template-expressions lint error at line 453. Component-test
+      type checking is unavailable because tsconfig.component-tests.json was already deleted in the supplied
+      working tree. Multiple entry points are deliberately deferred; live browser acceptance was not performed.
     assessed_by: codex-report-objects-20261001
     assessed_at: '2026-10-01T14:48:20Z'
 - id: coherent_context_typing
@@ -66,6 +70,8 @@ definition_of_done:
   - Patient examination identity, examination concept name, and numeric examination ID are propagated
     without divergent local guesses.
   - Runtime boundary assertions reject malformed or contradictory reporting context.
+  - Reporting examination creation sends the selected knowledge-base module and version;
+    the atomic host creation route validates and persists both before catalog reads.
   required: true
   verification:
     kind: manual
@@ -79,8 +85,15 @@ definition_of_done:
       reference: frontend/src/views/reporting/reportingExaminationResolution.ts
     - kind: test
       reference: frontend/src/views/reporting/__tests__/reportingExaminationResolution.test.ts
+    - kind: test
+      reference: '2026-10-09 codex-api-dtypes-20261009: casesApi, CaseSetupPage, ReportEditorPage,
+        ReportingShell.mediaPreload — 130 tests passed; endoreg-db tests/views/case/test_case_viewset.py
+        — 24 passed, including persisted coloreg@0.3.0 and rejected partial/unavailable identities.'
     note: One shared typed examination resolver now governs builder, findings, editor, case setup, and
       case-resolution handoffs; ID/name contradictions and ambiguous names fail explicitly.
+      Reporting creation now carries the selected module/version through the host serializer;
+      indication catalog reads carry the same context as findings. Existing unpinned examinations
+      are not automatically migrated. This is local verification, not deployment acceptance.
     assessed_by: codex-reporting-types-20260813
     assessed_at: '2026-08-13T08:27:12.211124Z'
 - id: deterministic_graph_resolution
@@ -377,3 +390,53 @@ definition_of_done:
       stale payloads and late responses. Live clinical browser acceptance remains pending.'
     assessed_by: codex-patient-state-20260929
     assessed_at: '2026-09-29T10:07:44.463138Z'
+- id: portable_study_authoring
+  category: functionality
+  title: Builder constructs validators and a portable study package
+  acceptance:
+  - Finding rules support presence, absence, conditional choice lists, numeric comparisons and removable
+    classification requirements.
+  - Package configuration defines a new name, version and dependencies and selects report_templates.yml
+    and validators.yml.
+  - Export uses the backend record builder, preserves validator references, rejects invalid configuration
+    and discards stale previews.
+  - Downloaded packages load with their real dependencies; conditional rules execute according to the
+    authoring guide.
+  - Export requires builder write permission and never mutates or publishes an installed package.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run builder component/API tests, backend helper/route tests, real dependency loading,
+      Vue type checking and scoped lint.
+    timeout_seconds: 900
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: document
+      reference: docs/guides/reporting-template-requirements-page.md
+    - kind: document
+      reference: /home/admin/lx-data-models/docs/guides/report-template-authoring.md
+    - kind: test
+      reference: '2026-10-09: 44 frontend tests passed across builder page, builder API, section/finding
+        editor, branding editor and reportTemplatesApi; final page rerun 10 passed including ZIP contents
+        and stale draft invalidation. Backend focused lane 23 passed, including real ColoReg dependency
+        loading and generated-rule execution. LX-Annotate mounted builder API integration: 1 passed.'
+    - kind: command
+      reference: Vue application type checking and scoped ESLint passed. Backend focused Pyright passed;
+        repository-wide Pyright reports one error in untouched lx_dtypes/models/contracts/reference_catalog.py:143
+        (CatalogRecordBase.record_type). Full backend pytest pending.
+    - kind: test
+      reference: '2026-10-09 complete lx-data-models pytest: 1213 passed, 1 skipped, 23 warnings in 284.71s.
+        Scoped Ruff passed. Full Pyright has the previously recorded single error in untouched reference_catalog.py:143;
+        focused Pyright passes.'
+    - kind: test
+      reference: 'Final 2026-10-09 backend lane after duplicate-record and empty-condition guards: 25
+        passed across helper and lifecycle API suites. Final focused Pyright and Ruff passed. Final Vue
+        application type check and scoped ESLint passed; ZIP test verifies three actual archive entries
+        and config contents.'
+    note: Implementation complete locally; frontend and lx_dtypes backend must be released together. Full
+      backend suite passed 1213 tests before the two final guard regressions; final focused lane passed
+      25. Full backend Pyright has one error in untouched reference_catalog.py:143. No deployment or live
+      browser acceptance. Installed configuration, registration and publication remain unchanged.
+    assessed_by: codex-gc10-cleanup-review-20261007
+    assessed_at: '2026-10-09T07:58:15.524231Z'

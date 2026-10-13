@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import VideoMaskEditor from '../VideoMaskEditor.vue'
 import AnonymizationCorrectionComponent from '../AnonymizationCorrectionComponent.vue'
 
 interface Deferred<Value> {
@@ -28,6 +29,8 @@ const hoisted = vi.hoisted(() => ({
   buildPdfCorrection: vi.fn(),
   axiosGet: vi.fn(),
   axiosPost: vi.fn(),
+  fetchVideoMasks: vi.fn(),
+  createVideoMask: vi.fn(),
   getDocument: vi.fn(),
   getPage: vi.fn(),
   routerPush: vi.fn(),
@@ -35,6 +38,11 @@ const hoisted = vi.hoisted(() => ({
   setCurrentItem: vi.fn(),
   useAuthenticatedVideoStream: vi.fn(),
   routeQuery: { mediaType: 'pdf' }
+}))
+
+vi.mock('@/api/videoMasks', () => ({
+  fetchVideoMasks: hoisted.fetchVideoMasks,
+  createVideoMask: hoisted.createVideoMask
 }))
 
 vi.mock('@/utils/pdfCorrection', () => ({ build_pdf_correction: hoisted.buildPdfCorrection }))
@@ -90,6 +98,7 @@ vi.mock('pdfjs-dist/build/pdf.worker.min.mjs?url', () => ({
 describe('AnonymizationCorrectionComponent PDF rendering', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    hoisted.fetchVideoMasks.mockResolvedValue([])
     localStorage.clear()
     hoisted.routeQuery.mediaType = 'pdf'
     hoisted.useAuthenticatedVideoStream.mockReturnValue({ playbackError: { value: null } })
@@ -406,4 +415,44 @@ describe('AnonymizationCorrectionComponent PDF rendering', () => {
       )
     ).toBe('oidc:reviewer-restart')
   })
+  it('saves a drawn region with its device and selects it for correction', async () => {
+    hoisted.routeQuery.mediaType = 'video'
+    const status = {
+      strategies: ['processor_region'], defaultStrategy: 'processor_region',
+      selectedStrategy: 'processor_region', reviewRequired: true,
+      processedArtifact: { available: false }, ocrEngines: []
+    }
+    hoisted.axiosGet.mockImplementation((url: string) => {
+      if (url.endsWith('/anonymization/')) return Promise.resolve({ data: status })
+      if (url.endsWith('/processing-history/')) return Promise.resolve({ data: [] })
+      if (url.endsWith('/metadata/')) return Promise.resolve({ data: {} })
+      return Promise.resolve({ data: { id: 7, mediaType: 'video', filename: 'video.mp4', anonymizationStatus: 'not_started' } })
+    })
+    const mask = { x: 200, y: 100, width: 1400, height: 700, imageWidth: 1920, imageHeight: 1080 }
+    const profile = { name: 'room_2', label: 'Room 2', deviceName: 'Device A', mask }
+    hoisted.createVideoMask.mockResolvedValue(profile)
+    hoisted.axiosPost.mockRejectedValue(new Error('queue unavailable'))
+    const wrapper = mount(AnonymizationCorrectionComponent, { props: { fileId: 7, mediaType: 'video' } })
+    await flushPromises()
+    const mode = wrapper.findAll('select').find((select) => select.find('option[value="custom"]').exists())
+    expect(mode).toBeDefined()
+    await mode?.setValue('custom')
+    wrapper.getComponent(VideoMaskEditor).vm.$emit('selected', mask)
+    await wrapper.get('#mask-device-name').setValue('Device A')
+    await wrapper.get('#mask-name').setValue('room_2')
+    await wrapper.get('#mask-label').setValue('Room 2')
+    const save = wrapper.findAll('button').find((button) => button.text().includes('Maske speichern'))
+    await save?.trigger('click')
+    await flushPromises()
+    expect(hoisted.createVideoMask).toHaveBeenCalledWith(profile)
+    expect(wrapper.text()).toContain('Room 2 (Device A)')
+    const apply = wrapper.findAll('button').find((button) => button.text().includes('Anonymisierung anwenden'))
+    await apply?.trigger('click')
+    await flushPromises()
+    expect(hoisted.axiosPost).toHaveBeenCalledWith('media/videos/video-correction/7/anonymization/', expect.objectContaining({
+      region: { mode: 'profile', maskName: 'room_2' }, humanReviewRequired: true
+    }))
+    wrapper.unmount()
+  })
+
 })

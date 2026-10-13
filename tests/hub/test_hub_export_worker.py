@@ -287,7 +287,23 @@ class HubExportWorkerTests(TestCase):
         )
         upload_response.raise_for_status.return_value = None
 
-        post_mock.side_effect = [register_response, upload_response]
+        meta = self.report.sensitive_meta
+        assert meta is not None
+        committed_identity = (meta.patient_hash, meta.examination_hash)
+        responses = iter((register_response, upload_response))
+
+        def post_after_erasure(*args: object, **kwargs: object) -> MagicMock:
+            meta.refresh_from_db()
+            self.assertIsNotNone(meta.direct_identifiers_cleared_at)
+            self.assertIsNone(meta.patient_first_name)
+            self.assertIsNone(meta.patient_dob)
+            self.assertFalse(meta.examiners.exists())
+            self.assertEqual(
+                (meta.patient_hash, meta.examination_hash), committed_identity
+            )
+            return next(responses)
+
+        post_mock.side_effect = post_after_erasure
 
         result = run_outbound_transfer_job(
             outbound_job_id=str(self.job.id),
@@ -301,7 +317,7 @@ class HubExportWorkerTests(TestCase):
         )
         self.assertEqual(result.remote_transfer_status, "applied")
         self.assertEqual(result.remote_transfer_id, "remote-transfer-1")
-        self.assertIsNotNone(result.envelope_receipt)
+        assert result.envelope_receipt is not None
         self.assertEqual(
             result.envelope_receipt["receiver_transfer_id"],
             "remote-transfer-1",
@@ -309,6 +325,26 @@ class HubExportWorkerTests(TestCase):
         self.assertEqual(post_mock.call_count, 2)
         self.assertEqual(post_mock.call_args_list[0].kwargs["timeout"], 21600)
         self.assertEqual(post_mock.call_args_list[1].kwargs["timeout"], 21600)
+
+    @patch("lx_annotate.hub.hub_export_worker.requests.post")
+    @patch(
+        "lx_annotate.hub.hub_export_worker.clear_sensitive_meta_direct_identifiers",
+        side_effect=ValueError("Identifier erasure failed"),
+    )
+    def test_erasure_failure_blocks_registration(
+        self,
+        erase_mock: MagicMock,
+        post_mock: MagicMock,
+    ) -> None:
+        result = run_outbound_transfer_job(
+            outbound_job_id=str(self.job.id),
+            source_node_key=self.site_node.node_key,
+            source_secret="super-secret",
+        )
+        erase_mock.assert_called_once()
+        post_mock.assert_not_called()
+        self.assertEqual(result.local_status, OutboundHubTransferJob.LocalStatus.FAILED)
+        self.assertIn("Identifier erasure failed", result.last_error)
 
     def test_applied_status_without_validated_receipt_is_rejected(self) -> None:
         self.job.local_status = OutboundHubTransferJob.LocalStatus.REGISTERING

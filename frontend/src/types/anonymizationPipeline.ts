@@ -60,7 +60,8 @@ export interface VideoAnonymizationRequest {
   strategy: VideoAnonymizationStrategy
   processingMethod: 'streaming' | 'direct'
   region: {
-    mode: 'device' | 'custom'
+    mode: 'device' | 'custom' | 'profile'
+    maskName?: string
     deviceName?: string
     roi?: {
       x: number

@@ -17,6 +17,49 @@ source_documents:
   disposition: reference
   note: Cross-repository runtime and LuxNix deployment contract.
 definition_of_done:
+- id: continuous_format_folder_ingestion
+  category: functionality
+  title: Watcher consumes supported formats from nested intake folders
+  acceptance:
+  - Shared backend ingestion owns source settling, prediction dispatch and source cleanup; the watcher
+    neither dispatches inference again nor deletes a new arrival at a previously processed path.
+  - Not-ready inputs remain available for subsequent scans without retaining an in-flight processing slot.
+  - Existing flat intake and nested format folders dispatch through the same import services.
+  - Raw TXT and sidecar-backed preanonymized TXT are discovered along with existing PDF and video inputs.
+  - Recursive scans exclude temporary directories and symlinks, and preserve in-flight deduplication.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run Pyright and tests/ingestion/test_file_watcher_integration.py.
+    timeout_seconds: 300
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: test
+      reference: '2026-10-12: watcher integration/unit suite: 61 passed. Additional PDF/TXT upload-job
+        handoffs passed; final guardrails plus report-priority scan and cleanup regression: 17 passed.
+        Obsolete duplicate-cleanup assertion replaced with new-arrival preservation test.'
+    - kind: command
+      reference: '2026-10-12: focused Pyright: 0 errors, 0 warnings; Ruff check/format and git diff --check
+        passed.'
+    - kind: command
+      reference: '2026-10-13: Scoped Pyright for watcher and all three test modules: 0 errors, 0 warnings.
+        Ruff check --no-cache, format and git diff --check passed.'
+    - kind: test
+      reference: '2026-10-13: PYTHONPATH=/home/admin/endoreg-db:/home/admin/dev/lx-annotate WATCHER_STABLE_AFTER_SECONDS=0
+        WATCHER_POLL_INTERVAL_SECONDS=0.01 .devenv/state/venv/bin/pytest tests/ingestion/test_file_watcher_unit.py
+        tests/ingestion/test_file_watcher_integration.py tests/ingestion/test_file_watcher_guardrails.py
+        -q --tb=short: 69 passed, 2 obsolete guardrail fixtures failed. Updated guardrails to assert preservation
+        of new arrivals; final guardrails rerun: 15 passed. All 71 distinct cases passed across these
+        runs. Existing temporary-directory cleanup warnings remain.'
+    note: Watcher delegates settling, prediction dispatch and cleanup to backend ingestion; removed duplicate
+      polling, prediction helpers and media lookup. Async and completed handoffs preserve new arrivals;
+      not-ready sources release their processing slot and remain retryable. Initial installed-package
+      run failed the existing TXT media-type contract (application/pdf instead of text/plain); verification
+      therefore explicitly used the matching backend checkout. Requires coordinated backend/watcher release;
+      no deployment, full module split or production readiness claim.
+    assessed_by: codex-report-watchers-20261013
+    assessed_at: '2026-10-13T07:18:31.628241Z'
 - id: release_0_9_55_artifact
   category: testing
   title: LX-Annotate 0.9.55 is a reproducible, installable release artifact

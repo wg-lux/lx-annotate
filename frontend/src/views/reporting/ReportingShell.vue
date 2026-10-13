@@ -1221,7 +1221,7 @@ import {
 } from '@/api/knowledgeBaseGraphApi'
 import { fetchPatientExaminationDraft } from '@/api/reportDraftApi'
 import type { ReportDraftBlob } from '@/api/reportDraftApi'
-import { createCaseWithExamination, fetchPatientCases, type PatientCase } from '@/api/casesApi'
+import { createCaseWithExamination, examinationCreationIdentity, fetchPatientCases, type PatientCase } from '@/api/casesApi'
 import {
   fetchReportingLanguages,
   type ReportLanguageCode,
@@ -1391,6 +1391,7 @@ const patientExaminationOptionsError = ref<string | null>(null)
 const caseOptions = ref<PatientCase[]>([])
 const caseOptionsLoading = ref(false)
 const caseOptionsError = ref<string | null>(null)
+const examinationWithoutCaseId = ref<number | null>(null)
 const patientExaminationCreationLoading = ref(false)
 const patientExaminationCreationError = ref<string | null>(null)
 const draftBootstrapInFlight = ref<{ key: string; promise: Promise<void> } | null>(null)
@@ -3148,8 +3149,23 @@ async function fetchCaseOptions(patientId: number): Promise<void> {
   }
 }
 
+function setUnresolvedCaseContext(
+  patientExaminationId: number,
+  matches: PatientCase[],
+  requestedCaseId: unknown
+): void {
+  flow.setCaseContext({ caseId: null })
+  if (matches.length === 0 && requestedCaseId === undefined) {
+    examinationWithoutCaseId.value = patientExaminationId
+  }
+  caseOptionsError.value = matches.length
+    ? 'Fallzuordnung nicht eindeutig. Bitte einen passenden Fall ausdrücklich wählen.'
+    : 'Diese Patientenuntersuchung ist keinem persistierten Fall zugeordnet.'
+}
+
 async function ensureCaseForPatientExamination(patientExaminationId: number): Promise<void> {
   const requestGeneration = ++caseOptionsRequestGeneration
+  examinationWithoutCaseId.value = null
   try {
     const rows = await fetchPatientCases({ patientExaminationId })
     if (
@@ -3169,10 +3185,7 @@ async function ensureCaseForPatientExamination(patientExaminationId: number): Pr
           (matches.length === 1 ? matches[0] : undefined))
         : matches.find((row) => row.caseId === requestedCaseId)
     if (!patientCase) {
-      flow.setCaseContext({ caseId: null })
-      caseOptionsError.value = matches.length
-        ? 'Fallzuordnung nicht eindeutig. Bitte einen passenden Fall ausdrücklich wählen.'
-        : 'Diese Patientenuntersuchung ist keinem persistierten Fall zugeordnet.'
+      setUnresolvedCaseContext(patientExaminationId, matches, requestedCaseId)
       return
     }
     caseOptionsError.value = null
@@ -3491,7 +3504,8 @@ async function createPatientExaminationContext(): Promise<void> {
       patientExamination: {
         patient: selectedPatient.patientHash || `patient_${String(flow.selectedPatientId)}`,
         examination: selectedExamination.name,
-        dateStart: now.toISOString().split('T')[0]
+        dateStart: now.toISOString().split('T')[0],
+        ...examinationCreationIdentity(terminology.activeBundle)
       }
     })
     const patientExamination = result.patientExamination as PatientExamination
@@ -4387,14 +4401,15 @@ function isCurrentMediaPreloadRequest(
   requestGeneration: number,
   patientId: number,
   patientExaminationId: number | null,
-  caseId: string
+  caseId: string | null
 ): boolean {
-  const currentExaminationId = routePatientExaminationId.value || flow.patientExaminationId
+  const current = mediaPreloadContext.value
   return (
     requestGeneration === mediaPreloadRequestGeneration &&
-    caseId === selectedPatientCase.value?.caseId &&
-    patientId === flow.selectedPatientId &&
-    patientExaminationId === currentExaminationId
+    current !== null &&
+    caseId === current.caseId &&
+    patientId === current.patientId &&
+    patientExaminationId === current.patientExaminationId
   )
 }
 
@@ -4426,50 +4441,75 @@ function mediaPreloadErrorMessage(error: unknown): string {
   )
 }
 
-async function refreshMediaPreload() {
-  const patientCase = selectedPatientCase.value
-  if (!patientCase || patientCase.patient !== flow.selectedPatientId) {
-    mediaPreloadRequestGeneration += 1
-    flow.clearMediaPreload()
-    return
-  }
-  const patientExaminationId = routePatientExaminationId.value || flow.patientExaminationId
-  if (
+function hasVerifiedExaminationWithoutCase(
+  patientId: number,
+  patientExaminationId: number | null
+): boolean {
+  return Boolean(
     patientExaminationId &&
-    !patientCase.patientExaminations.some((examination) => examination.id === patientExaminationId)
-  ) {
+    examinationWithoutCaseId.value === patientExaminationId &&
+    patientExaminationIdentityLoadedId.value === patientExaminationId &&
+    readRecord(route.query).case_id === undefined &&
+    patientExaminationDetail.value &&
+    extractPatientId(patientExaminationDetail.value) === patientId
+  )
+}
+
+const mediaPreloadContext = computed(() => {
+  const patientCase = selectedPatientCase.value
+  const patientExaminationId = routePatientExaminationId.value || flow.patientExaminationId
+  const patientId = flow.selectedPatientId
+  if (!patientId) return null
+  if (patientCase) {
+    if (
+      patientCase.patient !== patientId ||
+      (patientExaminationId &&
+        !patientCase.patientExaminations.some(
+          (examination) => examination.id === patientExaminationId
+        ))
+    )
+      return null
+    return { patientId, patientExaminationId, caseId: patientCase.caseId }
+  }
+  // A verified examination owns its report even before a clinical Case is assigned.
+  if (!hasVerifiedExaminationWithoutCase(patientId, patientExaminationId)) return null
+  return { patientId, patientExaminationId, caseId: null }
+})
+
+async function refreshMediaPreload() {
+  const context = mediaPreloadContext.value
+  if (!context) {
     mediaPreloadRequestGeneration += 1
     flow.clearMediaPreload()
     return
   }
-  const patientId = patientCase.patient
+  const { patientId, patientExaminationId, caseId } = context
   const requestGeneration = ++mediaPreloadRequestGeneration
   flow.setMediaPreloadLoading()
   try {
     const [payload, timeline] = await Promise.all([
-      fetchPatientTimelineLatest({ patientId }),
-      fetchPatientTimeline(patientId)
-    ])
-    if (
-      !isCurrentMediaPreloadRequest(
-        requestGeneration,
+      fetchPatientTimelineLatest({
         patientId,
-        patientExaminationId,
-        patientCase.caseId
+        ...(caseId === null ? { patientExaminationId } : {})
+      }),
+      caseId === null
+        ? fetchPatientTimeline(patientId, patientExaminationId)
+        : fetchPatientTimeline(patientId)
+    ])
+    if (!isCurrentMediaPreloadRequest(requestGeneration, patientId, patientExaminationId, caseId)) {
+      return
+    }
+    if (
+      caseId === null &&
+      [payload.latestReport, payload.latestVideo, ...timeline.results].some(
+        (item) => item && item.patientExaminationId !== patientExaminationId
       )
     ) {
-      return
+      throw new Error('Die Medien gehören nicht zur angeforderten Patientenuntersuchung.')
     }
     applyMediaPreload({ ...payload, availableMedia: timeline.results })
   } catch (error: unknown) {
-    if (
-      !isCurrentMediaPreloadRequest(
-        requestGeneration,
-        patientId,
-        patientExaminationId,
-        patientCase.caseId
-      )
-    ) {
+    if (!isCurrentMediaPreloadRequest(requestGeneration, patientId, patientExaminationId, caseId)) {
       return
     }
     flow.setMediaPreloadError(mediaPreloadErrorMessage(error))
@@ -4607,17 +4647,11 @@ watch(
 
 watch(
   [
-    () => flow.selectedPatientId,
-    () => flow.patientExaminationId,
-    routePatientExaminationId,
-    () => selectedPatientCase.value?.caseId
+    () => mediaPreloadContext.value?.patientId,
+    () => mediaPreloadContext.value?.patientExaminationId,
+    () => mediaPreloadContext.value?.caseId
   ],
-  async ([patientId]) => {
-    if (!patientId) {
-      mediaPreloadRequestGeneration += 1
-      flow.clearMediaPreload()
-      return
-    }
+  async () => {
     await refreshMediaPreload()
   },
   { immediate: true }

@@ -28,6 +28,7 @@ from .hub_export_contracts import (
     HubSyncDuplicate,
     HubSyncRejection,
 )
+from .hub_export_recovery import video_recovery_assessment
 from .hub_export_state import (
     has_usable_processed_artifact,
     hub_export_auto_queue_enabled,
@@ -376,10 +377,36 @@ def _job_overview_fields(
     }
 
 
+def _payload_repair_hint(error: str) -> str:
+    reasons = {
+        "SensitiveMeta with patient_hash and examination_hash is required for hub transfer.": (
+            "Patient and examination identity metadata is missing. Complete metadata "
+            "review before retrying this transfer."
+        ),
+        "SensitiveMeta must include patient_hash and examination_hash for hub transfer.": (
+            "Patient and examination identity hashes are missing. Complete metadata "
+            "review before retrying this transfer."
+        ),
+        "Actual frame provenance is unavailable for this recording": (
+            "Verified frame provenance is missing. An administrator must restore "
+            "authenticated provenance or reprocess the retained source and repeat "
+            "validation before retrying. Retrying alone cannot repair this recording."
+        ),
+    }
+    return reasons.get(
+        error.removeprefix("Hub transfer configuration or payload rejected: "), ""
+    )
+
+
 def _operator_failure_detail(job: OutboundHubTransferJob | None) -> str:
     if job is None or job.local_status != OutboundHubTransferJob.LocalStatus.FAILED:
         return ""
-    messages = {
+    # Never expose arbitrary exception text, paths, or payload values to the UI.
+    if job.failure_class == OutboundHubTransferJob.FailureClass.CONFIGURATION_REJECTION:
+        detail = _payload_repair_hint(str(job.last_error))
+        if detail:
+            return detail
+    messages: dict[str, str] = {
         OutboundHubTransferJob.FailureClass.CONFIGURATION_REJECTION: (
             "Hub transfer configuration or payload was rejected."
         ),
@@ -584,8 +611,11 @@ def _collect_video_overview(
     for video in videos:
         video_id = int(video.pk)
         readiness = resolve_video_hub_export_state(video)
-        eligible = readiness.transfer_eligible
-        blocked_reason = readiness.blocked_reason
+        recovery = video_recovery_assessment(video, readiness)
+        eligible = readiness.transfer_eligible and not recovery.blockers
+        blocked_reason = readiness.blocked_reason or (
+            recovery.blockers[0].detail if recovery.blockers else ""
+        )
         video_job = jobs_by_key.get(("video", video_id))
         marked_for_upload = video_job is not None
         source_center_key = video.center.center_key if video.center else None
@@ -617,6 +647,7 @@ def _collect_video_overview(
                 export_integrity_status=readiness.export_integrity_status,
             ),
         )
+        items[-1]["recovery"] = recovery.model_dump(mode="json")
         processed_file = _video_processed_file(
             video,
             processed_media_present=processed_media_present,
@@ -965,11 +996,15 @@ def queue_all_eligible_videos_for_hub_upload(
         eligible_count += 1
         locked_job = OutboundHubTransferJob.objects.select_for_update().get(pk=job.pk)
         if locked_job.local_status == OutboundHubTransferJob.LocalStatus.FAILED:
-            _queue_failed_job_for_operator_retry(
-                job=locked_job,
-                source_node=source_node,
-                requested_by=authenticated_marker,
-            )
+            try:
+                _queue_failed_job_for_operator_retry(
+                    job=locked_job,
+                    source_node=source_node,
+                    requested_by=authenticated_marker,
+                )
+            except ValueError:
+                eligible_count -= 1
+                continue
             queued_count += 1
             continue
         if _finalize_marked_job(
@@ -1016,10 +1051,11 @@ def _validate_failed_job_for_operator_retry(
             "The failed hub transfer target is not an active central hub node.",
         )
     if job.resource_kind == OutboundHubTransferJob.ResourceKind.VIDEO:
-        if job.video_file_id is None:
+        video = job.video_file
+        if video is None:
             raise ValueError("The failed video transfer no longer references a video.")
         readiness = resolve_video_hub_export_state(
-            job.video_file,
+            video,
             verify_processed_media=True,
         )
         if not readiness.transfer_eligible:
@@ -1027,16 +1063,17 @@ def _validate_failed_job_for_operator_retry(
                 "The failed video transfer is no longer eligible for hub export: "
                 f"{readiness.blocked_reason}.",
             )
-        resource_hash = str(job.video_file.raw_video_hash)
+        resource_hash = str(video.raw_video_hash)
     elif job.resource_kind == OutboundHubTransferJob.ResourceKind.REPORT:
-        if job.raw_pdf_file_id is None or not is_report_hub_export_eligible(
-            job.raw_pdf_file,
+        report = job.raw_pdf_file
+        if report is None or not is_report_hub_export_eligible(
+            report,
             verify_processed_media=True,
         ):
             raise ValueError(
                 "The failed report transfer is no longer eligible for hub export.",
             )
-        resource_hash = str(job.raw_pdf_file.pdf_hash)
+        resource_hash = str(report.pdf_hash)
     else:
         raise ValueError(f"Unsupported resource_kind={job.resource_kind!r}")
     expected_transfer_key = build_transfer_key(
@@ -1050,6 +1087,7 @@ def _validate_failed_job_for_operator_retry(
         )
 
 
+@transaction.atomic
 def _queue_failed_job_for_operator_retry(
     *,
     job: OutboundHubTransferJob,
@@ -1057,6 +1095,19 @@ def _queue_failed_job_for_operator_retry(
     requested_by: Any,
 ) -> HubExportRetryResult:
     _validate_failed_job_for_operator_retry(job, source_node=source_node)
+
+    from .hub_export_payloads import build_transfer_payload, validate_transfer_payload
+
+    # Check the same payload contract as the worker before discarding failure evidence.
+    try:
+        validate_transfer_payload(
+            build_transfer_payload(outbound_job=job, source_node=source_node)
+        )
+    except ValueError as exc:
+        raise ValueError(
+            _payload_repair_hint(str(exc))
+            or "Transfer payload is still invalid. Review the protected logs before retrying."
+        ) from exc
 
     job.local_status = OutboundHubTransferJob.LocalStatus.QUEUED
     job.failure_class = OutboundHubTransferJob.FailureClass.NO_FAILURE

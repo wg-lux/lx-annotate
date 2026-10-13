@@ -7,7 +7,8 @@ from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
-from django.test import Client, override_settings
+from django.contrib.auth.models import Group, User
+from django.test import override_settings
 from endoreg_db.models import (
     Center,
     Examination,
@@ -18,9 +19,11 @@ from endoreg_db.models import (
     PatientExaminationIndication,
     PatientExaminationReport,
     PatientFinding,
+    PortalUserInfo,
 )
 from openpyxl import load_workbook
 from rest_framework.request import Request
+from rest_framework.test import APIClient
 
 from lx_annotate.views.study_export import StudyExportPatientReadPermission
 
@@ -35,6 +38,15 @@ def _study_export_settings() -> Iterator[None]:
         DEBUG=True,
     ):
         yield
+
+
+def authorized_client() -> APIClient:
+    client = APIClient()
+    user, _ = User.objects.get_or_create(
+        username="export-admin", defaults={"is_superuser": True}
+    )
+    client.force_authenticate(user)
+    return client
 
 
 def _patient(
@@ -148,7 +160,9 @@ def test_options_only_include_concepts_from_pseudonymous_cases(
     annotated_cases: dict[str, object],
 ) -> None:
     del annotated_cases
-    response = Client().get("/endoreg-api/media/studies/case-export/options/")
+    response = authorized_client().get(
+        "/endoreg-api/media/studies/case-export/options/"
+    )
 
     assert response.status_code == 200
     assert response.json() == {
@@ -171,7 +185,7 @@ def test_xlsx_uses_or_within_categories_and_and_across_categories(
     ]
 
     # Act
-    response = Client().get(
+    response = authorized_client().get(
         "/endoreg-api/media/studies/case-export.xlsx",
         request_query,
         HTTP_ACCEPT="application/json",
@@ -234,7 +248,7 @@ def test_xlsx_can_export_one_row_per_matching_examination(
     annotated_cases: dict[str, object],
 ) -> None:
     matching_case = cast(PatientExamination, annotated_cases["matching_case"])
-    response = Client().get(
+    response = authorized_client().get(
         "/endoreg-api/media/studies/case-export.xlsx",
         {
             "finding": "polyp",
@@ -301,7 +315,7 @@ def test_xlsx_exports_the_exact_reviewed_study_cohort_snapshot(
     }
 
     # Act
-    response = Client().post(
+    response = authorized_client().post(
         "/endoreg-api/media/studies/case-export.xlsx",
         payload,
         content_type="application/json",
@@ -327,7 +341,10 @@ def test_xlsx_exports_the_exact_reviewed_study_cohort_snapshot(
     assert metadata["Center"] == "center-a"
     assert metadata["Has report"] == "True"
     assert metadata["Has video"] == "False"
-    assert metadata["Filter semantics"] == "Exact reviewed StudyCohortPage snapshot"
+    assert (
+        metadata["Filter semantics"]
+        == "Reviewed examination IDs with current authorized values"
+    )
 
 
 @pytest.mark.parametrize(
@@ -368,7 +385,7 @@ def test_xlsx_rejects_invalid_study_cohort_snapshots(
     del annotated_cases
 
     # Act
-    response = Client().post(
+    response = authorized_client().post(
         "/endoreg-api/media/studies/case-export.xlsx",
         query,
         content_type="application/json",
@@ -394,7 +411,7 @@ def test_xlsx_rejects_missing_or_unknown_selection(
     message: str,
 ) -> None:
     del annotated_cases
-    response = Client().get(
+    response = authorized_client().get(
         "/endoreg-api/media/studies/case-export.xlsx",
         query,
     )
@@ -408,7 +425,7 @@ def test_xlsx_reports_empty_and_over_limit_selections(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     del annotated_cases
-    client = Client()
+    client = authorized_client()
     empty_response = client.get(
         "/endoreg-api/media/studies/case-export.xlsx",
         {"examination": "gastroscopy", "indication": "screening"},
@@ -428,7 +445,6 @@ def test_xlsx_reports_empty_and_over_limit_selections(
 def test_export_permission_requires_patient_read_outside_debug(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr("lx_annotate.views.study_export.is_debug_mode", lambda: False)
     permission = StudyExportPatientReadPermission()
 
     class Groups:
@@ -444,6 +460,7 @@ def test_export_permission_requires_patient_read_outside_debug(
         value = SimpleNamespace(
             user=SimpleNamespace(
                 is_authenticated=authenticated,
+                is_active=True,
                 groups=Groups(roles),
             )
         )
@@ -465,3 +482,54 @@ def test_export_permission_requires_patient_read_outside_debug(
         )
         is True
     )
+
+
+def test_export_and_options_enforce_current_center_scope(annotated_cases):
+    user = User.objects.create_user(username="scoped-export")
+    user.groups.add(Group.objects.get_or_create(name="patient:read")[0])
+    portal = PortalUserInfo.objects.create(user=user)
+    portal.centers.add(Center.objects.get(center_key="center-a"))
+    client = APIClient()
+    client.force_authenticate(user)
+    foreign = PatientExamination.objects.filter(
+        patient__center__center_key="center-b"
+    ).first()
+    assert foreign is not None
+    foreign.examination = Examination.objects.create(name="foreign-only-examination")
+    foreign.save()
+    options = client.get("/endoreg-api/media/studies/case-export/options/")
+    assert "foreign-only-examination" not in options.json()["examinations"]
+    response = client.post(
+        "/endoreg-api/media/studies/case-export.xlsx",
+        {
+            "mode": "cohort",
+            "study_name": "Scoped study",
+            "hypothesis": "Scoped test",
+            "patient_examination_id": [foreign.pk],
+        },
+        content_type="application/json",
+    )
+    assert response.status_code == 400
+    response = client.get(
+        "/endoreg-api/media/studies/case-export.xlsx", {"finding": "polyp"}
+    )
+    assert response.status_code == 200
+    workbook = load_workbook(BytesIO(response.content), read_only=True)
+    rows = list(workbook["Cases"].iter_rows(values_only=True))
+    assert "center-b" not in str(rows)
+    portal.centers.clear()
+    assert (
+        client.get(
+            "/endoreg-api/media/studies/case-export.xlsx", {"finding": "polyp"}
+        ).status_code
+        == 400
+    )
+    assert (
+        client.get("/endoreg-api/media/studies/case-export/options/").json()[
+            "examinations"
+        ]
+        == []
+    )
+    assert APIClient().get(
+        "/endoreg-api/media/studies/case-export/options/"
+    ).status_code in (401, 403)

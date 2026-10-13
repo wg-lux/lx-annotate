@@ -191,11 +191,16 @@ start-export: check-repo check-tools ## Run frame export worker
 shell: check-repo check-tools ## Open interactive devenv shell in repo
 	cd "$(REPO_DIR)" && $(DEVENV) shell
 
-test: check-repo check-tools ## Run backend tests (pytest)
+lint-structure: ## Validate hierarchical context schema and references
+	cd "$(REPO_DIR)" && $(DEVENV_RUN) python scripts/lint_structure.py
+
+.PHONY: lint-structure
+
+test: lint-structure check-repo check-tools ## Run backend tests (pytest)
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) pytest
 
-test-real: check-repo check-tools ## Run backend tests through devenv print-dev-env and the repo venv
+test-real: lint-structure check-repo check-tools ## Run backend tests through devenv print-dev-env and the repo venv
 	cd "$(REPO_DIR)" && ./scripts/run-backend-checks.sh
 
-lint: check-repo check-tools ## Run frontend lint (best-effort if configured)
+lint: lint-structure check-repo check-tools ## Run frontend lint (best-effort if configured)
 	cd "$(REPO_DIR)/frontend" && $(DEVENV_RUN) npm run lint

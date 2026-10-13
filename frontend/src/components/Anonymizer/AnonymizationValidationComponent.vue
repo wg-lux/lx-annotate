@@ -1,5 +1,6 @@
 <template>
   <div class="container-fluid py-4">
+    <HubRecoveryReturnLink />
     <div class="card">
       <div class="card-header pb-0">
         <h4 class="mb-0">Anonymisierungsvalidierung und Annotationen</h4>
@@ -114,6 +115,13 @@
             </small>
           </div>
         </div>
+
+        <FindingSuggestionReview
+          v-if="review_file_id !== null && (isPdf || isVideo)"
+          :id="review_file_id"
+          :key="`${isPdf ? 'pdf' : 'video'}:${review_file_id}`"
+          :media="isPdf ? 'pdf' : 'video'"
+        />
 
         <!-- ✨ Phase 2.2: Centralized Validation Error Panel -->
         <div
@@ -973,7 +981,9 @@
 </template>
 
 <script setup lang="ts">
+import HubRecoveryReturnLink from '@/components/Export/HubRecoveryReturnLink.vue'
 import AnonymizationPdfPreview from './AnonymizationPdfPreview.vue'
+import FindingSuggestionReview from './FindingSuggestionReview.vue'
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAnonymizationStore, type SensitiveMeta } from '@/stores/anonymizationStore'
@@ -1453,6 +1463,8 @@ const selectedPatientExaminationIdForRouting = computed(() =>
       )
     : null
 )
+
+const review_file_id = computed(() => resolveFileIdFromContext())
 
 const hasValidPatientExaminationSelection = computed(
   () =>

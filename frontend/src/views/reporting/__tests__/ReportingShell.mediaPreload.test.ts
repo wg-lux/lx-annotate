@@ -1002,6 +1002,84 @@ describe('ReportingShell media preload', () => {
     expect(hoisted.routerRef.current.push).toHaveBeenCalledWith('/reporting/315/findings')
   })
 
+  it.each([314, 999])(
+    'loads only the approved examination report without a clinical case (report examination %s)',
+    async (reportExaminationId) => {
+      const originalGet = requireDefined(
+        hoisted.axiosApi.get.getMockImplementation(),
+        'default GET implementation'
+      )
+      hoisted.axiosApi.get.mockImplementation((url, ...args) =>
+        url === 'cases/' ? Promise.resolve({ data: [] }) : originalGet(url, ...args)
+      )
+      hoisted.flowRef.current.caseId = null
+      Object.assign(hoisted.routeRef.current, { path: '/reporting/314/report-editor' })
+      const report = {
+        id: 7,
+        mediaType: 'full_report',
+        rawPdfId: 5,
+        patientExaminationId: reportExaminationId,
+        anonymizedText: 'Bestätigter anonymisierter Befund',
+        documentType: 'report_final',
+        streamOptions: []
+      }
+      hoisted.timelineApi.fetchPatientTimelineLatest.mockResolvedValue({
+        patient: { id: 42 },
+        latestReport: report,
+        latestVideo: null,
+        latestFrames: []
+      })
+      hoisted.timelineApi.fetchPatientTimeline.mockResolvedValue({
+        patient: { id: 42 },
+        count: 1,
+        results: [report]
+      })
+      mountShell()
+      await flushPromises()
+      expect(hoisted.flowRef.current.caseId).toBeNull()
+      expect(hoisted.timelineApi.fetchPatientTimelineLatest).toHaveBeenCalledWith({
+        patientId: 42,
+        patientExaminationId: 314
+      })
+      expect(hoisted.timelineApi.fetchPatientTimeline).toHaveBeenCalledWith(42, 314)
+      if (reportExaminationId === 314) {
+        expect(hoisted.flowRef.current.mediaPreload?.latestReport?.anonymizedText).toBe(
+          'Bestätigter anonymisierter Befund'
+        )
+        expect(hoisted.flowRef.current.mediaPreloadStatus).toBe('ready')
+      } else {
+        expect(hoisted.flowRef.current.mediaPreload).toBeNull()
+        expect(hoisted.flowRef.current.mediaPreloadStatus).toBe('error')
+      }
+    }
+  )
+
+  it.each(['lookup failure', 'explicit missing case'])(
+    'does not bypass failed case resolution: %s',
+    async (reason) => {
+      const originalGet = requireDefined(
+        hoisted.axiosApi.get.getMockImplementation(),
+        'default GET implementation'
+      )
+      hoisted.axiosApi.get.mockImplementation((url, ...args) =>
+        url === 'cases/'
+          ? reason === 'lookup failure'
+            ? Promise.reject(new Error('Case lookup unavailable'))
+            : Promise.resolve({ data: [] })
+          : originalGet(url, ...args)
+      )
+      hoisted.flowRef.current.caseId = null
+      if (reason === 'explicit missing case') {
+        Object.assign(hoisted.routeRef.current, { query: { case_id: 'missing-case' } })
+      }
+      mountShell()
+      await flushPromises()
+      expect(hoisted.timelineApi.fetchPatientTimelineLatest).not.toHaveBeenCalled()
+      expect(hoisted.timelineApi.fetchPatientTimeline).not.toHaveBeenCalled()
+      expect(hoisted.flowRef.current.mediaPreload).toBeNull()
+    }
+  )
+
   it.each([undefined, 'second-case', 'foreign-case'])(
     'requires an unambiguous case for a shared examination (%s)',
     async (caseId) => {
@@ -2213,7 +2291,9 @@ describe('ReportingShell media preload', () => {
     expect(createPayload).toMatchObject({
       patientExamination: {
         patient: 'patient_42',
-        examination: 'colonoscopy'
+        examination: 'colonoscopy',
+        knowledgeBaseModule: 'report_template_examples',
+        knowledgeBaseVersion: '1.0.0'
       }
     })
     expect(hoisted.flowRef.current.setPatientExaminationContext).toHaveBeenCalledWith({

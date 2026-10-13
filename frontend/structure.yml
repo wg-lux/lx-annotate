@@ -1,0 +1,40 @@
+version: 1
+tier: domain
+path: "frontend"
+parent: "../structure.yml"
+summary: "Vue clinical annotation, reporting, administration, and study interfaces."
+responsibilities:
+  - "Render workflows through router, views, components, and Pinia stores."
+  - "Keep anonymization acceptance separate from segment review validation."
+boundaries:
+  - "Do not reproduce backend clinical persistence or encryption logic."
+  - "Generated API types are maintained through typegen; request case conversion belongs to axiosInstance."
+entrypoints:
+  - name: "application"
+    file: "src/main.ts"
+    purpose: "Vue application setup"
+  - name: "router"
+    file: "src/router/index.ts"
+    purpose: "Workflow navigation"
+  - name: "tooling"
+    file: "package.json"
+    purpose: "Frontend build, type checking, and tests"
+dependencies:
+  internal: ["lx_annotate","openapi"]
+  external: ["Vue","Pinia","Vue Router","Axios","Vite","Vitest"]
+submodules:
+  - name: "api"
+    path: "src/api"
+    manifest: "src/api/structure.yml"
+    summary: "Typed frontend API adapters and canonical request/response case conversion."
+contracts:
+  - name: "annotation workflow"
+    doc: "../docs/guides/segment-annotation-workflow.md"
+  - name: "API generation"
+    doc: "../docs/guides/openapi-type-generation.md"
+tests:
+  directory: "src"
+  command: "npm --prefix frontend run test:unit -- --run src/api/__tests__/apiPrefixContract.test.ts"
+
+files:
+  - src/components/Export/HubRecoveryReturnLink.vue

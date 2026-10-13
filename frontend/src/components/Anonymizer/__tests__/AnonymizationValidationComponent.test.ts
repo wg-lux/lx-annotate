@@ -102,7 +102,8 @@ vi.mock('@/api/axiosInstance', () => ({
     get: hoisted.axiosGet,
     post: hoisted.axiosPost
   },
-  r: (value: string) => value
+  r: (value: string) => value,
+  dtypesApi: (value: string) => `dtypes-api/${value}`
 }))
 
 vi.mock('@/stores/anonymizationStore', () => ({

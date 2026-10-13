@@ -7,6 +7,7 @@ import shlex
 from pathlib import Path
 from typing import Annotated
 
+from endoreg_db.config.secret_keyring import load_keyring
 from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
@@ -161,6 +162,7 @@ def _config_kwargs_from_sources(
     alias_map: dict[str, tuple[str, ...]] = {
         "secret_key": ("DJANGO_SECRET_KEY",),
         "secret_key_file": ("DJANGO_SECRET_KEY_FILE",),
+        "signing_keyring_file": ("DJANGO_SIGNING_KEYRING_FILE",),
         "debug": ("DJANGO_DEBUG",),
         "allowed_hosts": ("DJANGO_ALLOWED_HOSTS", "ALLOWED_HOSTS"),
         "csrf_trusted_origins": ("DJANGO_CSRF_TRUSTED_ORIGINS",),
@@ -204,6 +206,7 @@ def _config_kwargs_from_sources(
                 continue
             if field_name in {
                 "secret_key_file",
+                "signing_keyring_file",
                 "db_password_file",
                 "keycloak_client_secret_file",
             }:
@@ -245,6 +248,10 @@ class AppConfig(BaseSettings):
     # Core
     secret_key: str = ""
     secret_key_file: Path | None = None
+    signing_keyring_file: Path | None = None
+    secret_key_fallbacks: list[str] = Field(
+        default_factory=list, exclude=True, repr=False
+    )
     debug: bool = False
 
     # Security: Hosts, CORS, CSRF
@@ -296,6 +303,7 @@ class AppConfig(BaseSettings):
 
     @field_validator(
         "secret_key_file",
+        "signing_keyring_file",
         "db_password_file",
         "keycloak_client_secret_file",
         mode="before",
@@ -386,7 +394,15 @@ class AppConfig(BaseSettings):
 
     @model_validator(mode="after")
     def apply_secret_files(self) -> "AppConfig":
-        self._apply_secret_file("secret_key", self.secret_key_file)
+        # One backend parser owns private-file validation and generation order.
+        # Only an explicit manifest enables overlap; never inherit inline fallbacks.
+        self.secret_key_fallbacks = []
+        if self.signing_keyring_file is not None:
+            ring = load_keyring(self.signing_keyring_file, kind="signing")
+            self.secret_key = ring.active.decode("utf-8")
+            self.secret_key_fallbacks = [key.decode("utf-8") for key in ring.retiring]
+        else:
+            self._apply_secret_file("secret_key", self.secret_key_file)
         self._apply_secret_file("db_password", self.db_password_file)
         self._apply_secret_file(
             "keycloak_client_secret", self.keycloak_client_secret_file

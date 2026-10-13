@@ -357,10 +357,12 @@
         </template>
       </section>
     </div>
+    <DatasetManager ref="dataset_manager" @changed="loadOptions" />
   </div>
 </template>
 
 <script setup lang="ts">
+import DatasetManager from '@/components/AiDataset/DatasetManager.vue'
 import DatasetStudyCohorts from '@/components/AiDataset/DatasetStudyCohorts.vue'
 import {
   attachAiDatasetAnnotations,
@@ -409,6 +411,7 @@ function aiDatasetValidationErrors(error: unknown): AiDatasetValidationErrors {
 
 const datasetOptions = ref<AiDatasetOption[]>([])
 const labelSetOptions = ref<AiDatasetLabelSetOption[]>([])
+const dataset_manager = ref<InstanceType<typeof DatasetManager> | null>(null)
 const selectedDatasetId = ref('')
 const loadingOptions = ref(true)
 const buildingManifest = ref(false)
@@ -536,6 +539,7 @@ function datasetTypeLabel(datasetType: AiDatasetType): string {
 }
 
 function aiModelTypeForDatasetType(datasetType: AiDatasetType): AiDatasetModelType {
+  if (datasetType === 'clinical') return null
   if (datasetType === 'video') {
     return 'video_segment_classification'
   }
@@ -560,7 +564,7 @@ async function loadOptions(): Promise<void> {
     ])
     datasetOptions.value = datasets
     labelSetOptions.value = labelSets
-    if (!selectedDatasetId.value) {
+    if (!datasets.some((dataset) => String(dataset.id) === selectedDatasetId.value)) {
       const imageDataset =
         datasets.find((dataset) => dataset.datasetType === 'image' && dataset.isActive) ??
         datasets.find((dataset) => dataset.datasetType === 'image') ??
@@ -593,6 +597,7 @@ async function createDataset(): Promise<void> {
     })
     datasetOptions.value = await fetchAiDatasetOptions()
     selectedDatasetId.value = String(createdDataset.id)
+    await dataset_manager.value?.reload()
     createDatasetForm.name = ''
     createdDatasetMessage.value = `Datensatz "${createdDataset.label}" wurde erstellt und ausgewählt.`
     resetManifest()

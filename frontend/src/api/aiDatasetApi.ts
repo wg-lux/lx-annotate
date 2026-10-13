@@ -11,10 +11,10 @@ export interface AiDatasetOption {
   nameCount: number
 }
 
-export type AiDatasetType = 'image' | 'video'
+export type AiDatasetType = 'image' | 'video' | 'clinical'
 
 export type AiDatasetModelType =
-  'image_multilabel_classification' | 'phi_region_detector' | 'video_segment_classification'
+  'image_multilabel_classification' | 'phi_region_detector' | 'video_segment_classification' | null
 
 export interface CreateAiDatasetPayload {
   name: string
@@ -239,13 +239,14 @@ function requireAiDatasetAttachmentResult(value: unknown): AiDatasetAttachmentRe
 }
 
 function requireAiDatasetType(value: unknown): AiDatasetType {
-  if (value !== 'image' && value !== 'video') {
+  if (value !== 'image' && value !== 'video' && value !== 'clinical') {
     throw new TypeError('AI dataset response contains an invalid datasetType')
   }
   return value
 }
 
 function requireAiDatasetModelType(value: unknown): AiDatasetModelType {
+  if (value === null) return null
   if (
     value !== 'image_multilabel_classification' &&
     value !== 'phi_region_detector' &&
@@ -282,7 +283,8 @@ function requireAiDatasetOption(value: unknown, index?: number): AiDatasetOption
   const aiModelType = requireAiDatasetModelType(value.aiModelType)
   const allowedModelTypes: Record<AiDatasetType, ReadonlySet<AiDatasetModelType>> = {
     image: new Set(['image_multilabel_classification', 'phi_region_detector']),
-    video: new Set(['video_segment_classification'])
+    video: new Set(['video_segment_classification']),
+    clinical: new Set([null])
   }
   if (!allowedModelTypes[datasetType].has(aiModelType)) {
     throw new TypeError('AI dataset response contains incompatible dataset/model types')

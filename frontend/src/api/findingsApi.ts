@@ -29,6 +29,7 @@ export interface FindingsApiError {
 }
 
 export interface CreatePatientFindingPayload {
+  instance_id?: string
   patientExamination: number
   finding: number
   classifications?: ClassificationSelection[]
@@ -351,6 +352,7 @@ export const findingsApi = {
         'payload.patientExamination'
       ),
       finding: requirePositiveRequestId(payload.finding, 'payload.finding'),
+      ...(payload.instance_id ? { instance_id: payload.instance_id } : {}),
       classifications: classifications
     })
     return normalizePatientFindingRow(response.data)

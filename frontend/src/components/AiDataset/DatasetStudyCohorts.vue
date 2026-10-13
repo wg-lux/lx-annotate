@@ -62,6 +62,7 @@ import {
   type SavedStudyCohort
 } from '@/api/studyCohortApi'
 
+const emit = defineEmits<{ changed: [] }>()
 const props = defineProps<{ datasetId: string }>()
 const cohorts = ref<SavedStudyCohort[]>([])
 const loading = ref(false)
@@ -99,6 +100,7 @@ async function toggle(cohort: SavedStudyCohort, event: Event): Promise<void> {
       !cohort.datasetIds.includes(Number(datasetId))
     )
     cohorts.value = cohorts.value.map((row) => (row.id === updated.id ? updated : row))
+    emit('changed')
   } catch {
     error.value = 'Die Verknüpfung wurde nicht gespeichert. Bitte neu laden und erneut versuchen.'
   } finally {

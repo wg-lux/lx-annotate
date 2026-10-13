@@ -10,10 +10,12 @@ used throughout the project.
 :maxdepth: 2
 :caption: Guides
 
+agent_context
 guides/general-documentation
 guides/deployment-strategy
 guides/runtime-environment-contract-test
 guides/encrypted-storage-process
+guides/secret-rotation
 guides/secure-backup-disaster-recovery
 guides/hub-export-workflow
 guides/hub-storage-load-balancing

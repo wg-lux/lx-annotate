@@ -267,6 +267,8 @@ export interface MedicalLedgerIdentity {
 }
 
 export interface PatientMedicationLedgerRecord extends MedicalLedgerIdentity {
+  startAt?: string | null
+  endAt?: string | null
   patient: string
   medicationIndication: string | null
   medication: string
@@ -277,6 +279,8 @@ export interface PatientMedicationLedgerRecord extends MedicalLedgerIdentity {
 }
 
 export interface PatientMedicationCreatePayload {
+  startAt?: string | null
+  endAt?: string | null
   medication: string
   medicationIndication?: string | null
   intakeTimes?: string[]
@@ -286,6 +290,8 @@ export interface PatientMedicationCreatePayload {
 }
 
 export interface PatientMedicationUpdatePayload {
+  startAt?: string | null
+  endAt?: string | null
   medication?: string
   medicationIndication?: string | null
   intakeTimes?: string[]

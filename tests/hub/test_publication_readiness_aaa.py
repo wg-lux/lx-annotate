@@ -24,7 +24,10 @@ from lx_annotate.hub.hub_export_state import (
     report_hub_export_blocked_reason,
 )
 from lx_annotate.models import OutboundHubTransferJob
-from tests.hub_payload_helpers import verify_hub_report_artifact
+from tests.hub_payload_helpers import (
+    create_hub_sensitive_meta,
+    verify_hub_report_artifact,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -44,6 +47,7 @@ def reviewed_report(master_key: bytes) -> Iterator[RawPdfFile]:
     report = RawPdfFile.objects.create(
         center=center,
         state=state,
+        sensitive_meta=create_hub_sensitive_meta(center=center),
         pdf_hash=hashlib.sha256(content).hexdigest(),
         anonymized_text="Synthetic reviewed report",
         processed_file=ContentFile(content, name="publication-aaa.pdf"),

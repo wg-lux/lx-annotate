@@ -79,6 +79,64 @@ workflow, ready-for-export endpoint, Hub marking, and queueing code. Any later
 processed-artifact replacement or segment mutation revokes the proof and sends
 the video back to the readiness gate.
 
+## Read-only operational findings, 12 October 2026
+
+On gc-02, the application, transfer worker and certificate issuance were active,
+but the two inspected failed video jobs were rejected locally before hub
+registration: one lacked SensitiveMeta identity hashes; the other lacked actual
+frame provenance. Both retained raw media. An authenticated mTLS status request
+reached gs-02 and returned the expected not-found response for an unregistered
+job. Historical applied receipts do not establish current transfer readiness.
+On gc-09, certificate issuance lacked the Vault AppRole/CA files and the
+application and worker were inactive; enrollment remains a separate prerequisite.
+No media reset, secret change, service activation or successful replacement
+transfer was performed as part of this diagnosis.
+
+## Backfill an existing video from the overview
+
+A terminal configuration rejection can mean that an older recording lacks
+patient/examination identity metadata or actual frame provenance. Repeating the
+transfer cannot create those prerequisites. The failure detail now identifies
+these known conditions; operator retry validates the payload before queueing it.
+
+In the anonymization overview, choose **Zustand reparieren**, then
+**Zurücksetzen prüfen** and **Auf Import zurücksetzen**. This explicitly resets
+one video's completion and approval state to the import stage. It preserves its
+identity, retained files, metadata, annotations and historical evidence, and
+writes an audit entry atomically with the reset. The preview changes no media state or approval.
+Bulk resets and combined reset/transcode requests are rejected.
+
+Reset requires retained raw media and refuses integrity failures, active media
+operations or processing, and active or remotely registered transfers. Resolve
+those blockers before retrying; do not delete transfer identities or fabricate
+provenance. After reset, choose **Starten** to process the existing recording
+again. This path bypasses generic-import duplicate detection. Recheck metadata,
+validate anonymization and annotations, complete cleanup, and promote the final
+artifact to ready for export again before retrying the existing failed transfer.
+Reset alone neither regenerates evidence nor queues a transfer. The application
+and the accompanying endoreg-db existing-record processing change must both be
+deployed before using this workflow.
+
+### Local verification of the backfill change
+
+Commands run from LX-Annotate unless a repository is named:
+
+- `PYTHONPATH=/home/admin/endoreg-db .devenv/state/venv/bin/pytest tests/hub -q --tb=short`: 229 passed, including worker, receiver and mTLS integration tests.
+- `.devenv/state/venv/bin/pytest tests/api/test_video_lifecycle_readiness.py tests/api/test_video_state_repair_transcode.py tests/hub/test_hub_export_api.py tests/hub/test_publication_readiness_aaa.py -q --tb=short`: 88 passed before the additional missing-integrity regression.
+- `.devenv/state/venv/bin/pytest tests/api/test_video_lifecycle_readiness.py -q --tb=short`: 37 passed after adding the missing-integrity regression.
+- `npm --prefix frontend run test:unit -- --run src/components/Anonymizer/__tests__/AnonymizationOverviewRow.test.ts src/components/Anonymizer/__tests__/AnonymizationOverviewComponent.test.ts src/components/Anonymizer/__tests__/VideoBackfillRepairPanel.test.ts src/stores/__tests__/anonymizationStore.reimport.spec.ts src/components/Export/__tests__/HubExportOverviewComponent.test.ts`: 103 passed.
+- `pyright lx_annotate/services/video_state_reconciliation.py lx_annotate/views/video_state_repair.py lx_annotate/hub/hub_export_jobs.py`: passed. Targeted Ruff and changed-source ESLint passed.
+- Endoreg-db: `.devenv/state/venv/bin/pytest tests/views/anonymization/test_anonymization_overview.py -q --tb=short`: 64 passed, 13 skipped. Targeted workflow Pyright and Ruff passed.
+- LuxNix: `.devenv/state/venv/bin/pytest tests/test_vault_fleet_enrollment.py -q`: 49 passed; `devenv tasks run docs:check`: passed.
+
+The full hub suite with the installed endoreg-db package initially failed
+collection because `clear_sensitive_meta_direct_identifiers` was absent; the
+229-test result above uses the sibling source checkout explicitly. Frontend
+`npm --prefix frontend run type-check:source` passed Vue/TypeScript compilation
+but repository-wide ESLint remains blocked by an existing attribute-order warning
+in `AnonymizationValidationComponent.vue`. No production deployment or real-media
+backfill acceptance is included in these local results.
+
 ## Marked For Upload
 
 `marked for upload` means:

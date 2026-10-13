@@ -103,3 +103,57 @@ def valid_report_resource_rows(*, pdf_hash: str = "hash-1") -> dict[str, Any]:
             "success": True,
         },
     }
+
+
+def hub_video_artifact(*, reprocessed: bool = False) -> tuple[str, bytes]:
+    """Encode a real anonymous fixture and retain its production lineage receipt."""
+    import subprocess
+
+    from endoreg_db.utils.file_operations import protected_temporary_directory
+    from endoreg_db.utils.hashs import get_file_hash
+    from endoreg_db.utils.transcode_execution import _run_ffmpeg_command
+    from endoreg_db.utils.video.executable_discovery import resolve_ffmpeg_executable
+
+    ffmpeg = resolve_ffmpeg_executable()
+    if ffmpeg is None:
+        raise RuntimeError("Hub video contract tests require FFmpeg")
+    with protected_temporary_directory(prefix="hub-video-contract-") as directory:
+        source, output = directory / "source.nut", directory / "processed.mp4"
+        subprocess.run(
+            [
+                ffmpeg,
+                "-v",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc2=size=320x240:rate=25:duration=1",
+                "-c:v",
+                "ffv1",
+                str(source),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        result = _run_ffmpeg_command(
+            [
+                ffmpeg,
+                "-v",
+                "error",
+                "-copyts",
+                "-i",
+                str(source),
+                "-vf",
+                "hue=h=90" if reprocessed else "null",
+                "-c:v",
+                "libx264",
+                "-fps_mode",
+                "passthrough",
+                "-enc_time_base",
+                "demux",
+                str(output),
+            ]
+        )
+        if result[0]:
+            raise RuntimeError(result[1])
+        return get_file_hash(source), output.read_bytes()

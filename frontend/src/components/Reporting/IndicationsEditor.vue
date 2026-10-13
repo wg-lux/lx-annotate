@@ -11,7 +11,12 @@
       v-if="optionsError"
       class="alert alert-warning py-2 d-flex justify-content-between align-items-center"
     >
-      <span>{{ optionsError }}</span>
+      <span>
+        <template v-if="!hasBaseIndicationOptions"
+          >Für diese Vorlage sind derzeit keine Indikationen verfügbar.
+        </template>
+        {{ optionsError }}
+      </span>
       <button
         class="btn btn-outline-secondary btn-sm"
         :disabled="disabled || optionsLoading"
@@ -30,7 +35,7 @@
       v-else-if="!hasBaseIndicationOptions"
       class="alert alert-info py-2 d-flex justify-content-between align-items-center"
     >
-      <span>Keine Indikationsoptionen aus dem Backend geladen.</span>
+      <span>Diese Vorlage enthält keine auswählbaren Indikationen.</span>
       <button
         class="btn btn-outline-secondary btn-sm"
         :disabled="disabled"
@@ -39,6 +44,14 @@
         Optionen laden
       </button>
     </div>
+
+    <p
+      v-if="!optionsLoading && !hasBaseIndicationOptions"
+      class="small text-muted"
+    >
+      Sie können die übrigen Berichtsteile weiter bearbeiten. Gespeicherte Indikationen bleiben
+      erhalten.
+    </p>
 
     <div
       v-for="(row, idx) in rows"
@@ -49,7 +62,7 @@
         <label class="form-label">Untersuchungsindikation</label>
         <select
           class="form-select"
-          :disabled="disabled"
+          :disabled="disabled || optionsLoading || !hasBaseIndicationOptions"
           :value="row.examinationIndicationId ?? ''"
           @change="onIndicationChanged(idx, ($event.target as HTMLSelectElement).value)"
         >
@@ -103,7 +116,7 @@
     <div class="d-flex flex-wrap gap-2">
       <button
         class="btn btn-outline-primary btn-sm"
-        :disabled="disabled"
+        :disabled="disabled || optionsLoading || !hasBaseIndicationOptions"
         @click="$emit('add-row')"
       >
         Zeile hinzufügen

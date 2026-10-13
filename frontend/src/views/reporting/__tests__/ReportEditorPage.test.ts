@@ -475,6 +475,24 @@ describe('ReportEditorPage draft-driven workflow', () => {
     expect(savePayload.renderedText).toContain('Intervention: biopsy')
   })
 
+  it('explains unavailable template indications when the catalog request fails', async () => {
+    const defaultGet = hoisted.axiosApi.get.getMockImplementation()
+    hoisted.axiosApi.get.mockImplementation((url: string) => {
+      if (url === 'examinations/9/indications/') {
+        return Promise.reject(new Error('Catalog unavailable'))
+      }
+      return (defaultGet?.(url) as unknown) ?? Promise.resolve({ data: [] })
+    })
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.getComponent(IndicationsEditor).props('optionsError')).toBe(
+      'Die Indikationen konnten nicht geladen werden. Bitte versuchen Sie es erneut.'
+    )
+    expect(wrapper.text()).toContain('Für diese Vorlage sind derzeit keine Indikationen verfügbar.')
+    expect(wrapper.text()).toContain('die übrigen Berichtsteile weiter bearbeiten')
+    expect(wrapper.text()).not.toContain('aktuellen Backend-Antwort')
+  })
+
   it('requires confirmation before discarding a conflicted local draft and reloading the server state', async () => {
     const flow = hoisted.flowRef.current
     flow.draftPersistenceStatus = 'conflict'
@@ -541,7 +559,7 @@ describe('ReportEditorPage draft-driven workflow', () => {
     ]
     const defaultGet = hoisted.axiosApi.get.getMockImplementation()
     hoisted.axiosApi.get.mockImplementation((url: string) => {
-      if (url === 'examinations/12/indications/?patient_examination_id=42') {
+      if (url === 'examinations/12/indications/') {
         return Promise.resolve({
           data: {
             examination_indications: [{ id: 7, name_de: 'Vorsorge' }],
@@ -568,9 +586,13 @@ describe('ReportEditorPage draft-driven workflow', () => {
         patient_examination_id: 42
       }
     })
-    expect(hoisted.axiosApi.get).toHaveBeenCalledWith(
-      'examinations/12/indications/?patient_examination_id=42'
-    )
+    expect(hoisted.axiosApi.get).toHaveBeenCalledWith('examinations/12/indications/', {
+      params: {
+        module_name: 'report_template_examples',
+        module_version: '1.0.0',
+        patient_examination_id: 42
+      }
+    })
     expect(wrapper.getComponent(IndicationsEditor).props('indicationOptions')).toEqual([
       {
         id: 7,
@@ -600,7 +622,8 @@ describe('ReportEditorPage draft-driven workflow', () => {
     )
     expect(hoisted.knowledgeBaseGraphApi.fetchExaminationReportingContext).not.toHaveBeenCalled()
     expect(hoisted.axiosApi.get).not.toHaveBeenCalledWith(
-      'examinations/12/indications/?patient_examination_id=42'
+      'examinations/12/indications/',
+      expect.anything()
     )
   })
 

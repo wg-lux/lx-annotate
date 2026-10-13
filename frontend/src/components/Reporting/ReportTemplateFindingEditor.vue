@@ -213,11 +213,29 @@
           </select>
         </div>
         <div class="col-md-3">
-          <label class="form-label form-label-sm">Wert</label>
-          <input
-            :value="finding.validator.condition.value"
+          <label class="form-label form-label-sm">{{
+            isMembershipCondition ? 'Werte (einer pro Zeile)' : 'Wert'
+          }}</label>
+          <textarea
+            v-if="isMembershipCondition"
+            :value="finding.validator.condition.values?.join('\n') || ''"
             class="form-control form-control-sm"
-            @input="updateCondition({ value: ($event.target as HTMLInputElement).value })"
+            data-testid="validator-values"
+            @change="
+              updateCondition({
+                values: ($event.target as HTMLTextAreaElement).value
+                  .split('\n')
+                  .map((value) => value.trim())
+                  .filter(Boolean)
+              })
+            "
+          />
+          <input
+            v-else
+            :value="finding.validator.condition.value"
+            :type="isNumericCondition ? 'number' : 'text'"
+            class="form-control form-control-sm"
+            @input="updateConditionValue(($event.target as HTMLInputElement).value)"
           />
         </div>
         <div class="col-md-6">
@@ -236,13 +254,22 @@
             </option>
           </select>
           <div class="d-flex flex-wrap gap-2 mt-2">
-            <span
+            <button
               v-for="item in finding.validator.condition.thenRequires"
               :key="item"
               class="badge bg-secondary"
+              type="button"
+              :aria-label="`${item} aus Anforderungen entfernen`"
+              @click="
+                updateCondition({
+                  thenRequires: finding.validator.condition.thenRequires.filter(
+                    (name) => name !== item
+                  )
+                })
+              "
             >
-              {{ item }}
-            </span>
+              {{ item }} ×
+            </button>
           </div>
         </div>
       </template>
@@ -250,12 +277,22 @@
   </div>
 </template>
 <script setup lang="ts">
+import { computed } from 'vue'
 import type {
   ReportTemplateBuilderFinding,
   ReportTemplateBuilderFindingValidator,
   ReportTemplateBuilderClassification
 } from '@/api/reportTemplateBuilderApi'
 const finding = defineModel<ReportTemplateBuilderFinding>({ required: true })
+const isMembershipCondition = computed(() =>
+  ['in', 'not_in'].includes(finding.value.validator.condition.comparator)
+)
+const isNumericCondition = computed(() =>
+  ['gt', 'gte', 'lt', 'lte'].includes(finding.value.validator.condition.comparator)
+)
+function updateConditionValue(value: string): void {
+  updateCondition({ value: isNumericCondition.value && value !== '' ? Number(value) : value })
+}
 defineProps<{
   findingOptions: { name: string; label: string }[]
   classificationOptions: { name: string; label: string }[]

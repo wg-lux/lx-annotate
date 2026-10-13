@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from django.db import transaction
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from endoreg_db.models import AIDataSet, VideoFile
 from endoreg_db.services.centers.access import resolve_allowed_center_ids
@@ -21,6 +22,7 @@ from lx_annotate.services.ai_dataset_splits import (
     summarize_snapshot,
     validate_snapshot_patients,
 )
+from lx_annotate.services.dataset_lifecycle import require_dataset_access
 
 
 def require_centers(user, center_ids):
@@ -29,15 +31,6 @@ def require_centers(user, center_ids):
         raise PermissionDenied(
             "The dataset includes data outside your authorized centers."
         )
-
-
-def require_dataset_access(user, dataset):
-    video_ids = set(dataset.image_annotations.values_list("frame__video_id", flat=True))
-    video_ids.update(dataset.video_annotations.values_list("video_file_id", flat=True))
-    require_centers(
-        user,
-        VideoFile.objects.filter(pk__in=video_ids).values_list("center_id", flat=True),
-    )
 
 
 def plan_response(plan, user, *, include_membership=False):
@@ -101,7 +94,10 @@ def dataset_split_plans(request, dataset_id):
 @permission_classes([IsAuthenticated])
 def dataset_split_plan_detail(request, dataset_id, plan_id):
     plan = get_object_or_404(AIDatasetSplitPlan, pk=plan_id, dataset_id=dataset_id)
-    require_dataset_access(request.user, plan.dataset)
+    dataset = plan.dataset
+    if dataset is None:
+        raise Http404("The split plan no longer references a dataset.")
+    require_dataset_access(request.user, dataset)
     try:
         result = plan_response(plan, request.user, include_membership=True)
     except StaleSplitMembership as error:

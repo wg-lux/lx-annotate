@@ -80,6 +80,12 @@ vi.mock('@/stores/patientStore', () => ({
   usePatientStore: () => hoisted.patientStoreRef.current
 }))
 
+vi.mock('@/stores/terminologyStore', () => ({
+  useTerminologyStore: () => ({
+    activeBundle: { moduleName: 'coloreg', version: '0.3.0' }
+  })
+}))
+
 vi.mock('@/stores/examinationStore', () => ({
   useExaminationStore: () => hoisted.examinationStoreRef.current
 }))
@@ -272,12 +278,16 @@ describe('CaseSetupPage draft-first setup', () => {
     expect(createCall[1].admissionDate).toEqual(expect.any(String))
     expect(createCall[1].patientExamination).toMatchObject({
       patient: 'patient_7',
-      examination: 'gastroscopy'
+      examination: 'gastroscopy',
+      knowledgeBaseModule: 'coloreg',
+      knowledgeBaseVersion: '0.3.0'
     })
     expect(createCall[1].patientExamination.dateStart).toEqual(expect.any(String))
     expect(Object.keys(createCall[1].patientExamination).sort()).toEqual([
       'dateStart',
       'examination',
+      'knowledgeBaseModule',
+      'knowledgeBaseVersion',
       'patient'
     ])
     expect(hoisted.flowRef.current.setPatientExaminationContext).toHaveBeenCalledWith({

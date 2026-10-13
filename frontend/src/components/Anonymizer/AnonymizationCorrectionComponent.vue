@@ -551,7 +551,7 @@
                         v-model="maskConfig.type"
                         class="form-select"
                       >
-                        <option value="device_default">Gerätespezifische Maske</option>
+                        <option value="device_default">Gespeicherte Maske</option>
                         <option value="custom">Benutzerdefiniert</option>
                       </select>
                     </div>
@@ -568,10 +568,9 @@
                         v-model="maskConfig.deviceName"
                         class="form-select"
                       >
-                        <option value="olympus_cv_1500">Olympus CV-1500</option>
-                        <option value="olympus_cv_190">Olympus CV-190</option>
-                        <option value="pentax_epk_i7010">Pentax EPK-i7010</option>
-                        <option value="fujifilm_vp_4450hd">Fujifilm VP-4450HD</option>
+                        <option v-for="profile in maskProfiles" :key="profile.name" :value="profile.name">
+                          {{ profile.label }} ({{ profile.deviceName }})
+                        </option>
                       </select>
                     </div>
 
@@ -620,6 +619,28 @@
                         </div>
                       </div>
                     </div>
+
+                    <div v-if="selectedStrategy === 'processor_region' && maskConfig.type === 'custom'" class="mb-3">
+                      <VideoMaskEditor
+                        :video="previewMode === 'original' ? videoElement : null"
+                        :source-key="`${props.fileId}:${previewMode}`"
+                        @selected="selectDrawnMask"
+                      />
+                      <label class="form-label" for="mask-device-name">Gerätename</label>
+                      <input id="mask-device-name" v-model.trim="maskDeviceName" class="form-control" />
+                      <label class="form-label" for="mask-name">Maskenkennung</label>
+                      <input id="mask-name" v-model="maskName" class="form-control" placeholder="z. B. raum_2" />
+                      <label class="form-label" for="mask-label">Maskenname</label>
+                      <input id="mask-label" v-model="maskLabel" class="form-control" />
+                      <label class="form-label" for="mask-image-width">Bildbreite (Pixel)</label>
+                      <input id="mask-image-width" v-model.number="maskImageWidth" type="number" min="1" class="form-control" />
+                      <label class="form-label" for="mask-image-height">Bildhöhe (Pixel)</label>
+                      <input id="mask-image-height" v-model.number="maskImageHeight" type="number" min="1" class="form-control" />
+                      <button type="button" class="btn btn-outline-primary mt-2" :disabled="savingMask || !maskName || !maskLabel || !maskDeviceName" @click="saveMask">
+                        Maske speichern und auswählen
+                      </button>
+                    </div>
+                    <p v-if="maskError" role="alert" class="text-danger">{{ maskError }}</p>
 
                     <!-- Processing Method -->
                     <div class="mb-3">
@@ -990,7 +1011,9 @@
 </template>
 
 <script setup lang="ts">
+import VideoMaskEditor from './VideoMaskEditor.vue'
 import { build_pdf_correction, type PdfCorrectionArtifact } from '@/utils/pdfCorrection'
+import { createVideoMask, fetchVideoMasks, type VideoMaskProfile } from '@/api/videoMasks'
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAnonymizationStore, type VideoStateRepairResponse } from '@/stores/anonymizationStore'
@@ -1136,6 +1159,56 @@ const maskConfig = ref<{
   endoscopeWidth: 1350,
   endoscopeHeight: 1080
 })
+
+const maskProfiles = ref<VideoMaskProfile[]>([])
+const maskDeviceName = ref('')
+const maskName = ref('')
+const maskLabel = ref('')
+const maskImageWidth = ref(1920)
+const maskImageHeight = ref(1080)
+const savingMask = ref(false)
+const maskError = ref('')
+
+const loadMasks = async () => {
+  try {
+    maskProfiles.value = await fetchVideoMasks()
+  } catch {
+    maskError.value = 'Die gespeicherten Masken konnten nicht geladen werden.'
+  }
+}
+
+const selectDrawnMask = (mask: VideoMaskProfile['mask']) => {
+  maskConfig.value.endoscopeX = mask.x
+  maskConfig.value.endoscopeY = mask.y
+  maskConfig.value.endoscopeWidth = mask.width
+  maskConfig.value.endoscopeHeight = mask.height
+  maskImageWidth.value = mask.imageWidth
+  maskImageHeight.value = mask.imageHeight
+}
+
+const saveMask = async () => {
+  const generation = selection_generation
+  savingMask.value = true
+  maskError.value = ''
+  try {
+    const profile = await createVideoMask({
+      name: maskName.value, label: maskLabel.value, deviceName: maskDeviceName.value,
+      mask: {
+        x: maskConfig.value.endoscopeX, y: maskConfig.value.endoscopeY,
+        width: maskConfig.value.endoscopeWidth, height: maskConfig.value.endoscopeHeight,
+        imageWidth: maskImageWidth.value, imageHeight: maskImageHeight.value
+      }
+    })
+    maskProfiles.value.push(profile)
+    if (generation !== selection_generation) return
+    maskConfig.value.deviceName = profile.name
+    maskConfig.value.type = 'device_default'
+  } catch {
+    maskError.value = 'Maske konnte nicht gespeichert werden. Kennung, Bildmaße und Koordinaten prüfen; die Kennung muss neu sein.'
+  } finally {
+    savingMask.value = false
+  }
+}
 
 // Configuration for frame removal
 const frameConfig = ref<{
@@ -2108,8 +2181,8 @@ const buildVideoAnonymizationRequest = (): VideoAnonymizationRequest => ({
           }
         }
       : {
-          mode: 'device',
-          deviceName: maskConfig.value.deviceName
+          mode: 'profile',
+          maskName: maskConfig.value.deviceName
         },
   humanReviewRequired: true
 })
@@ -2506,6 +2579,7 @@ const getOperationBadgeClass = (operation: string) => {
 
 // Lifecycle hooks
 onMounted(async () => {
+  void loadMasks()
   if (!isNaN(props.fileId)) {
     mediaStore.setCurrentByKey(resolvedMediaType.value, props.fileId)
   }

@@ -71,6 +71,24 @@ describe('anonymizationStore video reimport', () => {
     setActivePinia(createPinia())
   })
 
+  it('previews a single-video reset without refreshing and refreshes after applying', async () => {
+    hoisted.post.mockResolvedValue({ data: { items: [] } })
+    hoisted.get.mockResolvedValue({ data: [] })
+    const store = useAnonymizationStore()
+    await store.resetVideoForBackfill(42, true)
+    expect(hoisted.post).toHaveBeenLastCalledWith('api/runtime/videos/42/repair/', {
+      dry_run: true,
+      reset_to: 'import'
+    })
+    expect(hoisted.get).not.toHaveBeenCalled()
+    await store.resetVideoForBackfill(42, false)
+    expect(hoisted.post).toHaveBeenLastCalledWith('api/runtime/videos/42/repair/', {
+      dry_run: false,
+      reset_to: 'import'
+    })
+    expect(hoisted.get).toHaveBeenCalled()
+  })
+
   it('dismisses an import by UUID and refreshes the overview', async () => {
     hoisted.post.mockResolvedValue({ status: 204 })
     hoisted.get.mockResolvedValue({ data: [] })

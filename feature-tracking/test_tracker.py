@@ -6,7 +6,9 @@ from pathlib import Path
 
 import pytest
 import yaml
+from endoreg_db.utils.file_operations import atomic_write_file
 from tracker import (
+    NON_FEATURE_FILES,
     TRACKING_DIR,
     Assessment,
     AssessmentStatus,
@@ -96,9 +98,10 @@ def test_repository_registry_is_valid_and_tracks_current_assessments() -> None:
     feature_paths = tuple(
         path
         for path in TRACKING_DIR.glob("*.yml")
-        if path.name not in {"policy.yml", "schema.example.yml"}
+        if path.name not in NON_FEATURE_FILES
     )
 
+    assert "structure.yml" in NON_FEATURE_FILES
     assert len(features) == len(feature_paths)
     assert len({feature.id for feature in features}) == len(features)
     assert {feature.id for feature in features} >= {
@@ -246,6 +249,12 @@ def test_commit_guard_uses_staged_readiness_not_unstaged_yaml(
     feature_path.write_text(
         yaml.safe_dump(feature.model_dump(mode="json"), sort_keys=False),
         encoding="utf-8",
+    )
+    context = (TRACKING_DIR / "structure.yml").read_bytes()
+    atomic_write_file(
+        destination=tracking_dir / "structure.yml",
+        content=(context,),
+        required_bytes=len(context),
     )
     _run_git(tmp_path, "init", "--quiet")
     _run_git(tmp_path, "add", "feature-tracking")

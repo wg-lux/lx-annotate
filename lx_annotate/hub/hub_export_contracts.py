@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
 from endoreg_db.models.state.anonymization import AnonymizationState
 from endoreg_db.models.state.video_segment_validation import SegmentAnnotationStatus
@@ -118,12 +119,68 @@ class HubExportPrivacySummary(BaseModel):
     status: HubExportPrivacyStatus
 
 
+class HubRecoveryAction(StrEnum):
+    REPAIR_PROCESSING = "repair_processing"
+    REVIEW_ANONYMIZATION = "review_anonymization"
+    REVIEW_SEGMENTS = "review_segments"
+    CHECK_EXPORT_READINESS = "check_export_readiness"
+    PREFLIGHT = "preflight"
+    INSPECT_RECOVERY = "inspect_recovery"
+    ADMINISTRATOR_RECOVERY = "administrator_recovery"
+    MARK = "mark"
+    SEND = "send"
+    RETRY = "retry"
+
+
+HubRecoveryBlockerCode = Literal[
+    "processing",
+    "anonymization_review",
+    "segment_review",
+    "cleanup_pending",
+    "cleanup_failed",
+    "identity_evidence",
+    "source_missing",
+    "provenance",
+    "integrity",
+    "export_proof",
+    "payload",
+    "transport",
+    "receipt",
+]
+
+
+class HubRecoveryBlocker(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    code: HubRecoveryBlockerCode
+    detail: str
+    action: HubRecoveryAction
+
+
+class HubRecoveryAssessment(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    verification: Literal["stored_metadata", "fresh_payload"] = "stored_metadata"
+    blockers: list[HubRecoveryBlocker] = Field(default_factory=list)
+    allowed_actions: list[HubRecoveryAction] = Field(default_factory=list)
+    checked_at: str | None = None
+    completed_current_artifact: bool = False
+    transport_configuration: Literal["not_checked", "configured", "unavailable"] = (
+        "not_checked"
+    )
+
+
+class HubPayloadRejected(ValueError):
+    def __init__(self, blocker: HubRecoveryBlocker):
+        self.blocker = blocker
+        super().__init__(blocker.detail)
+
+
 class HubExportItem(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     id: int
     resource_kind: HubExportResourceKind
     filename: str
+    recovery: HubRecoveryAssessment | None = None
     anonymization_status: AnonymizationState
     segment_annotation_status: SegmentAnnotationStatus
     export_integrity_status: HubExportIntegrityStatus
