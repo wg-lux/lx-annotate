@@ -1,0 +1,303 @@
+schema_version: '1.0'
+id: clinical_publication_readiness
+name: Clinical Publication Readiness
+description: AAA verification of clinical-to-research workflow boundaries and explicit outstanding dataset
+  publication requirements.
+owners:
+- lx-annotate maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: docs/guides/ai-training-data-export.md
+  disposition: reference
+  note: Protected candidate contract; T01-T32 evidence map is docs/publications/infrastructure-software-evaluation.yml.
+- path: docs/guides/hub-export-workflow.md
+  disposition: reference
+  note: 'Related manuscript: docs/publications/clinical-data-workflow.yml; its readiness concerns are
+    tracked here.'
+definition_of_done:
+- id: manuscript_identity_compatibility
+  category: security
+  title: Demographic identities remain migratable and detected ambiguities fail closed
+  acceptance:
+  - Preserve demographic matching and tested identity-secret migration, reject detected encoding or salt
+    ambiguity for manual review, and document that identical demographic inputs cannot distinguish people.
+  - Public candidate metadata uses five-year age bands from curator-verified ages and excludes birth dates
+    and generated display demographics.
+  - Clinical handling of reported identical-demographic patients and same-day encounters, retained mappings,
+    backup restoration and identity correction or erasure has approved evidence.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the T09-T14 responses and software tests, then obtain the outstanding clinical
+      and operational evidence. Do not change persisted identity algorithms without a reviewed migration.
+    timeout_seconds: 300
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: document
+      reference: docs/publications/infrastructure-software-evaluation.yml
+    - kind: test
+      reference: tests/hub/test_hub_export_worker.py
+    note: 'User selected demographic matching with detected ambiguity blocked for review, and five-year
+      public age bands. Existing identity/rotation regression run: 106 tests plus 4 subtests passed. Final
+      candidate/split run: 37 passed. Clinical collision reconciliation, full erasure/retention and deployed
+      restoration remain unverified. 2026-10-12: sender reuses backend metadata erasure before its first
+      HTTP request; erasure failure prevents registration. Full worker suite 26 passed, followed by 2
+      focused tests with final backend guards. Final integration needs sibling endoreg-db and lx-data-models
+      source; installed lx-dtypes lacks finding_extraction. Coordinated package rollout required. No live
+      deployment or full erasure acceptance.'
+    assessed_by: codex-identity-audit-20261012
+    assessed_at: '2026-10-12T10:15:42.692361Z'
+- id: manuscript_live_drills
+  category: operations
+  title: Named sender and receiver complete independent transport and restore drills
+  acceptance:
+  - Record exact installed releases and successful runtime prerequisites on gc-02 and gs-02 before testing.
+  - Verify real certificate negotiation, identity and proxy-header rejection, replay, acknowledgement
+    loss, interruption and restoration using an approved disposable artifact.
+  - Complete an approved isolated cleanup and restore drill without altering required retained clinical
+    copies.
+  required: true
+  verification:
+    kind: manual
+    instructions: Resolve named runtime blockers and deployment-source readiness first, then follow the
+      LuxNix enrollment and restore runbooks. Local in-process tests are insufficient.
+    timeout_seconds: 300
+  assessment:
+    status: blocked
+    evidence:
+    - kind: document
+      reference: docs/publications/infrastructure-software-evaluation.yml
+    note: gc-02 certificate issuer failed and transfer worker inactive; gs-02 migration failed, web and
+      nginx inactive. Receiver SSH succeeds. Installed receiver lx-annotate1.4.2/endoreg-db1.4.1/lx-dtypes0.4.1
+      differs from local tested dependencies. No live transfer, certificate rotation, cleanup or restore
+      drill executed.
+    assessed_by: codex-infra-todos-20261007
+    assessed_at: '2026-10-07T15:01:09.394160Z'
+- id: encrypted_consumption
+  category: security
+  title: Encrypted artifacts are consumed within a bounded plaintext scope
+  acceptance:
+  - Verify real encrypted PDF parsing, wrong-key and tamper rejection, and cleanup on success and consumer
+    failure.
+  - Materialized PDF permissions are 0600, ciphertext remains unchanged after consumption, malformed inputs
+    never reach the consumer, and cleanup failure propagates.
+  required: true
+  verification:
+    kind: command
+    command:
+    - .devenv/state/venv/bin/python
+    - -m
+    - pytest
+    - tests/privacy/test_publication_materialization_aaa.py
+    - -q
+    - --tb=line
+    - --show-capture=no
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: '7 passed: tests/privacy/test_publication_materialization_aaa.py; included in final 112-pass
+        regression run.'
+    - kind: test
+      reference: 'tests/privacy/test_publication_materialization_aaa.py: 9 passed in focused 23-test integration
+        run'
+    note: 'Seven AAA cases pass against real EncryptedStorage and the real PDF parser. This verifies scoped
+      materialization, not clinical identifier removal. Review 2026-10-07: tests now use the public protected
+      directory argument instead of patching removed NamedTemporaryFile internals. Nine real-materialization
+      cases pass in the 23-test focused run, including unprotected-directory rejection and overlapping
+      scope isolation; original wrong-key, tamper, truncation, header, parser, permissions, cleanup and
+      ciphertext preservation assertions remain. No production encryption-boundary approval is implied.'
+    assessed_by: codex-storage-20261006-a1
+    assessed_at: '2026-10-07T09:54:50.547212Z'
+- id: report_export_state
+  category: functionality
+  title: Report approval and fresh integrity checks fail closed
+  acceptance:
+  - Verify eligibility and operator marking reject failed reports while valid reviewed reports remain
+    eligible.
+  - Operator marking and explicit retries rehash processed report content and reject replaced or unreadable
+    artifacts without updating the prior integrity proof.
+  - Unchanged valid retries reuse the existing ledger identity; overview polling does not rehash whole
+    reports.
+  required: true
+  verification:
+    kind: command
+    command:
+    - .devenv/state/venv/bin/python
+    - -m
+    - pytest
+    - tests/hub/test_publication_readiness_aaa.py
+    - -q
+    - --tb=line
+    - --show-capture=no
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: '11 passed: tests/hub/test_publication_readiness_aaa.py. Includes failed-state matrix,
+        marking, replacement, retry identity, polling and read failure.'
+    - kind: test
+      reference: 'Publication readiness 15 cases, video state path 8 cases, and worker 25 cases passed,
+        including wrong-key hashing and streaming. Logs: .devenv/state/endoreg-integration-tests.log and
+        endoreg-integration-worker-final.log.'
+    note: Installed endoreg-db 1.3.8 authentication failures block report and video export as unreadable
+      media. Worker records hashing/streaming authentication failures without retry or upload; integrity
+      proofs remain unchanged.
+    assessed_by: codex-overview-20260924-a
+    assessed_at: '2026-09-24T12:24:06.623956Z'
+- id: existing_workflow_regressions
+  category: testing
+  title: Existing approval, integrity and transfer regressions pass
+  acceptance:
+  - Run focused video state path, payload, envelope, worker and reconciliation tests.
+  - Hub API route integration tests must load and pass against the installed dependency contract.
+  required: true
+  verification:
+    kind: command
+    command:
+    - .devenv/state/venv/bin/python
+    - -m
+    - pytest
+    - tests/hub/test_publication_readiness_aaa.py
+    - tests/privacy/test_publication_materialization_aaa.py
+    - tests/privacy/test_encrypted_storage.py
+    - tests/privacy/test_encryption_safety.py
+    - tests/hub/test_hub_export_video_state_path.py
+    - tests/hub/test_hub_export_payload_guards.py
+    - tests/hub/test_hub_export_payloads.py
+    - tests/hub/test_hub_export_envelope.py
+    - tests/hub/test_hub_export_post_processing.py
+    - tests/hub/test_hub_export_worker.py
+    - tests/hub/test_hub_export_reconciliation.py
+    - tests/hub/test_hub_export_api.py
+    - -q
+    - --tb=line
+    - --show-capture=no
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'Final command stored under verification: 112 passed, 19 failed in 9.83s. All 19 failures
+        originate from lx_annotate/services/report_llm.py:17 ImportError for ReportVerbosity.'
+    - kind: test
+      reference: '161 distinct backend cases passed across focused runs: initial 57 passed plus Node PATH
+        failure resolved in expanded 90-pass run; final worker/envelope/privacy run 41 passed. Logs: .devenv/state/endoreg-integration-tests.log,
+        endoreg-integration-expanded.log, endoreg-integration-worker-final.log. No skipped cases.'
+    note: Prior ReportVerbosity blocker is absent with lx-dtypes 0.3.7 and endoreg-db 1.3.8. All listed
+      workflow regression files passed across focused runs; private secret-file permissions and fail-closed
+      encryption remain enforced.
+    assessed_by: codex-overview-20260924-a
+    assessed_at: '2026-09-24T12:24:08.081763Z'
+- id: release_metadata_and_splits
+  category: requirements
+  title: Public release schema and patient-disjoint split policy are implemented
+  acceptance:
+  - Public-release metadata allowlist, dataset-scoped identifiers, patient-disjoint partitions and immutable
+    release manifest require a separately defined and reviewed contract; training exports are not public-release
+    approval.
+  - Protected processed-video candidates use strict versioned fields, random release-scoped identifiers,
+    saved patient partitions, reviewed label codes and artifact-bound canonical timelines (T21, T25).
+  - Candidate copies remain encrypted; changed or unreadable media, stale membership, invalid annotations
+    and manifest tampering fail closed. Public distribution requires separate manifest-bound acceptance
+    (T22, T26).
+  required: true
+  verification:
+    kind: manual
+    instructions: Public-release metadata allowlist, dataset-scoped identifiers, patient-disjoint partitions
+      and immutable release manifest require a separately defined and reviewed contract; training exports
+      are not public-release approval.
+    timeout_seconds: 300
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: review
+      reference: docs/publications/clinical-data-workflow.yml Sections 4.7 and 5; docs/guides/ai-training-data-export.md
+        documents internal identifiers, annotators and timestamps in research exports.
+    - kind: code
+      reference: lx_annotate/schemas/publication.py; lx_annotate/services/publication.py; lx_annotate/management/commands/build_release_candidate.py
+    - kind: test
+      reference: 'Final candidate/partition suite: 37 passed in 43.48s; includes 18 candidate tests for
+        encrypted copying, five-year age bands, membership, digests, wrong keys, tamper, cleanup/error
+        propagation, audit proof and management command.'
+    note: Protected processed-MP4 candidate implementation passes focused verification. Public distribution,
+      PDF packaging, clinical adjudication/provenance, model-training integration, cross-site identity
+      reconciliation, manifest signing and institutional acceptance remain unresolved; not production
+      or publication approval.
+    assessed_by: codex-infra-todos-20261007
+    assessed_at: '2026-10-07T15:06:57.917959Z'
+- id: clinical_disclosure_evaluation
+  category: requirements
+  title: Clinical disclosure and annotation quality have measured evidence
+  acceptance:
+  - Evaluate actual clinical media, hidden PDF text, metadata, audio where present, residual identifiers,
+    annotation agreement and uncertainty under an approved protocol.
+  required: true
+  verification:
+    kind: manual
+    instructions: Evaluate actual clinical media, hidden PDF text, metadata, audio where present, residual
+      identifiers, annotation agreement and uncertainty under an approved protocol.
+    timeout_seconds: 300
+  assessment:
+    status: blocked
+    evidence:
+    - kind: review
+      reference: docs/publications/clinical-data-workflow.yml Section 6 lists proposed measurements without
+        observed clinical results.
+    note: No approved clinical evaluation cohort or disclosure-review protocol was supplied. Synthetic
+      encrypted PDFs test infrastructure only; they cannot establish residual identifier rates, hidden-text
+      redaction completeness, video/audio disclosure safety or annotation agreement.
+    assessed_by: codex-infrastructure-manuscript-20260910
+    assessed_at: '2026-09-10T07:49:50.078473Z'
+- id: institutional_release_approval
+  category: operations
+  title: Institutional dataset release authorization is documented
+  acceptance:
+  - Responsible institution records lawful use, ethics and consent conditions where applicable, disclosure
+    assessment, access decision and release owner.
+  required: true
+  verification:
+    kind: manual
+    instructions: Responsible institution records lawful use, ethics and consent conditions where applicable,
+      disclosure assessment, access decision and release owner.
+    timeout_seconds: 300
+  assessment:
+    status: blocked
+    evidence:
+    - kind: review
+      reference: docs/publications/clinical-data-workflow.yml Sections 5 and Declarations distinguish
+        technical export from public release authorization.
+    note: No dataset-specific institutional release authorization was supplied. Software tests cannot
+      grant ethics, consent, licensing or publication approval.
+    assessed_by: codex-infrastructure-manuscript-20260910
+    assessed_at: '2026-09-10T07:49:51.616742Z'
+- id: verification_record
+  category: documentation
+  title: Exact verification results and remaining blockers are recorded
+  acceptance:
+  - Record regression results, assessor and limits without implying clinical publication approval.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review this feature file against executed test output.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: Ruff check passed for both new test modules and both changed hub modules; git diff --check
+        passed for production changes; final test run 112 passed, 19 blocked by an existing import mismatch.
+    - kind: document
+      reference: docs/publications/infrastructure-software-evaluation.yml
+    note: Records 44 final audit tests, 106 backend tests plus 4 subtests, 114 application integration
+      tests before final age extension, and 37 final candidate/partition tests. Counts overlap and must
+      not be summed. Historical 89-case baseline is preserved separately. All 32 manuscript TODOs receive
+      an evidence-based response; open clinical, operational and implementation work is explicit.
+    assessed_by: codex-infra-todos-20261007
+    assessed_at: '2026-10-07T15:01:12.001301Z'

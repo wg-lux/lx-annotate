@@ -1,0 +1,185 @@
+schema_version: '1.0'
+id: anonymization_correction_workflow
+name: Anonymization Correction Workflow
+description: Preserve typed media identity and expose validated-video recovery actions from correction.
+owners:
+- lx-annotate frontend maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-video-correction-identity
+    changed_at: '2026-08-28T09:21:38.908593Z'
+    note: Composite correction identity, PDF correction access, validated-video outside blackening, and
+      scoped annotation restart are implemented; focused tests, app and component type checks, full ESLint,
+      tracker validation, and readiness check passed.
+source_documents:
+- path: AGENTS.md
+  disposition: reference
+  note: Frontend media identity and annotation restart contracts.
+definition_of_done:
+- id: bounded_scope
+  category: requirements
+  title: Correction recovery scope remains explicit
+  acceptance:
+  - Backend APIs, database records, and existing video-annotation controls remain unchanged.
+  - Recovery controls added to correction are video-only; PDF correction behavior remains bounded to PDFs.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the final diff and changed-file list for the declared ownership boundary.
+    timeout_seconds: 120
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: git diff --check and scoped changed-file review passed
+    note: Final diff is limited to two anonymizer components, their focused tests, and this tracker; backend,
+      database, VideoExaminationAnnotation, and existing recovery entry points are unchanged.
+    assessed_by: codex-video-correction-identity
+    assessed_at: '2026-08-28T09:20:22.621276Z'
+- id: correction_identity
+  category: data_integrity
+  title: Correction navigation uses composite media identity
+  acceptance:
+  - The clicked overview item is passed directly to correction navigation.
+  - Equal PDF and video database IDs cannot change the selected media type.
+  - Eligible videos and PDFs both expose correction navigation.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - test:unit
+    - --
+    - run
+    - src/components/Anonymizer/__tests__/AnonymizationOverviewComponent.test.ts
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: npm --prefix frontend run test:unit -- run src/components/Anonymizer/__tests__/AnonymizationOverviewComponent.test.ts
+      note: Exit-Code 0
+    assessed_by: codex-video-correction-identity
+    assessed_at: '2026-08-28T09:19:37.808636Z'
+- id: recovery_fail_safe
+  category: security
+  title: Recovery actions fail safe when validation state is unavailable
+  acceptance:
+  - Outside-segment blackening remains disabled unless validation completion and validated outside segments
+    are confirmed.
+  - API failures are visible and do not trigger fallback mutations.
+  - No key, transport, filesystem, storage-routing, or persisted JSON boundary is changed.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review control guards, error handling, and architecture-invariant impact.
+    timeout_seconds: 180
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/components/Anonymizer/AnonymizationCorrectionComponent.vue
+    note: Blackening is disabled until the validation-status response confirms complete validation and
+      at least one validated outside segment; request failures are visible. No security, storage, filesystem,
+      transport, or persisted JSON boundary changed.
+    assessed_by: codex-video-correction-identity
+    assessed_at: '2026-08-28T09:20:02.031628Z'
+- id: validated_video_recovery
+  category: functionality
+  title: Correction exposes validated-video recovery actions
+  acceptance:
+  - Validated outside segments can be blackened from video correction with the existing safety checks.
+  - An annotation restart stores the same target-scoped annotator override used by video annotation.
+  - Restart hands off to the selected video in explicit segment-edit mode.
+  - PDF correction does not expose video-only recovery actions.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - test:unit
+    - --
+    - run
+    - src/components/Anonymizer/__tests__/AnonymizationCorrectionComponent.test.ts
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: npm --prefix frontend run test:unit -- run src/components/Anonymizer/__tests__/AnonymizationCorrectionComponent.test.ts
+      note: Exit-Code 0
+    assessed_by: codex-video-correction-identity
+    assessed_at: '2026-08-28T09:19:40.535043Z'
+- id: focused_regression_ownership
+  category: testing
+  title: Focused tests own the correction workflow contract
+  acceptance:
+  - Overview coverage reproduces a PDF/video ID collision and asserts exact route identity.
+  - Correction coverage asserts video-only recovery visibility, request payloads, and restart handoff.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review focused test assertions against the reported regression and recovery workflow.
+    timeout_seconds: 180
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 23 focused Vitest tests passed
+    note: Collision coverage selects the video row when PDF and video both use ID 3; correction coverage
+      verifies PDF exclusion, validated outside blackening, scoped override persistence, and exact annotation
+      route handoff.
+    assessed_by: codex-video-correction-identity
+    assessed_at: '2026-08-28T09:20:00.225889Z'
+- id: frontend_static_checks
+  category: operations
+  title: Correction workflow remains type-safe and lint-clean
+  acceptance:
+  - Frontend application and component-test type checks pass.
+  - Focused ESLint checks pass without modifying sources.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run both frontend type checks and focused ESLint for the changed components and tests.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'npm --prefix frontend run type-check: application vue-tsc passed; focused ESLint exit
+        0; type-check:component-tests exit 0'
+    - kind: command
+      reference: 'npm --prefix frontend run lint: exit 0'
+    note: Application vue-tsc passed; component-test vue-tsc passed; focused and full repository ESLint
+      passed after correcting two test-only assertions.
+    assessed_by: codex-video-correction-identity
+    assessed_at: '2026-08-28T09:21:23.275872Z'
+- id: workflow_language
+  category: documentation
+  title: Recovery controls explain their workflow handoff
+  acceptance:
+  - User-facing labels remain German and state that annotation restart continues in video annotation.
+  - Tracker documentation remains English and no unrelated generated documentation changes.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review user-facing copy and the final changed-file list.
+    timeout_seconds: 120
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: User-facing correction copy and scoped diff reviewed
+    note: Recovery copy is German and explicitly explains the handoff to segment annotation edit mode;
+      tracker documentation is English; no generated documentation was changed by this task.
+    assessed_by: codex-video-correction-identity
+    assessed_at: '2026-08-28T09:20:26.218952Z'

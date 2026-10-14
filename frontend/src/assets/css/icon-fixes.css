@@ -1,4 +1,24 @@
-/* Icon Fixes - Stelle sicher, dass Font Awesome Icons korrekt angezeigt werden */
+/* Icon Fixes - keep bundled Nucleo icons usable where Font Awesome helpers were used before. */
+.ni-spin {
+  animation: ni-spin 1s linear infinite;
+}
+
+.icon-reverse {
+  display: inline-block;
+  transform: rotate(180deg);
+}
+
+@keyframes ni-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Legacy Font Awesome compatibility for any third-party or generated markup. */
 .fas, .fa-solid {
   font-family: "Font Awesome 6 Free" !important;
   font-weight: 900 !important;

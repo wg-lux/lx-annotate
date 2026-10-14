@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from rest_framework import serializers
+
 # Import the advanced LabelVideoSegmentSerializer from endoreg_db
 
 

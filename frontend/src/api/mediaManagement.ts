@@ -1,9 +1,13 @@
 // frontend/src/api/mediaManagement.ts
 
-import axiosInstance from '@/api/axiosInstance'
+import axiosInstance, { endoregApi } from '@/api/axiosInstance'
+import axios from 'axios'
 import { ref, readonly } from 'vue'
+import { endpoints } from '@/types/api/endpoints'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
 
 const api = axiosInstance
+const logger = createRuntimeLogger('media-management')
 
 export interface MediaStatusOverview {
   videos: {
@@ -72,141 +76,198 @@ export interface AnonymizationStatusResponse {
 }
 
 export interface ProcessingResponse {
-  detail: string
-  file_id: number
-  file_type: string
+  detail?: string
+  message?: string
+  file_id?: number
+  file_type?: string
   processing_locked?: boolean
+  status?: string
+  task_id?: string
+  history_id?: number | null
+  video_id?: number
+  uuid?: string
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function getMediaRequestErrorMessage(err: unknown): string {
+  if (!axios.isAxiosError(err)) {
+    return 'Ein unerwarteter Fehler ist aufgetreten.'
+  }
+  const status = err.response?.status
+  if (status === 429) {
+    return 'Zu viele Anfragen. Bitte warten Sie einen Moment.'
+  }
+  if (status === 409) {
+    return 'Datei wird bereits verarbeitet.'
+  }
+  const data: unknown = err.response?.data
+  if (isRecord(data) && typeof data.detail === 'string') {
+    return data.detail
+  }
+  return 'Ein unerwarteter Fehler ist aufgetreten.'
 }
 
 /**
  * Media Management API Service
  * Provides comprehensive media cleanup and management capabilities
  */
-export class MediaManagementAPI {
+export const MediaManagementAPI = {
   /**
    * Get comprehensive status overview of all media
    */
-  static async getStatusOverview(): Promise<MediaStatusOverview> {
-    const response = await api.get('/api/media-management/status/')
+  async getStatusOverview(): Promise<MediaStatusOverview> {
+    const response = await api.get<MediaStatusOverview>(
+      endoregApi(endpoints.mediaManagement.status)
+    )
     return response.data
-  }
+  },
 
   /**
    * Perform media cleanup operations
    * @param type - Type of cleanup: 'unfinished', 'failed', 'stale', 'all'
    * @param force - Whether to actually delete (true) or dry-run (false)
    */
-  static async performCleanup(
+  async performCleanup(
     type: 'unfinished' | 'failed' | 'stale' | 'all' = 'unfinished',
     force: boolean = false
   ): Promise<MediaCleanupResult> {
-    const response = await api.delete(`/api/media-management/cleanup/?type=${type}&force=${force}`)
+    const response = await api.delete<MediaCleanupResult>(
+      endoregApi(endpoints.mediaManagement.cleanup),
+      {
+        params: { type, force }
+      }
+    )
     return response.data
-  }
+  },
 
   /**
    * Force remove a specific media item
    * @param fileId - ID of the file to remove
    */
-  static async forceRemoveMedia(fileId: number): Promise<ProcessingResponse> {
-    const response = await api.delete(`/api/media-management/force-remove/${fileId}/`)
-    return response.data
-  }
+  async forceRemoveMedia(fileId: number, mediaType: 'video' | 'pdf'): Promise<ProcessingResponse> {
+    return MediaManagementAPI.deleteMediaFile(fileId, mediaType)
+  },
 
   /**
    * Reset processing status for a stuck/failed media item
    * @param fileId - ID of the file to reset
    */
-  static async resetProcessingStatus(fileId: number): Promise<ProcessingResponse> {
-    const response = await api.post(`/api/media-management/reset-status/${fileId}/`)
+  async resetProcessingStatus(fileId: number): Promise<ProcessingResponse> {
+    const response = await api.post<ProcessingResponse>(
+      endoregApi(endpoints.mediaManagement.resetStatus(fileId))
+    )
     return response.data
-  }
+  },
 
   /**
    * Get polling coordinator information
    */
-  static async getPollingCoordinatorInfo(): Promise<PollingCoordinatorInfo> {
-    const response = await api.get('/api/anonymization/polling-info/')
+  async getPollingCoordinatorInfo(): Promise<PollingCoordinatorInfo> {
+    const response = await api.get<PollingCoordinatorInfo>(
+      endoregApi(endpoints.anonymization.pollingInfo)
+    )
     return response.data
-  }
+  },
 
   /**
    * Clear all processing locks (emergency function)
    * @param fileType - Optional file type filter ('video' or 'pdf')
    */
-  static async clearProcessingLocks(fileType?: 'video' | 'pdf'): Promise<{
+  async clearProcessingLocks(fileType?: 'video' | 'pdf'): Promise<{
     detail: string
     cleared_count: number
     file_type_filter?: string
   }> {
-    const response = await api.delete('/api/anonymization/clear-locks/', {
+    const response = await api.delete<{
+      detail: string
+      cleared_count: number
+      file_type_filter?: string
+    }>(endoregApi(endpoints.anonymization.clearLocks), {
       params: fileType ? { type: fileType } : undefined
     })
     return response.data
-  }
+  },
 
   /**
    * Enhanced anonymization status check with polling protection
    * @param fileId - ID of the file to check
    * @param fileType - Type of file ('video' or 'pdf')
    */
-  static async getAnonymizationStatusSafe(
+  async getAnonymizationStatusSafe(
     fileId: number,
-    fileType?: 'video' | 'pdf'
+    fileType: 'video' | 'pdf'
   ): Promise<AnonymizationStatusResponse> {
-    const response = await api.get(`/api/anonymization/${fileId}/status/`)
+    const response = await api.get<AnonymizationStatusResponse>(
+      endoregApi(endpoints.anonymization.status(fileId)),
+      { params: { kind: fileType } }
+    )
     return response.data
-  }
+  },
 
   /**
    * Start anonymization with processing lock protection
    * @param fileId - ID of the file to process
    */
-  static async startAnonymizationSafe(fileId: number): Promise<ProcessingResponse> {
-    const response = await api.post(`/api/anonymization/${fileId}/start/`)
+  async startAnonymizationSafe(
+    fileId: number,
+    mediaType: 'video' | 'pdf'
+  ): Promise<ProcessingResponse> {
+    const response = await api.post<ProcessingResponse>(
+      endoregApi(endpoints.anonymization.start(fileId)),
+      { media_type: mediaType }
+    )
     return response.data
-  }
+  },
 
   /**
    * Validate anonymization with coordination
    * @param fileId - ID of the file to validate
    */
-  static async validateAnonymizationSafe(
+  async validateAnonymizationSafe(
     fileId: number,
     documentType?: string
   ): Promise<ProcessingResponse> {
-    const response = await api.post(`/api/anonymization/${fileId}/validate/`, {
-      ...(documentType ? { document_type: documentType } : {})
-    })
+    const response = await api.post<ProcessingResponse>(
+      endoregApi(endpoints.anonymization.validate(fileId)),
+      {
+        ...(documentType ? { document_type: documentType } : {})
+      }
+    )
     return response.data
-  }
+  },
 
-  /**
-   * Re-import a video file to regenerate metadata
-   * Uses the modern media framework endpoint aligned with PDF reimport
-   * @param fileId - ID of the video file to re-import
-   */
-  static async reimportVideo(fileId: number): Promise<ProcessingResponse> {
-    const response = await api.post(`/api/media/videos/${fileId}/reimport/`)
+  /** Annotation-safe video state repair; never invokes destructive re-import. */
+  async reimportVideo(fileId: number): Promise<ProcessingResponse> {
+    const response = await api.post<ProcessingResponse>(
+      endoregApi(endpoints.runtime.videoStateRepairOne(fileId)),
+      { dryRun: false }
+    )
     return response.data
-  }
+  },
 
   /**
    * Re-import a PDF file to regenerate metadata
    * Uses the modern media framework endpoint aligned with video reimport
    * @param fileId - ID of the PDF file to re-import
    */
-  static async reimportPdf(fileId: number): Promise<ProcessingResponse> {
-    const response = await api.post(`/api/media/pdfs/${fileId}/reimport/`)
+  async reimportPdf(fileId: number): Promise<ProcessingResponse> {
+    const response = await api.post<ProcessingResponse>(
+      endoregApi(endpoints.media.pdfReimport(fileId))
+    )
     return response.data
-  }
+  },
 
   /**
    * Delete/remove a media file completely
    * @param fileId - ID of the file to delete
    */
-  static async deleteMediaFile(fileId: number): Promise<ProcessingResponse> {
-    const response = await api.delete(`/api/media-management/force-remove/${fileId}/`)
+  async deleteMediaFile(fileId: number, mediaType: 'video' | 'pdf'): Promise<ProcessingResponse> {
+    const response = await api.delete<ProcessingResponse>(
+      endoregApi(endpoints.mediaManagement.forceRemove(fileId, mediaType))
+    )
     return response.data
   }
 }
@@ -228,19 +289,9 @@ export function useMediaManagement() {
     try {
       const result = await apiCall()
       return result
-    } catch (err: any) {
-      console.error('Media Management API Error:', err)
-
-      if (err.response?.status === 429) {
-        error.value = 'Zu viele Anfragen. Bitte warten Sie einen Moment.'
-      } else if (err.response?.status === 409) {
-        error.value = 'Datei wird bereits verarbeitet.'
-      } else if (err.response?.data?.detail) {
-        error.value = err.response.data.detail
-      } else {
-        error.value = 'Ein unerwarteter Fehler ist aufgetreten.'
-      }
-
+    } catch (err: unknown) {
+      logger.error('request-failed', err)
+      error.value = getMediaRequestErrorMessage(err)
       return null
     } finally {
       isLoading.value = false
@@ -262,20 +313,20 @@ export function useMediaManagement() {
       safeApiCall(() => MediaManagementAPI.performCleanup(type, force)),
 
     // Individual file operations
-    forceRemoveMedia: (fileId: number) =>
-      safeApiCall(() => MediaManagementAPI.forceRemoveMedia(fileId)),
+    forceRemoveMedia: (fileId: number, mediaType: 'video' | 'pdf') =>
+      safeApiCall(() => MediaManagementAPI.forceRemoveMedia(fileId, mediaType)),
     resetProcessingStatus: (fileId: number) =>
       safeApiCall(() => MediaManagementAPI.resetProcessingStatus(fileId)),
-    deleteMediaFile: (fileId: number) =>
-      safeApiCall(() => MediaManagementAPI.deleteMediaFile(fileId)),
+    deleteMediaFile: (fileId: number, mediaType: 'video' | 'pdf') =>
+      safeApiCall(() => MediaManagementAPI.deleteMediaFile(fileId, mediaType)),
     reimportVideo: (fileId: number) => safeApiCall(() => MediaManagementAPI.reimportVideo(fileId)),
     reimportPdf: (fileId: number) => safeApiCall(() => MediaManagementAPI.reimportPdf(fileId)),
 
     // Safe anonymization operations
-    getStatusSafe: (fileId: number, fileType?: 'video' | 'pdf') =>
+    getStatusSafe: (fileId: number, fileType: 'video' | 'pdf') =>
       safeApiCall(() => MediaManagementAPI.getAnonymizationStatusSafe(fileId, fileType)),
-    startAnonymizationSafe: (fileId: number) =>
-      safeApiCall(() => MediaManagementAPI.startAnonymizationSafe(fileId)),
+    startAnonymizationSafe: (fileId: number, mediaType: 'video' | 'pdf') =>
+      safeApiCall(() => MediaManagementAPI.startAnonymizationSafe(fileId, mediaType)),
     validateAnonymizationSafe: (fileId: number, documentType?: string) =>
       safeApiCall(() => MediaManagementAPI.validateAnonymizationSafe(fileId, documentType)),
 

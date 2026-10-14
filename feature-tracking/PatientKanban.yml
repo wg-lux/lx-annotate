@@ -1,0 +1,169 @@
+schema_version: '1.0'
+id: patient_kanban
+name: Patient case Kanban
+description: Display authoritative EndoReg case lifecycle flags and explicit case identities in the patient
+  overview. Media readiness remains in the existing media and anonymization views.
+owners:
+- lx-annotate frontend maintainers
+production_critical: false
+tracking:
+  state: active
+  history: []
+source_documents: []
+definition_of_done:
+- id: lifecycle_contract
+  category: requirements
+  title: Patient cards use persisted case state
+  acceptance:
+  - One card per persisted Case; one patient may have separate active and closed cases. Patients without
+    cases remain explicitly unassigned.
+  - Use is_active, is_closed and is_deleted from cases/. Show inactive or deleted cases separately. Reject
+    contradictory lifecycle flags and incomplete list responses.
+  - No browser media-readiness reducer, export eligibility inference, timeline fan-out, or hub-export
+    polling remains in the board.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run focused case board, casesApi, patient resource and ReportingShell tests; review
+      backend case routes and lifecycle flags.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'PatientKanban.test.ts and casesApi.test.ts: 20 tests passed on 2026-09-29.'
+    note: Case flags are the only board lane source; inactive/deleted cases are separate and conflicting
+      flags fail validation.
+    assessed_by: codex-patient-state-20260929
+    assessed_at: '2026-09-29T09:00:40.994526Z'
+- id: clinical_context
+  category: functionality
+  title: Case and examination context is explicit
+  acceptance:
+  - Board examination links carry patient_id and case_id alongside the examination route parameter.
+  - Reporting resolves the requested case only among cases owning that examination. Without an explicit
+    selection, multiple matching cases require clinician choice.
+  - Patient documents use media/patients/<id>/timeline/ and cases/ and show every matching case rather
+    than the first match.
+  - Import and anonymization review remains available through the existing anonymization overview; a closed
+    case makes no hub-transfer claim.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run focused case board, casesApi, patient resource and ReportingShell tests; review
+      backend case routes and lifecycle flags.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: '2026-09-29: PatientResourcePages and ReportingShell.mediaPreload passed 60 tests, including
+        shared-examination ambiguity and explicit case-only board links.'
+    note: Explicit case links work with and without an examination. Reporting rejects foreign requested
+      cases, retains valid clinician context across navigation, and requires a choice for ambiguous examinations.
+      Documents show all matching cases.
+    assessed_by: codex-patient-state-20260929
+    assessed_at: '2026-09-29T09:03:07.839729Z'
+- id: regression_checks
+  category: testing
+  title: Case state and navigation are covered
+  acceptance:
+  - Cover multiple cases per patient, shared examinations, explicit navigation, inactive and deleted cases,
+    malformed state, scope mismatch and incomplete responses.
+  - Cover polling, failure recovery, unmount and search. Run focused frontend suites, type checking, lint
+    and backend case/route regression checks.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run focused case board, casesApi, patient resource and ReportingShell tests; review
+      backend case routes and lifecycle flags.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: '2026-09-29: 80 frontend tests passed across PatientKanban, casesApi, PatientResourcePages
+        and ReportingShell.mediaPreload. 159 backend tests passed across case views, case authorization,
+        media routes, patient timeline, center-scoped reads and report/video import units with skip flags
+        disabled.'
+    - kind: command
+      reference: 'vue-tsc --build --force passed; scoped ESLint passed; npm run build-only passed with
+        the existing chunk-size warning. Backend full Pyright: 0 errors, 6 existing warnings; final focused
+        Pyright and Ruff clean.'
+    note: Backend case state replaces the previous browser media-readiness contract. Final focused frontend
+      and backend regressions pass; clinical-host browser acceptance remains separately outstanding.
+    assessed_by: codex-patient-state-20260929
+    assessed_at: '2026-09-29T09:03:05.875600Z'
+- id: identity_boundary
+  category: security
+  title: Authorized backend identity is preserved
+  acceptance:
+  - Patients come from patients/ and cases from cases/; case rows outside the authorized patient list
+    fail visibly.
+  - No identity inference, case mutation, patient creation, raw-media export, storage changes or transfer
+    execution from the board.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run focused case board, casesApi, patient resource and ReportingShell tests; review
+      backend case routes and lifecycle flags.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: PatientKanban.test.ts rejects an absent case patient; casesApi.test.ts rejects mismatched
+        patient/examination responses and partial lists.
+    note: Only existing patients/ and cases/ reads are used by the board. Case response scope and authorized
+      patient list identity are checked.
+    assessed_by: codex-patient-state-20260929
+    assessed_at: '2026-09-29T09:00:45.614919Z'
+- id: refresh_operations
+  category: operations
+  title: Refresh does not retain stale case state
+  acceptance:
+  - Refresh patients and cases every 30 seconds and on request with no overlapping requests; remove duplicate
+    initial dashboard patient loading.
+  - Dispose polling on unmount and clear cards after failed refresh. Patient edits and deletion request
+    a board refresh.
+  - Clinical-host browser acceptance remains required before production readiness.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run focused case board, casesApi, patient resource and ReportingShell tests; review
+      backend case routes and lifecycle flags.
+    timeout_seconds: 300
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: test
+      reference: 'PatientKanban.test.ts: six tests passed, including refresh state transitions, failure
+        recovery and in-flight unmount cleanup.'
+    note: Polling, failure recovery, unmount and patient mutation refresh are implemented; clinical-host
+      browser acceptance remains outstanding.
+    assessed_by: codex-patient-state-20260929
+    assessed_at: '2026-09-29T09:00:48.040891Z'
+- id: documented_limits
+  category: documentation
+  title: Case status and media status stay distinct
+  acceptance:
+  - Case lifecycle is not anonymization validation, segment validation, file integrity or hub eligibility.
+  - The board links to existing document and anonymization views and does not duplicate their media controls.
+  - Backend route modules retain their public paths and permission boundaries; cases are registered alongside
+    patient routes.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run focused case board, casesApi, patient resource and ReportingShell tests; review
+      backend case routes and lifecycle flags.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: feature-tracking/PatientKanban.yml; frontend/src/components/Patients/PatientKanban.vue;
+        frontend/src/views/PatientDocumentsPage.vue
+    note: Replaces the previous media readiness scope at the user request. Media/anonymization routes
+      remain the dedicated status interfaces; closed cases do not imply export eligibility.
+    assessed_by: codex-patient-state-20260929
+    assessed_at: '2026-09-29T09:00:50.057250Z'

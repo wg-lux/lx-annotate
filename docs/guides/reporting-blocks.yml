@@ -1,0 +1,73 @@
+title: Reporting block contracts
+status: Incremental frontend standardization; multiple entry points are deferred
+review:
+  assessor: codex-report-objects-20261001
+  date: '2026-10-01'
+  terminology_repository: /home/admin/lx-data-models
+  terminology_revision: 6e0b09c
+  findings:
+    - Intervention selections used bare names while other runtime occurrences used objects.
+    - Backend draft hydration checked the outer payload only, unlike session restoration.
+    - The staged FindingsCapturePage test expects validation to call persistCurrentRuntimeDraft,
+      although the staged component delegates saving to the store autosave and explicit save flow.
+identity:
+  terminology: Use the active knowledge-base module, exact version, concept kind and canonical name.
+  references: frontend/src/types/knowledgeBaseGraph.ts defines KnowledgeBaseIdentity and KnowledgeBaseGraphNodeRef.
+  occurrence: ReportTemplateRuntimeEntity.localId identifies a local occurrence, not a terminology concept or database row.
+  localization: Resolve labels from the canonical concept nameDe/nameEn fields; never use translated labels as identity.
+  ownership: Runtime interventions currently belong to one enclosing patient finding occurrence.
+elementary_shapes:
+  concept: CoreConceptBase plus the kind-specific fields in frontend/src/types/coreConcepts.ts.
+  occurrence: ReportTemplateRuntimeEntity plus the kind-specific canonical reference and child occurrences.
+  finding: ReportTemplateRuntimePatientFindingInput contains finding, classificationChoices and optional interventions.
+  intervention: ReportTemplateRuntimeInterventionInput contains intervention and optional localId.
+  classification: ReportTemplateRuntimeClassificationChoiceInput contains classification, classificationChoice and descriptors.
+  descriptor: ReportTemplateRuntimeDescriptorInput contains classificationChoiceDescriptor and descriptorValue.
+  separation: Concept relationships describe permissible composition; selecting an occurrence does not assert that all linked concepts occurred.
+terminology_dependencies:
+  source_root: lx_dtypes/models/knowledge_base
+  examination:
+    source: examination/Examination.py
+    edges:
+      findings: has_finding
+      indications: has_indication
+      examination_types: is_type
+  finding:
+    source: finding/_Finding.py
+    edges:
+      classifications: has_classification
+      interventions: supports_intervention
+      caused_by_interventions: caused_by_intervention
+      finding_types: is_type
+    constraint: A causing intervention is not interchangeable with an intervention supported for treating or investigating the finding.
+  indication:
+    source: indication/Indication.py
+    edges:
+      classifications: has_classification
+      interventions: supports_intervention
+      indication_types: is_type
+  intervention:
+    source: intervention/Intervention.py
+    edges:
+      intervention_types: is_type
+    constraint: Intervention has no direct examination field; do not invent an examination dependency from an endpoint URL.
+  graph_contract: lx_dtypes/models/contracts/knowledge_base_graph.py
+  runtime_contract: lx_dtypes/models/contracts/patient_finding_intervention.py keeps finding ownership separate from intervention_name.
+current_boundaries:
+  hydration: Legacy string intervention arrays are upgraded at browser-session and backend-draft hydration boundaries.
+  validation: Both hydration paths use reportingRuntimeContract.ts; malformed backend occurrences surface an error instead of rebuilding a replacement draft.
+  state: Store writes use objects; occurrence IDs survive selection updates and save/restore.
+  wire: reportTemplatesApi serializes objects into the existing patient_finding_interventions structure; ReportEditor sends intervention names without frontend occurrence IDs.
+  selection: The current UI combines Finding.interventions from the terminology projection with finding catalog links and restored selections.
+  unresolved: Restored selections remain removable even when their definition is missing from the active projection; no concept definition is fabricated.
+future_entry_points:
+  status: Not implemented in this pass
+  candidates: [examination, intervention, finding, indication]
+  requirements:
+    - Keep semantic dependency edges separate from UI ordering and persisted occurrence ownership.
+    - Resolve forward and reverse relationships within one exact terminology bundle.
+    - Ask for disambiguation when a starting concept belongs to multiple examinations; never pick the first result.
+    - Represent unresolved examination and patient-finding ownership explicitly before persistence.
+    - Extend canonical lx-dtypes runtime and persistence contracts before allowing standalone intervention occurrences.
+    - Use the complete graph for reverse resolution; the current examination projection presupposes a selected examination.
+    - Keep required, optional and conditional completion rules in canonical report-template validators.

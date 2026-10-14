@@ -33,6 +33,24 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+bootstrap_path_env() {
+    : "${LX_RUNTIME_ROOT:?Set LX_RUNTIME_ROOT to the absolute runtime directory}"
+}
+
+bootstrap_pythonpath() {
+    export PYTHONPATH="$HOME_DIR${PYTHONPATH:+:$PYTHONPATH}"
+}
+
+resolve_ingest_directories() {
+    python - <<'PY'
+from endoreg_db.utils.paths import get_runtime_paths
+
+paths = get_runtime_paths()
+for path in (paths.import_video, paths.import_report, paths.import_preanonymized):
+    print(path)
+PY
+}
+
 # Check if running as root for service installation
 check_root() {
     if [[ $EUID -eq 0 ]]; then
@@ -61,27 +79,28 @@ install_dependencies() {
 
 # Create required directories
 create_directories() {
-    print_status "Creating required directories..."
-    mkdir -p "$HOME_DIR/data/import/video_import"
-    mkdir -p "$HOME_DIR/data/import/report_import"
-    mkdir -p "$HOME_DIR/logs"
-    
-    print_status "Directories created:"
-    echo "  - $HOME_DIR/data/import/video_import"
-    echo "  - $HOME_DIR/data/import/report_import"
-    echo "  - $HOME_DIR/logs"
+    print_status "Creating required directories from endoreg_db.utils.paths..."
+    bootstrap_path_env
+    bootstrap_pythonpath
+
+    python - <<'PY'
+from endoreg_db.utils.paths import get_runtime_paths
+
+get_runtime_paths().ensure_directories()
+PY
+    print_status "Runtime directories created under $LX_RUNTIME_ROOT"
+
 }
 
 # Test file watcher
 test_watcher() {
     print_status "Testing file watcher..."
     cd "$HOME_DIR"
+    bootstrap_path_env
+    bootstrap_pythonpath
     
-    # Set environment variables
-    export PYTHONPATH="$HOME_DIR"
-    
-    # Test import by running the file watcher with test mode
-    python scripts/file_watcher.py --help > /dev/null 2>&1
+    # Test packaged watcher command path
+    python manage.py run_filewatcher --dry-run --log-level INFO > /dev/null 2>&1
     local exit_code=$?
     
     if [ $exit_code -eq 0 ]; then
@@ -138,10 +157,11 @@ start_dev() {
 
     export DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_dev
     export WATCHER_LOG_LEVEL=DEBUG
-    export PYTHONPATH="$HOME_DIR"
+    bootstrap_path_env
+    bootstrap_pythonpath
 
-    print_status "Starting internal file watcher..."
-    python scripts/file_watcher.py
+    print_status "Starting packaged file watcher command..."
+    python manage.py run_filewatcher --log-level DEBUG
 }
 
 

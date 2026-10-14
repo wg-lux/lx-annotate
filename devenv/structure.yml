@@ -1,0 +1,32 @@
+version: 1
+tier: tool
+path: "devenv"
+parent: "../structure.yml"
+summary: "Nix development environment modules, services, processes, and task commands."
+responsibilities:
+  - "Compose developer dependencies and local process definitions."
+  - "Expose backend, frontend, and environment maintenance tasks."
+boundaries:
+  - "Do not treat developer environment roots as production deployment sources."
+entrypoints:
+  - name: "composition"
+    file: "default.nix"
+    purpose: "Development module composition"
+  - name: "services"
+    file: "services.nix"
+    purpose: "Local service configuration"
+  - name: "commands"
+    file: "scripts.nix"
+    purpose: "Developer command definitions"
+dependencies:
+  internal: ["scripts","nix"]
+  external: ["Nix","devenv"]
+submodules: []
+contracts:
+  - name: "setup"
+    doc: "../docs/SETUP_GUIDE.md"
+  - name: "environment specification"
+    doc: "../secretspec.toml"
+tests:
+  directory: "../tests/system"
+  command: "python -m pytest tests/system/test_secretspec_environment_contract.py -q"

@@ -1,0 +1,14 @@
+{
+  "include": ["lx_annotate"],
+  "exclude": [
+    "**/__pycache__",
+    ".devenv",
+    ".venv",
+    "docs/_build",
+    "frontend",
+    "static/docs"
+  ],
+  "pythonVersion": "3.12",
+  "venvPath": ".devenv/state",
+  "venv": "venv"
+}

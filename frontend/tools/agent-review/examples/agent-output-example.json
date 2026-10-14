@@ -79,7 +79,11 @@
   },
   "context": {
     "tooling": "Vue 3 + Pinia + Vitest",
-    "assumptions": ["Component verwendet usePatientStore/useExaminationStore", "v-if conditional rendering basiert auf selectedPatientId/selectedExaminationId", "Tests benötigen deterministische Store-Zustände"],
+    "assumptions": [
+      "Component verwendet usePatientStore/useExaminationStore",
+      "v-if conditional rendering basiert auf selectedPatientId/selectedExaminationId",
+      "Tests benötigen deterministische Store-Zustände"
+    ],
     "notes": "Solides Test-Fundament vorhanden. createTestingPinia ist der Standard-Ansatz für Pinia-Store-Tests in Vue 3, nicht vi.mock()."
   }
 }

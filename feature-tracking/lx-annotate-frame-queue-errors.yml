@@ -1,0 +1,409 @@
+schema_version: '1.0'
+id: lx_annotate_frame_queue_errors
+name: LX-Annotate frame queue incident
+description: gc-10 frame annotation queue request failures and repair instructions. Historical incident
+  evidence; canonical implementation readiness remains in FrameAnnotationAvailability.yml.
+owners:
+- LX-Annotate and endoreg-db maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents: []
+definition_of_done:
+- id: invalid_target_label_group_combination
+  category: functionality
+  title: Invalid target label group combination
+  acceptance:
+  - Switching from group 1/cold_snare to group 2 does not send an invalid queue request.
+  - A deliberately invalid direct request still returns 400 with the offending field and group.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review against the preserved incident report and canonical FrameAnnotationAvailability.yml;
+      local tests alone do not establish production readiness.
+    timeout_seconds: 600
+  assessment:
+    status: not_assessed
+- id: per_row_label_membership_queries
+  category: testing
+  title: Per row label membership queries
+  acceptance:
+  - Query-count tests with repeated labels show a bounded membership-query count as annotation rows increase.
+  - A scaled synthetic dataset comparable to 284934 annotations returns the same eligible tasks and distributions
+    under an explicitly measured latency and memory budget.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review against the preserved incident report and canonical FrameAnnotationAvailability.yml;
+      local tests alone do not establish production readiness.
+    timeout_seconds: 600
+  assessment:
+    status: not_assessed
+- id: repeated_unbounded_bucket_construction
+  category: functionality
+  title: Repeated unbounded bucket construction
+  acceptance:
+  - Test overlapping segments, repeated labels, empty datasets, extracted/virtual frames, and dataset/annotator
+    exclusions.
+  - Verify bounded query count, peak memory, and latency for the observed dataset scale.
+  - Reject candidate implementations that silently broaden eligibility or change the requested target
+    label.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review against the preserved incident report and canonical FrameAnnotationAvailability.yml;
+      local tests alone do not establish production readiness.
+    timeout_seconds: 600
+  assessment:
+    status: not_assessed
+- id: overlapping_requests_and_incomplete_cancellation
+  category: functionality
+  title: Overlapping requests and incomplete cancellation
+  acceptance:
+  - Concurrent prime, load, and prefetch calls for the same signature send one request.
+  - Scope changes cannot publish stale tasks or errors into the new queue.
+  - A 400 response does not trigger an immediate duplicate request with identical invalid parameters.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review against the preserved incident report and canonical FrameAnnotationAvailability.yml;
+      local tests alone do not establish production readiness.
+    timeout_seconds: 600
+  assessment:
+    status: not_assessed
+- id: incident_scope
+  category: requirements
+  title: Keep diagnosis within the confirmed incident scope
+  acceptance:
+  - An empty task queue was not established.
+  - A frame decoder failure or Celery outage was not established as the cause.
+  - The ASGI warning does not mean the entire web service was killed or restarted.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review against the preserved incident report and canonical FrameAnnotationAvailability.yml;
+      local tests alone do not establish production readiness.
+    timeout_seconds: 600
+  assessment:
+    status: not_assessed
+- id: eligibility_boundaries
+  category: security
+  title: Preserve annotation eligibility boundaries
+  acceptance:
+  - Retain dataset, source, annotator, label-group, and media eligibility boundaries in every optimized
+    path.
+  - Do not silently clear the target into an unrestricted annotation queue or change the annotator/dataset
+    scope.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review against the preserved incident report and canonical FrameAnnotationAvailability.yml;
+      local tests alone do not establish production readiness.
+    timeout_seconds: 600
+  assessment:
+    status: not_assessed
+- id: production_validation
+  category: operations
+  title: Validate the installed repair before incident closure
+  acceptance:
+  - Measure representative queue latency and memory on gc-10 with the installed fixed backend and frontend.
+  - Confirm the observed ASGI timeout warnings do not recur under concurrent annotation use.
+  - Candidate sets still occupy memory proportional to eligible dataset frames; local query-count tests
+    are not a production-scale load test.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review against the preserved incident report and canonical FrameAnnotationAvailability.yml;
+      local tests alone do not establish production readiness.
+    timeout_seconds: 600
+  assessment:
+    status: not_assessed
+- id: incident_evidence_and_runbook
+  category: documentation
+  title: Preserve incident evidence and repair instructions
+  acceptance:
+  - Correct the incompatible label-group selection to remove the confirmed 400.
+  - Fix per-row membership queries and repeated bucket construction in endoreg-db.
+  - Add frontend request sharing, validation gating, and bounded failure handling in lx-annotate.
+  - Verify with synthetic data at representative scale and a compatible installed wheel set before an
+    authorized deployment.
+  - After deployment, verify one controlled queue load and monitor request timing, query count, memory,
+    and cancellation behavior.
+  - Do not use service restarts, increased timeouts, or clearing annotations as substitutes for the identified
+    repairs.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review against the preserved incident report and canonical FrameAnnotationAvailability.yml;
+      local tests alone do not establish production readiness.
+    timeout_seconds: 600
+  assessment:
+    status: not_assessed
+    note: |
+      schema_version: 1
+      owner: LX-Annotate and endoreg-db maintainers
+      canonical_topic: gc-10 frame annotation queue request failures and repair instructions
+      inspection_date: '2026-09-15'
+      agent_id: codex-frame-queue-20260915
+      status: locally_fixed_pending_production_validation
+
+      scope:
+        site: lx-annotate.local
+        host: gc-10
+        ssh_address: admin@172.16.255.110
+        profile: site-client
+        target_confirmation: User explicitly confirmed gc-10 after the site name resolved to gc-02 on the inspection machine.
+        method: Privileged read-only journal inspection, bounded read-only SQL, installed-source comparison, one authenticated invalid-request replay, and an isolated synthetic reproduction.
+        credential_handling: Supplied password and Firefox session identifier were used transiently and are omitted from this report.
+        access: Supplied password succeeded for sudo on gc-10; its rejection on gc-02 was a target mismatch and is not a gc-10 incident finding.
+        production_changes: None; no restart, queue dispatch, annotation write, schema change, or deployment was performed.
+        request_replay: One GET with label group 2 was rejected during request validation before queue construction.
+        limitations:
+          - The session authenticated the diagnostic replay; historical journal lines do not establish that every matching request came from that Firefox session.
+          - The slow valid request was not replayed against production to avoid repeating the expensive workload.
+          - No CPU profile, completed slow-request duration, SQL trace, or query plan was captured during the original failure.
+          - Counts below distinguish log entries from requests; duplicate logging must not be counted as independent user actions.
+
+      summary:
+        confirmed_input_error: cold_snare is not a member of label group 2; the endpoint correctly returns HTTP 400.
+        confirmed_runtime_symptom: Two distinct group-1 queue requests produced repeated ASGI shutdown-timeout warnings.
+        confirmed_code_defect: Label-group membership is queried once per annotation or segment row instead of once per group.
+        likely_timeout_cause: Repeated membership queries and whole-dataset bucket construction before selecting ten tasks.
+        additional_contributors: Repeated segment-bucket construction, nested segment/frame scans, and overlapping frontend queue requests.
+        excluded_conclusions:
+          - An empty task queue was not established.
+          - A frame decoder failure or Celery outage was not established as the cause.
+          - The ASGI warning does not mean the entire web service was killed or restarted.
+
+      evidence:
+        runtime:
+          web: {active_state: active, sub_state: running, result: success, restarts: 0}
+          frame_extraction_worker: {active_state: active, sub_state: running, result: success, restarts: 1}
+          worker_restart_interpretation: A sampled restart count alone does not establish an incident or its timing.
+          web_memory_current_bytes: 4081557504
+          web_memory_peak_bytes: 4297748480
+          web_tasks_current: 54
+          host_mem_available_mib: 22758
+          host_swap_used_mib: 0
+          memory_pressure_full_avg60: 0.0
+          io_pressure_full_avg60: 0.33
+          database_activity_sample: Twelve other client connections were idle; no active query or lock wait was captured at that later instant.
+          interpretation: The later resource snapshot does not demonstrate host-wide memory exhaustion or a database lock as the original cause.
+        journal:
+          unit: lx-annotate.service
+          namespace: lx-annotate
+          incident_window_utc: '2026-09-15 13:00:00 through 13:15:00'
+          incident_window_cest: '2026-09-15 15:00:00 through 15:15:00'
+          endpoint: /endoreg-api/media/annotations/frames/random-task/
+          bad_request_entries: 7
+          bad_request_first_utc: '2026-09-15 13:07:17.648148'
+          bad_request_last_utc: '2026-09-15 13:09:16.995296'
+          http_400_access_entries: 2
+          access_entry_caveat: Both access entries occur at approximately 13:07:30.919 UTC with the same query; they may be duplicate logging of one request.
+          shutdown_timeout_entries: 6
+          distinct_shutdown_request_objects: 2
+          shutdown_warning_window_utc: '2026-09-15 13:12:45.351 through 13:12:47.453'
+          shutdown_message: Application instance took too long to shut down and was killed.
+          stack_location: django.core.handlers.asgi.ASGIHandler handling/cancelling a synchronous request future.
+          interpretation: These are cancellation/shutdown warnings; the exact initial disconnect cause and request duration were not logged in this evidence.
+          nginx: No matching random-task entries were found in nginx.service's default journal for the queried window.
+          nginx_limit: File-based nginx logs were not inspected; no HTTP 504 or nginx upstream timeout is asserted.
+        requests:
+          common_parameters:
+            limit: 10
+            task_mode: random
+            target_label: cold_snare
+            frame_file_type: auto
+            ai_dataset_id: 2
+            ai_dataset_type: image
+            dataset_frame_filter: balanced
+            prediction_segments_only: true
+          rejected_label_group_id: 2
+          timed_out_label_group_id: 1
+          omitted_parameters: Annotator and dataset-name values are omitted; their presence was observed in the historical requests.
+        authenticated_replay:
+          status: 400
+          error: Unknown target_label.
+          details: {target_label: cold_snare, label_group_id: 2}
+          transport: Via SSH to gc-10, HTTP loopback port 8117 with the site Host and forwarded HTTPS header; the supplied session cookie was sent only to that local application.
+          count_exclusion: Diagnostic replay occurred after the historical incident window and is excluded from incident counts.
+        database:
+          access: Local PostgreSQL port 5432, endoregDbLocal, explicit READ ONLY transactions and five-second statement timeout.
+          label_membership: cold_snare belongs to label group 1; no group-2 membership was returned.
+          dataset_2:
+            type: image
+            model_type: image_multilabel_classification
+            active: true
+            image_annotation_links: 284934
+            linked_annotations_with_nonnull_frame_and_label: 284934
+            distinct_linked_annotation_labels: 11
+            linked_positive_annotations: 284934
+            video_segment_links: 2999
+            distinct_segment_videos: 16
+            sum_linked_segment_frame_lengths: 940809
+            length_caveat: This sums segment intervals and may count overlapping frames more than once; it is not a distinct-frame count.
+          global_exact_counts:
+            image_classification_annotations: 284934
+            video_segments: 2999
+          global_frame_estimate: 4102340
+          statistics_caveat: Frame count is a planner/statistics estimate, not an exact count. pg_stat_user_tables showed stale annotation and segment live-row estimates; exact counts were checked separately.
+          planner_estimates: {image_classification_annotations: 284934, video_segments: 2872}
+          statistics_interpretation: Do not infer absent annotations from n_live_tup=0; planner annotation cardinality already reflects 284934 rows. No statistics maintenance was performed.
+
+      findings:
+        - id: invalid_target_label_group_combination
+          severity: high
+          confidence: confirmed
+          cause: The request retains target_label=cold_snare while selecting label_group_id=2.
+          backend_behavior: _resolve_label_for_tasks filters labels by the selected group and rejects this combination before build_frame_task_queue runs.
+          frontend_source_observation: FrameAnnotation.vue preserves an unavailable target label as a select option, and changing the group triggers queue loading without first resolving that incompatibility.
+          operator_action:
+            - For cold_snare, select group 1, as verified in this database, or deliberately choose a target label belonging to the intended group.
+            - Group correction fixes the 400 only; the subsequent group-1 request can still hit the performance problem below.
+          implementation:
+            - Validate target and filter label membership against the loaded group catalog before fetching tasks.
+            - When a group change makes a selected label invalid, require a compatible selection and show the field-level reason.
+            - Do not silently clear the target into an unrestricted annotation queue or change the annotator/dataset scope.
+            - Preserve the backend's strict validation and display its error/details in the queue UI.
+          acceptance:
+            - Switching from group 1/cold_snare to group 2 does not send an invalid queue request.
+            - A deliberately invalid direct request still returns 400 with the offending field and group.
+
+        - id: per_row_label_membership_queries
+          severity: high
+          confidence: code_defect_confirmed_timeout_attribution_probable
+          owning_repository: endoreg-db
+          functions:
+            - models/state/frame_annotation.py::_label_allowed_by_set
+            - models/state/frame_annotation.py::_build_dataset_label_distribution
+            - models/state/frame_annotation.py::_build_annotation_frame_buckets
+            - models/state/frame_annotation.py::_build_dataset_candidate_frame_ids
+            - models/state/frame_annotation.py::_build_segment_frame_buckets
+          cause: Each call to _label_allowed_by_set executes label_set.labels.filter(pk=label_id).exists(); row loops repeat it for labels already encountered.
+          reproduction:
+            method: Executed the unchanged membership and distribution functions in isolation with 1000 synthetic annotations sharing one label and a counting relation stub.
+            rows: 1000
+            distinct_labels: 1
+            membership_filter_exists_calls: 1000
+            result: Reproduced; no database access or production workload was used.
+          scale_interpretation: All 284934 linked annotations have a frame and label, spanning only 11 labels. With the observed auto media mode, candidate construction alone would execute 284934 membership checks if it completes; other bucket passes repeat this work. This is a code-and-cardinality inference, not a captured production query trace.
+          implementation:
+            - Load the allowed label IDs once per queue request and use in-memory membership checks, or apply membership filtering in SQL before iteration.
+            - Aggregate per-label distributions in SQL rather than instantiating every annotation for counts.
+            - Retain dataset, source, annotator, label-group, and media eligibility boundaries in every optimized path.
+          acceptance:
+            - Query-count tests with repeated labels show a bounded membership-query count as annotation rows increase.
+            - A scaled synthetic dataset comparable to 284934 annotations returns the same eligible tasks and distributions under an explicitly measured latency and memory budget.
+
+        - id: repeated_unbounded_bucket_construction
+          severity: high
+          confidence: deployed_code_confirmed_runtime_contribution_unprofiled
+          owning_repository: endoreg-db
+          cause:
+            - _build_queue_inputs constructs dataset-wide target, label, segment, annotation, and candidate collections before limiting task selection.
+            - For balanced sampling it builds segment buckets directly and again through build_dataset_candidate_frame_ids.
+            - _build_segment_frame_buckets loads frame IDs over each video's complete segment span and scans that frame collection once for every segment.
+            - _pick_random_frame repeatedly counts an eligible queryset and fetches a random offset; large candidate sets become id__in inputs.
+          implementation:
+            - Reuse segment and annotation membership computed once within the request.
+            - Use set-based interval joins, bounded candidate sampling, or an interval algorithm that avoids scanning every frame for every segment.
+            - Avoid transferring the full frame corpus into Python merely to select ten tasks.
+            - Measure actual query plans and preserve sampling semantics before changing indexes or sampling policy.
+            - Keep frame-task metadata selection separate from image decoding and persistent frame generation.
+          acceptance:
+            - Test overlapping segments, repeated labels, empty datasets, extracted/virtual frames, and dataset/annotator exclusions.
+            - Verify bounded query count, peak memory, and latency for the observed dataset scale.
+            - Reject candidate implementations that silently broaden eligibility or change the requested target label.
+
+        - id: overlapping_requests_and_incomplete_cancellation
+          severity: medium
+          confidence: overlapping_server_requests_observed_frontend_contribution_probable
+          evidence: Two distinct requests with the same group-1 queue parameters were simultaneously represented in shutdown warnings.
+          source_observation:
+            - The installed FrameAnnotation.js task-fetch helper passes query parameters without an AbortSignal.
+            - The local annotationQueue store guards prefetchIfNeeded but does not share a pending request across all direct fetchBatch calls.
+            - loadNextTask can call fetchBatch, then popNextTask triggers prefetch even when the previous fetch produced no task.
+            - Queue-generation checks prevent some stale responses from being applied but do not stop the underlying server work.
+          implementation:
+            - Share one pending task fetch per complete queue signature, including dataset, annotator, labels, media mode, and sampling options.
+            - Cancel superseded HTTP requests on group/scope changes and component teardown.
+            - Do not prefetch immediately after an unsuccessful empty fetch; distinguish validation failure, no eligible task, and transport failure.
+            - Add a server-side work budget; client cancellation alone does not stop synchronous database or Python work.
+          acceptance:
+            - Concurrent prime, load, and prefetch calls for the same signature send one request.
+            - Scope changes cannot publish stale tasks or errors into the new queue.
+            - A 400 response does not trigger an immediate duplicate request with identical invalid parameters.
+
+      repair_order:
+        - Correct the incompatible label-group selection to remove the confirmed 400.
+        - Fix per-row membership queries and repeated bucket construction in endoreg-db.
+        - Add frontend request sharing, validation gating, and bounded failure handling in lx-annotate.
+        - Verify with synthetic data at representative scale and a compatible installed wheel set before an authorized deployment.
+        - After deployment, verify one controlled queue load and monitor request timing, query count, memory, and cancellation behavior.
+        - Do not use service restarts, increased timeouts, or clearing annotations as substitutes for the identified repairs.
+
+      source_provenance:
+        installed_bucket_source_matches_local: true
+        installed_workflow_source_matches_local: true
+        sha256:
+          endoreg_db/models/state/frame_annotation.py: 0a1bad1865d2f647df4a5cc2efa18cef593b8c4da747aa558a032e3baf9c190f
+          endoreg_db/services/frame_annotation_workflow.py: 3be46edf492dc553880eeee7cdf6b7686f98136df3ebb7e171c4202626d4c43d
+          installed_endoreg_db/views/video/ai/frame_annotations.py: ccbe4946fe3548bf8a961ebec34d5f192a9e6e0b4eec1ab296a403f5e5b236f9
+        view_caveat: Local view source differs from the installed view; the label-validation finding is independently confirmed by the live 400 response and database membership query.
+        installed_frontend_asset: lx_annotate/staticfiles/FrameAnnotation.js
+
+      references:
+        diagnostics: /home/admin/luxnix/modules/nixos/services/lx-annotate-local/Diagnostics.md
+        inventory: /home/admin/luxnix/ansible/inventory/hosts.ini
+        runtime_profile: /home/admin/luxnix/systems/x86_64-linux/gc-10/default.nix
+        canonical_workflow: /home/admin/dev/lx-annotate/docs/guides/frame-annotation-availability.md
+        frontend_store: /home/admin/dev/lx-annotate/frontend/src/stores/annotationQueue.ts
+        frontend_view: /home/admin/dev/lx-annotate/frontend/src/views/FrameAnnotation.vue
+        backend_workflow: /home/admin/endoreg-db/endoreg_db/services/frame_annotation_workflow.py
+        backend_buckets: /home/admin/endoreg-db/endoreg_db/models/state/frame_annotation.py
+        backend_adapter: /home/admin/endoreg-db/endoreg_db/services/queue/frame_annotation_queue.py
+        backend_view: /home/admin/endoreg-db/endoreg_db/views/video/ai/frame_annotations.py
+        shared_contract: lx_dtypes/models/contracts/frame_annotation.py
+        bucket_tests: /home/admin/endoreg-db/tests/services/test_frame_annotation_bucket_builders_unit.py
+        endpoint_tests: /home/admin/endoreg-db/tests/views/video/test_frame_annotation_task_endpoints.py
+        frontend_queue_tests: /home/admin/dev/lx-annotate/frontend/src/stores/__tests__/annotationQueue.test.ts
+        readiness_tracking: /home/admin/endoreg-db/feature-tracking/
+
+      verification:
+        completed:
+          - Privileged gc-10 service and journal reads succeeded.
+          - Read-only database queries completed under a five-second statement timeout.
+          - Authenticated incompatible-label replay returned the expected field-level 400.
+          - Installed bucket and workflow source hashes matched the inspected local source.
+          - Isolated 1000-row membership-query reproduction passed its assertions.
+        not_performed:
+          - Full valid-queue replay, production profiling, or load testing.
+          - Browser UI reproduction, frame decoding, or annotation submission.
+          - Production changes; local implementation is recorded below.
+
+      local_remediation:
+        date: '2026-09-15'
+        status: implemented_and_regression_tested_not_deployed
+        changes:
+          - SQL label membership filtering and grouped distribution counts replace per-row relation queries.
+          - Segment intervals are merged per video and label; frame matching uses sorted ranges and segment buckets are reused within a request.
+          - A request-local sampler evaluates candidate eligibility once and samples without replacement, rechecking each selected frame.
+          - Concurrent browser queue fetches share one request; selection changes and page unmount cancel obsolete requests.
+          - Empty queues do not trigger automatic retry loops; validation errors do not trigger random fallback.
+          - The existing label dropdown is preserved and incompatible known target/group selections show actionable feedback.
+        verification:
+          backend: RUN_VIDEO_TESTS=true pytest on bucket builders, frame annotation state and task endpoints passed 48 tests and 3 subtests with no skips.
+          frontend: 56 focused tests passed across queue, legacy frame-task, page and usability suites.
+          static: Full backend Pyright and scoped Ruff passed; frontend OpenAPI freshness, source type checking, full ESLint and component-test type checking passed.
+          query_regressions:
+            annotation_buckets: One query for both 1 and 101 annotation rows.
+            label_distribution: Two queries for both 1 and 101 annotation rows.
+            overlapping_segments: Fifty overlapping segments on one video require two queries.
+            candidate_reuse: Prebuilt segment buckets require only the annotation membership query.
+            sampling: Four selected frames require five queries; the candidate IN filter is evaluated once.
+        remaining_validation:
+          - Measure representative queue latency and memory on gc-10 with the installed fixed backend and frontend.
+          - Confirm the observed ASGI timeout warnings do not recur under concurrent annotation use.
+          - Candidate sets still occupy memory proportional to eligible dataset frames; local query-count tests are not a production-scale load test.
+        readiness: /home/admin/dev/lx-annotate/feature-tracking/FrameAnnotationAvailability.yml

@@ -1,0 +1,213 @@
+schema_version: '1.0'
+id: frontend_control_flow_integrity
+name: Frontend Control-Flow Integrity
+description: Align frontend conditionals with truthful runtime types so defensive boundary validation
+  remains effective while impossible and dead branches are removed.
+owners:
+- lx-annotate frontend maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-professionalism
+    changed_at: '2026-08-04T18:04:09.698067Z'
+    note: 'Completed 2026-08-04: condition findings reduced 127 to 0 with truthful boundary validation,
+      regression coverage, strict lint enforcement, 89 files/552 tests passing, both type checks passing,
+      and production build passing.'
+source_documents:
+- path: frontend/README.md
+  disposition: reference
+  note: Frontend strict quality-gate and boundary-validation guidance.
+definition_of_done:
+- id: reproducible_condition_inventory
+  category: requirements
+  title: Conditional-integrity scope and baseline are reproducible
+  acceptance:
+  - The inventory covers first-party TypeScript and Vue files under frontend/src, frontend/tests, and
+    frontend/cypress.
+  - Production, unit/integration-test, and Cypress findings are reported separately.
+  - The inventory includes no-unnecessary-condition and no-unnecessary-boolean-literal-compare.
+  - Generated output, dependencies, coverage, and legacy frontend trees are excluded.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the documented unsuppressed ESLint Node API inventory and compare its totals with
+      the checked-in strict baseline.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: cd frontend && npm run lint:condition-inventory
+    - kind: code
+      reference: frontend/scripts/condition-lint-inventory.mjs
+    note: Reproducible inventory reduced from 127 findings across 40 files (120 production, 7 test, 0
+      Cypress) to zero in all three scopes.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:02:37.089476Z'
+- id: truthful_external_boundaries
+  category: security
+  title: External payload and authentication guards remain truthful
+  acceptance:
+  - API, authentication, route, storage, and persisted-state values are typed as unknown or realistic
+    unions until validated.
+  - A runtime guard is not removed merely because an overconfident declared type makes it appear unnecessary.
+  - Malformed, absent, or unauthorized values continue to fail closed or use an explicit safe domain fallback.
+  - Negative tests cover materially changed external-boundary guards.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review every migrated API/auth/storage condition and run focused malformed-value and
+      authorization tests.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: frontend/tests/keycloak/auth_kc.spec.ts
+    - kind: test
+      reference: frontend/src/api/__tests__/patientService.medicalLedger.test.ts
+    - kind: test
+      reference: frontend/src/api/__tests__/reportDraftApi.test.ts
+    - kind: test
+      reference: frontend/src/stores/__tests__/reportingFlow.template.spec.ts
+    note: Reviewed API, authentication, route, storage, and persisted-state boundaries; malformed data
+      now validates from unknown and fails closed. Negative tests cover unauthorized auth, malformed patient/report
+      payloads, and malformed persisted drafts.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:03:00.528190Z'
+- id: explicit_internal_invariants
+  category: functionality
+  title: Internal branches express real reachable states
+  acceptance:
+  - Conditions proven always true or false are removed or replaced with a truthful invariant.
+  - Optional chains, nullish fallbacks, and boolean-literal comparisons remain only where their alternate
+    state is reachable.
+  - Simplification preserves return values, error propagation, request deduplication, and state transitions.
+  - No casts, rule disables, placeholder fallbacks, or widened any types are introduced.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review migrated internal branches and run the unsuppressed conditional-rule audit.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: cd frontend && npm run lint:condition-inventory
+    - kind: code
+      reference: frontend/src
+    note: Removed impossible conditions while retaining reachable sparse-map, empty-array, and external-payload
+      states. Unsuppressed conditional audit reports zero findings; no new casts, any types, or disables
+      were used.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:03:02.399631Z'
+- id: clinical_workflow_gate_integrity
+  category: data_integrity
+  title: Clinical and anonymization workflow gates remain fail-safe
+  acceptance:
+  - Anonymization validation, segment validation, reporting, export, and annotation gates preserve distinct
+    status semantics.
+  - Removing a condition cannot make an unavailable, unauthorized, unvalidated, or incomplete artifact
+    appear usable.
+  - User-visible errors and empty states remain distinguishable from successful zero-data states.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review affected workflow conditions against AGENTS.md terminology and run focused negative-path
+      tests.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: frontend/src/views/__tests__/PatientResourcePages.test.ts
+    - kind: test
+      reference: frontend/src/views/reporting/__tests__/FrameSelectorPage.test.ts
+    - kind: test
+      reference: frontend/src/stores/__tests__/reportingFlow.template.spec.ts
+    note: Reviewed affected anonymization, segment-validation, reporting, export, and annotation conditions.
+      Missing or malformed workflow data remains unavailable or explicitly empty rather than appearing
+      validated or usable.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:03:06.470529Z'
+- id: conditional_regression_tests
+  category: testing
+  title: Changed branches have deterministic regression coverage
+  acceptance:
+  - Focused tests exercise both sides of every materially changed reachable branch.
+  - Test-only dead conditions are removed without weakening assertions or fixture realism.
+  - Application and component-test TypeScript configurations pass.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run all affected suites together, then both frontend type-check commands.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: cd frontend && npm run type-check
+    - kind: command
+      reference: cd frontend && npm run type-check:component-tests
+    - kind: command
+      reference: cd frontend && npm run test:unit -- --run
+    note: Focused boundary/component/store/page suites passed, both TypeScript configurations passed,
+      and the consolidated suite passed 89 files with 552 tests.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:03:11.517709Z'
+- id: automated_condition_gate
+  category: operations
+  title: Typed automation prevents dead-condition regressions
+  acceptance:
+  - ESLint enforces both conditional-integrity rules at error severity with type information.
+  - The checked-in suppression baseline contains no entries for either rule.
+  - Normal lint is non-mutating and rejects new or stale findings.
+  - The complete unit suite and production build pass.
+  required: true
+  verification:
+    kind: manual
+    instructions: Prune the baseline and run lint, both type checks, the complete unit suite, and the
+      production build.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/eslint.config.ts
+    - kind: code
+      reference: frontend/eslint-baseline.json
+    - kind: command
+      reference: cd frontend && npm run lint
+    - kind: command
+      reference: cd frontend && npm run build-only
+    note: Both condition rules are enforced with type information and absent from the pruned baseline.
+      Lint, both type checks, 89 files/552 tests, and the Vite production build pass. The build emits
+      only its existing non-failing large-chunk advisory.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:03:14.083606Z'
+- id: contributor_guidance
+  category: documentation
+  title: Contributors can distinguish dead branches from valid runtime guards
+  acceptance:
+  - Frontend documentation explains when to remove an impossible condition and when to correct an overconfident
+    boundary type.
+  - Guidance covers optional chaining, nullish fallbacks, boolean comparisons, and fail-closed workflow
+    guards.
+  - The documented inventory preserves separate production, test, and Cypress counts.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review frontend README guidance against the implemented boundary and invariant patterns.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: frontend/README.md
+    note: Frontend guidance documents dead-branch removal versus truthful runtime boundary validation,
+      including optional chains, nullish fallbacks, boolean comparisons, fail-closed guards, and separate
+      scope counts.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:03:23.070026Z'

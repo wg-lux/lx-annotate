@@ -1,7 +1,9 @@
 # Timeline.vue
 
 ## Purpose
+
 `Timeline.vue` renders video segments and provides timeline interactions for:
+
 - seeking and playback control
 - selecting time ranges to create segments
 - dragging/resizing existing segments
@@ -9,6 +11,7 @@
 - editing segment start/end times via right-click inline input
 
 ## Props
+
 - `video?: { duration?: number } | null`
 - `segments?: Segment[]`
 - `labels?: LabelMeta[]`
@@ -20,6 +23,7 @@
 - `fps?: number`
 
 ## Emits
+
 - `seek(time: number)`
 - `play-pause()`
 - `segment-select(segmentId: number)`
@@ -31,6 +35,7 @@
 - `time-selection(data: { start: number; end: number })`
 
 ## Right-Click Time Editing
+
 - Default right-click on a segment opens an inline editor at mouse position.
 - Input formats accepted:
 - `ss` (seconds, decimal allowed)
@@ -42,7 +47,9 @@
 - `Shift + Right-Click` opens the legacy context menu.
 
 ## Parent Integration
+
 In `VideoExaminationAnnotation.vue`, `Timeline` is wired with:
+
 - `@segment-resize="handleSegmentResize"`
 - `@segment-move="handleSegmentMove"`
 

@@ -1,6 +1,7 @@
 import { computed } from 'vue'
+import { isRuntimeDebugEnabled } from '@/utils/runtimeLogger'
 
 export function useDebug() {
-  const isDebug = computed(() => import.meta.env.VITE_ENABLE_DEBUG === 'true')
+  const isDebug = computed(() => isRuntimeDebugEnabled())
   return { isDebug }
 }

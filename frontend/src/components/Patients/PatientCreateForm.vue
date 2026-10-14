@@ -3,43 +3,57 @@
     <form @submit.prevent="handleSubmit">
       <!-- Basic Information -->
       <div class="form-section">
-        <h4>
-          <i class="fas fa-user"></i>
+        <h4 class="form-section-heading">
+          <i class="ni ni-circle-08 form-section-icon"></i>
           Grunddaten
         </h4>
-        
+
         <div class="row">
           <div class="col-md-6">
             <div class="form-group">
-              <label for="firstName" class="required">Vorname</label>
-              <input 
+              <label
+                for="firstName"
+                class="required patient-field-label"
+                >Vorname</label
+              >
+              <input
+                id="firstName"
                 v-model="form.firstName"
                 type="text"
-                id="firstName"
                 class="form-control"
                 :class="{ 'is-invalid': errors.firstName }"
                 required
                 placeholder="Vorname eingeben"
               />
-              <div v-if="errors.firstName" class="invalid-feedback">
+              <div
+                v-if="errors.firstName"
+                class="invalid-feedback"
+              >
                 {{ errors.firstName }}
               </div>
             </div>
           </div>
-          
+
           <div class="col-md-6">
             <div class="form-group">
-              <label for="lastName" class="required">Nachname</label>
-              <input 
+              <label
+                for="lastName"
+                class="required patient-field-label"
+                >Nachname</label
+              >
+              <input
+                id="lastName"
                 v-model="form.lastName"
                 type="text"
-                id="lastName"
                 class="form-control"
                 :class="{ 'is-invalid': errors.lastName }"
                 required
                 placeholder="Nachname eingeben"
               />
-              <div v-if="errors.lastName" class="invalid-feedback">
+              <div
+                v-if="errors.lastName"
+                class="invalid-feedback"
+              >
                 {{ errors.lastName }}
               </div>
             </div>
@@ -49,42 +63,59 @@
         <div class="row">
           <div class="col-md-6">
             <div class="form-group">
-              <label for="dob">Geburtsdatum</label>
-              <input 
+              <label
+                class="patient-field-label"
+                for="dob"
+                >Geburtsdatum</label
+              >
+              <input
+                id="dob"
                 v-model="form.dob"
                 type="date"
-                id="dob"
                 class="form-control"
                 :class="{ 'is-invalid': errors.dob }"
               />
-              <div v-if="errors.dob" class="invalid-feedback">
+              <div
+                v-if="errors.dob"
+                class="invalid-feedback"
+              >
                 {{ errors.dob }}
               </div>
-              <small v-if="calculatedAge" class="form-text text-muted">
+              <small
+                v-if="calculatedAge"
+                class="form-text text-muted"
+              >
                 Alter: {{ calculatedAge }} Jahre
               </small>
             </div>
           </div>
-          
+
           <div class="col-md-6">
             <div class="form-group">
-              <label for="gender">Geschlecht</label>
-              <select 
-                v-model="form.gender"
+              <label
+                class="patient-field-label"
+                for="gender"
+                >Geschlecht</label
+              >
+              <select
                 id="gender"
+                v-model="form.gender"
                 class="form-control"
                 :class="{ 'is-invalid': errors.gender }"
               >
                 <option value="">Bitte wählen</option>
-                <option 
-                  v-for="gender in genders" 
-                  :key="gender.id" 
+                <option
+                  v-for="gender in genders"
+                  :key="gender.id"
                   :value="gender.name"
                 >
                   {{ gender.nameDe || gender.name }}
                 </option>
               </select>
-              <div v-if="errors.gender" class="invalid-feedback">
+              <div
+                v-if="errors.gender"
+                class="invalid-feedback"
+              >
                 {{ errors.gender }}
               </div>
             </div>
@@ -94,41 +125,55 @@
 
       <!-- Contact Information -->
       <div class="form-section">
-        <h4>
-          <i class="fas fa-address-book"></i>
+        <h4 class="form-section-heading">
+          <i class="ni ni-book-bookmark form-section-icon"></i>
           Kontaktdaten
         </h4>
-        
+
         <div class="row">
           <div class="col-md-6">
             <div class="form-group">
-              <label for="email">E-Mail</label>
-              <input 
+              <label
+                class="patient-field-label"
+                for="email"
+                >E-Mail</label
+              >
+              <input
+                id="email"
                 v-model="form.email"
                 type="email"
-                id="email"
                 class="form-control"
                 :class="{ 'is-invalid': errors.email }"
                 placeholder="email@beispiel.de"
               />
-              <div v-if="errors.email" class="invalid-feedback">
+              <div
+                v-if="errors.email"
+                class="invalid-feedback"
+              >
                 {{ errors.email }}
               </div>
             </div>
           </div>
-          
+
           <div class="col-md-6">
             <div class="form-group">
-              <label for="phone">Telefon</label>
-              <input 
+              <label
+                class="patient-field-label"
+                for="phone"
+                >Telefon</label
+              >
+              <input
+                id="phone"
                 v-model="form.phone"
                 type="tel"
-                id="phone"
                 class="form-control"
                 :class="{ 'is-invalid': errors.phone }"
                 placeholder="+49 123 456789"
               />
-              <div v-if="errors.phone" class="invalid-feedback">
+              <div
+                v-if="errors.phone"
+                class="invalid-feedback"
+              >
                 {{ errors.phone }}
               </div>
             </div>
@@ -138,40 +183,47 @@
 
       <!-- Organization -->
       <div class="form-section">
-        <h4>
-          <i class="fas fa-hospital"></i>
+        <h4 class="form-section-heading">
+          <i class="ni ni-collection form-section-icon"></i>
           Organisation
         </h4>
-        
+
         <div class="row">
           <div class="col-md-6">
             <div class="form-group">
-              <label for="center">Zentrum</label>
-              <select 
-                v-model="form.center"
+              <label
+                class="patient-field-label"
+                for="center"
+                >Zentrum</label
+              >
+              <select
                 id="center"
+                v-model="form.centerKey"
                 class="form-control"
                 :class="{ 'is-invalid': errors.center }"
               >
                 <option value="">Bitte wählen</option>
-                <option 
-                  v-for="center in centers" 
-                  :key="center.id" 
-                  :value="center.name"
+                <option
+                  v-for="center in centers"
+                  :key="center.id"
+                  :value="center.centerKey || center.name"
                 >
                   {{ center.nameDe || center.name }}
                 </option>
               </select>
-              <div v-if="errors.center" class="invalid-feedback">
+              <div
+                v-if="errors.center"
+                class="invalid-feedback"
+              >
                 {{ errors.center }}
               </div>
             </div>
           </div>
-          
+
           <div class="col-md-6">
             <div class="form-group">
-              <label>
-                <input 
+              <label class="patient-field-label">
+                <input
                   v-model="form.isRealPerson"
                   type="checkbox"
                   class="form-check-input me-2"
@@ -189,27 +241,36 @@
       <!-- Form Actions -->
       <div class="form-actions">
         <!-- General Error Message -->
-        <div v-if="errors.general" class="alert alert-danger w-100 mb-3">
+        <div
+          v-if="errors.general"
+          class="alert alert-danger w-100 mb-3"
+        >
           <strong>Fehler:</strong> {{ errors.general }}
         </div>
-        
-        <button 
-          type="submit" 
+
+        <button
+          type="submit"
           class="btn btn-primary"
           :disabled="loading || !isFormValid"
         >
-          <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-          <i v-else class="fas fa-save me-2"></i>
+          <span
+            v-if="loading"
+            class="spinner-border spinner-border-sm me-2"
+          ></span>
+          <i
+            v-else
+            class="ni ni-collection me-2"
+          ></i>
           {{ loading ? 'Wird gespeichert...' : 'Patient erstellen' }}
         </button>
-        
-        <button 
-          type="button" 
+
+        <button
+          type="button"
           class="btn btn-secondary ms-2"
-          @click="$emit('cancel')"
           :disabled="loading"
+          @click="$emit('cancel')"
         >
-          <i class="fas fa-times me-2"></i>
+          <i class="ni ni-settings-gear-65 me-2"></i>
           Abbrechen
         </button>
       </div>
@@ -219,13 +280,16 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { usePatientStore, type Patient, type PatientFormData, type Gender, type Center } from '@/stores/patientStore'
+import { usePatientStore, type Patient, type PatientFormData } from '@/stores/patientStore'
 import { patientService } from '@/api/patientService'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('patient-create-form')
 
 // Emits
 const emit = defineEmits<{
   'patient-created': [patient: Patient]
-  'cancel': []
+  cancel: []
 }>()
 
 // Composables
@@ -244,6 +308,7 @@ const form = ref<PatientFormData>({
   phone: '',
   gender: null,
   center: null,
+  centerKey: null,
   patientHash: '',
   comments: '',
   isRealPerson: true
@@ -254,18 +319,20 @@ const genders = computed(() => patientStore.genders)
 const centers = computed(() => patientStore.centers)
 
 const calculatedAge = computed(() => {
-  if (!form.value.dob) return null
-  
+  if (!form.value.dob) {
+    return null
+  }
+
   try {
     const birthDate = new Date(form.value.dob)
     const today = new Date()
     let age = today.getFullYear() - birthDate.getFullYear()
     const monthDiff = today.getMonth() - birthDate.getMonth()
-    
+
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       age--
     }
-    
+
     return age >= 0 ? age : null
   } catch {
     return null
@@ -273,75 +340,74 @@ const calculatedAge = computed(() => {
 })
 
 const isFormValid = computed(() => {
-  return form.value.firstName.trim() !== '' && 
-         form.value.lastName.trim() !== '' &&
-         Object.keys(errors.value).length === 0
+  return (
+    form.value.firstName.trim() !== '' &&
+    form.value.lastName.trim() !== '' &&
+    Object.keys(errors.value).length === 0
+  )
 })
 
 // Methods
 const validateForm = () => {
   errors.value = {}
-  
+
   // Required fields
-  if (!form.value.firstName?.trim()) {
+  if (!form.value.firstName.trim()) {
     errors.value.firstName = 'Vorname ist erforderlich'
   }
-  
-  if (!form.value.lastName?.trim()) {
+
+  if (!form.value.lastName.trim()) {
     errors.value.lastName = 'Nachname ist erforderlich'
   }
-  
+
   // Date validation
   if (form.value.dob) {
     const birthDate = new Date(form.value.dob)
     const today = new Date()
-    
+
     if (birthDate > today) {
       errors.value.dob = 'Geburtsdatum kann nicht in der Zukunft liegen'
     }
   }
-  
+
   // Email validation
   if (form.value.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.email)) {
     errors.value.email = 'Ungültige E-Mail-Adresse'
   }
-  
+
   return Object.keys(errors.value).length === 0
 }
 
 const handleSubmit = async () => {
-  console.log('=== FORM SUBMIT START ===')
-  console.log('handleSubmit aufgerufen!', { 
-    formValid: isFormValid.value, 
-    loading: loading.value,
-    formData: form.value 
+  logger.debug('submission-started', { operation: 'create' })
+  logger.debug('submission-state-checked', {
+    operation: 'create',
+    state: loading.value ? 'loading' : 'idle'
   })
-  
+
   if (!validateForm()) {
-    console.log('❌ Validierung fehlgeschlagen:', errors.value)
+    logger.info('validation-rejected', {
+      operation: 'create',
+      outcome: 'rejected',
+      count: Object.keys(errors.value).length
+    })
     return
   }
-  
-  let formattedData: any = null
-  
+
   try {
     loading.value = true
     errors.value = {} // Reset errors
-    console.log('✅ Validation passed, sende Daten:', form.value)
-    
+    logger.debug('validation-accepted', { operation: 'create', outcome: 'accepted' })
+
     // Format data for submission using patientStore method
-    formattedData = patientStore.formatPatientForSubmission(form.value)
-    console.log('📋 Formatierte Daten für API:', formattedData)
-    
-    // Log the exact URL that will be called
-    console.log('🌐 API-Aufruf wird gestartet...')
-    console.log('URL:', `/api/patients/`)
-    console.log('Full URL wird zu:', `${window.location.origin}/api/patients/`)
-    
+    const formattedData = patientStore.formatPatientForSubmission(form.value)
+    logger.debug('payload-normalized', { operation: 'create' })
+    logger.debug('request-started', { operation: 'create' })
+
     // Use patientStore instead of patientService for consistency
     const newPatient = await patientStore.createPatient(formattedData)
-    console.log('🎉 Patient erfolgreich erstellt:', newPatient)
-    
+    logger.debug('request-completed', { operation: 'create', outcome: 'accepted' })
+
     // Reset form
     form.value = {
       id: null,
@@ -352,45 +418,38 @@ const handleSubmit = async () => {
       phone: '',
       gender: null,
       center: null,
+      centerKey: null,
       patientHash: '',
       comments: '',
       isRealPerson: true
     }
-    
+
     // Emit event with the created patient
     emit('patient-created', newPatient)
-    console.log('📤 Event patient-created ausgelöst mit:', newPatient)
-    console.log('=== FORM SUBMIT SUCCESS ===')
-    
-  } catch (error: any) {
-    console.log('=== FORM SUBMIT ERROR ===')
-    console.error('❌ KOMPLETTES ERROR-OBJEKT:', error)
-    console.error('❌ ERROR STACK:', error.stack)
-    console.error('❌ ERROR NAME:', error.name)
-    console.error('❌ ERROR MESSAGE:', error.message)
-    
-    // Handle different error types
-    if (error.message && error.message.includes('HTTP error!')) {
-      // This is from our fetch-based patientStore
-      errors.value.general = 'Server-Fehler beim Erstellen des Patienten. Prüfen Sie Ihre Verbindung.'
-    } else {
-      errors.value.general = error.message || 'Unbekannter Fehler beim Erstellen des Patienten'
-    }
-    
-    // Zusätzliche Debugging-Informationen
-    console.error('🔍 Zusätzliche Debug-Infos:', {
-      errorName: error.name,
-      errorMessage: error.message,
-      errorStack: error.stack,
-      formattedData: formattedData,
-      timestamp: new Date().toISOString()
+    logger.debug('created-event-emitted', { operation: 'create' })
+    logger.info('submission-completed', { operation: 'create', outcome: 'accepted' })
+  } catch (error: unknown) {
+    const caughtError =
+      error instanceof Error ? error : new Error('Unbekannter Fehler beim Erstellen des Patienten')
+    logger.error('submission-failed', error, {
+      operation: 'create',
+      outcome: 'rejected'
     })
+
+    // Handle different error types
+    if (caughtError.message.includes('HTTP error!')) {
+      // This is from our fetch-based patientStore
+      errors.value.general =
+        'Server-Fehler beim Erstellen des Patienten. Prüfen Sie Ihre Verbindung.'
+    } else {
+      errors.value.general = caughtError.message
+    }
   } finally {
     loading.value = false
-    console.log('🏁 Loading beendet, finaler Zustand:', { 
-      loading: loading.value, 
-      errors: errors.value,
-      hasErrors: Object.keys(errors.value).length > 0
+    logger.debug('submission-settled', {
+      operation: 'create',
+      state: 'idle',
+      count: Object.keys(errors.value).length
     })
   }
 }
@@ -402,20 +461,26 @@ const loadLookupData = async () => {
       const gendersData = await patientService.getGenders()
       patientStore.genders = gendersData
     }
-    
+
     if (centers.value.length === 0) {
       const centersData = await patientService.getCenters()
       patientStore.centers = centersData
     }
   } catch (error) {
-    console.error('Error loading lookup data:', error)
+    logger.error('lookup-load-failed', error, {
+      operation: 'list',
+      outcome: 'rejected'
+    })
+    errors.value.general =
+      error instanceof Error && error.message
+        ? error.message
+        : 'Geschlechter und Zentren konnten nicht geladen werden.'
   }
 }
 
 // Lifecycle
-onMounted(() => {
-
-  loadLookupData()
+onMounted(async () => {
+  await loadLookupData()
 })
 </script>
 
@@ -435,7 +500,7 @@ onMounted(() => {
   margin-bottom: 1rem;
 }
 
-.form-section h4 {
+.form-section .form-section-heading {
   color: #2c3e50;
   font-size: 1.1rem;
   font-weight: 600;
@@ -444,7 +509,7 @@ onMounted(() => {
   align-items: center;
 }
 
-.form-section h4 i {
+.form-section .form-section-heading .form-section-icon {
   margin-right: 0.5rem;
   color: #3498db;
 }
@@ -453,14 +518,14 @@ onMounted(() => {
   margin-bottom: 1rem;
 }
 
-.form-group label {
+.form-group .patient-field-label {
   font-weight: 500;
   color: #495057;
   margin-bottom: 0.5rem;
   display: block;
 }
 
-.form-group label.required::after {
+.form-group .patient-field-label.required::after {
   content: ' *';
   color: #dc3545;
 }
@@ -469,7 +534,9 @@ onMounted(() => {
   border-radius: 6px;
   border: 1px solid #ced4da;
   padding: 0.75rem;
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  transition:
+    border-color 0.15s ease-in-out,
+    box-shadow 0.15s ease-in-out;
 }
 
 .form-control:focus {
@@ -555,7 +622,7 @@ onMounted(() => {
     flex-direction: column;
     gap: 0.5rem;
   }
-  
+
   .form-actions .btn {
     width: 100%;
     justify-content: center;

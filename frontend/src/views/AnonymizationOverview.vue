@@ -5,7 +5,7 @@
 </template>
 
 <script setup lang="ts">
-import AnonymizationOverviewComponent from '@/components/Anonymizer/AnonymizationOverviewComponent.vue';
+import AnonymizationOverviewComponent from '@/components/Anonymizer/AnonymizationOverviewComponent.vue'
 </script>
 
 <style scoped>

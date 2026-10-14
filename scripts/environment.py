@@ -7,14 +7,16 @@ Canonical vars: DJANGO_ENV, DJANGO_DEBUG, DJANGO_ALLOWED_HOSTS, DJANGO_SECRET_KE
 
 Usage:
     python scripts/environment.py development
-    python scripts/environment.py production  
+    python scripts/environment.py production
     python scripts/environment.py central
     python scripts/environment.py show
 """
 
-import os
-from pathlib import Path
+from __future__ import annotations
+
 import argparse
+from pathlib import Path
+
 
 class EnvironmentManager:
     def __init__(self, env_file: Path = Path(".env")):
@@ -61,16 +63,23 @@ class EnvironmentManager:
 
     def show(self):
         print("Current .env:")
-        print(self.env_file.read_text(encoding="utf-8") if self.env_file.exists() else "<none>")
+        print(
+            self.env_file.read_text(encoding="utf-8")
+            if self.env_file.exists()
+            else "<none>",
+        )
 
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("mode", choices=["development", "production", "central", "dev", "prod", "show"]) 
+    p.add_argument(
+        "mode",
+        choices=["development", "production", "central", "dev", "prod", "show"],
+    )
     p.add_argument("--env-file", default=".env")
     a = p.parse_args()
     m = EnvironmentManager(Path(a.env_file))
-    mode = {"dev":"development", "prod":"production"}.get(a.mode, a.mode)
+    mode = {"dev": "development", "prod": "production"}.get(a.mode, a.mode)
     if mode == "development":
         m.set_development()
     elif mode == "production":
@@ -79,6 +88,7 @@ def main():
         m.set_central()
     else:
         m.show()
+
 
 if __name__ == "__main__":
     main()

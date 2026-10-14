@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Django's command-line utility for administrative tasks."""
+
+from __future__ import annotations
+
 import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, "/home/admin/dev/lx-annotate/libs/endoreg-db")
-
 DEV_SETTINGS_MODULE = "lx_annotate.settings.settings_dev"
 PROD_SETTINGS_MODULE = "lx_annotate.settings.settings_prod"
+BASE_DIR = Path(__file__).resolve().parent
 
 
 def _requested_management_command(argv: list[str]) -> str:
@@ -32,7 +34,11 @@ def _select_settings_module(argv: list[str]) -> str:
     force_prod_for_runserver = _is_truthy(os.getenv("LX_ANNOTATE_RUNSERVER_USE_PROD"))
     is_production_env = os.getenv("DJANGO_ENV", "").strip().lower() == "production"
 
-    if command == "runserver" and not force_prod_for_runserver and not is_production_env:
+    if (
+        command == "runserver"
+        and not force_prod_for_runserver
+        and not is_production_env
+    ):
         if not current or current == PROD_SETTINGS_MODULE:
             return DEV_SETTINGS_MODULE
 
@@ -44,27 +50,13 @@ def _select_settings_module(argv: list[str]) -> str:
 
 os.environ["DJANGO_SETTINGS_MODULE"] = _select_settings_module(sys.argv)
 
-from lx_annotate.settings.settings_base import BASE_DIR
 
-default_data_dir = os.environ.get("LX_ANNOTATE_DATA_DIR", str(Path(BASE_DIR) / "data"))
-os.environ.setdefault("DATA_DIR", default_data_dir)
-os.environ.setdefault("STORAGE_DIR", default_data_dir)
-os.environ.setdefault("IO_DIR", default_data_dir)
-
-
-def main():
+def main() -> None:
     """Run administrative tasks."""
-    try:
-        from django.core.management import execute_from_command_line
+    from django.core.management import execute_from_command_line
 
-    except ImportError as exc:
-        raise ImportError(
-            "Couldn't import Django. Are you sure it's installed and "
-            "available on your PYTHONPATH environment variable? Did you "
-            "forget to activate a virtual environment?"
-        ) from exc
     execute_from_command_line(sys.argv)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

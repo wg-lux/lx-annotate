@@ -1,0 +1,177 @@
+schema_version: '1.0'
+id: pre_commit_devenv_compatibility
+name: Pre-Commit Devenv Compatibility
+description: Keep pre-commit hooks and CI checks usable with their installed Python environments.
+owners:
+- lx-annotate maintainers
+production_critical: false
+tracking:
+  state: active
+  history: []
+source_documents: []
+definition_of_done:
+- id: ci_python_tooling
+  category: testing
+  title: CI static checks use compatible Python tooling and test settings
+  acceptance:
+  - CI passes the uv environment interpreter to npm API generation via PYTHON.
+  - The Node-only frontend job checks source types; backend-tests verifies API freshness.
+  - Test settings initialize without an empty CI DJANGO_SECRET_KEY overriding the test key.
+  - Only django-stubs supplies Django stubs for the configured mypy plugin.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review both GitHub workflows, npm scripts and locked typing dependencies; run frontend
+      type-check, mypy, Ruff and the affected backend tests.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'npm --prefix frontend run type-check: exit 0; API freshness, vue-tsc and ESLint passed
+        with PYTHON set to the installed interpreter'
+    - kind: command
+      reference: 'npm --prefix frontend run type-check:component-tests: exit 0'
+    - kind: command
+      reference: 'uv run --no-sync mypy lx_annotate --show-traceback: exit 0, no issues in 103 files'
+    - kind: command
+      reference: 'pytest tests/system/test_admin_monitoring.py tests/api/test_admin_monitoring_api.py
+        tests/api/test_video_transcode_jobs.py tests/services/test_video_transcode_worker.py
+        tests/system/test_config_unit.py tests/system/test_secretspec_environment_contract.py -q:
+        133 passed'
+    - kind: command
+      reference: 'pytest tests/system/test_config_unit.py tests/system/test_secretspec_environment_contract.py
+        tests/system/test_openapi_type_generation.py tests/system/test_release_evidence_workflow.py -q:
+        41 passed'
+    - kind: command
+      reference: 'ruff check lx_annotate tests: passed; ruff format --check lx_annotate tests: 222 files
+        already formatted; uv lock --check and workflow YAML/bootstrap-order validation: passed'
+    note: Local verification used the existing devenv interpreter, with DJANGO_SECRET_KEY unset and
+      DJANGO_SECRET_KEY_FILE empty to isolate the machine's configured secret-file handle. Removed
+      django-types and reinstalled the locked django-stubs 6.0.5 to repair overlapping installed files.
+      Fixed exposed type annotations, bound monitoring callbacks with functools.partial, and explicitly
+      re-exported REPORTING_LLM. Existing schema-export warnings remain visible. Hosted GitHub Actions
+      and the full backend coverage suite were not run; this is not deployment approval.
+    assessed_by: codex-ci-tooling-20260915
+    assessed_at: '2026-09-15T12:09:23Z'
+- id: dependency_sync
+  category: requirements
+  title: Shell installs locked development dependencies
+  acceptance:
+  - Shell installs locked development dependencies.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect configuration and recorded execution results.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'devenv shell -- python -c "import endoreg_db, pre_commit, pytest": exit 0'
+    note: Enabled uv.sync with dev/docs extras and --locked; the shell uses the configured Nix Python
+      interpreter.
+    assessed_by: codex-precommit-20260910-a
+    assessed_at: '2026-09-10T14:32:10.486776+00:00'
+- id: hook_execution
+  category: functionality
+  title: Local hooks execute through devenv
+  acceptance:
+  - Local hooks execute through devenv.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect configuration and recorded execution results.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'pre-commit run <hook> --all-files --verbose: all six local commands start successfully'
+    note: Every local hook enters devenv; frontend-typecheck has pass_filenames=false.
+    assessed_by: codex-precommit-20260910-a
+    assessed_at: '2026-09-10T14:32:10.486794+00:00'
+- id: verification
+  category: testing
+  title: Configured checks pass
+  acceptance:
+  - Configured checks pass.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect configuration and recorded execution results.
+    timeout_seconds: 300
+  assessment:
+    status: blocked
+    evidence:
+    - kind: command
+      reference: 'Pyright: 0 errors; runtime bundle: passed; Vitest: 963 passed; API contracts: 9 passed;
+        Ruff format --check: 206 files already formatted'
+    - kind: command
+      reference: 'frontend-typecheck: OpenAPI freshness, vue-tsc and ESLint completed without command
+        errors on both runs; pre-commit exit 1 due to workspace changes during execution'
+    note: 'Full pytest: 880 passed, 2 skipped, 5 failed. Four failures in tests/api/test_central_hub_training_access.py
+      concern missing training annotations; test_watcher_video_import_with_ultrashort_mp4_passes_integrity_checks
+      also fails. Pinned Ruff import check in non-mutating --diff mode reports 73 violations. No application/test
+      changes or lint suppressions were made. A clean frontend-typecheck pre-commit result remains unverified
+      because tracked workspace/index changes occurred during both runs, including assessment documentation
+      edits during the retry.'
+    assessed_by: codex-precommit-20260910-a
+    assessed_at: '2026-09-10T14:32:10.486799+00:00'
+- id: failure_propagation
+  category: security
+  title: Hook failures remain visible
+  acceptance:
+  - Hook failures remain visible.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect configuration and recorded execution results.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'pre-commit run pytest --all-files --verbose: exit 1 for five failed tests'
+    note: Failures propagate through devenv and pre-commit. Dependency synchronization uses --locked without
+      a success fallback.
+    assessed_by: codex-precommit-20260910-a
+    assessed_at: '2026-09-10T14:32:10.486802+00:00'
+- id: installed_hook
+  category: operations
+  title: Git pre-commit launcher resolves its interpreter
+  acceptance:
+  - Git pre-commit launcher resolves its interpreter.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect configuration and recorded execution results.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'pre-commit validate-config and pre-commit install: exit 0'
+    note: Git launcher installed using .devenv/state/venv/bin/python; dependencies were restored after
+      the devenv update.
+    assessed_by: codex-precommit-20260910-a
+    assessed_at: '2026-09-10T14:32:10.486805+00:00'
+- id: results
+  category: documentation
+  title: Verification results and blockers are recorded
+  acceptance:
+  - Verification results and blockers are recorded.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect configuration and recorded execution results.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: feature-tracking/PreCommitDevenvCompatibility.yml
+    note: Exact results are recorded here; full local output is in .devenv/precommit-verification/*.log.
+      Application changes already staged by the user remain untouched.
+    assessed_by: codex-precommit-20260910-a
+    assessed_at: '2026-09-10T14:32:10.486808+00:00'

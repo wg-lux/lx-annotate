@@ -1,0 +1,476 @@
+document_type: manuscript_software_evidence_map
+date: '2026-10-07'
+assessor: codex-infra-todos-20261007
+readiness_authority: feature-tracking/ClinicalPublicationReadiness.yml and endoreg-db/feature-tracking/AuditLedger.yml;
+  this file records evidence, not release approval
+source_document: /home/admin/luxnix/infrastructure_lx_annotate_revised.docx
+revised_document: /home/admin/luxnix/infrastructure_lx_annotate_software_revision.docx
+decisions:
+- Keep demographic identities and existing migration/ambiguity guards.
+- Use five-year public age bands; omit birth dates.
+- Build protected processed-media and annotation candidates with manifests.
+- 'Named live test pair: gc-02 sender and gs-02 receiver.'
+repositories:
+  lx-annotate:
+    path: /home/admin/dev/lx-annotate
+    git_head: f46b5de0ebe1f6824c84cf16bcb1f4b384cb3d36
+    working_tree: Modified local tree; not a deployed immutable release.
+    uv.lock_sha256: f97fab646a88f417d87056459596933b0752b79eed77c9e176d7f1364a0d1f90
+    flake.lock_sha256: 6e94f3e093eefc9649df734cbebb07655fe6b5226f98b8bd19d356888e3fcddc
+  endoreg-db:
+    path: /home/admin/endoreg-db
+    git_head: d2eeb6a947f13b4264cf395875cac07e5b592aeb
+    working_tree: Modified local tree; not a deployed immutable release.
+    uv.lock_sha256: 74840d72c7be75bff571267177dad5d7a6eb65564b9ad5526c8376c27ef82b65
+    flake.lock_sha256: 79435cdc4b8a08e36ba995050249458dd032efd7010a4e916cd35a227121fed6
+  lx-data-models:
+    path: /home/admin/lx-data-models
+    git_head: 7c1fe85a3f3c5515c5584a94faf0409fe7ce14d1
+    working_tree: Modified local tree; not a deployed immutable release.
+    uv.lock_sha256: 79771c9e375116cd80be2d516241dac86609fed680f115bbaac0bfc65b43fc45
+    flake.lock_sha256: 4884799eded67043bc787e165ed731905d939ccedea58f818b09c3051103cdc5
+  LuxNix:
+    path: /home/admin/luxnix
+    git_head: 9337c6b561424814dae36f204669682a8f753d05
+    working_tree: Modified local tree; not a deployed immutable release.
+    uv.lock_sha256: dd19d1e2f5af9f0764b0aca4878fe927fe5cfa851a98899ef574289bde4ad1ac
+    flake.lock_sha256: 62a46ed3343ceea3b65e9dc00916ef08e2db6afc08644fb5ab8d10e7d8f6664d
+installed_application_environment:
+  lx-annotate: 1.4.9
+  endoreg-db: 1.5.1
+  lx-dtypes: 0.4.3
+  Django: 6.0.3
+  pytest: 9.0.3
+  lx-anonymizer: 1.0.5
+  faker: 40.23.0
+  cryptography: 48.0.1
+  pydantic: 2.13.4
+file_sha256:
+  /home/admin/dev/lx-annotate/lx_annotate/schemas/publication.py: 81c86bc37a461c5896f123fb944ad1b8f793008105491142c1a004e02e22adab
+  /home/admin/dev/lx-annotate/lx_annotate/services/publication.py: c033efd114495dbda665c602fc0159146d9fde927d69e9e75edab77aef1d49f1
+  /home/admin/dev/lx-annotate/lx_annotate/management/commands/build_release_candidate.py: 967fbb657c8521101458fb1cb63490dcc3a57d91ac8d4c305f43595fc1fb55ee
+  /home/admin/dev/lx-annotate/tests/privacy/test_release_candidate.py: 043745d754d89201c1c8591412ccd1fced8fa11ebf499f16555e2c7fabeab95d
+  /home/admin/endoreg-db/endoreg_db/models/state/audit_ledger.py: 0301d86810e06084e4fc1bcca77062cdfd1b2480fe3f67a71bba507beac61b5f
+  /home/admin/endoreg-db/tests/models/state/test_audit_ledger.py: 7abdb9a840407d04115fa573e682360884ac53a453284e60ffc2f5ac12795150
+  /home/admin/dev/lx-annotate/docs/publications/clinical-data-workflow-evaluation.yml: bf17421ec3d9303ca476bc5b78ab3f25cec57c51533359c8d10edb96f8ebe890
+  /home/admin/endoreg-db/endoreg_db/endoreg_rust_backend.so: 0483c07f26f3d77365f9a1dc705704231e2527571fa6f263fd81eeba96f74b97
+  /home/admin/endoreg-db/endoreg_db/endoreg_rust_backend.cpython-312-x86_64-linux-gnu.so: 517225f17828a07b4db0dd2a3e4927bd0fae47277d465a355bf613870bc5b233
+  ? /home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/endoreg_rust_backend.cpython-312-x86_64-linux-gnu.so
+  : 61cbddeed21a6dfcea4f982cf3e49b8b423bf53bb98a5793bc1d54ed9ccd161a
+regulatory_reference:
+  url: https://www.edpb.europa.eu/public-consultations_en
+  observed_status: Guidelines 02/2026 open for feedback until 30 October 2026; not final guidance
+verification:
+  audit_suite:
+    command: SKIP_EXPENSIVE_TESTS=false RUN_VIDEO_TESTS=true /home/admin/dev/lx-annotate/.devenv/state/venv/bin/python
+      -m pytest tests/models/state/test_audit_ledger.py tests/services/test_audit_integrity.py tests/services/test_hub_audit.py
+      tests/management/commands/test_refresh_audit_ledger_integrity.py -q --tb=short --show-capture=no
+    cwd: /home/admin/endoreg-db
+    result: 44 passed, 2 warnings in 74.93s; no skips
+  backend_regression:
+    command: SKIP_EXPENSIVE_TESTS=false RUN_VIDEO_TESTS=true /home/admin/dev/lx-annotate/.devenv/state/venv/bin/python
+      -m pytest tests/utils/test_file_hash_integrity.py tests/environment/test_identity_hashing.py tests/import_files/test_sensitive_identity_guards.py
+      tests/services/test_patient_identity_input_variations.py tests/services/test_identity_salt_rotation.py
+      tests/views/media/test_video_ready_export.py tests/management/commands/test_bootstrap_center_admin.py
+      -q --tb=short --show-capture=no
+    cwd: /home/admin/endoreg-db
+    result: 106 passed, 4 subtests passed, 2 warnings in 327.88s; no skips
+  application_integration:
+    command: .devenv/state/venv/bin/python -m pytest tests/privacy/test_release_candidate.py tests/hub/test_hub_export_payload_guards.py
+      tests/hub/test_hub_export_end_to_end.py tests/hub/test_hub_export_envelope.py tests/hub/test_publication_readiness_aaa.py
+      tests/hub/test_hub_export_video_state_path.py tests/privacy/test_publication_materialization_aaa.py tests/api/test_ai_dataset_splits.py
+      tests/hub/test_hub_export_cleanup.py -q --tb=short --show-capture=no
+    result: 114 passed in 98.44s before final age-band extension; includes 98 current cases from the eight
+      historical modules
+  final_age_and_partition:
+    command: .devenv/state/venv/bin/python -m pytest tests/privacy/test_release_candidate.py tests/api/test_ai_dataset_splits.py
+      -q --tb=short --show-capture=no
+    result: 37 passed in 43.48s after the final examination/state locking refinement; 18 candidate tests and
+      19 partition tests
+  typing: 'Focused Pyright passed for backend model/tests and application schema/service/command; 0 errors,
+    0 warnings. Backend pytest was absent: installed pytest 9.0.3 into backend venv for typing; execution used
+    application test tooling against backend source.'
+  canonicalization: 'Python/Node ASCII annotation vector SHA-256: 1bb4cb624b68bb5b4e8c3ba9bb53721438fd89026aee8639481e78e30c2a4fb8'
+  intermediate_failures:
+  - 'Initial backend test run: 28 passed, 14 name-based expensive-test skips; rerun with skip controls disabled
+    passed.'
+  - Initial candidate fixture omitted mandatory approval actor/time; corrected fixture.
+  - Ciphertext assertion initially included plaintext operational .lock metadata; assertion narrowed to artifacts,
+    while cleanup still checks all non-lock files.
+  readiness_checks:
+    lx_annotate_validate: 54 definitions valid
+    endoreg_validate: 37 definitions valid
+    clinical_publication_readiness: exit 1; 4/9 required criteria verified
+    audit_ledger: exit 1; 6/7 required criteria verified
+    deployment_source_hygiene: exit 1; 0/6 required criteria verified
+    luxnix_docs_check: devenv tasks run docs:check passed
+    diff_and_lint: git diff --check and focused Ruff checks passed
+live_observations:
+  gc-02:
+    system: /nix/store/cibfz4nvxpcvnv05s6mz86qx5q1vyhmc-nixos-system-gc-02-26.05.20261006.b253099
+    web_runtime: /nix/store/fik23a0cfmswak887daf3bzxdbmzb8mb-lx-annotate-wheel-runtime-1.4.9
+    web: active/running
+    certificate_issuer: failed/exit-code
+    transfer_worker: inactive/dead
+    inventory_ssh: Permission denied (publickey); local read-only service inspection used because hostname
+      is gc-02
+    certificate_dates: 'Not re-read: local sudo credential unavailable'
+  gs-02:
+    system: /nix/store/lwc4ndsvsmfgj5zlnb8h85ssmd4f7r7c-nixos-system-gs-02-26.05.20260905.6713828
+    connectivity: 5 checks ok, changed=0, failures=0
+    versions:
+      lx-annotate: 1.4.2
+      endoreg-db: 1.4.1
+      lx-dtypes: 0.4.1
+    migration: failed/exit-code
+    web_and_nginx: inactive/dead
+  drill_executed: false
+  deployment_or_secret_mutation: false
+  artifact_digest: No new production artifact was selected, built or deployed; installed wheel bytes were not
+    inspected.
+todo_responses:
+- id: T01
+  requirement: Reconcile execution evidence with the release under review. The 89 passing cases are inherited
+    from the supplied 28 September manuscript. They were not rerun during this revision, and the original logs
+    and companion YAML were not supplied. The October source revisions are distinct from that modified working
+    tree and its installed dependencies.
+  owner: corresponding author and test maintainer.
+  tracking_criterion: verification_record
+  response: Located the original companion evaluation YAML. Reran the eight named baseline modules in the current
+    application environment (98 current cases) alongside candidate tests. Historical 89-case outcomes remain
+    historical; original raw September logs and an immutable archive of that dirty baseline remain unavailable.
+- id: T02
+  requirement: Document the lawful processing and disclosure pathway. A favourable technical review does not
+    itself authorize processing or public disclosure. Establish the relevant Article 6 basis and Article 9
+    condition, applicable national research provisions, ethics conditions, transparency duties and any consent
+    restrictions for each site and reuse purpose. Evaluate whether a DPIA is required and document the decision.
+  owner: institutional controller, data-protection officer and research lead.
+  tracking_criterion: institutional_release_approval
+  response: Institutional controller/DPO assessment remains required. No legal basis, ethics permission or
+    public-release authorization was supplied or inferred from passing tests.
+- id: T03
+  requirement: Refresh regulatory status and the audience-specific interpretation. Reference [7] is the July
+    2026 consultation text, not a final standard. Check its status, intervening case law and the relevant institution’s
+    interpretation at submission. Keeping a site secret private or withholding a lookup table alone does not
+    establish anonymity for a recipient; public release requires a wider perspective than transfer to a named
+    hub.
+  owner: data-protection officer and legal reviewer.
+  tracking_criterion: verification_record
+  response: 'Verified the official EDPB consultation listing on 7 October 2026: Guidelines 02/2026 remain open
+    for feedback through 30 October 2026. Institution-specific interpretation and intervening-case-law review
+    remain legal-review work.'
+- id: T04
+  requirement: Validate the complete confidentiality boundary. File encryption does not establish protection
+    of database fields such as extracted text, raw_meta and SensitiveMeta identifiers. Inventory all active
+    storage policies, temporary files, swap, caches, backups, logs, browser state and parser call sites. Check
+    actual key custody and the effect of compromised application privileges.
+  owner: deployment and security maintainers.
+  tracking_criterion: encrypted_consumption
+  response: Candidate media and manifests are copied through real encrypted storage without filesystem plaintext
+    materialization. Tests cover wrong keys, tampering, interruption and cleanup failure. Database fields,
+    swap, browser state, caches, backups and deployment key custody remain outside this software evidence.
+- id: T05
+  requirement: Verify independent-node transport and recovery. The historical harness shares one database,
+    mocks forwarding, disables the sender mutual-TLS requirement and simulates receiver proxy attestation.
+    It does not establish live certificate negotiation, trusted proxy configuration, inter-node consistency
+    or production recovery.
+  owner: hub and deployment maintainers.
+  tracking_criterion: manuscript_live_drills
+  response: Inspected the user-selected gc-02 sender and gs-02 receiver. Receiver SSH works, but its migration
+    service failed and Nginx/application are inactive. Sender certificate issuer failed and transfer worker
+    is inactive. No live transfer, certificate rotation, interruption or acknowledgement-loss drill could proceed.
+- id: T06
+  requirement: Specify hash scope and mutation invariants. Confirm the end-to-end definition of each raw and
+    processed digest, particularly authenticated plaintext versus ciphertext, video transcoding and processed
+    PDFs. A content hash must not be described as a universal hash on every database row or as proof of clinical
+    truth or anonymity.
+  owner: media-ingestion and export maintainers.
+  tracking_criterion: verification_record
+  response: Existing local/encrypted file-hash tests pass in the 106-case backend run. The candidate additionally
+    hashes the exact storage-decrypted bytes copied, verifies size and digest after encryption, and hashes
+    only minimized released records. This is not universal database-row hashing or an anonymity claim.
+- id: T07
+  requirement: Make security-critical audit persistence mandatory. AuditLedger.save can skip an audit write
+    when it interprets database errors as an unavailable ledger table. Identify operations that must fail closed
+    if evidence cannot be written, and audit whether every relevant validation, override, identity change,
+    export and release action enters the ledger atomically with its domain change.
+  owner: audit and domain-service maintainers.
+  tracking_criterion: audit_ledger/ledger_behavior (endoreg-db); institutional_release_approval (remaining
+    policy)
+  response: Removed suppressed AuditLedger save/identity-append failures; enclosing transactions now roll back
+    on database errors. Candidate completion requires a persisted release_candidate_built audit entry. Fault
+    injection and cleanup tests pass. Existing producers are enumerated in the audit runbook; exhaustive validation/override/erasure
+    action coverage remains open.
+- id: T08
+  requirement: Validate audit ordering and tamper-evidence assumptions. Writers append through a locked head,
+    while verify_chain orders by timestamp and UUID. Equal timestamps or timestamps assigned before lock acquisition
+    may disagree with append order. Model-level save restrictions also leave bulk updates, direct SQL, deletion
+    and recomputation of the whole chain in the threat model.
+  owner: audit and security maintainers.
+  tracking_criterion: audit_ledger/ledger_behavior (endoreg-db); institutional_release_approval (remaining
+    policy)
+  response: Chain verification follows stored predecessor hashes under the append-head lock and verifies the
+    last-entry pointer and exhaustive membership. Added equal/backdated/concurrent append, deletion, orphan,
+    head-corruption and missing-head rejection tests. No persisted hashes were rewritten. Independently protected
+    checkpoints/signing against a privileged database writer remain unimplemented.
+- id: T09
+  requirement: Prove the intended identity-secret scope and lifecycle. The code resolves an installation setting
+    or active keyring; centre.name is an input, rather than proof of an independently provisioned per-centre
+    secret. Verify real deployment separation, secret entropy and permissions, recovery, compromise response
+    and migration of every dependent pseudonym. Possession of the secret and plausible demographics permits
+    recomputation.
+  owner: identity and deployment maintainers.
+  tracking_criterion: manuscript_identity_compatibility
+  response: Existing identity-secret configuration and rotation tests pass. The user requested preserving migratable
+    demographic identities. No live secret rotation, backup restore or per-center custody proof was performed;
+    deployment separation remains unverified.
+- id: T10
+  requirement: Review the legacy demographic encoding and migration design. The implemented path hashes an
+    undelimited concatenation, repeats the date of birth and then hashes the inner hexadecimal digest. Different
+    tuples can have the same concatenated string. The HMAC fingerprint addresses some ambiguity checks, but
+    the legacy pseudonym algorithm is not itself HMAC. A second SHA-256 does not resolve ambiguous input encoding
+    or demographic guessability.
+  owner: identity and cryptography reviewers.
+  tracking_criterion: manuscript_identity_compatibility
+  response: Per user direction, retained the demographic hash and migration compatibility. Existing HMAC ambiguity
+    and wrong-salt guards were tested, including undelimited tuple ambiguity. No new persisted identity encoding
+    or unreviewed cryptographic migration was introduced.
+- id: T11
+  requirement: Resolve demographic and same-day encounter collisions. Two individuals can share names and date
+    of birth; two procedures for one patient can occur on the same day. The current examination input omits
+    an encounter discriminator. A large hash space does not distinguish identical input tuples. Centre-name
+    changes and source-name corrections also need explicit reconciliation.
+  owner: clinical identity and ingestion maintainers.
+  tracking_criterion: manuscript_identity_compatibility
+  response: Per user direction, retain demographic matching and reject detected ambiguities for manual review.
+    Existing fingerprint guards reject distinct tuples that encode to one legacy hash. Identical name/DOB inputs
+    and same-day encounters cannot be distinguished by hashing alone; a clinical reconciliation policy remains
+    necessary when such a case is reported.
+- id: T12
+  requirement: Verify identity commitment, correction and erasure. The inspected save logic contains provisional-state
+    handling, legacy-identity guards and a direct-identifiers-cleared marker. The complete commit, correction,
+    erasure and external-identifier pathways were not audited here. Verify that clearing identifiers preserves
+    appropriate pseudonymous linkage and that identifiers cannot reappear through retries, caches, name lookup
+    tables, logs or backups.
+  owner: identity and privacy-workflow maintainers.
+  tracking_criterion: manuscript_identity_compatibility
+  response: Existing identity-erasure/legacy-enrollment and transactional rotation regressions pass. Did not
+    change retained mappings or erase real identities. Complete cache/log/backup erasure and restore evidence
+    remains an institutional/operational prerequisite.
+- id: T13
+  requirement: Separate display pseudonyms from linkage and clinical truth. Faker display names depend on the
+    normalized hash, locale, gender input and generator behaviour; they need not be unique. The inspected metadata
+    logic can also infer a missing gender from a name. Generated names and inferred attributes must not silently
+    become scientific ground truth or public identity keys.
+  owner: patient-model and frontend maintainers.
+  tracking_criterion: release_metadata_and_splits
+  response: Public candidate metadata excludes display names and gender. Recorded installed Faker version for
+    provenance. No changes to legacy pseudonym display generation or inferred-demographic clinical semantics;
+    those paths still require a separate provenance review.
+- id: T14
+  requirement: Assess retained birth month and year. The pseudonymous profile samples a day within the original
+    month/year and can draw the original day. It therefore retains substantial demographic information. Gender,
+    centre, procedure date and rare findings can add identifying context. This perturbation is not a dataset-level
+    anonymity determination.
+  owner: privacy reviewer and scientific curator.
+  tracking_criterion: release_metadata_and_splits
+  response: Implemented the user-selected five-year age bands and omitted birth dates, exact ages, gender and
+    calendar dates from candidate metadata. Requires curator-verified age at examination for exactly the selected
+    videos; never guesses age from display pseudonyms. Boundary and invalid/missing-age tests pass. Media-level
+    demographics and joint disclosure/utility evaluation remain open.
+- id: T15
+  requirement: Formalize workflow guards and recovery behaviour. Bourguet’s paper concerns multimodal interaction
+    design, not clinical-data privacy or proof that this workflow is error-free. Formalize the LX-specific
+    states, events, guards, overrides and recovery transitions. Verify backend enforcement independently of
+    UI presentation.
+  owner: workflow and test maintainers.
+  tracking_criterion: release_metadata_and_splits
+  response: Candidate construction enforces saved membership, center authorization, existing review gates,
+    timeline/byte consistency, encrypted staging, manifest verification and persisted audit completion. No
+    public-distribution transition exists. Exhaustive state-machine/model-based testing across all annotation
+    and retry paths remains open.
+- id: T16
+  requirement: Inventory the actual anonymization transformations. The supplied manuscript documents video
+    masking/frame removal and PDF correction. This revision did not audit every automatic recognition, redaction
+    and reprocessing call site or measure identifier removal. Identify the current lx-anonymizer/backend versions,
+    model/configuration inputs, languages and supported device layouts, and confirm which outputs contain substitutions
+    versus destructive redaction.
+  owner: media-processing and anonymization maintainers.
+  tracking_criterion: clinical_disclosure_evaluation
+  response: Recorded installed lx-anonymizer 1.0.5 and dependency versions. The new packager performs no redaction
+    or inferred anonymization. A device/language/model/configuration transformation inventory and measured
+    removal/utility evaluation are still required.
+- id: T17
+  requirement: Test all recoverable release channels. Visible masking alone may leave identifiers in PDF text
+    layers, incremental revisions, embedded objects, metadata, audio, thumbnails, filenames, subtitles, sidecars
+    or archives. Test the actual distributed bytes and every permitted export format.
+  owner: privacy-testing and export maintainers.
+  tracking_criterion: clinical_disclosure_evaluation
+  response: No claim of hidden-channel sanitization. V1 packages processed MP4 only; it does not sanitize audio,
+    metadata or pixels, and does not package PDF hidden text or revisions. Public distribution stays unavailable
+    until exact-byte, all-channel review is accepted.
+- id: T18
+  requirement: Define retention and re-identification routes. The institution may retain raw media, clinical
+    records, mappings and secret material that enable local attribution. Direct-identifier erasure in one table
+    does not remove these routes. Deletion, retention and publication are separate decisions, and operational
+    logs or immutable audit payloads can themselves contain personal data.
+  owner: institutional data steward and privacy reviewer.
+  tracking_criterion: institutional_release_approval
+  response: Kept source records and identity mappings unchanged. Candidate metadata omits direct and operational
+    identifiers, while a protected audit event retains the split-plan reference. Institutional retention/erasure/backup
+    policies and the re-identification-route matrix remain to be approved.
+- id: T19
+  requirement: Measure the performance of human privacy review. Completion of a review gate records a decision
+    but does not quantify residual identifiers. Review effort, missed content and disagreement may vary with
+    video length, layout, language and report structure. Define exactly what reviewers inspect and when a second
+    review is required.
+  owner: clinical review lead and evaluation team.
+  tracking_criterion: clinical_disclosure_evaluation
+  response: No approved clinical cohort, reference labels, review protocol or observations were supplied. Human-review
+    sensitivity, disagreement and workload remain unmeasured.
+- id: T20
+  requirement: Validate annotation provenance and temporal remapping. Trimmed or removed frames can alter frame/time
+    coordinates. Confirm that annotations remain aligned to the final processed artifact and that machine proposals,
+    human acceptance, annotator identity and disagreement resolution survive export. Assess scientific utility
+    after privacy transformations.
+  owner: clinical annotation and export maintainers.
+  tracking_criterion: clinical_disclosure_evaluation
+  response: Candidate records bind frame/segment annotations to the packaged processed checksum and complete
+    persisted presentation timestamps. Frame coordinates must match that timeline; prediction segments fail
+    closed pending an explicit reviewed representation. All transformation paths, annotator/adjudication provenance
+    and clinical utility remain outside this first candidate schema.
+- id: T21
+  requirement: Enforce patient-grouped partitions at export and training. The historical split tests concern
+    membership construction and persistence. They do not establish downstream enforcement, immutable media/annotation
+    content, cross-centre duplicate resolution, label balance or protection against preprocessing leakage.
+  owner: dataset and model-evaluation maintainers.
+  tracking_criterion: release_metadata_and_splits
+  response: Candidate creation enforces the persisted patient split, rejects stale patient/frame/annotation
+    links, binds annotations/media to the manifest and rejects duplicate media digests. Tests cover disjoint
+    folds and membership mutation. Existing model-training entrypoints and cross-site identity reconciliation
+    are not integrated with the candidate manifest.
+- id: T22
+  requirement: Bind approvals to all material content changes. The selected baseline tests are not an exhaustive
+    mutation-path audit. Check replacement, correction, segment edits, asynchronous jobs, override routes and
+    time-of-check/time-of-use windows. Protect the reviewed version through final packaging and delivery.
+  owner: workflow, storage and concurrency maintainers.
+  tracking_criterion: release_metadata_and_splits
+  response: Candidate copies use database row locks, the existing media lease, exact-stream digest verification
+    and immutable random destinations. Manifest and audit proof bind the frozen copied representation. Tests
+    reject mutation/tampering and missing audit proof; this is not an exhaustive audit of every asynchronous
+    writer or a deployed concurrency/performance claim.
+- id: T23
+  requirement: Inspect the exact hub metadata boundary. Transfer to an approved hub is not equivalent to unrestricted
+    publication. Enumerate all identifiers, hashes, patient/video relationships, staff fields, source information
+    and timestamps in the actual payload and receiver state. Check how external-id and pseudonymous mappings
+    can be combined.
+  owner: hub contract and privacy maintainers.
+  tracking_criterion: release_metadata_and_splits
+  response: Kept governed hub payloads separate from the public candidate allowlist. Existing hub payload/envelope/replay
+    tests pass. Did not redefine receiver permissions or assert that hub metadata is suitable for unrestricted
+    publication; a receiver-specific field/access assessment remains required.
+- id: T24
+  requirement: Validate retention, restore and cleanup in deployment. The six recorded cleanup cases are local
+    tests, not evidence of deployed retention or disaster recovery. Confirm source/derivative policy, verified
+    receiver application, storage idleness, crash recovery, dry-run defaults and the interaction with backups
+    and identity erasure.
+  owner: storage and operations maintainers.
+  tracking_criterion: manuscript_live_drills
+  response: Live cleanup/restore drill blocked by the observed sender/receiver service failures. No production
+    data, backups, certificates or keys were changed. Local cleanup tests remain local evidence, not disaster-recovery
+    acceptance.
+- id: T25
+  requirement: Implement release-scoped identity and explicit field selection. The dedicated public-release
+    allowlist and identifier layer are proposed here. Hash-derived internal identifiers, reused display names,
+    source digests and shared stable identifiers can bridge releases or support dictionary/membership matching.
+    Preserve only the relationships accepted by the release assessment.
+  owner: publication-packager and privacy maintainers.
+  tracking_criterion: release_metadata_and_splits
+  response: Implemented strict v1 processed-video candidate schema, random UUID4 release/patient/media identities,
+    minimized labels and age bands, saved partitions, encrypted copies and a management command. Rebuilds produce
+    independent IDs. Raw hashes, names, staff identifiers and operational timestamps are excluded. PDFs, approved
+    label definitions, protected mapping policy, cross-release byte linkage assessment and public distribution
+    remain open.
+- id: T26
+  requirement: Implement and verify the record-level publication manifest. The code demonstrates hashes for
+    audit entries and selected artifacts; a digest for every released structured record is a proposed extension.
+    Define canonicalization precisely, including Unicode, floating point, dates, nulls and schema evolution.
+    Hash only the approved representation; publishing a digest of suppressed low-entropy content can disclose
+    membership through guessing.
+  owner: dataset and provenance maintainers.
+  tracking_criterion: release_metadata_and_splits
+  response: Implemented record/schema/release-bound canonical JSON hashes and a frozen manifest verified against
+    an independently retained digest; verifies all media bytes, annotations and partition fields. Python/Node
+    canonical vector matches. V1 deliberately excludes floats, arbitrary Unicode/free text and dates. No signing,
+    public repository publication or deterministic regeneration of new random identifiers is claimed.
+- id: T27
+  requirement: Perform dataset-level disclosure testing and independent acceptance. Secret-dependent pseudonyms,
+    a large cohort, human acceptance and clean software tests do not automatically establish anonymity. Define
+    realistic adversaries and auxiliary data, measure singling out/linkage/inference and consider rare conditions,
+    exact dates, sites, longitudinal combinations and previous releases. Empirical success is bounded by the
+    attacks and sampling actually tested.
+  owner: privacy reviewer, clinical curator and institutional release owner.
+  tracking_criterion: clinical_disclosure_evaluation
+  response: No dataset-level anonymity claim. Exact-manifest attack assumptions, singling-out/linkage/inference
+    testing, uncertainty, cross-release review and independent institutional acceptance remain required.
+- id: T28
+  requirement: Define correction, retirement and privacy-incident handling. Public downloads can be copied
+    and redistributed, so subsequent access withdrawal cannot guarantee recall. An immutable version policy
+    must support privacy-incident response and lawful removal from the managed distribution point. Consider
+    interactions between successive releases.
+  owner: release owner, repository steward and privacy team.
+  tracking_criterion: institutional_release_approval
+  response: V1 produces new immutable candidates and no public distribution endpoint. An institution-approved
+    incident, notification, retirement and repository-takedown protocol remains required before public publication.
+- id: T29
+  requirement: Evaluate the clinical adaptation of PrivTrace separately. PrivTrace studies geographic trajectories
+    with a trajectory-level differential-privacy definition. It does not validate endoscopy videos, clinical
+    event sequences, this software or a GDPR release. A clinical extension needs a patient-level neighbouring-dataset
+    definition, contribution bounds, privately selected representations where required, privacy accounting
+    and clinical utility validation. Synthetic data is not automatically anonymous.
+  owner: privacy-methods and clinical-sequence researchers.
+  tracking_criterion: clinical_disclosure_evaluation
+  response: Optional PrivTrace clinical adaptation remains prospective and unimplemented. No synthetic-data
+    anonymity or differential-privacy guarantee is inferred.
+- id: T30
+  requirement: Predefine measurable acceptance criteria. Section 6.3 is a proposed protocol, not completed
+    evidence. Predefine sample size, units, device/language strata, privacy attacks, scientific endpoints and
+    acceptance rules. Zero observed identifiers in a sample is not proof of zero residual risk; report uncertainty
+    at the appropriate patient/file unit.
+  owner: evaluation lead, statistician and privacy reviewer.
+  tracking_criterion: clinical_disclosure_evaluation
+  response: Software test outcomes are recorded separately from clinical acceptance. Sample sizes, approved
+    clinical strata, privacy attacks, utility endpoints and statistical acceptance rules remain to be predefined
+    by the evaluation team.
+- id: T31
+  requirement: Archive reproducible evidence and resolve source-version compatibility. A Git HEAD plus selected
+    hashes does not capture uncommitted baseline content. The independently inspected October lx-data-models
+    contract has not been established as the exact dependency installed with the September or October endoreg-db
+    environment. Preserve the distinction and verify compatible pinned versions.
+  owner: corresponding author and release engineer.
+  tracking_criterion: verification_record
+  response: Recorded exact repository revisions, dirty-state distinction, dependency/lock/native-module hashes,
+    current commands and results, plus the original companion YAML. Local modified source and current installed
+    dependencies are distinguished from the historical pinned supplement. No immutable released source/dependency
+    archive or publication-ready package is claimed.
+- id: T32
+  requirement: Complete authorship, ethics and disclosure declarations. Confirm the author list, affiliations,
+    contributions, funding, competing interests, code/data licences and repository availability. Confirm the
+    historical tests’ data provenance and describe approvals for any subsequent patient-derived evaluation.
+    The previous HIPAA-generalization sentence was removed because this revision develops a GDPR-specific argument.
+  owner: corresponding author.
+  tracking_criterion: institutional_release_approval
+  response: No author, funding, ethics, licensing or conflict-of-interest declarations were invented. Responsible
+    authors must provide the submission declarations and permissions for any patient-derived evaluation.
+document_verification:
+  original_sha256: 96522f0eb39906c1c20d9bf38ef2f5f053c1b0ebca8bc6652490afc51ab94489
+  revised_sha256: b626767e4f25807ebb4b3524d05ee03accdbb637524156accdeca47a8bf03374
+  paragraphs_replaced: 17
+  paragraphs_added: 5
+  todo_comment_responses: 32
+  zip_integrity: passed
+  unchanged_zip_members: preserved byte-for-byte except document.xml and comments.xml
+  visual_rendering: LibreOffice PDF export passed, 13 pages; inspected pages 1, 7, 9 and 13, including packaging
+    and results table. Text bounds checked on all pages; no horizontal overflow.
+  namespace_compatibility: Original root namespace declarations and compatibility attributes preserved, including
+    QName-only references.
