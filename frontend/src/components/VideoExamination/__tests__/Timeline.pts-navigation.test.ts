@@ -27,6 +27,25 @@ describe('Timeline PTS navigation', () => {
     setActivePinia(createPinia())
   })
 
+  it('renders numbered jumpmarks and seeks without starting timeline selection', async () => {
+    const wrapper = mount(Timeline, {
+      props: {
+        video: { duration: 100 },
+        jumpmarks: [{ number: '1', time: 25 }, { number: '0', time: 100 }]
+      }
+    })
+    const marks = wrapper.findAll<HTMLButtonElement>('.jumpmark')
+    expect(marks.map((mark) => mark.text())).toEqual(['1', '0'])
+    expect(marks[0].element.style.left).toBe('25%')
+    await marks[0].trigger('mousedown', { button: 0 })
+    expect(wrapper.emitted('seek')).toBeUndefined()
+    await marks[0].trigger('click')
+    expect(wrapper.emitted('seek')).toEqual([[25]])
+    await wrapper.setProps({ video: { duration: 50 } })
+    expect(marks[1].element.disabled).toBe(true)
+    wrapper.unmount()
+  })
+
   it('resizes the usable viewport while retaining rows and the default automatic height', async () => {
     const wrapper = mount(Timeline, {
       props: {

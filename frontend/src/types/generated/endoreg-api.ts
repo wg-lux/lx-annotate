@@ -758,6 +758,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/endoreg-api/media/annotations/comparisons/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Base class that supplies the mandatory fallback schema metadata. */
+        get: operations["media_annotations_comparisons_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/endoreg-api/media/annotations/frames/boxes/": {
         parameters: {
             query?: never;
@@ -1967,6 +1984,22 @@ export type paths = {
         get: operations["media_videos_processing_history_retrieve"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/endoreg-api/media/videos/{id}/provenance/recover/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["media_videos_provenance_recover_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3584,6 +3617,20 @@ export type components = {
             record_type: "ai_model";
             video_segmentation_labelset: components["schemas"]["CatalogIdentity"] | null;
         };
+        AnnotationComparison: {
+            agreeing: number;
+            /** Format: double */
+            agreement: number | null;
+            /** Format: double */
+            intersection: number | null;
+            missing: number;
+            /** Format: double */
+            overlap: number | null;
+            practitioner: string;
+            shared: number;
+            /** Format: double */
+            union: number | null;
+        };
         Case: {
             /** Format: date-time */
             admission_date: string;
@@ -3784,6 +3831,13 @@ export type components = {
              * @default null
              */
             required: boolean | null;
+        };
+        ComparisonPage: {
+            count: number;
+            page: number;
+            pages: number;
+            practitioner: string;
+            results: components["schemas"]["VideoComparison"][];
         };
         /** ContraindicationReference */
         ContraindicationReference: {
@@ -4585,6 +4639,16 @@ export type components = {
              */
             record_type: "finding_classification_type";
         };
+        FindingComparison: {
+            kind: components["schemas"]["KindEnum"];
+            matching: string[];
+            other: string[];
+            /** Format: double */
+            overlap: number | null;
+            own: string[];
+            practitioner: string;
+            report: number | null;
+        };
         /** FindingInterventionReference */
         FindingInterventionReference: {
             /** Description */
@@ -4706,6 +4770,12 @@ export type components = {
         };
         JsonScalar: string | number | boolean;
         JsonValue: JsonValue;
+        /**
+         * @description * `annotations` - annotations
+         *     * `report` - report
+         * @enum {string}
+         */
+        KindEnum: "annotations" | "report";
         /** LabValueNormalRangeBandPayload */
         LabValueNormalRangeBandPayload: {
             /**
@@ -4807,6 +4877,11 @@ export type components = {
              */
             record_type: "label_type";
         };
+        /**
+         * @description * `unresolved` - unresolved
+         * @enum {string}
+         */
+        MappingStatusEnum: "unresolved";
         /** MaterialReference */
         MaterialReference: {
             emission_factor: components["schemas"]["CatalogIdentity"] | null;
@@ -5498,6 +5573,19 @@ export type components = {
              */
             record_type: "profession";
         };
+        ProvenanceRecovery: {
+            acknowledge_unresolved: boolean;
+            /** @default true */
+            dry_run: boolean;
+            readonly electrical_matching_eligible: boolean;
+            readonly mapping_status: components["schemas"]["MappingStatusEnum"];
+            readonly original_timestamps_available: boolean;
+            readonly processed_content_hash: string;
+            recording_ended_at?: string | null;
+            recording_started_at?: string | null;
+            readonly status: components["schemas"]["StatusEnum"];
+            readonly video_id: number;
+        };
         /** QualificationReference */
         QualificationReference: {
             /** Description */
@@ -5779,6 +5867,12 @@ export type components = {
              */
             record_type: "single_categorical_value_distribution";
         };
+        /**
+         * @description * `preview` - preview
+         *     * `recovered` - recovered
+         * @enum {string}
+         */
+        StatusEnum: "preview" | "recovered";
         /** TagReference */
         TagReference: {
             /** Name */
@@ -5816,6 +5910,14 @@ export type components = {
              * @enum {string}
              */
             record_type: "unit";
+        };
+        VideoComparison: {
+            annotations: components["schemas"]["AnnotationComparison"][];
+            conflicts: number;
+            findings: components["schemas"]["FindingComparison"][];
+            unavailable: string[];
+            unmapped: string[];
+            video: number;
         };
         VideoMaskCatalogue: {
             masks: components["schemas"]["VideoMaskProfile"][];
@@ -7021,6 +7123,25 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    media_annotations_comparisons_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComparisonPage"];
+                };
             };
         };
     };
@@ -8512,6 +8633,33 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    media_videos_provenance_recover_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProvenanceRecovery"];
+                "application/x-www-form-urlencoded": components["schemas"]["ProvenanceRecovery"];
+                "multipart/form-data": components["schemas"]["ProvenanceRecovery"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvenanceRecovery"];
+                };
             };
         };
     };

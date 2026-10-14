@@ -236,10 +236,12 @@
         </template>
       </article>
     </section>
+    <AnnotationComparisons />
   </div>
 </template>
 
 <script setup lang="ts">
+import AnnotationComparisons from './AnnotationComparisons.vue'
 import { computed, onMounted, ref } from 'vue'
 import { fetchAiDatasetOptions, type AiDatasetOption } from '@/api/aiDatasetApi'
 import { fetchStudyCohortPreview } from '@/api/studyApi'

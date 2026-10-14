@@ -70,6 +70,53 @@
         "title": "AiModelReference",
         "type": "object"
       },
+      "AnnotationComparison": {
+        "properties": {
+          "agreeing": {
+            "type": "integer"
+          },
+          "agreement": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "intersection": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "missing": {
+            "type": "integer"
+          },
+          "overlap": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "practitioner": {
+            "type": "string"
+          },
+          "shared": {
+            "type": "integer"
+          },
+          "union": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "agreeing",
+          "agreement",
+          "intersection",
+          "missing",
+          "overlap",
+          "practitioner",
+          "shared",
+          "union"
+        ],
+        "type": "object"
+      },
       "Case": {
         "properties": {
           "admission_date": {
@@ -687,6 +734,36 @@
           "choices"
         ],
         "title": "ClassificationSubcategoryDefinition",
+        "type": "object"
+      },
+      "ComparisonPage": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "pages": {
+            "type": "integer"
+          },
+          "practitioner": {
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/VideoComparison"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "page",
+          "pages",
+          "practitioner",
+          "results"
+        ],
         "type": "object"
       },
       "ContraindicationReference": {
@@ -3064,6 +3141,53 @@
         "title": "FindingClassificationTypeReference",
         "type": "object"
       },
+      "FindingComparison": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/KindEnum"
+          },
+          "matching": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "other": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "overlap": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "own": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "practitioner": {
+            "type": "string"
+          },
+          "report": {
+            "nullable": true,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "matching",
+          "other",
+          "overlap",
+          "own",
+          "practitioner",
+          "report"
+        ],
+        "type": "object"
+      },
       "FindingInterventionReference": {
         "additionalProperties": false,
         "properties": {
@@ -3492,6 +3616,14 @@
           }
         ]
       },
+      "KindEnum": {
+        "description": "* `annotations` - annotations\n* `report` - report",
+        "enum": [
+          "annotations",
+          "report"
+        ],
+        "type": "string"
+      },
       "LabValueNormalRangeBandPayload": {
         "additionalProperties": false,
         "properties": {
@@ -3840,6 +3972,13 @@
         ],
         "title": "LabelTypeReference",
         "type": "object"
+      },
+      "MappingStatusEnum": {
+        "description": "* `unresolved` - unresolved",
+        "enum": [
+          "unresolved"
+        ],
+        "type": "string"
       },
       "MaterialReference": {
         "additionalProperties": false,
@@ -5838,6 +5977,69 @@
         "title": "ProfessionReference",
         "type": "object"
       },
+      "ProvenanceRecovery": {
+        "properties": {
+          "acknowledge_unresolved": {
+            "type": "boolean",
+            "writeOnly": true
+          },
+          "dry_run": {
+            "default": true,
+            "type": "boolean",
+            "writeOnly": true
+          },
+          "electrical_matching_eligible": {
+            "readOnly": true,
+            "type": "boolean"
+          },
+          "mapping_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MappingStatusEnum"
+              }
+            ],
+            "readOnly": true
+          },
+          "original_timestamps_available": {
+            "readOnly": true,
+            "type": "boolean"
+          },
+          "processed_content_hash": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "recording_ended_at": {
+            "nullable": true,
+            "type": "string"
+          },
+          "recording_started_at": {
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StatusEnum"
+              }
+            ],
+            "readOnly": true
+          },
+          "video_id": {
+            "readOnly": true,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "acknowledge_unresolved",
+          "electrical_matching_eligible",
+          "mapping_status",
+          "original_timestamps_available",
+          "processed_content_hash",
+          "status",
+          "video_id"
+        ],
+        "type": "object"
+      },
       "QualificationReference": {
         "additionalProperties": false,
         "properties": {
@@ -7013,6 +7215,14 @@
         "title": "SingleCategoricalValueDistributionReference",
         "type": "object"
       },
+      "StatusEnum": {
+        "description": "* `preview` - preview\n* `recovered` - recovered",
+        "enum": [
+          "preview",
+          "recovered"
+        ],
+        "type": "string"
+      },
       "TagReference": {
         "additionalProperties": false,
         "properties": {
@@ -7129,6 +7339,49 @@
           "abbreviation"
         ],
         "title": "UnitReference",
+        "type": "object"
+      },
+      "VideoComparison": {
+        "properties": {
+          "annotations": {
+            "items": {
+              "$ref": "#/components/schemas/AnnotationComparison"
+            },
+            "type": "array"
+          },
+          "conflicts": {
+            "type": "integer"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/FindingComparison"
+            },
+            "type": "array"
+          },
+          "unavailable": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "unmapped": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "video": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "annotations",
+          "conflicts",
+          "findings",
+          "unavailable",
+          "unmapped",
+          "video"
+        ],
         "type": "object"
       },
       "VideoMaskCatalogue": {
@@ -8964,6 +9217,27 @@
         ]
       }
     },
+    "/endoreg-api/media/annotations/comparisons/": {
+      "get": {
+        "description": "Base class that supplies the mandatory fallback schema metadata.",
+        "operationId": "media_annotations_comparisons_retrieve",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComparisonPage"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
     "/endoreg-api/media/annotations/frames/boxes/": {
       "get": {
         "description": "Persist and list general box-based frame annotations.\n\nGET requires frame_id. POST accepts either a list of box annotations or an\nobject with {frame_id, video_id, replace, annotations}.",
@@ -10550,6 +10824,56 @@
         "responses": {
           "200": {
             "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/videos/{id}/provenance/recover/": {
+      "post": {
+        "operationId": "media_videos_provenance_recover_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProvenanceRecovery"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ProvenanceRecovery"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ProvenanceRecovery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProvenanceRecovery"
+                }
+              }
+            },
+            "description": ""
           }
         },
         "tags": [

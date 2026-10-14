@@ -16,6 +16,32 @@ source_documents:
   disposition: reference
   note: Test and contract verification boundaries.
 definition_of_done:
+- id: operator_transfer_media_repair
+  category: functionality
+  title: Users can recover transfer media without bypassing provenance or review
+  acceptance:
+  - Every authenticated center member can preview and acknowledge unresolved frame provenance for one
+    usable video without administrator privileges.
+  - Integrity failures and active media work block recovery; missing original evidence remains explicitly
+    unknown. Media, annotations and audit history are preserved.
+  - An audited typed recovery receipt retains current hashes and processed PTS, available original PTS
+    and known recording start/end. Normal transfer gates remain; electrical matching is prohibited for
+    unresolved mapping.
+  - Segment review success is distinguished from media rebuild failure; worker failures retain actionable
+    diagnostics.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run repair component and backend workflow tests, type checks and structure validation;
+      complete a deployed unresolved-provenance transfer before production acceptance.
+    timeout_seconds: 900
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: test
+      reference: frontend/src/components/VideoExamination/__tests__/VideoProvenanceRepairPanel.test.ts
+    assessed_by: codex-hub-repair-20261013
+    assessed_at: '2026-10-13T14:38:59.331659Z'
 - id: browser_video_annotation_downloads
   category: functionality
   title: Export page offers video and timestamp CSV downloads

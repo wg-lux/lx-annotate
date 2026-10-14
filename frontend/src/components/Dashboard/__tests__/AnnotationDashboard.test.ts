@@ -82,7 +82,9 @@ describe('AnnotationDashboard operational state', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
-    axios.get.mockResolvedValue({ data: [] })
+    axios.get.mockResolvedValue({
+      data: { practitioner: 'alice', count: 0, page: 1, pages: 1, results: [] }
+    })
     api.fetchAiDatasetOptions.mockResolvedValue([
       {
         id: 4,
@@ -125,6 +127,7 @@ describe('AnnotationDashboard operational state', () => {
     expect(wrapper.get('[data-test="hub-state"]').text()).toContain('Betriebsbereit')
     expect(wrapper.get('[data-test="hub-state"]').text()).toContain('source-wue')
     expect(wrapper.get('[data-test="hub-state"]').text()).toContain('Central Hub · HTTPS')
+    expect(wrapper.get('[aria-label="Meine Annotationsvergleiche"]').text()).toContain('alice')
 
     const links = wrapper.findAllComponents(RouterLinkStub)
     expect(links.map((link) => link.props('to'))).toEqual(

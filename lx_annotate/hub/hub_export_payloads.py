@@ -597,9 +597,14 @@ def build_transfer_payload(
                     action=HubRecoveryAction.REPAIR_PROCESSING,
                 )
             ) from exc
-        payload["provenance"]["video_frame_provenance"] = provenance.model_dump(
-            mode="json"
+        from lx_dtypes.models.contracts.video_provenance import VideoProvenanceRecovery
+
+        provenance_key = (
+            "video_provenance_recovery"
+            if isinstance(provenance, VideoProvenanceRecovery)
+            else "video_frame_provenance"
         )
+        payload["provenance"][provenance_key] = provenance.model_dump(mode="json")
 
     return payload
 

@@ -46,6 +46,36 @@ source_documents:
   disposition: reference
   note: Documents API and cross-package contract test ownership.
 definition_of_done:
+- id: practitioner_annotation_comparisons
+  category: functionality
+  title: Dashboard displays named annotation and finalized report comparisons
+  acceptance:
+  - Dashboard requests the authenticated user's paginated media annotation comparisons and displays named
+    practitioners, overlap denominators and report finding matches.
+  - Empty, unavailable and failed comparisons remain distinguishable from zero agreement; requests use
+    the canonical endoreg API client.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run source type checks and AnnotationComparisons component tests against the backend
+      contract documented in endoreg-db docs/annotation_comparisons.md.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: frontend/src/components/Dashboard/__tests__/AnnotationComparisons.test.ts
+    - kind: test
+      reference: frontend/src/components/Dashboard/__tests__/AnnotationDashboard.test.ts
+    - kind: command
+      reference: '2026-10-14: 6 component/dashboard tests passed; npm run type-check passed including
+        OpenAPI freshness, vue-tsc and ESLint using matching local endoreg-db and lx-dtypes source checkouts
+        on PYTHONPATH. Structure lint and git diff checks passed.'
+    note: Dashboard uses generated comparison response types. Installed lx-dtypes lacked VideoProvenanceRecovery
+      required by other current backend work; source-aligned validation passed without changing dependency
+      pins. Deploy matching backend/frontend packages; no deployment performed.
+    assessed_by: codex-annotation-overlap-20261014
+    assessed_at: '2026-10-14T08:08:11.056954Z'
 - id: route_paths
   category: requirements
   title: Frontend paths resolve against the intended backend mount

@@ -1,5 +1,12 @@
 <template>
   <div class="container-fluid py-4">
+    <VideoProvenanceRepairPanel
+      v-if="provenanceRepairVideoId !== null"
+      :key="provenanceRepairVideoId"
+      :video-id="provenanceRepairVideoId"
+      @close="provenanceRepairVideoId = null"
+      @repaired="refreshOverview"
+    />
     <div class="card">
       <div
         class="card-header pb-0 d-flex justify-content-between align-items-center flex-wrap gap-3"
@@ -588,6 +595,11 @@
               >
                 <td class="readiness-action-cell">
                   <template v-if="item.resourceKind === 'video'">
+                    <button
+                      class="btn btn-outline-warning btn-sm"
+                      :data-test="`hub-provenance-repair-${String(item.id)}`"
+                      @click="provenanceRepairVideoId = item.id"
+                    >Frame-Herkunft reparieren</button>
                     <a v-if="nextStepLink(item)" :href="nextStepLink(item)" class="btn btn-outline-primary btn-sm" :data-test="`hub-next-step-${String(item.id)}`">{{ actionLabel(nextAction(item)) }}</a>
                     <button v-else type="button" class="btn btn-outline-primary btn-sm" :aria-disabled="recoveryBusy === item.id" :data-test="`hub-next-step-${String(item.id)}`" @click="runNextStep(item)">{{ actionLabel(nextAction(item)) }}</button>
                     <p v-for="blocker in assessment(item)?.blockers" :key="blocker.code" class="small">{{ blocker.detail }}</p>
@@ -742,6 +754,7 @@
 </template>
 
 <script setup lang="ts">
+import VideoProvenanceRepairPanel from '@/components/VideoExamination/VideoProvenanceRepairPanel.vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   useHubExportStore,
@@ -763,6 +776,7 @@ const selectedTargetNodeKey = ref<string | null>(null)
 const pollingTimer = ref<ReturnType<typeof setInterval> | null>(null)
 const checkingVideoIds = ref<Set<number>>(new Set())
 const offloadingEligibleVideos = ref(false)
+const provenanceRepairVideoId = ref<number | null>(null)
 const retryingJobIds = ref<Set<string>>(new Set())
 const initialFilters = new URLSearchParams(window.location.search)
 const initialKind = initialFilters.get('kind')

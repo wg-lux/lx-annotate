@@ -485,6 +485,7 @@
                     :segments="timelineSegmentsForSelectedVideo"
                     :labels="timelineLabels"
                     :current-time="currentTime"
+                    :jumpmarks="jumpmarks"
                     :is-playing="isPlaying"
                     :active-segment-id="selectedSegmentId"
                     :show-waveform="false"
@@ -499,6 +500,11 @@
                     @segment-delete="handleSegmentDelete"
                     @time-selection="handleTimeSelection"
                   />
+                  <small class="text-muted">
+                    W halten + 1–0: Sprungmarke speichern/ersetzen. 1–0 drücken oder Zahl in der
+                    Timeline anklicken zum Springen. Pro Video und Benutzer in diesem Browser gespeichert.
+                  </small>
+                  <div v-if="jumpmarkError" class="text-danger" role="alert">{{ jumpmarkError }}</div>
                   <div
                     class="timeline-height-handle"
                     role="separator"
@@ -831,6 +837,24 @@
           <div class="d-flex justify-content-center mt-2">
             <button
               type="button"
+              class="btn btn-outline-primary btn-sm"
+              data-test="repair-transfer-media-button"
+              :disabled="isValidatingSegments || isBlackeningOutsideSegments"
+              @click="repairVideoId = selectedVideoId"
+            >
+              Video für Transfer reparieren
+            </button>
+          </div>
+          <VideoProvenanceRepairPanel
+            v-if="repairVideoId !== null"
+            :key="repairVideoId"
+            :video-id="repairVideoId"
+            @before-request="videoRef?.pause()"
+            @close="repairVideoId = null"
+          />
+          <div class="d-flex justify-content-center mt-2">
+            <button
+              type="button"
               class="btn btn-outline-dark btn-sm d-inline-flex align-items-center justify-content-center gap-2"
               data-test="blacken-outside-segments-button"
               :disabled="!canBlackenOutsideSegments"
@@ -951,6 +975,7 @@
 
 <script setup lang="ts">
 import HubRecoveryReturnLink from '@/components/Export/HubRecoveryReturnLink.vue'
+import VideoProvenanceRepairPanel from './VideoProvenanceRepairPanel.vue'
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import {
   useVideoStore,
@@ -1167,6 +1192,12 @@ const anonymizationStore = useAnonymizationStore()
 
 const { overview } = storeToRefs(anonymizationStore)
 
+// Build once per list change instead of scanning both lists for every dropdown row.
+const videosById = computed(() => new Map(videos.value.map((video) => [video.id, video])))
+const videoOverviewById = computed(
+  () => new Map(overview.value.filter((item) => item.mediaType === 'video').map((item) => [item.id, item]))
+)
+
 // Use spread operator to convert readonly array to mutable array
 const timelineLabels = computed(() => {
   const storeLabels = videoStore.labels
@@ -1174,7 +1205,7 @@ const timelineLabels = computed(() => {
 })
 
 function getVideoOverviewItem(videoId: number) {
-  return overview.value.find((o) => o.id === videoId && o.mediaType === 'video')
+  return videoOverviewById.value.get(videoId)
 }
 
 const openingReporting = ref(false)
@@ -1229,7 +1260,7 @@ function canViewProcessedVideo(videoId: number): boolean {
     return false
   }
 
-  const video = selectableVideos.value.find((v) => v.id === videoId)
+  const video = videosById.value.get(videoId)
   if (!video) {
     return false
   }
@@ -1262,7 +1293,7 @@ function hasValidatedOutsideSegments(videoId: number): boolean {
 }
 
 function getVideoSegmentAnnotationStatus(videoId: number): SegmentAnnotationStatus {
-  const video = videoList.value.videos.find((v) => v.id === videoId)
+  const video = videosById.value.get(videoId)
   if (video?.segmentAnnotationStatus) {
     return video.segmentAnnotationStatus
   }
@@ -1347,6 +1378,7 @@ const setFallbackFullscreen = (active: boolean): void => {
   }
 }
 const isValidatingSegments = computed(() => validationRequestVideoId.value !== null)
+const repairVideoId = ref<number | null>(null)
 const outsideBlackeningRequestVideoIds = ref<Set<number>>(new Set())
 const segmentValidationSummaryByVideoId = ref<Record<number, SegmentValidationSummary>>({})
 const fpsNormalizationVideoId = ref<number | null>(null)
@@ -1835,6 +1867,89 @@ const baseAnnotatorPrincipal = computed(() =>
   getAnnotatorPrincipalFromAuthUser(authStore.user as Record<string, unknown> | null)
 )
 
+const jumpmarks = ref<Array<{ number: string; time: number }>>([])
+const jumpmarkError = ref('')
+let jumpmarkKeyHeld = false
+const jumpmarkStorageKey = computed(() =>
+  selectedVideoId.value === null
+    ? null
+    : `lxAnnotate.jumpmarks.v1:${encodeURIComponent(baseAnnotatorPrincipal.value)}:${String(selectedVideoId.value)}`
+)
+
+function parseJumpmark(value: unknown): { number: string; time: number } {
+  const mark = asRecord(value)
+  if (
+    typeof mark.number !== 'string' || !/^[0-9]$/.test(mark.number) ||
+    typeof mark.time !== 'number' || !Number.isFinite(mark.time) || mark.time < 0
+  ) throw new Error('Invalid jumpmark')
+  return { number: mark.number, time: mark.time }
+}
+
+watch(jumpmarkStorageKey, (key) => {
+  jumpmarks.value = []
+  jumpmarkError.value = ''
+  jumpmarkKeyHeld = false
+  if (!key) return
+  try {
+    const stored = localStorage.getItem(key)
+    if (!stored) return
+    const parsed: unknown = JSON.parse(stored)
+    if (!Array.isArray(parsed) || parsed.length > 10) throw new Error('Invalid jumpmarks')
+    const restored: Array<{ number: string; time: number }> = []
+    for (const value of parsed) {
+      const mark = parseJumpmark(value)
+      if (restored.some((existing) => existing.number === mark.number)) throw new Error('Duplicate jumpmark')
+      restored.push(mark)
+    }
+    jumpmarks.value = restored
+  } catch {
+    jumpmarkError.value = 'Gespeicherte Sprungmarken konnten nicht geladen werden.'
+  }
+}, { immediate: true, flush: 'sync' })
+
+function resetJumpmarkKey(): void {
+  jumpmarkKeyHeld = false
+}
+
+function handleKeyUp(event: KeyboardEvent): void {
+  if (event.key.toLowerCase() === 'w') resetJumpmarkKey()
+}
+
+function canSaveJumpmark(time: number | undefined): time is number {
+  return isSelectedVideoViewable.value && time !== undefined && Number.isFinite(time) &&
+    time >= 0 && duration.value > 0 && time <= duration.value && !jumpmarkError.value
+}
+
+function seekJumpmarkFromShortcut(event: KeyboardEvent): boolean {
+  const mark = jumpmarks.value.find((candidate) => candidate.number === event.key)
+  if (!mark || !isSelectedVideoViewable.value) return false
+  event.preventDefault()
+  if (!event.repeat) seekToTime(mark.time)
+  return true
+}
+
+function handleJumpmarkShortcut(event: KeyboardEvent): boolean {
+  if (event.key.toLowerCase() === 'w') {
+    if (!event.repeat) jumpmarkKeyHeld = true
+    return true
+  }
+  if (!jumpmarkKeyHeld) return seekJumpmarkFromShortcut(event)
+  if (!/^[0-9]$/.test(event.key)) return false
+  event.preventDefault()
+  const time = videoRef.value?.currentTime
+  const key = jumpmarkStorageKey.value
+  if (event.repeat || !key || !canSaveJumpmark(time)) return true
+  const updated = jumpmarks.value.filter((mark) => mark.number !== event.key)
+  updated.push({ number: event.key, time })
+  try {
+    localStorage.setItem(key, JSON.stringify(updated))
+    jumpmarks.value = updated
+  } catch {
+    jumpmarkError.value = 'Sprungmarke konnte nicht gespeichert werden. Bitte Browser-Speicher prüfen und neu laden.'
+  }
+  return true
+}
+
 const annotatorOverrideScope = computed(() => {
   if (selectedVideoId.value == null) {
     return 'video:none'
@@ -2117,22 +2232,25 @@ async function retryVideoDropdownLoad(): Promise<void> {
 
 onMounted(async () => {
   document.addEventListener('keydown', handleKeyDown)
+  document.addEventListener('keyup', handleKeyUp)
+  window.addEventListener('blur', resetJumpmarkKey)
   document.addEventListener('click', handleDocumentClick)
   document.addEventListener('fullscreenchange', handleFullscreenChange)
   isInitialLoading.value = true
-  void (async () => {
-    try {
-      if (typeof videoStore.fetchPredictionModels === 'function') {
-        await videoStore.fetchPredictionModels()
-      }
-    } catch {
-      // Prediction models are optional; the local segment workflow remains available.
-    }
-  })()
-  void loadSegmentAiDatasetOptions()
 
   try {
     const dropdownLoaded = await loadVideoDropdownData()
+    // Give the dropdown requests priority over optional prediction configuration.
+    void (async () => {
+      try {
+        if (typeof videoStore.fetchPredictionModels === 'function') {
+          await videoStore.fetchPredictionModels()
+        }
+      } catch {
+        // Prediction models are optional; the local segment workflow remains available.
+      }
+    })()
+    void loadSegmentAiDatasetOptions()
     if (dropdownLoaded) {
       pollExistingSegmentCleanupVideos()
 
@@ -2155,6 +2273,8 @@ onUnmounted(() => {
   clearFpsNormalizationPolling()
   stopSegmentValidationPolling()
   document.removeEventListener('keydown', handleKeyDown)
+  document.removeEventListener('keyup', handleKeyUp)
+  window.removeEventListener('blur', resetJumpmarkKey)
   document.removeEventListener('click', handleDocumentClick)
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
   fullscreenDisposed = true
@@ -2588,10 +2708,30 @@ const onLabelSelect = (): void => {
 }
 
 const handleFullscreenChange = (): void => {
+  // Firefox's native media controls can fullscreen the video despite nofullscreen.
+  // Its sibling annotation toolbar must belong to the fullscreen element as well.
+  if (videoRef.value && document.fullscreenElement === videoRef.value) {
+    if (isFallbackFullscreen.value) setFallbackFullscreen(false)
+    void toggleFullscreen()
+    return
+  }
   isFullscreen.value =
     !!videoContainerRef.value && document.fullscreenElement === videoContainerRef.value
   isLabelSelectActive.value = false
   wheelAccumulator = 0
+}
+
+const enterFallbackFullscreen = async (): Promise<void> => {
+  try {
+    if (videoRef.value && document.fullscreenElement === videoRef.value) {
+      await document.exitFullscreen()
+    }
+    if (!fullscreenDisposed) setFallbackFullscreen(true)
+  } catch {
+    showErrorMessage(
+      'Vollbild mit Label-Auswahl konnte nicht geöffnet werden. Bitte Vollbild verlassen und die Vollbild-Schaltfläche der Anwendung verwenden.'
+    )
+  }
 }
 
 const toggleFullscreen = async (): Promise<void> => {
@@ -2607,9 +2747,10 @@ const toggleFullscreen = async (): Promise<void> => {
   try {
     if (document.fullscreenElement === container) await document.exitFullscreen()
     else if (native.requestFullscreen) await native.requestFullscreen.call(container)
-    else setFallbackFullscreen(true)
+    else await enterFallbackFullscreen()
   } catch {
-    if (!fullscreenDisposed && document.fullscreenElement !== container) setFallbackFullscreen(true)
+    if (!fullscreenDisposed && document.fullscreenElement !== container)
+      await enterFallbackFullscreen()
   } finally {
     fullscreenRequestPending = false
   }
@@ -2766,18 +2907,14 @@ const handleSegmentBoundaryShortcut = (event: KeyboardEvent): void => {
   }
 }
 
+const shouldIgnoreShortcut = (event: KeyboardEvent): boolean =>
+  event.isComposing || event.ctrlKey || event.metaKey || event.altKey || isEditableTarget(event.target)
+
 const handleKeyDown = (event: KeyboardEvent): void => {
-  if (
-    event.isComposing ||
-    event.ctrlKey ||
-    event.metaKey ||
-    event.altKey ||
-    isEditableTarget(event.target)
-  ) {
-    return
-  }
+  if (shouldIgnoreShortcut(event)) return
 
   const handled =
+    handleJumpmarkShortcut(event) ||
     openLabelOverlayFromShortcut(event) ||
     toggleFullscreenFromShortcut(event) ||
     handleLabelOverlayKey(event) ||
@@ -2917,7 +3054,11 @@ const normalizeSegmentValidationResponse = (value: unknown): SegmentValidationRe
   return {
     jobStatus: stringValueOr(postProcessingJob.status ?? responseData.status),
     segmentAnnotationStatus: (segmentAnnotationStatus ?? 'not_started') as SegmentAnnotationStatus,
-    message: stringValueOr(responseData.error ?? responseData.message)
+    message: stringValueOr(
+      responseData.error ??
+      asRecord(responseData.postValidationRebuild ?? responseData.post_validation_rebuild).details ??
+      responseData.message
+    )
   }
 }
 
@@ -3173,7 +3314,7 @@ const handleSegmentValidationResponse = async (
   }
   if (isValidationCleanupFailed(validationState)) {
     showErrorMessage(
-      `Validierung fehlgeschlagen${validationState.message ? `: ${validationState.message}` : '.'}`,
+      `Segmentprüfung gespeichert, Nachverarbeitung fehlgeschlagen${validationState.message ? `: ${validationState.message}` : '.'}`,
       'danger'
     )
     return
@@ -3219,7 +3360,14 @@ const submitVideoSegments = async (videoId: number): Promise<void> => {
     // Reload segments to reflect validation status + updated times
     await loadVideoSegments()
   } catch (error: unknown) {
-    showErrorMessage(`Validierung fehlgeschlagen: ${getRequestErrorMessage(error)}`)
+    const responseData = getRequestErrorData(error)
+    const updated = responseData.updatedCount ?? responseData.updated_count
+    if (typeof updated === 'number' && updated > 0) {
+      showErrorMessage(`Segmentprüfung gespeichert (${String(updated)} Segmente). Nachverarbeitung fehlgeschlagen. Bitte die Nachverarbeitung erneut starten oder die Frame-Herkunft prüfen.`, 'danger')
+      await videoStore.fetchAllVideos()
+    } else {
+      showErrorMessage(`Validierung fehlgeschlagen: ${getRequestErrorMessage(error)}`)
+    }
   } finally {
     if (validationRequestVideoId.value === videoId) {
       validationRequestVideoId.value = null

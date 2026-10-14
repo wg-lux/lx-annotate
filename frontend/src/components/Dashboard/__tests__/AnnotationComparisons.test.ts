@@ -1,0 +1,125 @@
+import { flushPromises, mount } from '@vue/test-utils'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import AnnotationComparisons from '../AnnotationComparisons.vue'
+
+const get = vi.hoisted(() => vi.fn())
+vi.mock('@/api/axiosInstance', () => ({
+  default: { get },
+  r: (path: string) => `/endoreg-api/${path}`
+}))
+
+const response = () => ({
+  practitioner: 'alice',
+  count: 6,
+  page: 1,
+  pages: 2,
+  results: [
+    {
+      video: 7,
+      conflicts: 0,
+      unmapped: [],
+      unavailable: [],
+      annotations: [
+        {
+          practitioner: 'bob',
+          shared: 2,
+          agreeing: 1,
+          agreement: 50,
+          intersection: 0.1,
+          union: 0.4,
+          overlap: 25,
+          missing: 0
+        }
+      ],
+      findings: [
+        {
+          practitioner: 'carol',
+          kind: 'report',
+          report: 12,
+          matching: ['polyp'],
+          own: [],
+          other: ['bleeding'],
+          overlap: 50
+        }
+      ]
+    }
+  ]
+})
+
+describe('AnnotationComparisons', () => {
+  beforeEach(() => get.mockReset())
+
+  it('shows named practitioners, weighted time overlap and finalized findings', async () => {
+    get.mockResolvedValue({ data: response() })
+    const wrapper = mount(AnnotationComparisons)
+    await flushPromises()
+    expect(get).toHaveBeenCalledWith('/endoreg-api/media/annotations/comparisons/', {
+      params: { page: 1 }
+    })
+    for (const text of [
+      'alice',
+      'bob',
+      'carol',
+      '25.0 %',
+      '0.10 s / 0.40 s',
+      'Finalisierter Bericht 12',
+      'polyp',
+      'bleeding'
+    ])
+      expect(wrapper.text()).toContain(text)
+    get.mockResolvedValue({ data: { ...response(), page: 2 } })
+    const next = wrapper.findAll('button').find((button) => button.text() === 'Weiter')
+    await next?.trigger('click')
+    await flushPromises()
+    expect(get).toHaveBeenLastCalledWith('/endoreg-api/media/annotations/comparisons/', {
+      params: { page: 2 }
+    })
+    expect(wrapper.text()).toContain('Seite 2 von 2')
+  })
+
+  it('distinguishes unavailable timing from zero overlap', async () => {
+    const data = response()
+    get.mockResolvedValue({
+      data: {
+        ...data,
+        results: [
+          {
+            ...data.results[0],
+            annotations: [
+              {
+                practitioner: 'bob',
+                shared: 0,
+                agreeing: 0,
+                agreement: null,
+                intersection: null,
+                union: null,
+                overlap: null,
+                missing: 2
+              }
+            ],
+            unavailable: ['missing_mapping']
+          }
+        ]
+      }
+    })
+    const wrapper = mount(AnnotationComparisons)
+    await flushPromises()
+    expect(wrapper.text()).toContain('Nicht auswertbar')
+    expect(wrapper.text()).toContain('2 ohne Zeitnachweis')
+    expect(wrapper.text()).toContain('Keine Label-zu-Befund-Zuordnung vorhanden.')
+  })
+
+  it('shows empty and failed requests explicitly and permits retry', async () => {
+    get.mockRejectedValueOnce(new Error('offline'))
+    const wrapper = mount(AnnotationComparisons)
+    await flushPromises()
+    expect(wrapper.find('[role="alert"]').text()).toContain('konnten nicht geladen werden')
+    get.mockResolvedValue({
+      data: { practitioner: 'alice', count: 0, page: 1, pages: 1, results: [] }
+    })
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Noch keine zugeordneten')
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+  })
+})

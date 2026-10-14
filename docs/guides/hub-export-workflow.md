@@ -622,3 +622,21 @@ The sender-side workflow is intentionally explicit:
 - a local transfer ledger tracks progress
 - retries reuse the same deterministic transfer identity
 - only anonymized processed media is transferred
+
+## Unresolved frame provenance
+
+**Frame-Herkunft reparieren** opens the same recovery panel on Hub Export and the
+video examination page. It is available to authenticated users in the video's
+center, including ordinary users. Preview checks the current media and hash;
+explicit confirmation stores an unresolved frame-mapping receipt. Available
+original presentation timestamps and known recording start/end are retained in
+endoreg-db. Unknown original timestamps are never inferred from frame rate.
+
+This permits transfer of otherwise eligible usable media while recording that
+future electrical-data matching is unavailable. It preserves media, annotations,
+clinical approvals and immutable provenance evidence. It cannot clear a failed
+outside-frame rebuild or a content-integrity failure. A replaced processed
+artifact needs fresh verification and a receipt for that exact generation.
+
+Follow the canonical [endoreg-db recovery procedure](https://github.com/wg-lux/endoreg-db/blob/main/docs/video_storage_normalization.md#recover-usable-media-with-unresolved-frame-mapping).
+Deploy the shared contract, backend and frontend together on sender and receiver.

@@ -99,6 +99,20 @@
           </div>
         </div>
 
+        <button
+          v-for="mark in jumpmarks"
+          :key="mark.number"
+          type="button"
+          class="jumpmark"
+          :style="{ left: getSegmentPosition(mark.time) + '%' }"
+          :title="`Sprungmarke ${mark.number}: ${formatTime(mark.time)}`"
+          :aria-label="`Sprungmarke ${mark.number}: ${formatTime(mark.time)}`"
+          :disabled="mark.time > duration"
+          @mousedown.stop
+          @pointerdown.stop
+          @click.stop="emit('seek', mark.time)"
+        >{{ mark.number }}</button>
+
         <!-- ✅ UPDATED: Multi-row segment layout with Pointer Events -->
         <div
           class="segments-container"
@@ -501,6 +515,7 @@ const props = defineProps<{
   segments?: Segment[]
   labels?: LabelMeta[]
   currentTime?: number
+  jumpmarks?: Array<{ number: string; time: number }>
   isPlaying?: boolean
   activeSegmentId?: number | null
   showWaveform?: boolean
@@ -1970,6 +1985,23 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.jumpmark {
+  position: absolute;
+  top: 17px;
+  z-index: 12;
+  transform: translateX(-50%);
+  min-width: 20px;
+  height: 19px;
+  padding: 0 3px;
+  border: 1px solid #fff;
+  border-radius: 3px;
+  background: #3f51b5;
+  color: #fff;
+  font-size: 12px;
+  line-height: 16px;
+  cursor: pointer;
 }
 
 .timeline-header {

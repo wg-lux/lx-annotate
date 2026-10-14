@@ -139,3 +139,12 @@ primary journal for these two buttons.
 
 - `frontend/src/components/VideoExamination/VideoExaminationAnnotation.vue`
 - `frontend/src/components/VideoExamination/Timeline.vue`
+
+## Saved segment review and media recovery
+
+Bulk segment validation saves the review before asynchronous media work finishes.
+The interface reports saved review separately from a failed outside-frame rebuild.
+Retry blackening to complete that media gate. **Video für Transfer reparieren**
+opens the explicit unresolved-provenance acknowledgment described in the
+[hub export workflow](hub-export-workflow.md#unresolved-frame-provenance); it does
+not reapprove segments or claim that blackening succeeded.

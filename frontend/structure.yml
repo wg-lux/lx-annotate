@@ -37,4 +37,8 @@ tests:
   command: "npm --prefix frontend run test:unit -- --run src/api/__tests__/apiPrefixContract.test.ts"
 
 files:
+  - src/components/Dashboard/AnnotationComparisons.vue
+  - src/components/Dashboard/AnnotationDashboard.vue
+  - src/components/Dashboard/__tests__/AnnotationComparisons.test.ts
+  - src/components/VideoExamination/VideoProvenanceRepairPanel.vue
   - src/components/Export/HubRecoveryReturnLink.vue

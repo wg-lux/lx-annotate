@@ -132,6 +132,38 @@ class HubExportPayloadTests(TestCase):
         self.assertEqual(validated["source_node"].node_key, "site-node")
         self.assertEqual(validated["target_node"].node_key, "hub-node")
 
+        # An explicitly acknowledged legacy mapping survives the same sender contract.
+        from endoreg_db.services.hub.video_provenance import (
+            accept_video_provenance_recovery,
+            export_video_provenance,
+        )
+        from lx_dtypes.models.contracts.video_provenance import (
+            VideoProvenanceBundle,
+            VideoProvenanceRecovery,
+        )
+
+        verified = export_video_provenance(video)
+        assert isinstance(verified, VideoProvenanceBundle)
+        recovery = VideoProvenanceRecovery(
+            recording_hash=source_hash,
+            original_timeline=verified.transformations[0].source,
+            processed_timeline=verified.transformations[-1].output,
+        )
+        accept_video_provenance_recovery(video, recovery)
+        video.save(update_fields=["meta"])
+        recovered_payload = build_transfer_payload(
+            outbound_job=job, source_node=self.site_node
+        )
+        self.assertNotIn("video_frame_provenance", recovered_payload["provenance"])
+        self.assertFalse(
+            recovered_payload["provenance"]["video_provenance_recovery"][
+                "electrical_matching_eligible"
+            ]
+        )
+        self._assert_transfer_payload_persists(recovered_payload)
+        video.meta = {}
+        video.save(update_fields=["meta"])
+
         # Reprocessing changes the exported artifact, never the import identity.
         original_pk = video.pk
         original_key = payload["transfer_key"]
