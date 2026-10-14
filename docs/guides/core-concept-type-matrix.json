@@ -1,0 +1,1872 @@
+{
+  "generated_at": "2026-03-06T08:57:59.529449+00:00",
+  "source_files": {
+    "frontend": "/home/admin/dev/lx-annotate/frontend/src/types/coreConcepts.ts",
+    "script": "/home/admin/dev/lx-annotate/scripts/generate_core_concept_type_matrix.py"
+  },
+  "concepts": [
+    {
+      "concept": "Classification",
+      "frontend_interface": "ClassificationCore",
+      "fields": [
+        {
+          "field": "classification_choices",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "ManyToManyField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "classification_types",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "ManyToManyField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "created_at",
+          "pydantic": "<class 'pydantic.types.AwareDatetime'>",
+          "ddict": "",
+          "django": "DateTimeField",
+          "runtime_ddict": "datetime",
+          "frontend": "",
+          "drift": true
+        },
+        {
+          "field": "description",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "id",
+          "pydantic": "",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "number",
+          "drift": false
+        },
+        {
+          "field": "kb_module_name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_de",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_en",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "source_file",
+          "pydantic": "pathlib.Path | None",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "",
+          "drift": false
+        },
+        {
+          "field": "tags",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "uuid",
+          "pydantic": "Union[str, uuid.UUID]",
+          "ddict": "<class 'str'>",
+          "django": "UUIDField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        }
+      ]
+    },
+    {
+      "concept": "ClassificationChoice",
+      "frontend_interface": "ClassificationChoiceCore",
+      "fields": [
+        {
+          "field": "classification_choice_descriptors",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "ManyToManyField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "created_at",
+          "pydantic": "<class 'pydantic.types.AwareDatetime'>",
+          "ddict": "",
+          "django": "DateTimeField",
+          "runtime_ddict": "datetime",
+          "frontend": "",
+          "drift": true
+        },
+        {
+          "field": "description",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "id",
+          "pydantic": "",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "number",
+          "drift": false
+        },
+        {
+          "field": "kb_module_name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_de",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_en",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "source_file",
+          "pydantic": "pathlib.Path | None",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "",
+          "drift": false
+        },
+        {
+          "field": "tags",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "uuid",
+          "pydantic": "Union[str, uuid.UUID]",
+          "ddict": "<class 'str'>",
+          "django": "UUIDField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        }
+      ]
+    },
+    {
+      "concept": "ClassificationChoiceDescriptor",
+      "frontend_interface": "ClassificationChoiceDescriptorCore",
+      "fields": [
+        {
+          "field": "classification_choice_descriptor_type",
+          "pydantic": "<enum 'ClassificationChoiceDescriptorTypes'>",
+          "ddict": "<enum 'ClassificationChoiceDescriptorTypes'>",
+          "django": "CharField",
+          "runtime_ddict": "ClassificationChoiceDescriptorTypes",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "created_at",
+          "pydantic": "<class 'pydantic.types.AwareDatetime'>",
+          "ddict": "",
+          "django": "DateTimeField",
+          "runtime_ddict": "datetime",
+          "frontend": "",
+          "drift": true
+        },
+        {
+          "field": "default_value_bool",
+          "pydantic": "<class 'bool'>",
+          "ddict": "<class 'bool'>",
+          "django": "BooleanField",
+          "runtime_ddict": "bool",
+          "frontend": "boolean",
+          "drift": true
+        },
+        {
+          "field": "default_value_num",
+          "pydantic": "<class 'float'>",
+          "ddict": "<class 'float'>",
+          "django": "FloatField",
+          "runtime_ddict": "float",
+          "frontend": "number",
+          "drift": true
+        },
+        {
+          "field": "default_value_str",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "description",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "id",
+          "pydantic": "",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "number",
+          "drift": false
+        },
+        {
+          "field": "kb_module_name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_de",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_en",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "numeric_distribution",
+          "pydantic": "<enum 'NumericDistributionChoices'>",
+          "ddict": "<enum 'NumericDistributionChoices'>",
+          "django": "CharField",
+          "runtime_ddict": "NumericDistributionChoices",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "numeric_distribution_params",
+          "pydantic": "Dict[str, Union[int, float, str]]",
+          "ddict": "Dict[str, Union[int, float, str]]",
+          "django": "JSONField",
+          "runtime_ddict": "dict",
+          "frontend": "Record<string, string | number>",
+          "drift": true
+        },
+        {
+          "field": "numeric_max",
+          "pydantic": "<class 'float'>",
+          "ddict": "<class 'float'>",
+          "django": "FloatField",
+          "runtime_ddict": "float",
+          "frontend": "number",
+          "drift": true
+        },
+        {
+          "field": "numeric_min",
+          "pydantic": "<class 'float'>",
+          "ddict": "<class 'float'>",
+          "django": "FloatField",
+          "runtime_ddict": "float",
+          "frontend": "number",
+          "drift": true
+        },
+        {
+          "field": "selection_default_options",
+          "pydantic": "Dict[str, float]",
+          "ddict": "Dict[str, float]",
+          "django": "JSONField",
+          "runtime_ddict": "dict",
+          "frontend": "Record<string, number>",
+          "drift": true
+        },
+        {
+          "field": "selection_multiple",
+          "pydantic": "<class 'bool'>",
+          "ddict": "<class 'bool'>",
+          "django": "BooleanField",
+          "runtime_ddict": "bool",
+          "frontend": "boolean",
+          "drift": true
+        },
+        {
+          "field": "selection_multiple_n_max",
+          "pydantic": "<class 'int'>",
+          "ddict": "<class 'int'>",
+          "django": "IntegerField",
+          "runtime_ddict": "int",
+          "frontend": "number",
+          "drift": true
+        },
+        {
+          "field": "selection_multiple_n_min",
+          "pydantic": "<class 'int'>",
+          "ddict": "<class 'int'>",
+          "django": "IntegerField",
+          "runtime_ddict": "int",
+          "frontend": "number",
+          "drift": true
+        },
+        {
+          "field": "selection_options",
+          "pydantic": "list[str]",
+          "ddict": "list[str]",
+          "django": "JSONField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "source_file",
+          "pydantic": "pathlib.Path | None",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "",
+          "drift": false
+        },
+        {
+          "field": "tags",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "text_max_length",
+          "pydantic": "<class 'int'>",
+          "ddict": "<class 'int'>",
+          "django": "IntegerField",
+          "runtime_ddict": "int",
+          "frontend": "number",
+          "drift": true
+        },
+        {
+          "field": "unit",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "ForeignKey",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "uuid",
+          "pydantic": "Union[str, uuid.UUID]",
+          "ddict": "<class 'str'>",
+          "django": "UUIDField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        }
+      ]
+    },
+    {
+      "concept": "Examination",
+      "frontend_interface": "ExaminationCore",
+      "fields": [
+        {
+          "field": "created_at",
+          "pydantic": "<class 'pydantic.types.AwareDatetime'>",
+          "ddict": "",
+          "django": "DateTimeField",
+          "runtime_ddict": "datetime",
+          "frontend": "",
+          "drift": true
+        },
+        {
+          "field": "description",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "examination_types",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "ManyToManyField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "findings",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "ManyToManyField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "id",
+          "pydantic": "",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "number",
+          "drift": false
+        },
+        {
+          "field": "indications",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "ManyToManyField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "kb_module_name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_de",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_en",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "source_file",
+          "pydantic": "pathlib.Path | None",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "",
+          "drift": false
+        },
+        {
+          "field": "tags",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "uuid",
+          "pydantic": "Union[str, uuid.UUID]",
+          "ddict": "<class 'str'>",
+          "django": "UUIDField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        }
+      ]
+    },
+    {
+      "concept": "Finding",
+      "frontend_interface": "FindingCore",
+      "fields": [
+        {
+          "field": "classifications",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "ManyToManyField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "created_at",
+          "pydantic": "<class 'pydantic.types.AwareDatetime'>",
+          "ddict": "",
+          "django": "DateTimeField",
+          "runtime_ddict": "datetime",
+          "frontend": "",
+          "drift": true
+        },
+        {
+          "field": "description",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "finding_types",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "ManyToManyField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "id",
+          "pydantic": "",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "number",
+          "drift": false
+        },
+        {
+          "field": "interventions",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "ManyToManyField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "kb_module_name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_de",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_en",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "source_file",
+          "pydantic": "pathlib.Path | None",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "",
+          "drift": false
+        },
+        {
+          "field": "tags",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "uuid",
+          "pydantic": "Union[str, uuid.UUID]",
+          "ddict": "<class 'str'>",
+          "django": "UUIDField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        }
+      ]
+    },
+    {
+      "concept": "FindingType",
+      "frontend_interface": "FindingTypeCore",
+      "fields": [
+        {
+          "field": "created_at",
+          "pydantic": "<class 'pydantic.types.AwareDatetime'>",
+          "ddict": "",
+          "django": "DateTimeField",
+          "runtime_ddict": "datetime",
+          "frontend": "",
+          "drift": true
+        },
+        {
+          "field": "description",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "id",
+          "pydantic": "",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "number",
+          "drift": false
+        },
+        {
+          "field": "kb_module_name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_de",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_en",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "source_file",
+          "pydantic": "pathlib.Path | None",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "",
+          "drift": false
+        },
+        {
+          "field": "tags",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "uuid",
+          "pydantic": "Union[str, uuid.UUID]",
+          "ddict": "<class 'str'>",
+          "django": "UUIDField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        }
+      ]
+    },
+    {
+      "concept": "Indication",
+      "frontend_interface": "IndicationCore",
+      "fields": [
+        {
+          "field": "created_at",
+          "pydantic": "<class 'pydantic.types.AwareDatetime'>",
+          "ddict": "",
+          "django": "DateTimeField",
+          "runtime_ddict": "datetime",
+          "frontend": "",
+          "drift": true
+        },
+        {
+          "field": "description",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "id",
+          "pydantic": "",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "number",
+          "drift": false
+        },
+        {
+          "field": "indication_types",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "ManyToManyField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "interventions",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "ManyToManyField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "kb_module_name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_de",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_en",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "source_file",
+          "pydantic": "pathlib.Path | None",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "",
+          "drift": false
+        },
+        {
+          "field": "tags",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "uuid",
+          "pydantic": "Union[str, uuid.UUID]",
+          "ddict": "<class 'str'>",
+          "django": "UUIDField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        }
+      ]
+    },
+    {
+      "concept": "IndicationType",
+      "frontend_interface": "IndicationTypeCore",
+      "fields": [
+        {
+          "field": "created_at",
+          "pydantic": "<class 'pydantic.types.AwareDatetime'>",
+          "ddict": "",
+          "django": "DateTimeField",
+          "runtime_ddict": "datetime",
+          "frontend": "",
+          "drift": true
+        },
+        {
+          "field": "description",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "id",
+          "pydantic": "",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "number",
+          "drift": false
+        },
+        {
+          "field": "kb_module_name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_de",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_en",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "source_file",
+          "pydantic": "pathlib.Path | None",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "",
+          "drift": false
+        },
+        {
+          "field": "tags",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "uuid",
+          "pydantic": "Union[str, uuid.UUID]",
+          "ddict": "<class 'str'>",
+          "django": "UUIDField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        }
+      ]
+    },
+    {
+      "concept": "Intervention",
+      "frontend_interface": "InterventionCore",
+      "fields": [
+        {
+          "field": "created_at",
+          "pydantic": "<class 'pydantic.types.AwareDatetime'>",
+          "ddict": "",
+          "django": "DateTimeField",
+          "runtime_ddict": "datetime",
+          "frontend": "",
+          "drift": true
+        },
+        {
+          "field": "description",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "id",
+          "pydantic": "",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "number",
+          "drift": false
+        },
+        {
+          "field": "intervention_types",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "ManyToManyField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "kb_module_name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_de",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_en",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "source_file",
+          "pydantic": "pathlib.Path | None",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "",
+          "drift": false
+        },
+        {
+          "field": "tags",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "uuid",
+          "pydantic": "Union[str, uuid.UUID]",
+          "ddict": "<class 'str'>",
+          "django": "UUIDField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        }
+      ]
+    },
+    {
+      "concept": "InterventionType",
+      "frontend_interface": "InterventionTypeCore",
+      "fields": [
+        {
+          "field": "created_at",
+          "pydantic": "<class 'pydantic.types.AwareDatetime'>",
+          "ddict": "",
+          "django": "DateTimeField",
+          "runtime_ddict": "datetime",
+          "frontend": "",
+          "drift": true
+        },
+        {
+          "field": "description",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "id",
+          "pydantic": "",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "number",
+          "drift": false
+        },
+        {
+          "field": "kb_module_name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_de",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_en",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "source_file",
+          "pydantic": "pathlib.Path | None",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "",
+          "drift": false
+        },
+        {
+          "field": "tags",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "uuid",
+          "pydantic": "Union[str, uuid.UUID]",
+          "ddict": "<class 'str'>",
+          "django": "UUIDField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        }
+      ]
+    },
+    {
+      "concept": "Unit",
+      "frontend_interface": "UnitCore",
+      "fields": [
+        {
+          "field": "abbreviation",
+          "pydantic": "Optional[str]",
+          "ddict": "str | None",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "created_at",
+          "pydantic": "<class 'pydantic.types.AwareDatetime'>",
+          "ddict": "",
+          "django": "DateTimeField",
+          "runtime_ddict": "datetime",
+          "frontend": "",
+          "drift": true
+        },
+        {
+          "field": "description",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "id",
+          "pydantic": "",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "number",
+          "drift": false
+        },
+        {
+          "field": "kb_module_name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_de",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_en",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "source_file",
+          "pydantic": "pathlib.Path | None",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "",
+          "drift": false
+        },
+        {
+          "field": "tags",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "unit_types",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "Union[str, List[str]]",
+          "django": "ManyToManyField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "uuid",
+          "pydantic": "Union[str, uuid.UUID]",
+          "ddict": "<class 'str'>",
+          "django": "UUIDField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        }
+      ]
+    },
+    {
+      "concept": "UnitType",
+      "frontend_interface": "UnitTypeCore",
+      "fields": [
+        {
+          "field": "created_at",
+          "pydantic": "<class 'pydantic.types.AwareDatetime'>",
+          "ddict": "",
+          "django": "DateTimeField",
+          "runtime_ddict": "datetime",
+          "frontend": "",
+          "drift": true
+        },
+        {
+          "field": "description",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "id",
+          "pydantic": "",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "number",
+          "drift": false
+        },
+        {
+          "field": "kb_module_name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_de",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_en",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "source_file",
+          "pydantic": "pathlib.Path | None",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "",
+          "drift": false
+        },
+        {
+          "field": "tags",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "uuid",
+          "pydantic": "Union[str, uuid.UUID]",
+          "ddict": "<class 'str'>",
+          "django": "UUIDField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        }
+      ]
+    },
+    {
+      "concept": "InformationSource",
+      "frontend_interface": "InformationSourceCore",
+      "fields": [
+        {
+          "field": "created_at",
+          "pydantic": "<class 'pydantic.types.AwareDatetime'>",
+          "ddict": "",
+          "django": "DateTimeField",
+          "runtime_ddict": "datetime",
+          "frontend": "",
+          "drift": true
+        },
+        {
+          "field": "description",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "id",
+          "pydantic": "",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "number",
+          "drift": false
+        },
+        {
+          "field": "information_source_types",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "ManyToManyField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "kb_module_name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_de",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_en",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "source_file",
+          "pydantic": "pathlib.Path | None",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "",
+          "drift": false
+        },
+        {
+          "field": "tags",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "uuid",
+          "pydantic": "Union[str, uuid.UUID]",
+          "ddict": "<class 'str'>",
+          "django": "UUIDField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        }
+      ]
+    },
+    {
+      "concept": "InformationSourceType",
+      "frontend_interface": "InformationSourceTypeCore",
+      "fields": [
+        {
+          "field": "created_at",
+          "pydantic": "<class 'pydantic.types.AwareDatetime'>",
+          "ddict": "",
+          "django": "DateTimeField",
+          "runtime_ddict": "datetime",
+          "frontend": "",
+          "drift": true
+        },
+        {
+          "field": "description",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "id",
+          "pydantic": "",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "number",
+          "drift": false
+        },
+        {
+          "field": "kb_module_name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_de",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_en",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "source_file",
+          "pydantic": "pathlib.Path | None",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "",
+          "drift": false
+        },
+        {
+          "field": "tags",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "uuid",
+          "pydantic": "Union[str, uuid.UUID]",
+          "ddict": "<class 'str'>",
+          "django": "UUIDField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        }
+      ]
+    },
+    {
+      "concept": "Citation",
+      "frontend_interface": "CitationCore",
+      "fields": [
+        {
+          "field": "abstract",
+          "pydantic": "str | None",
+          "ddict": "str | None",
+          "django": "CharField",
+          "runtime_ddict": "NoneType",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "authors",
+          "pydantic": "List[str]",
+          "ddict": "List[str]",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "citation_key",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "created_at",
+          "pydantic": "<class 'pydantic.types.AwareDatetime'>",
+          "ddict": "",
+          "django": "DateTimeField",
+          "runtime_ddict": "datetime",
+          "frontend": "",
+          "drift": true
+        },
+        {
+          "field": "description",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "doi",
+          "pydantic": "str | None",
+          "ddict": "str | None",
+          "django": "CharField",
+          "runtime_ddict": "NoneType",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "entry_type",
+          "pydantic": "str | None",
+          "ddict": "str | None",
+          "django": "CharField",
+          "runtime_ddict": "NoneType",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "id",
+          "pydantic": "",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "number",
+          "drift": false
+        },
+        {
+          "field": "identifiers",
+          "pydantic": "Dict[str, str]",
+          "ddict": "Dict[str, str]",
+          "django": "JSONField",
+          "runtime_ddict": "dict",
+          "frontend": "Record<string, string>",
+          "drift": true
+        },
+        {
+          "field": "issue",
+          "pydantic": "str | None",
+          "ddict": "str | None",
+          "django": "CharField",
+          "runtime_ddict": "NoneType",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "journal",
+          "pydantic": "str | None",
+          "ddict": "str | None",
+          "django": "CharField",
+          "runtime_ddict": "NoneType",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "kb_module_name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "keywords",
+          "pydantic": "List[str]",
+          "ddict": "List[str]",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "language",
+          "pydantic": "str | None",
+          "ddict": "str | None",
+          "django": "CharField",
+          "runtime_ddict": "NoneType",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_de",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "name_en",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "pages",
+          "pydantic": "str | None",
+          "ddict": "str | None",
+          "django": "CharField",
+          "runtime_ddict": "NoneType",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "publication_month",
+          "pydantic": "str | None",
+          "ddict": "str | None",
+          "django": "CharField",
+          "runtime_ddict": "NoneType",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "publication_year",
+          "pydantic": "int | None",
+          "ddict": "int | None",
+          "django": "IntegerField",
+          "runtime_ddict": "NoneType",
+          "frontend": "number",
+          "drift": true
+        },
+        {
+          "field": "publisher",
+          "pydantic": "str | None",
+          "ddict": "str | None",
+          "django": "CharField",
+          "runtime_ddict": "NoneType",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "source_file",
+          "pydantic": "pathlib.Path | None",
+          "ddict": "",
+          "django": "",
+          "runtime_ddict": "",
+          "frontend": "",
+          "drift": false
+        },
+        {
+          "field": "tags",
+          "pydantic": "Union[str, List[str]]",
+          "ddict": "List[str]",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string[]",
+          "drift": true
+        },
+        {
+          "field": "title",
+          "pydantic": "<class 'str'>",
+          "ddict": "<class 'str'>",
+          "django": "CharField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "url",
+          "pydantic": "str | None",
+          "ddict": "str | None",
+          "django": "CharField",
+          "runtime_ddict": "NoneType",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "uuid",
+          "pydantic": "Union[str, uuid.UUID]",
+          "ddict": "<class 'str'>",
+          "django": "UUIDField",
+          "runtime_ddict": "str",
+          "frontend": "string",
+          "drift": true
+        },
+        {
+          "field": "volume",
+          "pydantic": "str | None",
+          "ddict": "str | None",
+          "django": "CharField",
+          "runtime_ddict": "NoneType",
+          "frontend": "string",
+          "drift": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,17 +1,23 @@
 <template>
   <div class="patient-edit-form">
-    <form @submit.prevent="handleSubmit" class="edit-form">
+    <form
+      class="edit-form"
+      @submit.prevent="handleSubmit"
+    >
       <!-- Form Grid -->
       <div class="form-grid">
         <!-- Basic Information Section -->
         <div class="form-section">
           <h5 class="section-title">
-            <i class="fas fa-user"></i>
+            <i class="ni ni-circle-08 section-heading-icon"></i>
             Grunddaten
           </h5>
-          
+
           <div class="form-group">
-            <label for="firstName" class="form-label required">
+            <label
+              for="firstName"
+              class="form-label required"
+            >
               Vorname
             </label>
             <input
@@ -22,14 +28,20 @@
               :class="{ 'is-invalid': errors.firstName }"
               required
               maxlength="100"
+            />
+            <div
+              v-if="errors.firstName"
+              class="invalid-feedback"
             >
-            <div v-if="errors.firstName" class="invalid-feedback">
               {{ errors.firstName }}
             </div>
           </div>
 
           <div class="form-group">
-            <label for="lastName" class="form-label required">
+            <label
+              for="lastName"
+              class="form-label required"
+            >
               Nachname
             </label>
             <input
@@ -40,14 +52,20 @@
               :class="{ 'is-invalid': errors.lastName }"
               required
               maxlength="100"
+            />
+            <div
+              v-if="errors.lastName"
+              class="invalid-feedback"
             >
-            <div v-if="errors.lastName" class="invalid-feedback">
               {{ errors.lastName }}
             </div>
           </div>
 
           <div class="form-group">
-            <label for="dob" class="form-label">
+            <label
+              for="dob"
+              class="form-label"
+            >
               Geburtsdatum
             </label>
             <input
@@ -57,8 +75,11 @@
               class="form-control"
               :class="{ 'is-invalid': errors.dob }"
               :max="maxDate"
+            />
+            <div
+              v-if="errors.dob"
+              class="invalid-feedback"
             >
-            <div v-if="errors.dob" class="invalid-feedback">
               {{ errors.dob }}
             </div>
             <small class="form-text text-muted">
@@ -67,7 +88,10 @@
           </div>
 
           <div class="form-group">
-            <label for="gender" class="form-label">
+            <label
+              for="gender"
+              class="form-label"
+            >
               Geschlecht
             </label>
             <select
@@ -85,7 +109,10 @@
                 {{ gender.nameDe || gender.name }}
               </option>
             </select>
-            <div v-if="errors.gender" class="invalid-feedback">
+            <div
+              v-if="errors.gender"
+              class="invalid-feedback"
+            >
               {{ errors.gender }}
             </div>
           </div>
@@ -94,12 +121,15 @@
         <!-- Contact Information Section -->
         <div class="form-section">
           <h5 class="section-title">
-            <i class="fas fa-address-book"></i>
+            <i class="ni ni-book-bookmark section-heading-icon"></i>
             Kontaktdaten
           </h5>
 
           <div class="form-group">
-            <label for="email" class="form-label">
+            <label
+              for="email"
+              class="form-label"
+            >
               E-Mail-Adresse
             </label>
             <input
@@ -109,14 +139,20 @@
               class="form-control"
               :class="{ 'is-invalid': errors.email }"
               maxlength="254"
+            />
+            <div
+              v-if="errors.email"
+              class="invalid-feedback"
             >
-            <div v-if="errors.email" class="invalid-feedback">
               {{ errors.email }}
             </div>
           </div>
 
           <div class="form-group">
-            <label for="phone" class="form-label">
+            <label
+              for="phone"
+              class="form-label"
+            >
               Telefonnummer
             </label>
             <input
@@ -126,19 +162,25 @@
               class="form-control"
               :class="{ 'is-invalid': errors.phone }"
               maxlength="20"
+            />
+            <div
+              v-if="errors.phone"
+              class="invalid-feedback"
             >
-            <div v-if="errors.phone" class="invalid-feedback">
               {{ errors.phone }}
             </div>
           </div>
 
           <div class="form-group">
-            <label for="center" class="form-label">
+            <label
+              for="center"
+              class="form-label"
+            >
               Zentrum
             </label>
             <select
               id="center"
-              v-model="form.center"
+              v-model="form.centerKey"
               class="form-select"
               :class="{ 'is-invalid': errors.center }"
             >
@@ -146,12 +188,15 @@
               <option
                 v-for="center in centers"
                 :key="center.id"
-                :value="center.name"
+                :value="center.centerKey || center.name"
               >
                 {{ center.nameDe || center.name }}
               </option>
             </select>
-            <div v-if="errors.center" class="invalid-feedback">
+            <div
+              v-if="errors.center"
+              class="invalid-feedback"
+            >
               {{ errors.center }}
             </div>
           </div>
@@ -163,8 +208,11 @@
                 v-model="form.isRealPerson"
                 class="form-check-input"
                 type="checkbox"
+              />
+              <label
+                class="form-check-label"
+                for="isRealPerson"
               >
-              <label class="form-check-label" for="isRealPerson">
                 <strong>Realer Patient</strong>
                 <small class="d-block text-muted">
                   Markieren Sie dies nur für echte Patientendaten
@@ -176,8 +224,11 @@
       </div>
 
       <!-- Error Display -->
-      <div v-if="generalError" class="alert alert-danger">
-        <i class="fas fa-exclamation-triangle"></i>
+      <div
+        v-if="generalError"
+        class="alert alert-danger"
+      >
+        <i class="ni ni-user-run"></i>
         <strong>Fehler:</strong> {{ generalError }}
       </div>
 
@@ -187,10 +238,10 @@
           <button
             type="button"
             class="btn btn-secondary"
-            @click="$emit('cancel')"
             :disabled="loading"
+            @click="$emit('cancel')"
           >
-            <i class="fas fa-times"></i>
+            <i class="ni ni-settings-gear-65"></i>
             Abbrechen
           </button>
 
@@ -199,8 +250,14 @@
             class="btn btn-primary"
             :disabled="loading || !isFormValid"
           >
-            <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-            <i v-else class="fas fa-save me-2"></i>
+            <span
+              v-if="loading"
+              class="spinner-border spinner-border-sm me-2"
+            ></span>
+            <i
+              v-else
+              class="ni ni-collection me-2"
+            ></i>
             {{ loading ? 'Wird gespeichert...' : 'Speichern' }}
           </button>
         </div>
@@ -210,10 +267,10 @@
           <button
             type="button"
             class="btn btn-outline-danger"
-            @click="showDeleteModal = true"
             :disabled="loading"
+            @click="showDeleteModal = true"
           >
-            <i class="fas fa-trash"></i>
+            <i class="ni ni-settings-gear-65"></i>
             Patient löschen
           </button>
         </div>
@@ -221,30 +278,36 @@
     </form>
 
     <!-- Delete Confirmation Modal -->
-    <div v-if="showDeleteModal" class="modal-overlay">
+    <div
+      v-if="showDeleteModal"
+      class="modal-overlay"
+    >
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">
-              <i class="fas fa-exclamation-triangle text-danger"></i>
+              <i class="ni ni-user-run text-danger"></i>
               Patient löschen bestätigen
             </h5>
           </div>
           <div class="modal-body">
             <div class="alert alert-warning">
-              <i class="fas fa-exclamation-triangle"></i>
+              <i class="ni ni-user-run"></i>
               <strong>Achtung!</strong> Diese Aktion kann nicht rückgängig gemacht werden.
             </div>
-            
+
             <p>
-              Möchten Sie den Patienten 
-              <strong>{{ patient.firstName }} {{ patient.lastName }}</strong> 
+              Möchten Sie den Patienten
+              <strong>{{ patient.firstName }} {{ patient.lastName }}</strong>
               wirklich löschen?
             </p>
 
-            <div v-if="deletionInfo" class="deletion-info">
-              <h6>Auswirkungen:</h6>
-              <ul class="mb-0">
+            <div
+              v-if="deletionInfo"
+              class="deletion-info"
+            >
+              <h6 class="deletion-info-heading">Auswirkungen:</h6>
+              <ul class="mb-0 deletion-impact-list">
                 <li v-if="deletionInfo.examinations > 0">
                   {{ deletionInfo.examinations }} Untersuchung(en) werden gelöscht
                 </li>
@@ -264,19 +327,25 @@
             <button
               type="button"
               class="btn btn-secondary"
-              @click="showDeleteModal = false"
               :disabled="deleting"
+              @click="showDeleteModal = false"
             >
               Abbrechen
             </button>
             <button
               type="button"
               class="btn btn-danger"
-              @click="confirmDelete"
               :disabled="deleting"
+              @click="confirmDelete"
             >
-              <span v-if="deleting" class="spinner-border spinner-border-sm me-2"></span>
-              <i v-else class="fas fa-trash me-2"></i>
+              <span
+                v-if="deleting"
+                class="spinner-border spinner-border-sm me-2"
+              ></span>
+              <i
+                v-else
+                class="ni ni-settings-gear-65 me-2"
+              ></i>
               {{ deleting ? 'Wird gelöscht...' : 'Endgültig löschen' }}
             </button>
           </div>
@@ -288,8 +357,59 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted } from 'vue'
-import { usePatientStore, type Patient, type Gender, type Center } from '@/stores/patientStore'
+import { isAxiosError } from 'axios'
+import { usePatientStore, type Patient } from '@/stores/patientStore'
 import { patientService, type PatientFormData } from '@/api/patientService'
+import { r } from '@/api/axiosInstance'
+import { endpoints } from '@/types/api/endpoints'
+import { createRuntimeLogger } from '@/utils/runtimeLogger'
+
+const logger = createRuntimeLogger('patient-edit-form')
+
+interface PatientDeletionInfo {
+  examinations: number
+  findings: number
+  videos: number
+  reports: number
+}
+
+interface PatientUpdateErrorPayload {
+  detail?: string
+  message?: string
+  firstName?: string | string[]
+  lastName?: string | string[]
+  dob?: string | string[]
+  gender?: string | string[]
+  center?: string | string[]
+  email?: string | string[]
+  phone?: string | string[]
+  patientHash?: string | string[]
+}
+
+function parseDeletionInfo(value: unknown): PatientDeletionInfo | null {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+  const relatedObjects = (value as { related_objects?: unknown }).related_objects
+  if (!relatedObjects || typeof relatedObjects !== 'object') {
+    return null
+  }
+  const candidate = relatedObjects as Partial<PatientDeletionInfo>
+  if (
+    typeof candidate.examinations !== 'number' ||
+    typeof candidate.findings !== 'number' ||
+    typeof candidate.videos !== 'number' ||
+    typeof candidate.reports !== 'number'
+  ) {
+    return null
+  }
+  return {
+    examinations: candidate.examinations,
+    findings: candidate.findings,
+    videos: candidate.videos,
+    reports: candidate.reports
+  }
+}
 
 // Props
 interface Props {
@@ -302,7 +422,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   'patient-updated': [patient: Patient]
   'patient-deleted': [patientId: number]
-  'cancel': []
+  cancel: []
 }>()
 
 // Composables
@@ -313,7 +433,7 @@ const loading = ref(false)
 const deleting = ref(false)
 const showDeleteModal = ref(false)
 const generalError = ref('')
-const deletionInfo = ref<any>(null)
+const deletionInfo = ref<PatientDeletionInfo | null>(null)
 
 // Form data
 const form = reactive<PatientFormData>({
@@ -323,6 +443,7 @@ const form = reactive<PatientFormData>({
   dob: props.patient.dob ? props.patient.dob.split('T')[0] : null,
   gender: props.patient.gender || null,
   center: props.patient.center || null,
+  centerKey: props.patient.centerKey || props.patient.center || null,
   email: props.patient.email || '',
   phone: props.patient.phone || '',
   patientHash: props.patient.patientHash || '',
@@ -346,19 +467,29 @@ const errors = reactive({
 const genders = computed(() => patientStore.genders)
 const centers = computed(() => patientStore.centers)
 
+const resolveRequiredPatientId = (): number => {
+  const patientId = props.patient.id
+  if (typeof patientId !== 'number' || !Number.isSafeInteger(patientId) || patientId <= 0) {
+    throw new Error('Kein Patient ausgewählt – patientId konnte nicht ermittelt werden.')
+  }
+  return patientId
+}
+
 const maxDate = computed(() => {
   const today = new Date()
   return today.toISOString().split('T')[0]
 })
 
 const isFormValid = computed(() => {
-  return form.firstName.trim() && form.lastName.trim() && !Object.values(errors).some(error => error)
+  return (
+    form.firstName.trim() && form.lastName.trim() && !Object.values(errors).some((error) => error)
+  )
 })
 
 // Methods
 const validateForm = (): boolean => {
   // Clear previous errors
-  Object.keys(errors).forEach(key => {
+  Object.keys(errors).forEach((key) => {
     errors[key as keyof typeof errors] = ''
   })
 
@@ -404,27 +535,36 @@ const handleSubmit = async () => {
     generalError.value = ''
 
     const patientData = patientService.formatPatientData(form)
-    const updatedPatient = await patientService.updatePatient(props.patient.id!, patientData)
+    const updatedPatient = await patientService.updatePatient(
+      resolveRequiredPatientId(),
+      patientData
+    )
 
     emit('patient-updated', updatedPatient)
-  } catch (err: any) {
-    console.error('Error updating patient:', err)
-    
-    if (err.response?.data) {
+  } catch (err: unknown) {
+    logger.error('update-failed', err, {
+      operation: 'update',
+      outcome: 'rejected'
+    })
+
+    if (isAxiosError<PatientUpdateErrorPayload>(err) && err.response?.data) {
       // Handle validation errors from backend
       const backendErrors = err.response.data
-      if (typeof backendErrors === 'object') {
-        Object.keys(backendErrors).forEach(key => {
-          if (key in errors) {
-            errors[key as keyof typeof errors] = Array.isArray(backendErrors[key]) 
-              ? backendErrors[key][0] 
-              : backendErrors[key]
-          }
-        })
-      }
-      generalError.value = backendErrors.detail || backendErrors.message || 'Fehler beim Aktualisieren des Patienten'
+      ;(Object.keys(errors) as Array<keyof typeof errors>).forEach((key) => {
+        const fieldError = backendErrors[key]
+        if (typeof fieldError === 'string') {
+          errors[key] = fieldError
+        } else if (Array.isArray(fieldError) && typeof fieldError[0] === 'string') {
+          errors[key] = fieldError[0]
+        }
+      })
+      generalError.value =
+        backendErrors.detail || backendErrors.message || 'Fehler beim Aktualisieren des Patienten'
     } else {
-      generalError.value = err.message || 'Unbekannter Fehler beim Aktualisieren des Patienten'
+      generalError.value =
+        err instanceof Error && err.message
+          ? err.message
+          : 'Unbekannter Fehler beim Aktualisieren des Patienten'
     }
   } finally {
     loading.value = false
@@ -434,15 +574,19 @@ const handleSubmit = async () => {
 const confirmDelete = async () => {
   try {
     deleting.value = true
-    
-    await patientService.deletePatient(props.patient.id!)
-    
-    emit('patient-deleted', props.patient.id!)
+
+    const patientId = resolveRequiredPatientId()
+    await patientService.deletePatient(patientId)
+
+    emit('patient-deleted', patientId)
     showDeleteModal.value = false
-    
-  } catch (err: any) {
-    console.error('Error deleting patient:', err)
-    generalError.value = err.message || 'Fehler beim Löschen des Patienten'
+  } catch (err: unknown) {
+    logger.error('delete-failed', err, {
+      operation: 'delete',
+      outcome: 'rejected'
+    })
+    generalError.value =
+      err instanceof Error && err.message ? err.message : 'Fehler beim Löschen des Patienten'
     showDeleteModal.value = false
   } finally {
     deleting.value = false
@@ -452,19 +596,32 @@ const confirmDelete = async () => {
 const loadDeletionInfo = async () => {
   try {
     // This would call the safety check endpoint to get deletion impact
-    const response = await fetch(`/api/patients/${props.patient.id}/check_deletion_safety/`)
-    if (response.ok) {
-      const data = await response.json()
-      deletionInfo.value = data.related_objects
+    const response = await fetch(
+      r(endpoints.patient.patientDeletionSafety(resolveRequiredPatientId()))
+    )
+    if (!response.ok) {
+      throw new Error(`Löschprüfung fehlgeschlagen (HTTP ${String(response.status)}).`)
     }
-  } catch (error) {
-    console.error('Error loading deletion info:', error)
+    const parsedDeletionInfo = parseDeletionInfo(await response.json())
+    if (parsedDeletionInfo === null) {
+      throw new Error('Löschprüfung lieferte ungültige Daten.')
+    }
+    deletionInfo.value = parsedDeletionInfo
+  } catch (error: unknown) {
+    logger.error('deletion-impact-load-failed', error, {
+      operation: 'check',
+      outcome: 'rejected'
+    })
+    generalError.value =
+      error instanceof Error && error.message
+        ? error.message
+        : 'Auswirkungen der Löschung konnten nicht geladen werden.'
   }
 }
 
 // Lifecycle
-onMounted(() => {
-  loadDeletionInfo()
+onMounted(async () => {
+  await loadDeletionInfo()
 })
 </script>
 
@@ -500,7 +657,7 @@ onMounted(() => {
   border-bottom: 2px solid #e9ecef;
 }
 
-.section-title i {
+.section-title .section-heading-icon {
   margin-right: 0.5rem;
   color: #3498db;
 }
@@ -703,12 +860,12 @@ onMounted(() => {
   border-radius: 6px;
 }
 
-.deletion-info h6 {
+.deletion-info .deletion-info-heading {
   margin-bottom: 0.5rem;
   color: #495057;
 }
 
-.deletion-info ul {
+.deletion-info .deletion-impact-list {
   color: #6c757d;
   font-size: 0.9rem;
 }
@@ -718,23 +875,23 @@ onMounted(() => {
     grid-template-columns: 1fr;
     gap: 1.5rem;
   }
-  
+
   .form-actions {
     flex-direction: column;
     gap: 1rem;
     align-items: stretch;
   }
-  
+
   .action-group {
     order: 2;
     justify-content: center;
   }
-  
+
   .delete-section {
     order: 1;
     justify-content: center;
   }
-  
+
   .modal-dialog {
     margin: 0.5rem;
   }

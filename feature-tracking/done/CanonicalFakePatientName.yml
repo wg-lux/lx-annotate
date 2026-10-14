@@ -1,0 +1,173 @@
+schema_version: '1.0'
+id: canonical_fake_patient_name
+name: Canonical Fake Patient Name
+description: Use one stable pseudo-patient name in anonymized report text and the persisted patient detail
+  shown after anonymization validation.
+owners:
+- lx-annotate, lx-anonymizer, and endoreg-db maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-canonical-fake-name-20260828
+    changed_at: '2026-08-28T10:35:41.508936Z'
+    note: Canonical patient-hash-owned fake name is integrated across report text and persisted pseudo-patient
+      detail; focused Pyright and pytest checks passed.
+source_documents:
+- path: AGENTS.md
+  disposition: reference
+  note: Clinical anonymization, typed-boundary, and fail-safe architecture contract.
+definition_of_done:
+- id: canonical_name_contract
+  category: requirements
+  title: One backend-owned pseudo-patient name is canonical
+  acceptance:
+  - Report text and persisted pseudo-patient detail resolve the same first and last name.
+  - Existing pseudo-patient rows keep their established name when another report resolves the same patient
+    identity.
+  - Name resolution is deterministic and does not mutate global random state.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the lx-anonymizer and endoreg-db boundary and its focused tests.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: /home/admin/endoreg-db/endoreg_db/models/administration/person/patient/patient.py; /home/admin/endoreg-db/endoreg_db/import_files/processing/report_processing/report_anonymization.py
+    note: Patient hash owns deterministic names; existing persisted names are reused.
+    assessed_by: codex-canonical-fake-name-20260828
+    assessed_at: '2026-08-28T10:35:04.818445Z'
+- id: report_reader_integration
+  category: functionality
+  title: Report anonymization consumes the canonical name
+  acceptance:
+  - The report reader accepts a typed name resolver and uses its result for every patient-name replacement.
+  - Standalone lx-anonymizer callers retain deterministic local behavior when no application resolver
+    is configured.
+  required: true
+  verification:
+    kind: command
+    command:
+    - /home/admin/lx-anonymizer/.devenv/state/venv/bin/python
+    - -m
+    - pytest
+    - tests/test_frame_report_helper_logic.py
+    - -q
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: /home/admin/lx-anonymizer/.devenv/state/venv/bin/python -m pytest tests/test_frame_report_helper_logic.py
+        tests/test_report_reader_contract.py tests/test_report_reader_init.py -q (31 passed)
+    note: Typed resolver injection and standalone optional behavior are covered.
+    assessed_by: codex-canonical-fake-name-20260828
+    assessed_at: '2026-08-28T10:35:06.212817Z'
+- id: persistence_integration
+  category: data_integrity
+  title: Persisted pseudo-patients use the same canonical name
+  acceptance:
+  - New pseudo-patients use the canonical deterministic name resolved from source identity and gender.
+  - Report import reuses the stored name for an existing patient hash.
+  - Identity hashes and validated cleartext handling remain unchanged.
+  required: true
+  verification:
+    kind: command
+    command:
+    - /home/admin/endoreg-db/.devenv/state/venv/bin/pytest
+    - tests/administration/person/test_patient.py
+    - tests/import_files/test_report_anonymization_contract.py
+    - -q
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: devenv shell -- .devenv/state/venv/bin/pytest tests/administration/person/test_patient.py
+        tests/import_files/test_report_anonymization_contract.py -q (19 passed)
+    note: New and legacy-existing pseudo-patient name paths match report resolution.
+    assessed_by: codex-canonical-fake-name-20260828
+    assessed_at: '2026-08-28T10:35:07.535005Z'
+- id: boundary_safety
+  category: security
+  title: Security and storage boundaries remain unchanged
+  acceptance:
+  - No master key, raw media, transport, filesystem mutation, storage routing, or deployment boundary
+    changes.
+  - The frontend validation payload and database schema remain unchanged.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the scoped diff against AGENTS.md security and storage invariants.
+    timeout_seconds: 180
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: 'Scoped diff: no frontend, schema, filesystem, storage, transport, key, or deployment
+        changes'
+    note: Only name generation and report-processing dependency injection changed.
+    assessed_by: codex-canonical-fake-name-20260828
+    assessed_at: '2026-08-28T10:35:08.880673Z'
+- id: cross_repository_verification
+  category: testing
+  title: Both sides of the integration are type-checked and regression-tested
+  acceptance:
+  - Focused Pyright checks pass in lx-anonymizer and endoreg-db.
+  - Focused unit and integration tests reproduce and prevent the name mismatch.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run and record focused Pyright and pytest results in both repositories.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'Focused Pyright: lx-anonymizer 0 errors; endoreg-db 0 errors'
+    - kind: command
+      reference: 'Focused pytest: lx-anonymizer 31 passed; endoreg-db 19 passed'
+    note: Both sides of the integration passed type and regression checks.
+    assessed_by: codex-canonical-fake-name-20260828
+    assessed_at: '2026-08-28T10:35:10.238378Z'
+- id: compatibility
+  category: operations
+  title: Existing callers and patient records remain compatible
+  acceptance:
+  - ReportReader construction without an application resolver remains supported.
+  - Existing pseudo-patient records are not renamed or migrated.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review constructor defaults, existing-record resolution, and focused compatibility tests.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: ReportReader init/contract 15 passed; existing-row reuse regression passed
+    note: Optional resolver preserves standalone construction; no migration renames existing rows.
+    assessed_by: codex-canonical-fake-name-20260828
+    assessed_at: '2026-08-28T10:35:11.746512Z'
+- id: documentation_scope
+  category: documentation
+  title: The canonical-name ownership boundary is recorded in YAML
+  acceptance:
+  - This feature tracker identifies endoreg-db as the persisted-name owner and lx-anonymizer as its consumer.
+  - No parallel Markdown status document is introduced.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review this feature definition and the final changed-file list.
+    timeout_seconds: 180
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: feature-tracking/CanonicalFakePatientName.yml
+    note: Cross-repository ownership is recorded only in the canonical YAML tracker.
+    assessed_by: codex-canonical-fake-name-20260828
+    assessed_at: '2026-08-28T10:35:13.384361Z'

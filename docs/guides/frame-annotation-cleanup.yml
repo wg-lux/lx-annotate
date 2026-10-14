@@ -1,0 +1,12 @@
+owner: codex-duplicate-cleanup-20261001
+scope: Frame annotation helpers left duplicated after frame-box extraction.
+removed:
+  - Identical local parseOptionalNumber implementation in FrameAnnotation.vue.
+  - formatBoxAnnotation wrapper that only forwarded to formatFrameBox.
+replacement: Reuse the existing frameBoxAnnotations exports directly.
+preserved: Numeric conversion rules, label-group parsing, box display, and annotation behavior.
+verification:
+  static_review: Both numeric parser bodies were identical; formatter wrapper only forwarded its argument.
+  diff_check: Passed for both changed source files and this YAML.
+  tests: Deferred to the user as requested.
+limitations: Runtime and TypeScript checks have not been run.

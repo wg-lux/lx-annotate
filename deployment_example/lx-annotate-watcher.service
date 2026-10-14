@@ -1,0 +1,22 @@
+[Unit]
+Description=lx-annotate file watcher
+After=network.target lx-annotate.service
+Requires=lx-annotate.service
+PartOf=lx-annotate.service
+
+[Service]
+Type=simple
+User=lx-annotate
+Group=lx-annotate
+WorkingDirectory=/home/lx-annotate/lx-annotate-wheel
+Environment=DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_prod
+EnvironmentFile=/var/lib/lx-annotate/.env.systemd
+ExecStart=/home/lx-annotate/lx-annotate-wheel/.venv/bin/django-admin run_filewatcher
+Restart=on-failure
+RestartSec=10
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/home/lx-annotate/lx-annotate-wheel /var/lib/lx-annotate
+
+[Install]
+WantedBy=multi-user.target

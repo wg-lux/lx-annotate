@@ -1,5 +1,7 @@
-import shutil
+from __future__ import annotations
+
 import os
+import shutil
 from logging import getLogger
 
 logger = getLogger(__name__)
@@ -8,7 +10,9 @@ db_pwd_target = os.environ.get("DB_PWD_FILE")
 db_pwd_source = os.environ.get("LX_MAINTENANCE_PASSWORD_FILE")
 
 if not db_pwd_target or not db_pwd_source:
-    raise ValueError("Both DB_PWD_FILE and LX_MAINTENANCE_PASSWORD_FILE environment variables must be set")
+    raise ValueError(
+        "Both DB_PWD_FILE and LX_MAINTENANCE_PASSWORD_FILE environment variables must be set",
+    )
 
 # check whether source exists and we are allowed to read it
 if not os.path.exists(db_pwd_source):
@@ -16,10 +20,14 @@ if not os.path.exists(db_pwd_source):
 if not os.access(db_pwd_source, os.R_OK):
     raise PermissionError(f"Source file {db_pwd_source} is not readable")
 
-shutil.copyfile(db_pwd_source, db_pwd_target) #TODO Make sure file permissions are set correctly
+shutil.copyfile(
+    db_pwd_source, db_pwd_target,
+)  # TODO Make sure file permissions are set correctly
 try:
     os.chmod(db_pwd_target, 0o600)
 except PermissionError:
-    print(f"WARNING: Could not set permissions for {db_pwd_target}. Please set them manually to 600 (read/write for owner only).")
-    
+    print(
+        f"WARNING: Could not set permissions for {db_pwd_target}. Please set them manually to 600 (read/write for owner only).",
+    )
+
 os.chmod(db_pwd_target, 0o600)  # Set permissions to read/write for owner only

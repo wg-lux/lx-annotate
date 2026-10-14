@@ -1,0 +1,30 @@
+version: 1
+tier: domain
+path: "nix"
+parent: "../structure.yml"
+summary: "Nix service module and host runtime environment contracts."
+responsibilities:
+  - "Define service integration and host-managed environment rendering."
+  - "Verify package and service module contracts."
+boundaries:
+  - "Shared LuxNix deployment is fleet-impacting and governed by deployment_source_hygiene."
+  - "This context manifest does not authorize deployment or certify readiness."
+entrypoints:
+  - name: "service module"
+    file: "module.nix"
+    purpose: "Nix service configuration"
+  - name: "environment"
+    file: "runtime-environment.nix"
+    purpose: "Runtime environment rendering"
+dependencies:
+  internal: ["lx_annotate","lx_annotate_assets"]
+  external: ["NixOS","systemd","LuxNix"]
+submodules: []
+contracts:
+  - name: "deployment policy"
+    doc: "../docs/guides/deployment-strategy.md"
+  - name: "readiness gate"
+    doc: "../feature-tracking/DeploymentSourceHygiene.yml"
+tests:
+  directory: "tests"
+  command: "python -m pytest tests/system/test_secretspec_environment_contract.py -q"

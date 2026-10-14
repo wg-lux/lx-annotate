@@ -1,31 +1,62 @@
-#!/nix/store/lpi16513bai8kg2bd841745vzk72475x-python3-3.11.9/bin/python
+#!/usr/bin/env python3
 """Django's command-line utility for administrative tasks."""
+
+from __future__ import annotations
+
 import os
 import sys
-import subprocess
+from pathlib import Path
+
+DEV_SETTINGS_MODULE = "lx_annotate.settings.settings_dev"
+PROD_SETTINGS_MODULE = "lx_annotate.settings.settings_prod"
+BASE_DIR = Path(__file__).resolve().parent
 
 
-def main():
+def _requested_management_command(argv: list[str]) -> str:
+    if len(argv) >= 2:
+        return argv[1]
+    return ""
+
+
+def _is_truthy(value: str | None) -> bool:
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _select_settings_module(argv: list[str]) -> str:
+    """
+    Keep production defaults for service/runtime, but make local runserver
+    reliably use dev settings unless explicitly forced to production.
+    """
+    current = os.getenv("DJANGO_SETTINGS_MODULE", "").strip()
+    command = _requested_management_command(argv)
+    force_prod_for_runserver = _is_truthy(os.getenv("LX_ANNOTATE_RUNSERVER_USE_PROD"))
+    is_production_env = os.getenv("DJANGO_ENV", "").strip().lower() == "production"
+
+    if (
+        command == "runserver"
+        and not force_prod_for_runserver
+        and not is_production_env
+    ):
+        if not current or current == PROD_SETTINGS_MODULE:
+            return DEV_SETTINGS_MODULE
+
+    if current:
+        return current
+
+    return PROD_SETTINGS_MODULE
+
+
+os.environ["DJANGO_SETTINGS_MODULE"] = _select_settings_module(sys.argv)
+
+
+def main() -> None:
     """Run administrative tasks."""
-    # Use the environment variable from .env, with fallback to dev settings
-    default_settings = os.environ.get('DJANGO_SETTINGS_MODULE', 'lx_annotate.settings_dev')
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', default_settings)
-    
-    try:
-        try:
-            from django.core.management import execute_from_command_line
-        except ImportError:
-            subprocess.run(["uv", "sync"], check=True)
-            from django.core.management import execute_from_command_line
-    except ImportError as exc:
-        
-        raise ImportError(
-            "Couldn't import Django. Are you sure it's installed and "
-            "available on your PYTHONPATH environment variable? Did you "
-            "forget to activate a virtual environment?"
-        ) from exc
+    from django.core.management import execute_from_command_line
+
     execute_from_command_line(sys.argv)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

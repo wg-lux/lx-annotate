@@ -1,0 +1,272 @@
+schema_version: '1.0'
+id: frontend_any_reduction
+name: Frontend Explicit Any Reduction
+description: Reduce and ultimately prevent unjustified explicit TypeScript any usage in first-party frontend
+  code while preserving runtime validation at untrusted boundaries and typed test coverage.
+owners:
+- lx-annotate frontend maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-professionalism
+    changed_at: '2026-08-04T16:50:35.925592Z'
+    note: 'Completed after all six required criteria verified: zero explicit any, unsafe-value and assertion
+      debt in scope; fail-visible runtime contracts; typed tests; strict CI ratchet; 89 files/531 tests,
+      both typechecks, lint, build, tracker validation and readiness check passed.'
+source_documents:
+- path: frontend/README.md
+  disposition: reference
+  note: Frontend development and verification entry point.
+definition_of_done:
+- id: scope_and_baseline
+  category: requirements
+  title: The migration scope and baseline are reproducible
+  acceptance:
+  - The inventory covers first-party TypeScript and Vue files under frontend/src, frontend/tests, and
+    frontend/cypress.
+  - Generated declarations, dependencies, build output, coverage output, legacy frontend/lx-annotate,
+    and frontend/tools are excluded from the migration baseline.
+  - The baseline distinguishes production, test, and Cypress occurrences so progress cannot be hidden
+    by moving any between areas.
+  - The inventory command is documented and does not modify the checkout.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run ESLint with @typescript-eslint/no-explicit-any enabled for frontend/src, frontend/tests,
+      and frontend/cypress; confirm the exclusions and compare the categorized result with the recorded
+      baseline.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'cd frontend && npm exec -- eslint src tests cypress --rule ''@typescript-eslint/no-explicit-any:
+        warn'' --format json'
+      note: On 2026-07-28 the command reported 345 occurrences across 72 files, categorized as 214 production,
+        129 test, and 2 Cypress occurrences.
+    - kind: command
+      reference: 'nix develop ./frontend --command bash -lc "cd frontend && npm exec -- eslint src tests
+        cypress --rule ''@typescript-eslint/no-explicit-any: error'' --max-warnings 0"'
+      note: On 2026-07-28 the all-scope audit passed with zero explicit-any diagnostics.
+    note: The initial baseline and zero-any milestone are recorded using the same in-scope directories.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T16:45:39+02:00'
+- id: production_code_types
+  category: functionality
+  title: Production code no longer relies on unjustified explicit any
+  acceptance:
+  - First-party production files under frontend/src contain no explicit any except narrowly scoped, documented
+    interoperability exceptions.
+  - API response types describe the backend contract and rely on the existing snake_case to camelCase
+    conversion boundary.
+  - Shared workflow state and component interfaces use named domain types rather than open-ended any records,
+    arrays, parameters, return values, or assertions.
+  - Anonymization validation and segment annotation validation remain separate typed workflow gates.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the scoped ESLint inventory, review every remaining production exception, and execute
+      frontend type checking plus focused workflow tests.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: Frontend explicit-any baseline on 2026-07-28
+      note: ESLint reported 214 production occurrences; the largest concentrations included ReportingShell.vue,
+        VideoExaminationAnnotation.vue, AnonymizationCorrectionComponent.vue, videoStore.ts, and anonymizationStore.ts.
+    - kind: command
+      reference: nix develop ./frontend --command bash -lc "cd frontend && npm run lint"
+      note: Exit code 0 with zero warnings after the production migration.
+    - kind: command
+      reference: nix develop ./frontend --command bash -lc "cd frontend && npm run type-check"
+      note: Exit code 0 after API, store, component, composable, router, and view typing changes.
+    note: In-scope production code now has zero explicit-any diagnostics. API payloads, errors, workflow
+      state, route metadata, and component contracts use named types or unknown with narrowing.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T16:45:39+02:00'
+- id: typed_test_support
+  category: testing
+  title: Tests and test doubles preserve useful type checking
+  acceptance:
+  - Frontend unit, component, and Cypress tests contain no unjustified explicit any.
+  - Test fixtures, store doubles, deferred values, imported modules, and browser extensions use reusable
+    typed helpers or narrow local interfaces.
+  - Type checking covers the supported test configurations and passes without weakening compiler options
+    to accommodate the migration.
+  - Focused regression tests pass after each migrated workflow area.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the scoped ESLint inventory for test files, the frontend test type check, and the
+      narrowest affected Vitest and Cypress suites.
+    timeout_seconds: 1800
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: Frontend explicit-any baseline on 2026-07-28
+      note: ESLint reported 129 unit or component test occurrences and 2 Cypress occurrences.
+    - kind: command
+      reference: nix develop ./frontend --command bash -lc "cd frontend && npm run type-check:component-tests"
+      note: Exit code 0 after typed fixture, mock, browser-global, and Cypress-window migrations.
+    - kind: test
+      reference: Flake-backed focused Vitest runs on 2026-07-28
+      note: Reporting/API tests passed 30 of 30; FrameAnnotation tests passed 22 of 22; the remaining
+        assigned test slice passed 96 tests.
+    note: Unit, component, and Cypress source files have zero explicit-any diagnostics. Focused tests
+      and both supported TypeScript configurations pass.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T16:45:39+02:00'
+- id: untrusted_boundary_narrowing
+  category: security
+  title: Untrusted values are validated or narrowed before use
+  acceptance:
+  - Caught errors, API payloads, browser globals, persisted data, and imported files enter the frontend
+    as unknown or a validated domain type rather than any.
+  - Narrowing helpers check the fields required by the consuming workflow and fail visibly when a required
+    contract is invalid.
+  - Replacing any does not introduce unchecked assertions, double assertions, silent defaults, or fallback
+    behavior that bypasses contract validation.
+  - No change weakens authentication, authorization, anonymization, or clinical workflow checks.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review migrated boundary code and negative tests for malformed values; run the type-aware
+      lint gate and confirm that no-unsafe-assignment, no-unsafe-argument, no-unsafe-call, no-unsafe-member-access,
+      no-unsafe-return, only-throw-error, and use-unknown-in-catch-callback-variable pass without suppressions.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/api/findings.contract.ts
+    - kind: code
+      reference: frontend/src/api/findingsApi.ts
+    - kind: code
+      reference: frontend/src/stores/annotationStats.ts
+    - kind: code
+      reference: frontend/src/components/Stats/AnnotationStatsComponent.vue
+    - kind: code
+      reference: frontend/src/components/Menus/NavbarComponent.vue
+    - kind: code
+      reference: frontend/src/views/reporting/reportListPayload.ts
+    - kind: code
+      reference: frontend/src/components/VideoExamination/annotationExport.ts
+    - kind: test
+      reference: cd frontend && npm run test:unit -- --run --silent=true (89 files, 531 tests passed)
+    - kind: command
+      reference: 'Unsuppressed all-scope ESLint audit: 0 no-unsafe-*, no-non-null-assertion, or no-unnecessary-type-assertion
+        diagnostics'
+    - kind: command
+      reference: 'All-scope scan: 0 double assertions; current frontend diff adds 0 direct type assertions'
+    - kind: command
+      reference: cd frontend && npm run lint && npm run type-check && npm run type-check:component-tests
+        && npm run build-only
+    - kind: review
+      reference: 'Changed boundary fallback audit: remaining defaults apply only to absent optional fields
+        or human-readable error messages; wrong present and required fields throw path-specific errors.'
+    note: Verified on 2026-08-04. All production, unit/integration-test, and Cypress source passes every
+      no-unsafe-* and assertion rule without suppressions; no double assertions remain and the current
+      frontend diff adds no direct type assertions. Findings and patient-finding envelopes and nested
+      identities, names, flags, arrays, maps, relationships, request IDs, and selections are runtime-validated
+      with path-specific failures. Annotation statistics commits only an atomic three-source snapshot;
+      malformed or rejected refreshes preserve the last coherent snapshot and timestamp, set a visible
+      error, and never publish fabricated counts. First-load failure and stale-refresh UX are explicitly
+      tested. Report lists, annotation backfills, examination lists, patient existence, raw-file availability,
+      and export flags likewise fail visibly. Negative contract coverage and the complete frontend suite
+      pass, and review found no weakened authentication, authorization, anonymization, or clinical workflow
+      gate.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T16:50:10.132173Z'
+- id: automated_regression_gate
+  category: operations
+  title: Strict type-aware automation prevents unsafe TypeScript regressions
+  acceptance:
+  - ESLint applies the Vue TypeScript strictTypeChecked preset to all in-scope frontend production and
+    test files with type information from the appropriate application or test TypeScript configuration.
+  - At minimum, the gate enforces @typescript-eslint/no-explicit-any, no-unsafe-argument, no-unsafe-assignment,
+    no-unsafe-call, no-unsafe-member-access, no-unsafe-return, no-floating-promises, no-misused-promises,
+    no-unnecessary-type-assertion, no-non-null-assertion, only-throw-error, and use-unknown-in-catch-callback-variable.
+  - The strict preset is enabled as an error-level gate; individual rules are not downgraded, disabled,
+    or broadly suppressed merely to preserve existing behavior.
+  - During migration, a checked-in baseline or equivalent deterministic mechanism prevents the count of
+    explicit any and strict type-safety violations from increasing in production, tests, or Cypress independently.
+  - After approved exceptions are resolved or documented, CI rejects new explicit any and unsafe typed
+    value flows.
+  - The lint gate is non-mutating, runs in the normal frontend quality workflow, and is paired with the
+    application and test type-check commands.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect the effective ESLint configuration for representative Vue, production TypeScript,
+      unit-test, and Cypress files; confirm strictTypeChecked and every named rule are active at error
+      level with type information. Run the non-mutating lint and application/test type checks, then introduce
+      temporary violations of no-explicit-any, no-unsafe-assignment, no-floating-promises, and no-misused-promises
+      and confirm each relevant quality gate fails.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/eslint.config.ts
+    - kind: code
+      reference: frontend/tsconfig.eslint.json
+    - kind: code
+      reference: frontend/eslint-suppressions.json
+    - kind: code
+      reference: .github/workflows/ci-cd.yml
+    - kind: command
+      reference: cd frontend && npm run lint && npm run type-check && npm run type-check:component-tests
+    - kind: test
+      reference: cd frontend && npm run test:unit -- --run --silent=true (89 files, 531 tests passed)
+    - kind: command
+      reference: cd frontend && npm run build-only
+    - kind: demonstration
+      reference: Unsuppressed all-scope audit reported 0 no-unsafe-* and assertion-rule diagnostics; double-assertion
+        scan reported 0; the pruned baseline has 476 diagnostics across 98 files.
+    note: 'strictTypeChecked uses a dedicated all-scope TypeScript project with Vue component unsafety
+      disabled. ESLint-native per-file/per-rule suppressions ratchet remaining debt and normal lint rejects
+      increases or stale counts. After boundary contract hardening on 2026-08-04, the baseline is 476
+      diagnostics across 98 files: 322 production, 154 test, and 0 Cypress. It contains no explicit-any,
+      no-unsafe-*, no-non-null-assertion, or no-unnecessary-type-assertion entries. CI runs strict non-mutating
+      lint plus both application and component-test type checks; the full unit suite and production build
+      pass.'
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T16:50:20.299827Z'
+- id: migration_guidance
+  category: documentation
+  title: Contributors have actionable replacement and exception guidance
+  acceptance:
+  - Frontend documentation explains when to use unknown, generics, named interfaces, discriminated unions,
+    and library-provided types instead of any.
+  - The documented workflow includes the inventory, application and test type checks, strict type-aware
+    lint, effective-config inspection, and focused-test commands.
+  - The documentation names the strictTypeChecked preset and explains why unsafe-value, promise, assertion,
+    and error-handling rules are enforced alongside no-explicit-any.
+  - Any unavoidable interoperability exception requires the narrowest possible scope, an inline reason,
+    an owner, and a removal condition.
+  - Progress updates record production, test, and Cypress counts against the 2026-07-28 baseline.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the frontend contributor documentation against ESLint behavior, CI commands,
+      and at least one migrated production boundary and test double.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: frontend/README.md
+    - kind: code
+      reference: frontend/eslint.config.ts
+    - kind: command
+      reference: cd frontend && npm run lint && npm run type-check && npm run type-check:component-tests
+    note: Contributor guidance now matches the active strictTypeChecked gate. It documents boundary narrowing,
+      replacement patterns, all-scope effective-config inspection, the 2026-08-04 scope-separated strict
+      baseline, focused tests, the ESLint suppression ratchet, and exception ownership/removal requirements
+      without overstating zero-debt status.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T15:29:53.298335Z'

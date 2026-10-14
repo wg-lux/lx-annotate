@@ -1,0 +1,140 @@
+schema_version: '1.0'
+id: hierarchical_context_manifests
+name: Hierarchical Context Manifests
+description: Progressive architectural context with strict offline graph validation.
+owners:
+- lx-annotate maintainers
+production_critical: false
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: docs/agent_context.md
+  disposition: reference
+  note: Manifest schema, ownership boundaries, and maintenance protocol.
+definition_of_done:
+- id: validated_context
+  category: testing
+  title: Context graph and validator regression tests pass
+  acceptance:
+  - Every manifest is reachable from the root and references existing scoped paths.
+  - Invalid schemas, broken references, and missing parents fail visibly.
+  - Pre-commit and Make test and lint commands invoke validation.
+  required: true
+  verification:
+    kind: command
+    command:
+    - python
+    - scripts/lint_structure.py
+    timeout_seconds: 60
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'python scripts/lint_structure.py: exit 0; validator tests 31 passed; combined environment/runtime/API
+        contract checks 45 passed and 3 failures'
+    - kind: command
+      reference: 'Final verification: validator 31 passed; feature tracker 16 passed including staged
+        manifest exclusion; fast static assets 25 passed (4 build tests deselected); environment/runtime/API
+        checks 14 passed, 3 failed on absent installed study_setup_import model.'
+    note: Structure linter, isolated pre-commit hook, Make validation, Ruff, and diff whitespace checks
+      pass. Broader API regression failures originate in pre-existing route edits and an unavailable installed
+      dependency; runtime code remains untouched.
+    assessed_by: context-manifests-codex-20261013
+    assessed_at: '2026-10-13T08:23:41.019438Z'
+- id: root_graph
+  category: requirements
+  title: Root context reaches all manifests
+  acceptance:
+  - Root and child references form one bidirectional tree.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review manifests, validator tests, hooks, and the scoped diff.
+    timeout_seconds: 60
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'python scripts/lint_structure.py: all 13 manifests reachable with matching parent links'
+    note: Root lists ten domain/tool/package children; backend hub and frontend API are nested tiers.
+    assessed_by: context-manifests-codex-20261013
+    assessed_at: '2026-10-13T08:22:34.335392Z'
+- id: schema_integrity
+  category: functionality
+  title: Schema and path integrity fail closed
+  acceptance:
+  - Malformed values and missing paths are rejected.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review manifests, validator tests, hooks, and the scoped diff.
+    timeout_seconds: 60
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'tests/system/test_structure_manifests.py: 31 passed'
+    note: Covers types, references, missing parents, duplicate links, custom metadata, ignored files,
+      tracked deletions, malformed YAML, CLI failure, and gates.
+    assessed_by: context-manifests-codex-20261013
+    assessed_at: '2026-10-13T08:22:36.214538Z'
+- id: no_runtime_effect
+  category: security
+  title: Context tooling does not affect runtime
+  acceptance:
+  - No application code, protected data, or deployment configuration changes.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review manifests, validator tests, hooks, and the scoped diff.
+    timeout_seconds: 60
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: Scoped diff changes only context YAML, documentation, standalone validation, tests, feature
+        tracker filename classification, and developer gates.
+    note: No application runtime code, business logic, deployment configuration, protected storage, or
+      external dependency changed.
+    assessed_by: context-manifests-codex-20261013
+    assessed_at: '2026-10-13T08:22:57.020224Z'
+- id: automated_gates
+  category: operations
+  title: Validation runs in developer gates
+  acceptance:
+  - Make test and lint plus pre-commit execute the validator.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review manifests, validator tests, hooks, and the scoped diff.
+    timeout_seconds: 60
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'pre-commit run structure-manifests --all-files: Passed; pre-commit validate-config:
+        exit 0; make lint-structure DEVENV_RUN=: exit 0'
+    note: Make test/test-real/lint depend on lint-structure; ordinary pytest runs validate the repository
+      graph.
+    assessed_by: context-manifests-codex-20261013
+    assessed_at: '2026-10-13T08:22:58.795094Z'
+- id: context_protocol
+  category: documentation
+  title: Agents follow top-down context traversal
+  acceptance:
+  - AGENTS.md and docs/agent_context.md define reading and maintenance protocols.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review manifests, validator tests, hooks, and the scoped diff.
+    timeout_seconds: 60
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: AGENTS.md Source of Truth & Context Protocol and docs/agent_context.md define traversal,
+        custom-field preservation, path conventions, same-changeset maintenance, and preflight validation.
+    note: Documentation is English and linked from the Sphinx index.
+    assessed_by: context-manifests-codex-20261013
+    assessed_at: '2026-10-13T08:23:00.688405Z'

@@ -1,0 +1,226 @@
+schema_version: '1.0'
+id: openapi_type_generation
+name: Django Ninja OpenAPI Type Generation
+description: Generate deterministic TypeScript contracts from the endoreg and lx-dtypes Django Ninja APIs.
+owners:
+- lx-annotate maintainers
+- lx-annotate frontend maintainers
+- endoreg-db maintainers
+- lx-dtypes maintainers
+production_critical: true
+tracking:
+  state: active
+  history:
+  - action: done
+    changed_by: codex-openapi-typegen-20260825
+    changed_at: '2026-08-25T12:40:50.459192Z'
+    note: Offline dual-API OpenAPI export, deterministic TypeScript generation, frontend generated response
+      integration, strict lint cleanup, documentation, and regression checks all pass.
+  - action: reopened
+    changed_by: codex-openapi-typegen-20260825
+    changed_at: '2026-08-25T12:41:45.367318Z'
+    note: Fold the now-clean strict ESLint gate into the single frontend type-check command.
+  - action: done
+    changed_by: codex-openapi-typegen-20260825
+    changed_at: '2026-08-25T12:44:44.283186Z'
+    note: Offline dual-API OpenAPI export, deterministic TypeScript generation, generated response integration,
+      and the unified typegen/vue-tsc/ESLint gate all pass.
+  - action: reopened
+    changed_by: codex-hub-diagnosis-20260923
+    changed_at: '2026-09-23T14:05:57.199543Z'
+    note: Refresh generated schemas and types for installed endoreg-db 1.3.6 and verify freshness.
+  - action: done
+    changed_by: codex-hub-diagnosis-20260923
+    changed_at: '2026-09-23T14:11:41.674175Z'
+    note: Root/frontend OpenAPI and TypeScript regenerated; all 5 generation tests passed, including freshness.
+      Frontend vue-tsc and ESLint passed.
+  - action: reopened
+    changed_by: codex-overview-20260924-a
+    changed_at: '2026-09-24T12:13:10.279011Z'
+    note: 'Reported regression: manage.py exits successfully without executing the requested management
+      command; restore dispatch and verify installed endoreg-db API contracts.'
+  - action: done
+    changed_by: codex-overview-20260924-a
+    changed_at: '2026-09-24T12:24:34.856319Z'
+    note: Repaired management dispatch and frontend alias configuration; installed package schemas, generated
+      types, regression tests and frontend compilation/lint pass. This records local verification, not
+      deployment.
+  - action: reopened
+    changed_by: codex-storage-20261006-a1
+    changed_at: '2026-10-07T09:46:23.683932Z'
+    note: Installed lx-dtypes adds optional language query parameters; review contract compatibility and
+      regenerate stale artifacts.
+source_documents:
+- path: docs/guides/openapi-type-generation.md
+  disposition: reference
+  note: Offline schema export, generated-file ownership, and verification workflow.
+definition_of_done:
+- id: offline_export
+  category: requirements
+  title: Both Ninja APIs export without a running server
+  acceptance:
+  - DRF schema generation emits no path-parameter inference or operation identifier collision warnings;
+    patient medication and schedule identifiers are integers.
+  - The command exports separate endoreg-api and dtypes-api OpenAPI documents.
+  - Output writes are atomic and deterministic.
+  required: true
+  verification:
+    kind: command
+    command:
+    - devenv
+    - shell
+    - --
+    - .devenv/state/venv/bin/pytest
+    - tests/system/test_openapi_type_generation.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'tests/system/test_openapi_type_generation.py: 4 passed'
+    - kind: test
+      reference: All 5 tests/system/test_openapi_type_generation.py tests passed with Node from .devenv/profile/bin
+        in the expanded 90-pass run.
+    - kind: command
+      reference: '2026-10-09: PYTHONPATH=.devenv/state/release-recovery-probe pytest tests/system/test_production_celery_redis_recovery.py
+        tests/system/test_openapi_type_generation.py -q: 18 passed in 106.60s. Full LX-Annotate Pyright
+        with isolated wheel dependencies: 0 errors, 0 warnings; focused changed-file Pyright: 0 errors,
+        0 warnings; Ruff passed.'
+    note: Explicit collection and compatibility operation identifiers remove all reported collisions,
+      including pending study collection routes. Patient medication and schedule path parameters are documented
+      as integers. Regression rejects schema warnings and duplicate identifiers. No endpoint runtime behavior
+      changed.
+    assessed_by: codex-release-fixes-20261009
+    assessed_at: '2026-10-09T09:38:07.905944Z'
+- id: generated_types
+  category: functionality
+  title: OpenAPI documents compile into TypeScript contracts
+  acceptance:
+  - Endoreg and dtypes schemas generate separate TypeScript modules.
+  - Generated modules expose paths, operations, and components.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - typegen:check
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: npm --prefix frontend run typegen:check (exit 0)
+    - kind: command
+      reference: '2026-09-23: npm --prefix frontend run type-check:source: exit 0'
+    - kind: command
+      reference: Schema freshness passed; final npm --prefix frontend run type-check:source exit 0 (.devenv/state/endoreg-integration-frontend-verified.log).
+        Targeted mypy passed for 3 production files; Ruff passed.
+    - kind: test
+      reference: tests/system/test_openapi_type_generation.py; full backend suite 1259 passed, 6 skipped;
+        frontend casesApi 14 passed
+    - kind: command
+      reference: '2026-10-09: Regenerated root/frontend OpenAPI and TypeScript contracts; schema freshness
+        passed in the 18-test lane. npm --prefix frontend run type-check:source passed (vue-tsc and ESLint).'
+    note: Generated artifacts refreshed against the pending coordinated backend changes, including study
+      routes and lx-dtypes additions. Explicit operation names replace order-dependent numeric suffixes.
+      Local validation only; matching release dependencies must be installed before deployment.
+    assessed_by: codex-release-fixes-20261009
+    assessed_at: '2026-10-09T09:38:09.251105Z'
+- id: generation_tests
+  category: testing
+  title: Export and generated-file freshness are regression tested
+  acceptance:
+  - Tests assert canonical prefixes, expected operations, schemas, and stable output.
+  required: true
+  verification:
+    kind: command
+    command:
+    - devenv
+    - shell
+    - --
+    - .devenv/state/venv/bin/pytest
+    - tests/system/test_openapi_type_generation.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_test pytest -q tests/system/test_openapi_type_generation.py
+        (4 passed)
+    - kind: command
+      reference: 'tests/system/test_openapi_type_generation.py: 5 passed, including committed schema/type
+        freshness, 2026-09-23'
+    note: Regenerated root/frontend schemas and TypeScript using npm run typegen against installed dependencies.
+      Combined focused suite 103 passed including all 5 generation tests.
+    assessed_by: codex-hub-diagnosis-20260923
+    assessed_at: '2026-09-23T14:10:20.156004Z'
+- id: safe_generation
+  category: security
+  title: Type generation does not weaken runtime configuration
+  acceptance:
+  - Production secrets are not embedded in scripts or generated artifacts.
+  - Schema export writes through the typed atomic filesystem boundary.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review management bootstrap, exporter, scripts, and generated artifacts.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: manage.py and export_openapi.py
+    note: Test settings are honored before base settings import; no production secret is required or emitted;
+      project atomic filesystem wrappers persist artifacts.
+    assessed_by: codex-openapi-typegen-20260825
+    assessed_at: '2026-08-25T12:40:30.597976Z'
+- id: reproducible_workflow
+  category: operations
+  title: Local and CI type generation use one reproducible command
+  acceptance:
+  - npm scripts generate and freshness-check both APIs.
+  - Frontend type checking consumes the generated modules.
+  required: true
+  verification:
+    kind: command
+    command:
+    - npm
+    - --prefix
+    - frontend
+    - run
+    - type-check
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'npm --prefix frontend run type-check (exit 0: generated freshness, vue-tsc, strict ESLint)'
+    note: One CI-facing command now verifies generated artifacts, Vue/TypeScript contracts, and repository-wide
+      ESLint with zero warnings.
+    assessed_by: codex-openapi-typegen-20260825
+    assessed_at: '2026-08-25T12:44:39.931244Z'
+- id: workflow_documented
+  category: documentation
+  title: Ownership, commands, and limitations are documented
+  acceptance:
+  - Documentation distinguishes Ninja-generated contracts from DRF routes.
+  - Generated files are identified as derived artifacts that must not be hand edited.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review docs/guides/openapi-type-generation.md against the implemented commands.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: docs/guides/openapi-type-generation.md
+    note: Guide documents API ownership, generated artifacts, camel-case mapping, recursive JSON compatibility,
+      DRF exclusion, and manual-body limitation.
+    assessed_by: codex-openapi-typegen-20260825
+    assessed_at: '2026-08-25T12:40:33.493012Z'

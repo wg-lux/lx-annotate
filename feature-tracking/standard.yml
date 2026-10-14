@@ -1,0 +1,163 @@
+schema_version: '1.0'
+id: standard
+name: Feature Tracking Standard
+description: Self-assessment of the YAML-backed production-readiness tracker.
+owners:
+- lx-annotate maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: feature-tracking/README.md
+  disposition: reference
+  note: Tracker usage and governance contract.
+definition_of_done:
+- id: defined_structure
+  category: requirements
+  title: Structure and production gate are strict
+  acceptance:
+  - Features, criteria, verification, assessment, and evidence use a versioned schema.
+  - A percentage cannot replace the binary production-readiness gate.
+  required: true
+  verification:
+    kind: command
+    command:
+    - .devenv/state/venv/bin/python
+    - feature-tracking/tracker.py
+    - validate
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: .devenv/state/venv/bin/python feature-tracking/tracker.py validate
+      note: Exit-Code 0
+    assessed_by: Codex
+    assessed_at: '2026-07-28T08:52:01.306657Z'
+- id: terminal_workflow
+  category: functionality
+  title: CLI commands cover the readiness workflow
+  acceptance:
+  - Overview, show, validate, check, update, verify, done, and reopen have distinct responsibilities.
+  - Check succeeds only for a completely verified Definition of Done.
+  - Orchestration contracts select single-agent execution for sequential work and centralized multi-agent
+    execution only for independently runnable branches.
+  - Work units have one responsibility, one or two turns, explicit token budgets, schema-validated results,
+    and atomic idempotent checkpoints.
+  - Centralized runs explicitly select native Codex subagents or external codex exec workers; both backends
+    preserve the same hub-and-spoke ownership, lock, budget, result, and checkpoint boundaries.
+  required: true
+  verification:
+    kind: command
+    command:
+    - .devenv/state/venv/bin/python
+    - feature-tracking/tracker.py
+    - overview
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: devenv shell -- .devenv/state/venv/bin/pytest feature-tracking/test_tracker.py -q (16
+        passed)
+    - kind: review
+      reference: feature-tracking/tracker.py orchestration models, registry validation, checkpoint transitions,
+        and atomic persistence
+    - kind: document
+      reference: feature-tracking/README.md multi-agent orchestration contracts
+    note: Verified typed topology/backend selection, bounded single-responsibility work units, schema-validated
+      worker results, registry validation, and atomic idempotent checkpoints; the complete tracker suite
+      passes.
+    assessed_by: codex-great-system-20260825
+    assessed_at: '2026-08-25T11:38:51.698427Z'
+- id: tracker_tests
+  category: testing
+  title: Schema, readiness derivation, and updates are tested
+  acceptance:
+  - Invalid assessments and incomplete production approval fail.
+  - Atomic update and YAML round-trip behavior are covered.
+  required: true
+  verification:
+    kind: command
+    command:
+    - devenv
+    - shell
+    - --
+    - .devenv/state/venv/bin/pytest
+    - feature-tracking/test_tracker.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: devenv shell -- .devenv/state/venv/bin/pytest feature-tracking/test_tracker.py -q
+      note: Exit-Code 0
+    assessed_by: Codex
+    assessed_at: '2026-07-28T08:53:19.124511Z'
+- id: safe_execution
+  category: security
+  title: YAML cannot introduce implicit shell execution or approval
+  acceptance:
+  - Verification commands execute as argument lists without a shell.
+  - Unknown fields and invalid states are rejected.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review parser, subprocess, and Pydantic boundaries.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: feature-tracking/tracker.py and feature-tracking/test_tracker.py
+    note: Pydantic models reject unknown fields; verification commands execute through subprocess.run
+      with shell disabled.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T08:53:36.407282Z'
+- id: atomic_updates
+  category: operations
+  title: Tracker updates are atomic and logged
+  acceptance:
+  - Updates use the canonical typed file-operation wrapper.
+  - Failed writes do not leave apparently valid partial YAML files.
+  required: true
+  verification:
+    kind: command
+    command:
+    - devenv
+    - shell
+    - --
+    - .devenv/state/venv/bin/pytest
+    - feature-tracking/test_tracker.py::test_update_and_atomic_save_round_trip
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: devenv shell -- .devenv/state/venv/bin/pytest feature-tracking/test_tracker.py::test_update_and_atomic_save_round_trip
+        -q
+      note: Exit-Code 0
+    assessed_by: Codex
+    assessed_at: '2026-07-28T08:53:35.304492Z'
+- id: governance_documentation
+  category: documentation
+  title: Contributors can apply the tracker consistently
+  acceptance:
+  - Status definitions, evidence rules, completion, and reopening are documented.
+  - The tracker is identified as the only completion-status source.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the README against CLI behavior and policy.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: feature-tracking/README.md
+    note: README reviewed against the copied CLI, policy, assessment, completion, and reopening behavior.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T08:53:37.677062Z'

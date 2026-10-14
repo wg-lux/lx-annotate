@@ -1,0 +1,542 @@
+schema_version: '1.0'
+final_blackening_restart_20261008:
+  assessor: codex-gc10-cleanup-review-20261007
+  host: gc-10
+  authorization: User requested final VideoExamination processing and outside-frame blackening for these nine videos.
+  preconditions: All segment rows validated, at least one validated outside segment and existing processed master for each video; no prior rebuild history. Video 34's aggregate segment-validation flag was false despite all its segment rows being validated; no manual flag override was made.
+  operation: Installed dispatch_video_post_validation_rebuild(video_id=..., only_validated=True), the existing VideoExamination endpoint's service boundary.
+  queue: ffmpeg_media
+  worker: ffmpeg-media@gc-10
+  concurrency: 1
+  jobs:
+    - {video_id: 13, history_id: 44, task_id: 7d81196e-ef03-49c1-8769-80ff7b0c168a}
+    - {video_id: 14, history_id: 45, task_id: 36fe8922-3584-425c-8619-c24bb810f39b}
+    - {video_id: 15, history_id: 46, task_id: 97224760-f9d5-40e9-ae8f-f659c7bfe423}
+    - {video_id: 19, history_id: 47, task_id: e4ea5bfa-14d0-4f47-8afc-d4ef1a657b3b}
+    - {video_id: 21, history_id: 48, task_id: 412d82f4-21cc-4db6-9f85-91b1b2de29e2}
+    - {video_id: 23, history_id: 49, task_id: 0099697f-ce6f-4867-b3f6-a438c006106c}
+    - {video_id: 25, history_id: 50, task_id: 4881a08d-0e1e-44dc-a598-224d1b812af4}
+    - {video_id: 27, history_id: 51, task_id: aa0a9c1c-4bf4-4226-9855-71b985be5efe}
+    - {video_id: 34, history_id: 52, task_id: a964bade-be9a-4ebb-886a-b41be1e4c457}
+  dispatch_verification: All nine returned queued and were received by the configured FFmpeg worker with the configured 60-second delay. Video 13 subsequently entered running; the other eight remain pending. Terminal completion remains asynchronous.
+  annotation_counts_after_dispatch: {frame_classifications: 396823, label_segments: 3191}
+  capacity: 18 GiB free, 98 percent root filesystem usage at dispatch; existing admission and validation guards retained.
+  preserved: Annotation rows, reviewed segment decisions and normal job reservation/idempotency. No forced export readiness, hub upload, broad import restart or code deployment.
+postactivation_review_20261008:
+  assessor: codex-gc10-cleanup-review-20261007
+  host: gc-10
+  profile: site-client
+  status: gs02_enrollment_activated_hub_connectivity_recovered_gc10_media_readiness_partial
+  source:
+    active_system: /nix/store/iz33nm4jw764idwjzayx6hga6cyhzbhq-nixos-system-gc-10-26.05.20261006.b253099
+    runtime: /nix/store/fik23a0cfmswak887daf3bzxdbmzb8mb-lx-annotate-wheel-runtime-1.4.9
+    installed_versions: {lx-annotate: 1.4.9, endoreg-db: 1.5.1, lx-dtypes: 0.4.3, lx-anonymizer: 1.0.5}
+    luxnix_base_revision: 9337c6b561424814dae36f204669682a8f753d05
+    luxnix_flake_lock_sha256: 62a46ed3343ceea3b65e9dc00916ef08e2db6afc08644fb5ab8d10e7d8f6664d
+    candidate_wheel_sha256: 9da95476ef123f1f73b8d24a6ecdfb4743204c5fa5712ef59e90668bef42d5e3
+  startup:
+    migrations: endoreg_db 0087-0091 and lx_annotate 0011 applied by the activated startup chain.
+    web_https_status: 302
+    vite_manifest_https_status: 200
+    transport_verification: Local HTTPS requests used the configured certificate authority, without disabling TLS verification.
+    services: Web, PostgreSQL, Redis, Nginx, Beat and all six configured Celery workers active after recovery.
+    failed_systemd_units_after_recovery: 0
+  media:
+    videos: 31
+    frame_classification_annotations: 396823
+    label_video_segments: 3191
+    videos_with_segments_or_classifications: 17
+    annotated_videos_missing_processed_master: []
+    ready_hls_artifacts: 52
+    ready_hls_segments_checked: 28625
+    missing_ready_hls_segments: 0
+    readiness_command: check_production_hls_readiness --json
+    readiness_exit_code: 1
+    readiness_scope: 54 storage fields, 47 deep-checked HLS artifacts, 26 serialized video URL records.
+    readiness_findings:
+      - Video 12 retains its pre-existing missing raw-file reference; processed playback is present.
+      - Required raw HLS is absent for videos 12, 34, 36 and 54; processed HLS is absent for video 50.
+      - Seventeen videos retain legacy streamable-path metadata.
+    video50:
+      prior_failure: Output nominal FPS drifted from 59.7982 to 59.9401; a later attempt was terminated during service restart.
+      current_artifact_id: 485
+      recovery: Existing automatic backfill was already materializing processed HLS; targeted materialize_video_hls returned already_queued and did not dispatch a duplicate.
+      result: Failed validation again at 2026-10-08T07:31:37Z; nominal FPS changed from 59.7982 to 59.9401. Original retained and validation guards unchanged.
+  hub:
+    initial_failure: Expired gc-10 client certificate prevented hub-transfer worker startup.
+    old_certificate_expired_utc: '2026-10-02T17:23:25Z'
+    root_cause: >-
+      The certificate service PATH omitted getent. The actual refresh helper failed before
+      authenticating with 'failed to get token helper: error expanding config path',
+      while the same AppRole login worked with the normal system PATH. Earlier Vault
+      bootstrap attempts also logged network-unreachable before the VPN was ready.
+    recovery:
+      - Restarted vault-auth-setup.service successfully with existing gc-10 enrollment.
+      - Ran the existing immutable certificate-issuance script with PATH=/run/current-system/sw/bin; no new AppRole or node secret was provisioned.
+      - Started lx-annotate-celery-hub-transfer-worker.service and verified it became active.
+    new_certificate_expires_utc: '2026-11-07T07:07:32Z'
+    renewal_timer: Active, with the next observed run scheduled for October 8 at 21:09 CEST.
+    receiver_probe: Existing transfer status GET through fetch_remote_transfer_status with configured mTLS and node authentication.
+    receiver_result: After enrollment activation, gc-10's configured HTTPS/mTLS and node-authenticated status GET succeeds; existing transfer_status is applied, source_node_key matches gc-10 and envelope_receipt is present.
+    transfer_proven: false
+    receiver_scope: User authorized gs-02 recovery, supplied working sudo access, completed activation and confirmed historical default_salt identity use.
+    receiver_diagnosis:
+      active_system: /nix/store/jdv296vw0slfpz7hpl4yyr6dmy91y0c1-nixos-system-gs-02-26.05.20261006.b253099
+      activation: User explicitly authorized deployment and activation. Reviewed changes applied to the initially clean /home/admin/dev/luxnix checkout on gs-02, built there and activated using nixos-rebuild switch; prior user activation had reported exit 4.
+      deployed_patch_sha256: 50ade0021540c38166beae8b77121c271a4ff216f97f3a6f4da2bf8afe7b1d0f
+      source_review: Remote and local reviewed file contents match; concurrent unrelated local AGENTS.md edit was excluded. Base revision and Flake lock match the source recorded above.
+      crl: Rotated the authentic Vault CRL through lx-hub-pki/crl/rotate, ran the existing bootstrap publisher, and started Nginx. Published CRL is valid from October 8 07:34:03 UTC through October 11 07:34:03 UTC.
+      crl_recurrence_fix: Enabled Vault auto_rebuild; readback confirms true, with unchanged 72h expiry, 12h grace and revocation checks enabled. Publisher timer and Nginx active.
+      application: Migrations and master-key check succeeded; web, all six required workers, Beat, Nginx, PostgreSQL and Redis active. No bulk identity migration was run.
+      identity_files_observed: Managed secrets provisioned active salt, legacy retiring salt and keyring manifest as service-owned mode-0600 files. Production loader confirms distinct active salt, one retiring default_salt reader and settings/active-key consistency. An older endo-api dotenv was not used.
+      enrollment_prepared:
+        repository: /home/admin/luxnix
+        files: [ansible/inventory/host_vars/gs-02.yml, systems/x86_64-linux/gs-02/default.nix, tests/lx-annotate/test_identity_salt_enrollment.py]
+        behavior: Explicit gs-02 opt-in retains default_salt as a retiring identity reader and provisions an independent active identity salt through managed secrets; no bulk rehash or media/signing-key rotation.
+        verification: Canonical inventory imported and only gs-02 Nix output regenerated; three enrollment tests pass; evaluated gs-02 keyring path is /etc/secrets/vault/lx_annotate_identity_keyring.yml; tracker validation and diff checks pass.
+        deployed: true
+      acceptance_ca_fix:
+        cause: Existing acceptance helper trusted the generated self-signed certificate while gs-02 serves its configured Vault-signed certificate.
+        change: Added optional django.sslCaCertificatePath and configured gs-02 to use /var/lib/luxnix-vault-pki/ca.crt. TLS verification remains mandatory and default self-signed behavior remains unchanged.
+        verification: 21 enrollment and static-acceptance tests passed after supplying the existing jq binary; verified HTTPS static manifest contains src/main.ts. Initial test setup lacked jq, then passed with it on PATH.
+        host_acceptance_result: lx-annotate-acceptance.service completed successfully after final activation, including encrypted-storage verification, required-worker checks and verified HTTPS static manifest. Final systemd failed-unit count is zero; activation exit code is zero.
+      other_failure: Earlier GLM ACME renewal returned HTTP 403; no failed ACME unit remained after enrollment activation.
+      mutations_performed: Vault CRL renewal configuration, normal service recovery, authorized NixOS activation, managed legacy identity enrollment and startup-chain database migrations.
+      recovery_prerequisite_verified: Existing root-owned mode-0600 Vault token has capability to rotate the authentic CRL; credential contents were not printed.
+    durable_fix:
+      files:
+        - /home/admin/luxnix/modules/nixos/luxnix/vault/default.nix
+        - /home/admin/luxnix/tests/test_vault_client_auth_refresh.py
+      change: Add pkgs.getent to the certificate service PATH and exercise real Vault startup without HOME in the existing regression test.
+      verification: Regression failed before the fix; all 11 tests passed after it, including actual evaluated service PATH and real Vault CLI startup. gc-10 Nix evaluation includes getent.
+      deployed: Included in gs-02 source; gc-10 still needs a subsequent activation for its certificate-renewal PATH correction.
+  storage:
+    initial_root_available_gib_rounded: 29
+    highest_observed_available_gib_rounded: 49
+    current_available_gib_rounded: 49
+    pressure_resolved: false
+    layout: Configured /mnt/endoreg-client-storage is not mounted; /data/raid01 is a separate 954 GiB filesystem with 859 GiB free. No media was moved between filesystems.
+    applied_cleanup:
+      - operation: reap_runtime_wheel_staging
+        removed_files: 53
+        removed_bytes: 1732100187
+        preserved_wheels: [lx_annotate-1.4.9-py3-none-any.whl, lx_annotate-1.3.12-py3-none-any.whl]
+      - operation: reap_processed_video_generations --video-id 53 --apply
+        prior_dry_run: '{"video_id":53,"cleaned":0,"pending":1,"reason":"dry_run"}'
+        result: '{"video_id":53,"cleaned":1,"pending":0,"reason":"cleaned"}'
+        obsolete_master_bytes: 11195448010
+        note: Packaged cleanup revalidated ownership, replacement integrity and leases; current master and annotations preserved.
+      - operation: endoreg_db.cleanup_media_sources
+        task_id: 542ea2d8-946d-40d6-9972-6a02b09791b5
+        queue: maintenance
+        result: Succeeded in 1221.43 seconds; 192 obsolete HLS artifacts cleaned, 96 pending replacement readiness, zero generation failures and zero import sources removed.
+      - operation: nix-store --gc
+        deleted_store_paths: 1452
+        freed_gib_reported: 5.1
+        result: Exit 0; native Nix reachability GC retained profiles and GC roots.
+    preserved: Current media masters, annotation rows, failed-import originals, recovery archives, Nix profiles, secrets and unique logs.
+  limitations:
+    - Verified authenticated status retrieval for the existing applied transfer; no new clinical-media upload was initiated.
+    - Browser login and interactive annotation were not exercised; HTTPS application entrypoint, static assets, storage reads, HLS files and serializers were checked.
+    - Full runtime media readiness remains unsuccessful for the recorded pre-existing conditions.
+    - Post-cleanup verification preserved 31 videos, 396823 frame classifications, 3191 label segments and all 52 published HLS artifacts with 28625 segment files. Checks used the application resolver for URL-based segment references.
+    - gs-02 activation was explicitly authorized and performed; gc-10 was not reactivated and its certificate-renewal PATH correction remains pending there.
+    - Existing PostgreSQL collation mismatch and staticfiles.W004 warning remain; neither was suppressed.
+    - deployment_source_hygiene remains not production-ready at 0/6; this report does not override that gate.
+cleanup_review_20261007:
+  assessor: codex-gc10-cleanup-review-20261007
+  host: gc-10
+  profile: site-client
+  scope: Read-only preactivation review of cleanup against existing media and annotations.
+  conclusion: >-
+    No observed candidate or reviewed automatic cleanup path deletes an annotated video
+    merely because an import or HLS attempt failed. Historical HLS derivatives and video
+    53's recorded obsolete processed master are potential deletions after runtime guards.
+    This scoped finding is not production activation approval.
+  source:
+    lx_annotate_repository: /home/admin/dev/lx-annotate
+    lx_annotate_revision: f46b5de0ebe1f6824c84cf16bcb1f4b384cb3d36
+    lx_annotate_dirty_files: [frontend/default.nix, frontend/package-lock.json, frontend/package.json, pyproject.toml, uv.lock]
+    lx_annotate_flake_lock_sha256: 6e94f3e093eefc9649df734cbebb07655fe6b5226f98b8bd19d356888e3fcddc
+    candidate_version: 1.4.9
+    candidate_wheel_sha256: 9da95476ef123f1f73b8d24a6ecdfb4743204c5fa5712ef59e90668bef42d5e3
+    candidate_backend_requirement: endoreg-db==1.5.1
+    reviewed_backend_repository: /home/admin/endoreg-db
+    reviewed_backend_revision: d2eeb6a9
+    backend_dirty_files: [uv.lock]
+    luxnix_repository: /home/admin/luxnix
+    luxnix_revision: 9337c6b561424814dae36f204669682a8f753d05
+    luxnix_clean: true
+    luxnix_flake_lock_sha256: 62a46ed3343ceea3b65e9dc00916ef08e2db6afc08644fb5ab8d10e7d8f6664d
+    evaluated_gc10_options: {automaticMediaCleanup: true, dataCleanupEnabled: true, packageVersion: 1.4.9}
+    installed_versions: {lx-annotate: 1.3.12, endoreg-db: 1.3.14}
+    active_system: /nix/store/08hm5bnd7ps5mn0px0wcr17xhnf8fidh-nixos-system-gc-10-26.05.20260905.6713828
+  database_snapshot:
+    videos: 31
+    anonymization_validated: 16
+    segment_annotations_validated: 13
+    frame_classification_annotations: 396823
+    frame_box_annotations: 0
+    label_video_segments: 3191
+    reports: 0
+    failed_upload_jobs: 6
+    lost_upload_jobs: 2
+    failed_upload_jobs_with_successful_replacement: 0
+    failed_or_lost_jobs_eligible_for_quarantine_backfill: 0
+    failed_hls_artifacts: 375
+    superseded_hls_artifacts: 1
+    ready_hls_artifacts: 52
+    ready_hls_segments_checked: 28625
+    missing_ready_hls_segments: 0
+    shared_nonempty_hls_paths: 0
+  findings:
+    - All 16 anonymization-validated videos retain their current processed master on disk.
+    - Six error jobs lack successful replacements; lost status blocks source cleanup independently.
+    - All fourteen persisted upload sources have pending cleanup and no eligibility timestamp.
+    - Raw cleanup for all sixteen validated videos is blocked by missing source-timeline and clinical-quality evidence.
+    - Video 12 has a missing raw-file reference but an existing processed master and ready processed HLS; its completed hub export explicitly retains local media.
+    - Video 50 has no ready processed HLS; its seventy failed processed derivatives lack the required replacement and must remain blocked.
+    - Video 53 has one committed cleanup receipt for an obsolete 11195448010-byte processed master, distinct from its current 3852885294-byte master.
+    - Video 53 has 83564 frame classifications and 1186 label segments; cleanup does not delete these model rows or the current master.
+    - Video 53 replacement plaintext hash, read through configured storage, matches the video record, receipt and ready HLS artifact 463; its size remained unchanged during verification.
+    - Twelve raw HLS hashes differ from raw_video_hash; that database comparison alone is not corruption evidence because playback checks actual source content. All ready processed HLS names and stored hashes match their current masters.
+    - New backend migrations 0087 through 0091 add fields/catalog tables/file inventory and alter a text field; they do not delete existing video or annotation rows.
+  verification:
+    - SSH inventory address 172.16.255.110 returned hostname gc-10; web and PostgreSQL were active.
+    - sudo -u postgres psql -X against endoregDbLocal used BEGIN READ ONLY and bounded aggregate/reference queries; no patient names or media payloads were returned.
+    - Privileged filesystem checks inspected existence, size, playlist segment references and shared HLS paths without changing media.
+    - Runtime integrity query confirmed default_transaction_read_only=on; get_file_hash(FieldFile) verified video 53 without plaintext materialization.
+    - Local installed endoreg-db 1.5.1 cleanup and generation_cleanup files matched reviewed backend source byte-for-byte.
+    - Candidate wheel digest matches both local dist and evaluated Nix-store artifact; storage_monitor and hub_export_cleanup bytes match the checkout.
+    - 'RUN_VIDEO_TESTS=true SKIP_EXPENSIVE_TESTS=false /home/admin/dev/lx-annotate/.devenv/state/venv/bin/pytest tests/services/test_processed_video_cleanup.py tests/services/test_hub_cleanup.py tests/services/test_periodic_media_cleanup.py -q --tb=short: 121 passed, 2 warnings in 45.15s.'
+    - 'tracker.py validate: 54 valid feature definitions; tracker.py check deployment_source_hygiene: exit 1, 0/6, not production-ready.'
+  limitations:
+    - No activation, migration, cleanup apply, task dispatch, service restart, or production database mutation was performed.
+    - Candidate cleanup was not executed on gc-10; its dry-run functions can acquire persisted operation leases, and the installed backend predates the candidate.
+    - Only video 53 received a full storage-backed replacement hash check; all other file checks establish presence, not cryptographic integrity or clinical equivalence.
+    - PostgreSQL reports a pre-existing collation mismatch, database 2.40 versus operating system 2.42; no repair was attempted.
+    - The deployment-source readiness failure remains a blocker to representing the complete activation workflow as production-ready.
+overview_recovery_20260917:
+  assessor: astra-hls-recovery-20260917
+  host: gc-10
+  scope: User narrowed recovery to showing currently usable video 53 correctly; database writes explicitly authorized.
+  deployed_versions: {lx-annotate: 1.2.5, endoreg-db: 1.2.7}
+  root_cause: >-
+    Installed endoreg_db.serializers.misc.file_overview._current_overview_hls_artifacts selects
+    the latest updated_at per kind. Historical failed replacements 202 (processed) and 171 (raw)
+    were newer than valid published artifacts 75 and 55, respectively.
+  mutation:
+    operation: ORM save(update_fields=['updated_at']) after resolver verification, inside transaction.atomic with video and artifact row locks.
+    video_id: 53
+    artifacts:
+      - id: 75
+        kind: processed
+        unchanged_status: ready
+        segment_count: 908
+        before_updated_at: '2026-09-09T08:14:06.517562+00:00'
+        after_updated_at: '2026-09-17T09:31:46.023079+00:00'
+      - id: 55
+        kind: raw
+        unchanged_status: ready
+        segment_count: 727
+        before_updated_at: '2026-09-09T08:20:20.033657+00:00'
+        after_updated_at: '2026-09-17T09:31:46.024937+00:00'
+    preserved: Media, generations, failed-attempt history, annotations, video fields, and clinical validation decisions.
+    services_restarted: []
+    code_deployed: false
+  verification:
+    - Installed get_ready_hls_artifact passed current-source identity and generation path checks for both kinds before mutation and again under the transaction locks.
+    - No active replacement attempt existed for video 53 at mutation time.
+    - Installed FileOverviewSerializer._hls_materializations returned processed=ready and raw=ready after the updates.
+    - Full VideoFile serialization was unchanged within the transaction.
+    - A fresh read-only runtime process confirmed persisted overview statuses processed=ready (908 segments) and raw=ready (727 segments).
+    - Browser playback, seeking, and annotation persistence were not tested in this narrowed recovery.
+  protected_receipts: /var/lib/lx-annotate/data/operations/hls-recovery-20260917/video53-overview-20260917T093145Z-{before,after}.json
+  journal_tag: lx-annotate-hls-recovery
+  rollback: >-
+    In a transaction, lock video 53 and artifacts 75/55. Only if each updated_at still equals
+    the recorded after value, restore its recorded before value with a conditional ORM update.
+    Do not overwrite subsequent updates. This restores the incorrect overview selection as well.
+  permanent_fix_required: >-
+    Prefer a validated published generation matching the current source and required artifact kind
+    over historical/replacement failures through shared backend identity logic, without media scans
+    in overview GETs. The timestamp refresh is a temporary workaround and a later failed attempt can
+    mask readiness again. Prior local backend drafts remain untested and undeployed.
+  remaining:
+    - Videos 44 and 50 processed HLS failures are not repaired by this change.
+    - The backfill timer paused in the earlier investigation was already active again at the start of this narrowed task; it was not changed in this task.
+    - lx-annotate tracker inbox and readiness commands remain blocked by the unrelated invalid feature-tracking/lx-annotate-downtime-triggers.yml schema.
+incident: gc-10 web unresponsive and HLS materialization backlog
+observed_at: '2026-09-09T09:17:00+02:00'
+assessor: codex-gc10-hls-20260909
+host: gc-10
+address: 172.16.255.110
+profile: site-client
+outcome: web_restored_hls_backlog_and_validation_failures_remain
+observations:
+  web:
+    systemd: active_running
+    pid: 122467
+    direct_http: connection timed out after 15 seconds on 127.0.0.1:8117
+    nginx_https: timed out after 15 seconds with no response bytes
+    nginx_static_manifest_http_status: 200
+    listener: receive backlog 51 with configured backlog 50 on port 8117
+    last_application_log: '2026-09-08T17:57:19+02:00'
+    last_application_warning: Processed HLS playlist requests for videos 13 and 14 took too long to shut down and were killed by the ASGI server.
+    interpretation: Application process is unresponsive; a causal connection to HLS requires process-stack and database inspection.
+    privileged_inspection:
+      main_thread_kernel_wait: futex_wait_queue
+      database: 56 idle connections; no application active queries or lock waits at inspection time
+      python_stack: Not captured; py-spy unavailable on host
+  hls:
+    worker_unit: lx-annotate-celery-ffmpeg-worker.service
+    queue: ffmpeg_media
+    redis_database: 1
+    queued_messages: 39
+    unacknowledged_messages: 1
+    active_task_id: db3d34e4-4704-4103-b33c-68b9240d8d1f
+    active_encoder_pid: 282227
+    encoder_cpu_percent: 599
+    configured_cpu_quota: six CPU equivalents
+    worker_concurrency: 1
+    successful_raw_video_ids: [37, 39, 40, 41, 42]
+    successful_task_duration_seconds: [12918.858, 7484.864, 7577.329, 8412.981, 13336.313]
+    failures:
+      - video_id: 44
+        artifact_kind: raw
+        task_id: 0124a759-52cf-4fbd-9e04-918c0bf68976
+        status: failed_validation
+        retryable: false
+        error_code: video_storage_validation_failed
+        persisted_error: Output frame count drifted from 171414 to 171913
+        note: Celery logs succeeded because the task returns a terminal failure payload; this is not successful HLS publication.
+      - task_id: 93153932-39b6-4180-8193-8693370cc67c
+        error: HLS reserved attempt is no longer active
+        location: installed endoreg_db/services/hls_media.py, _prepare_artifact_record, line 982
+    backfill:
+      unit: lx-annotate-hls-backfill.service
+      result: exec-condition
+      reason: The deployed condition skips when any UploadJob is pending, processing, or retrying.
+      note: This is an intentional skip, not a failed unit; subsequent privileged inspection identified expired import leases.
+      subsequent_database_check:
+        processing_imports: 2
+        lease_expiry_utc:
+          - '2026-09-08T14:29:25.211069+00:00'
+          - '2026-09-08T14:53:03.520012+00:00'
+        interpretation: Stale processing rows keep the condition false even though their leases expired.
+    additional_validation_failures:
+      - video_id: 44
+        artifact_kind: processed
+        observed_in_database_since: '2026-07-30'
+        persisted_error: Output frame count drifted from 171414 to 171913
+      - video_id: 50
+        artifact_kind: processed
+        observed_in_database_since: '2026-07-29'
+        persisted_error: Output nominal FPS drifted from 59.7982 to 59.9401
+    active_video_id: 38
+    database_attempt_counts:
+      raw: {ready: 25, queued: 9, materializing: 1}
+      processed: {ready: 24, queued: 26}
+    database_count_note: These are historical attempt counts, not a current-source playback-readiness verdict.
+  resources:
+    root_free_gib: 87
+    root_used_percent: 90
+    available_memory_gib: 22
+    failed_systemd_units: 0
+commands:
+  - systemctl list-units 'lx-annotate*' --all --no-pager
+  - systemctl --failed --no-pager
+  - systemctl show lx-annotate.service -p MainPID -p TasksCurrent -p MemoryCurrent
+  - journalctl --namespace=lx-annotate -u lx-annotate.service -n 35 --no-pager
+  - journalctl --namespace=lx-annotate -u lx-annotate-celery-ffmpeg-worker.service --since '18 hours ago' --no-pager
+  - journalctl --namespace=lx-annotate -u lx-annotate-hls-backfill.service -n 60 --no-pager
+  - redis-cli -n 1 LLEN ffmpeg_media
+  - redis-cli -n 1 HLEN unacked
+  - ss -ltn
+  - curl --max-time 15 -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8117/
+  - curl --max-time 15 -sS --cacert /run/lx-annotate-ssl/lx-annotate-selfsigned.crt --resolve lx-annotate.local:443:127.0.0.1 -o /dev/null -w '%{http_code}' https://lx-annotate.local/
+  - curl --max-time 10 -sS --cacert /run/lx-annotate-ssl/lx-annotate-selfsigned.crt --resolve lx-annotate.local:443:127.0.0.1 -o /dev/null -w '%{http_code}' https://lx-annotate.local/static/.vite/manifest.json
+initial_access_blockers:
+  - sudo -n requires a password for the admin SSH account.
+  - Root SSH public-key authentication was denied.
+  - systemctl --no-ask-password restart lx-annotate.service was denied by authorization policy; no restart occurred.
+  - Read-only database inspection could not connect because the configured password file is not readable by admin.
+access_resolution: User identified a local recovery credential; privileged authentication succeeded without printing its contents.
+recovery:
+  requested_at: '2026-09-09T09:14:44+02:00'
+  command: sudo systemctl restart --no-block lx-annotate.service
+  request_exit_code: 0
+  progress: Systemd killed the unresponsive original process after its configured 90-second stop timeout and started a replacement.
+  listening_at: '2026-09-09T09:16:52+02:00'
+  new_web_pid: 286619
+  startup_migrations: No migrations to apply.
+  ffmpeg_worker: Remained active with the same encoding process.
+  verification:
+    web_unit: active_running
+    direct_http_status: 301
+    direct_http_seconds: 0.007630
+    trusted_https_status: 302
+    trusted_https_repeat_seconds: 0.010148
+    unauthenticated_processed_hls_status: 302
+    unauthenticated_processed_hls_seconds: 0.015718
+    interpretation: Web and HLS route respond with authentication redirects; authenticated playback was not tested.
+    listener_receive_backlog: 0
+    failed_systemd_units: 0
+    nginx_postgresql_redis_ffmpeg: active
+    ffmpeg_queue_length: 39
+    unacknowledged_tasks: 1
+next_steps:
+  - Verify authenticated HLS playback and monitor for recurrence of the web hang.
+  - If the hang recurs, capture Python thread stacks before restarting; the kernel stack alone cannot identify the code holding the lock.
+  - Reproduce the frame-count and nominal-FPS validation mismatches in an isolated test environment before changing the encoder or retrying deterministic failures.
+  - Inspect the rejected reservation's state and source identity before choosing any retry.
+  - Review pending import ages to determine whether backfill deferral is appropriate.
+not_verified:
+  - Exact Python call stack responsible for the web hang
+  - Identity of the rejected inactive reservation
+  - Authenticated browser playback
+  - Production deployment acceptance
+prevention_change:
+  tracked_in: feature-tracking/StorageOptimization.yml#hls_packaged_runtime_failure_injection
+  source_repository: /home/admin/dev/lx-annotate
+  source_base_revision: 0b450b3479a6cba32693597207e51d5c0d6012d9
+  source_state: Existing staged changes preserved; prevention changes remain unstaged.
+  application_version: 1.2.3
+  dependency_requirement: asgiref>=3.12.1,<4
+  locked_dependency_version: 3.12.1
+  dependency_wheel_sha256: fe386d1c2bff7259ea95929266d12a8cf9a8b5a1c2598402967d8792e7a7c094
+  uv_lock_sha256: bb26627a9c5e6c0d435ae354345ccde94b1e824ea21f1e8c289faf0862a54a54
+  flake_lock_sha256: 3f755aa25b0b9aacdfb3f261a41ad94ae97e95df892541e53dc1619c4aea345d
+  upstream:
+    - https://github.com/django/asgiref/blob/3.12.1/CHANGELOG.txt
+    - https://github.com/django/asgiref/pull/563
+  mechanism: >-
+    Older ThreadSensitiveContext cleanup synchronously joins the executor thread on the ASGI event
+    loop. A disconnected request whose synchronous work remains active can therefore freeze every
+    request. Version 3.12.1 includes the upstream fix that joins off the event loop without occupying
+    the default executor. This reproduces the observed class of hang; the original production Python
+    stack was not captured, so attribution of that individual incident remains inferential.
+  regression:
+    file: tests/system/test_asgi_request_cancellation.py
+    isolation: Real application ASGI entrypoint with test-only Django routes and no clinical models, database, media, or credentials.
+    old_dependency_result: asgiref 3.11.1 deadlocked after server cancellation; parent killed child at 12 seconds.
+    old_dependency_stack: Django ASGIHandler.__call__ -> ThreadSensitiveContext.__aexit__ -> ThreadPoolExecutor.shutdown -> Thread.join
+    fixed_dependency_result: Four scenarios passed in 2.23 seconds with asgiref 3.12.1.
+    cases:
+      - One disconnected synchronous request
+      - Four concurrent disconnected synchronous requests
+      - One disconnected request with the default executor occupied
+      - Four disconnected requests with the default executor occupied
+    assertions:
+      - Unrelated HTTP requests complete before blocked synchronous work is released.
+      - Cancelled requests and their synchronous work drain after release.
+      - Subsequent HTTP requests succeed.
+  verification:
+    - command: /home/admin/endoreg-db/.devenv/state/venv/bin/pyright tests/system/test_asgi_request_cancellation.py
+      result: 0 errors, 0 warnings
+    - command: .devenv/state/venv/bin/ruff check tests/system/test_asgi_request_cancellation.py
+      result: passed
+    - command: .devenv/state/venv/bin/ruff format --check tests/system/test_asgi_request_cancellation.py
+      result: passed
+    - command: uv lock --check
+      result: passed; only asgiref changed version in the lockfile
+    - command: .devenv/state/venv/bin/pytest -q tests/system/test_asgi_request_cancellation.py
+      result: 4 passed
+    - command: .devenv/state/venv/bin/pytest -q tests/system/test_oidc_settings.py tests/system/test_production_celery_routing.py tests/api/test_video_lifecycle_readiness.py
+      result: 16 passed, 26 failed due to the unavailable can_dismiss_upload_job import in the existing pinned Endoreg wheel.
+    - command: PYTHONPATH=/home/admin/.cache/lx-annotate/asgi-regression-3.11.1:. .devenv/state/venv/bin/pytest -q --maxfail=1 --tb=line tests/api/test_video_lifecycle_readiness.py::test_mounted_import_dismissal_hides_only_the_row_and_preserves_source
+      result: The same ImportError also occurs with asgiref 3.11.1; this is independent of the upgrade.
+  rollout:
+    performed: false
+    reasons:
+      - Existing staged overview code requires can_dismiss_upload_job, absent from the locked endoreg-db 1.2.0 wheel.
+      - tracker.py check deployment_source_hygiene exited 1 with 0/6 required criteria verified.
+    gc10_dependency: Still asgiref 3.11.1; production dependency files were not changed during this prevention work.
+    final_host_check: Web and FFmpeg units active; trusted HTTPS returned 302 in 0.004772 seconds.
+    required_followup: Resolve the Endoreg release contract, package the tested ASGI requirement into the reviewed release, and perform the governed gc-10 rollout and authenticated playback acceptance.
+hls_throughput_tuning:
+  date: '2026-09-09'
+  assessor: codex-gc10-hls-20260909
+  target: gc-10
+  hardware:
+    cpu: Intel Core i7-11800H; 8 physical cores, 16 logical CPUs
+    gpu: NVIDIA GeForce RTX 3070 Laptop GPU; 8192 MiB VRAM
+  initial_encoder:
+    pid: 282227
+    video_id: 38
+    codec: libx264
+    threads: 14
+    preset: medium
+    crf: 18
+    frame_timing: passthrough
+    hls_segment_seconds: 4
+    worker_concurrency: 1
+  applied_change:
+    unit: lx-annotate-celery-ffmpeg-worker.service
+    property: CPUQuota
+    original: 600%
+    selected: 1400%
+    command: sudo systemctl set-property --runtime lx-annotate-celery-ffmpeg-worker.service CPUQuota=1400%
+    rollback_command: sudo systemctl set-property --runtime lx-annotate-celery-ffmpeg-worker.service CPUQuota=600%
+    restart_performed: false
+    structured_journal_tag: lx-annotate-hls-tuning
+    persistence: Runtime override only; reboot or a stream-throttle mode transition can replace it.
+    playback_guard: Existing stream-aware throttling remains enabled; its streaming profile remains unchanged.
+  throughput_samples:
+    method: Thirty-second deltas of worker cgroup cpu.stat and active FFmpeg /proc/PID/io counters.
+    caveat: Different portions of the same running video; byte rates are not a controlled whole-job encoding benchmark.
+    measurements:
+      - quota_percent: 600
+        cpu_equivalents: 6.0
+        throttled_period_fraction: 1.0
+        input_mib_per_second: 1.249
+        output_mib_per_second: 0.950
+      - quota_percent: 1200
+        cpu_equivalents: 11.6
+        throttled_period_fraction: 0.633
+        input_mib_per_second: 2.392
+        output_mib_per_second: 1.526
+      - quota_percent: 1400
+        cpu_equivalents: 12.21
+        throttled_period_fraction: 0.05
+        input_mib_per_second: 2.599
+        output_mib_per_second: 1.575
+    segment_creation_comparison:
+      method: Count new seg_*.ts files in the active encoder's staging output; do not read media payloads.
+      at_1400_percent: 7 new segment files in 30 seconds; nominal 0.933 media seconds per wall second
+      at_600_percent: 2 new segment files in 30 seconds; nominal 0.267 media seconds per wall second
+      caveat: Short, quantized samples from different video portions; these are staged files, not proof of validated publication or a guaranteed whole-job speedup.
+      final_action: Restored CPUQuota=1400% after the comparison; stream throttle remained in normal mode.
+  resource_checks:
+    memory_high_gib: 10
+    memory_max_gib: 12
+    worker_anonymous_memory_gib: 1.47
+    worker_file_cache_gib: 8.36
+    oom_events: 0
+    memory_pressure_avg10: 0.0
+    highest_sampled_thermal_zone_celsius: 87.05
+    later_highest_sampled_thermal_zone_celsius: 82.05
+    root_free_gib: 87
+    root_used_percent: 91
+    web_https_status: 302
+    web_https_seconds_at_1400_percent: 0.008513
+    note: Worker memory usage was primarily file cache, with no current memory pressure; memory limits were retained.
+  gpu_findings:
+    deployed_profile: clinical_h264_libx264_crf_v1
+    supported_gpu_profile: clinical_h264_nvenc_cq_v1
+    deployed_preflight_frame: 64x64 at 1 fps
+    deployed_preflight_result: Encoder rejected frame dimensions below its supported minimum; exit 234.
+    larger_frame_probe: 256x256 at 1 fps; only frame dimensions changed from the deployed preflight
+    larger_frame_probe_result: NVENC succeeded as endoreg-service-user with isolated GPU 0; exit 0.
+    probe_output: FFmpeg null muxer; generated color frame only, no clinical input or persistent output.
+    not_enabled_reason: >-
+      The installed HLS reservation and playback checks compare encoding_profile_name with the global
+      configured profile. Switching that setting alone would conflict with existing queued reservations
+      and make CPU-profile READY artifacts fail readiness checks. GPU activation requires a corrected
+      preflight and a coordinated profile transition through the release workflow.
+  unchanged:
+    - Current encode and its reserved attempt
+    - Encryption, source identity and timeline validation
+    - Encoder quality and bitrate limits
+    - Worker concurrency and memory limits
+    - Production package files and Nix deployment source

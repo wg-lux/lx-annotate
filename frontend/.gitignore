@@ -12,13 +12,12 @@ node_modules
 dist
 dist-ssr
 coverage
+/types/
 *.local
 public/video.mp4
 
 node_modules/*
 
-/cypress/videos/
-/cypress/screenshots/
 
 # Editor directories and files
 .vscode/*
@@ -32,6 +31,3 @@ node_modules/*
 
 *.tsbuildinfo
 frontend/vite.config.js.timestamp-*.mjs
-
-# Agent-review build artifacts (temporary analysis files)
-build/

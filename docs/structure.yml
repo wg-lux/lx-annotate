@@ -1,0 +1,33 @@
+version: 1
+tier: domain
+path: "docs"
+parent: "../structure.yml"
+summary: "English architecture, workflow, operational, and publication documentation."
+responsibilities:
+  - "Document integration ownership and operational contracts."
+  - "Provide focused context entrypoints without duplicating readiness assessments."
+boundaries:
+  - "Feature YAML owns readiness; documentation is not production approval."
+  - "Do not place secrets or clinical payloads in documentation."
+entrypoints:
+  - name: "secret rotation"
+    file: "guides/secret-rotation.md"
+    purpose: "Application integration with the canonical LuxNix rotation catalog"
+  - name: "documentation index"
+    file: "index.md"
+    purpose: "Sphinx guide navigation"
+  - name: "agent context"
+    file: "agent_context.md"
+    purpose: "Manifest and maintenance protocol"
+dependencies:
+  internal: ["feature-tracking"]
+  external: ["Sphinx","MyST"]
+submodules: []
+contracts:
+  - name: "clinical boundaries"
+    doc: "guides/core-concept-contract.md"
+  - name: "deployment boundaries"
+    doc: "guides/deployment-strategy.md"
+tests:
+  directory: "../tests/system"
+  command: "python scripts/lint_structure.py"

@@ -1,343 +1,407 @@
 # LX-Annotate Frontend
 
-Vue.js-basierte Frontend-Anwendung für medizinische Video-Annotation und Datenvalidierung.
+Vue 3 + TypeScript frontend for annotation workflows in LX-Annotate.
 
-## 🏗️ Architektur
+## Architecture
 
-LX-Annotate verwendet eine moderne **Django + Vue.js** Architektur:
+- Vue 3 SPA with TypeScript
+- Vite build and dev server
+- Pinia for state management
+- Django integration via `django-vite`
+- Material Dashboard assets
 
-- **Vue.js 3** mit TypeScript für die Frontend-SPA
-- **Vite** für moderne Frontend-Tooling und Builds
-- **django-vite** für nahtlose Django-Integration
-- **Pinia** für State Management
-- **Material Dashboard** Theme für UI-Komponenten
+## Project Structure
 
-## 📁 Projektstruktur
-
-```
-lx-annotate/
-├── frontend/                    # Vue.js Anwendung
-│   ├── src/
-│   │   ├── main.ts             # Vue App Entry Point
-│   │   ├── App.vue             # Root Component
-│   │   ├── components/         # Wiederverwendbare Komponenten
-│   │   ├── views/              # Page-Level Komponenten
-│   │   ├── stores/             # Pinia State Management
-│   │   ├── api/                # API Service Layer
-│   │   └── assets/             # CSS, Bilder, Fonts
-│   ├── vite.config.ts          # Vite Konfiguration
-│   └── package.json            # Node.js Dependencies
-├── static/dist/                # Generierte Assets (nach npm run build)
-│   ├── main.js                 # Kompilierte Vue App (~175KB)
-│   ├── main.css               # Kompilierte Stylesheets
-│   └── manifest.json          # Asset-Mapping für Django
-└── lx_annotate/
-    ├── templates/base.html     # Django Template mit Vue App
-    └── settings/               # Django Konfiguration
+```text
+frontend/
+├── src/                    # Main Vue source
+├── tests/                  # Vitest test suites
+├── public/                 # Static assets
+├── tools/                  # Frontend tooling
+├── package.json
+├── vite.config.ts
+└── README.md
 ```
 
-## 🚀 Schnellstart
+## Prerequisites
 
-### Voraussetzungen
+- Node.js 18+
+- Running Django backend
 
-- **Node.js** (Version 18+)
-- **Python** mit Django Backend
-- **endoreg-db** Backend-Service
+Optional for auth-related flows:
 
-### Installation
+- `endoreg_db` installed in the backend environment
 
-1. **Frontend Dependencies installieren**
+## Installation
+
 ```bash
 cd frontend
 npm install
 ```
 
-2. **Frontend Assets builden**
+## Development
+
+Run Vite dev server:
+
 ```bash
-npm run build
+cd frontend
+npm run dev
 ```
 
-3. **Django Backend starten**
+Run Django in another terminal:
+
 ```bash
-# Aus dem Hauptverzeichnis
-export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
+export DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_dev
 python manage.py runserver
 ```
 
-4. **Anwendung öffnen**
-```
-http://127.0.0.1:8000/
-```
+If you want Django templates to load assets from Vite dev server, enable:
 
-## 🛠️ Entwicklung
+- `DJANGO_VITE["default"]["dev_mode"] = True`
 
-### Verfügbare Kommandos
+## Production Build
 
 ```bash
-# Dependencies installieren
-npm install
-
-# Entwicklungsserver (Hot-Reload)
-npm run dev
-
-# Production Build
+cd frontend
 npm run build
+```
 
-# TypeScript Type-Checking
+This writes compiled assets to Django static output as configured in `vite.config.ts`.
+
+## Available Commands
+
+```bash
+npm run dev
+npm run build
 npm run type-check
-
-# Linting
+npm run type-check:component-tests
 npm run lint
-
-# Unit Tests
 npm run test:unit
+npm run preview
 ```
 
-### Development Workflow
+## TypeScript Safety
 
-#### Option 1: Production Mode (Empfohlen)
+Treat every value that originates outside the compiled frontend as untrusted. This
+includes API responses, caught errors, browser globals, persisted values, and
+imported files. Introduce those values as `unknown` (or as a library-provided
+type), validate the fields the workflow needs, and only then convert them to a
+named domain type. Invalid required data must produce a visible error; do not use
+an assertion or a silent default to make an invalid contract appear valid.
+
+Choose the narrowest useful TypeScript construct:
+
+- Use `unknown` at an untrusted boundary and narrow it with a type guard or schema.
+- Use a named interface or type alias for API payloads, component contracts, and
+  shared workflow state.
+- Use a generic when the relationship between input and output types is the
+  important constraint.
+- Use a discriminated union for exhaustive workflow states instead of optional
+  fields that permit contradictory combinations.
+- Use types exported by Vue, Pinia, Axios, Vitest, Cypress, or another dependency
+  instead of reproducing a library contract locally.
+
+Backend payload interfaces use the frontend's `camelCase` field names. The shared
+Axios client performs the backend `snake_case` to frontend `camelCase` conversion;
+individual callers must not duplicate that conversion.
+
+### Required checks
+
+Run the non-mutating checks from `frontend/`:
+
 ```bash
-# 1. Frontend Assets builden
-cd frontend
-npm run build
-
-# 2. Django im Development Mode
-export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
-python manage.py runserver
-
-# 3. Nach Frontend-Änderungen: Neu builden
-npm run build
+npm run type-check
+npm run type-check:component-tests
+npm run lint
+npm run test:unit -- --run path/to/affected.test.ts
 ```
 
-#### Option 2: Hot-Reload Development (Erweitert)
+Audit explicit `any` across every first-party scope with:
+
 ```bash
-# Terminal 1: Vite Dev Server
-cd frontend
-npm run dev
-
-# Terminal 2: Django mit Dev-Mode
-export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
-# In settings/dev.py: DJANGO_VITE["default"]["dev_mode"] = True
-python manage.py runserver
+npm exec -- eslint src tests cypress \
+  --rule '@typescript-eslint/no-explicit-any: error' \
+  --max-warnings 0
 ```
 
-### TypeScript & Vue 3
+The migration baseline from 2026-07-28 was 214 production, 129 test, and 2
+Cypress occurrences. The same command subsequently reached zero occurrences;
+future progress reports must keep the three scope counts separate so moving a
+violation cannot look like progress.
 
-- **Composition API** mit `<script setup>`
-- **TypeScript** für Type Safety
-- **Vue Router** für Client-Side Routing
-- **Pinia Stores** für State Management
+Inspect the effective configuration for representative files when changing lint
+or TypeScript settings:
 
-Beispiel Komponente:
-```vue
-<template>
-  <div class="patient-form">
-    <h2>{{ patient.name }}</h2>
-  </div>
-</template>
-
-<script setup lang="ts">
-import { ref } from 'vue'
-import type { Patient } from '@/api/patientService'
-
-const patient = ref<Patient>({
-  first_name: '',
-  last_name: ''
-})
-</script>
+```bash
+npm exec -- eslint --print-config src/main.ts
+npm exec -- eslint --print-config src/router/__tests__/reportingFlow.test.ts
+npm exec -- eslint --print-config cypress/e2e/video-examination-annotations.cy.ts
 ```
 
-## 🔗 Django Integration
+The checked-in ESLint configuration applies `strictTypeChecked` with type
+information from `tsconfig.eslint.json` to production, unit/integration test, and
+Cypress code. Vue component type unsafety is explicitly disabled so the complete
+`no-unsafe-*` family remains active. The gate enforces, at minimum, these rules as
+errors in every relevant scope:
 
-### django-vite Setup
+- `@typescript-eslint/no-explicit-any`
+- `@typescript-eslint/no-unsafe-argument`
+- `@typescript-eslint/no-unsafe-assignment`
+- `@typescript-eslint/no-unsafe-call`
+- `@typescript-eslint/no-unsafe-member-access`
+- `@typescript-eslint/no-unsafe-return`
+- `@typescript-eslint/no-floating-promises`
+- `@typescript-eslint/no-misused-promises`
+- `@typescript-eslint/no-unnecessary-type-assertion`
+- `@typescript-eslint/no-non-null-assertion`
+- `@typescript-eslint/only-throw-error`
+- `@typescript-eslint/use-unknown-in-catch-callback-variable`
 
-Die Integration erfolgt über **django-vite**:
+These rules work as one boundary: banning `any` alone does not prevent unsafe
+values, ignored promises, unchecked assertions, or non-`Error` exceptions from
+crossing into clinical workflow code.
 
-**settings.py:**
+### Async ownership
+
+Every promise needs one explicit owner:
+
+- `await` work whose completion determines the current operation's success.
+- `return` a promise only when the caller's contract owns its completion and
+  rejection.
+- Attach `.catch(...)` when a synchronous callback contract (such as a timer)
+  cannot own a promise. Record the failure and update existing visible error
+  state for user-triggered work.
+- Deliberately detached work is limited to genuinely non-blocking refresh or
+  telemetry paths and still requires an explicit rejection handler. Do not use
+  `void` merely to silence a floating-promise diagnostic.
+
+Vue event handlers and watchers must await user-visible mutations through their
+authoritative success or failure boundary. A timer callback itself stays
+synchronous and owns async refresh work with `.catch(...)`. Store every interval
+or timeout handle and clear it during `onUnmounted`; guard delayed mount work so
+it cannot install a scheduler after its component has already unmounted.
+
+Run the unsuppressed, read-only async inventory with:
+
+```bash
+npm run lint:async-inventory
+```
+
+The inventory uses ESLint's Node API and reports production, unit/integration
+test, and Cypress totals separately for `no-floating-promises`,
+`no-misused-promises`, `no-confusing-void-expression`, `require-await`, and
+`prefer-promise-reject-errors`. Keep all three scope counts separate in progress
+reports so moving a diagnostic between scopes cannot look like improvement.
+
+### String boundaries
+
+Convert known scalar values deliberately when constructing UI text, identifiers,
+filenames, logs, selectors, and routes. For example, use `String(record.id)` for
+an already validated numeric identifier, or an existing formatter when units,
+precision, or locale are part of the UX contract. Narrow optional and union
+values before conversion; an array-valued route query is not equivalent to one
+string and must not be flattened accidentally.
+
+Values received as `unknown` require validation before conversion. Accept only
+the scalar types defined by the API or domain contract, and either reject a
+malformed value or use an explicit documented domain fallback. Never rely on
+default object stringification: `[object Object]` is not a valid identifier,
+path, schema version, log value, or user-facing description.
+
+Run the unsuppressed, read-only string-boundary inventory with:
+
+```bash
+npm run lint:string-inventory
+```
+
+The inventory reports production, unit/integration test, and Cypress totals
+separately for `restrict-template-expressions` and `no-base-to-string`.
+
+### Test doubles and method binding
+
+Use `vi.spyOn(object, 'method')` when a test needs to observe or replace an
+object method while preserving its receiver. When a module mock is built from
+hoisted `vi.fn()` values, assert against that exact direct mock reference—the
+same function instance production code invokes. Do not extract `object.method`
+into another variable merely to configure or assert on it: a real method can
+lose `this`, and a reconstructed mock can observe a different function than the
+one under test.
+
+Reset call history and one-off implementations in `beforeEach`; restore spies
+when their implementation must not survive the test. Keep async success,
+rejection, retry, and ordering behavior explicit. Binding a method, casting it,
+or adding a wrapper solely to satisfy lint hides the test-identity problem and
+is not an acceptable fix.
+
+Run the unsuppressed, read-only method-binding inventory with:
+
+```bash
+npm run lint:unbound-inventory
+```
+
+The inventory reports production, unit/integration test, and Cypress totals
+separately for `unbound-method`.
+
+### Control-flow and runtime boundaries
+
+Remove a condition when both the type and the owning invariant prove its
+alternate branch cannot occur. This includes redundant optional chains,
+nullish fallbacks on required internal values, and comparisons such as
+`flag === true` when `flag` is already a boolean. Prefer one named invariant or
+derived boolean when the same state controls several branches.
+
+Do not delete a runtime guard solely because an optimistic type says it is
+unnecessary. Values from HTTP responses, authentication providers, routes,
+browser storage, persisted state, and Vue form bindings must retain `unknown` or
+a realistic union until validated. For example, use `items.at(0)` when an array
+can be empty—indexed access otherwise appears non-null under the current
+TypeScript configuration—and type a numeric form field as `string | number` if
+the browser or test harness can supply either. Invalid authorization, workflow,
+or clinical-status values must continue to fail closed.
+
+Run the unsuppressed, read-only conditional-integrity inventory with:
+
+```bash
+npm run lint:condition-inventory
+```
+
+The inventory reports production, unit/integration test, and Cypress totals
+separately for `no-unnecessary-condition` and
+`no-unnecessary-boolean-literal-compare`.
+
+### Type precision and the zero-suppression gate
+
+A union such as `'known' | string` is just `string`. Use a closed literal union
+only when the domain contract is exhaustive. Keep a forward-compatible value as
+`string`, and validate it as a string when it crosses an HTTP, authentication,
+route, form, or persisted-state boundary. Use `unknown` until validation when
+the value's scalar kind is not yet trustworthy. Do not make an open backend
+value look closed merely to improve editor completion.
+
+Likewise, do not retain conversions that receive the exact type they return:
+`String(text)`, `Number(count)`, and `!!flag` conceal nothing and suggest a
+runtime boundary that does not exist. Correct the declared input type when Vue
+forms or external data can genuinely supply a wider value. A generic parameter
+must relate at least two signature positions or enforce a real constraint;
+one-use generics provide false confidence. Represent a static-only utility as a
+module-level object while preserving its public method surface. For reactive
+records, create the next record with typed filtering or computed destructuring
+instead of dynamically deleting a key from shared state.
+
+Run the complete unsuppressed, read-only error inventory with:
+
+```bash
+npm run lint:strict-inventory
+```
+
+The inventory uses ESLint's Node API before bulk suppressions are applied and
+reports errors by rule, file, and production/test/Cypress scope. All three
+scopes must remain at zero. The former count-based
+`eslint-suppressions.json` debt baseline was eliminated after the 2026-08-04
+type-precision migration reached zero; it is not an exception policy and must
+not be regenerated.
+
+### Runtime logging and clinical privacy
+
+Production code must not call `console.*` directly. Create one scoped logger
+with `createRuntimeLogger('lowercase-scope')` and use stable lowercase event
+names such as `request-failed` or `draft.commit-complete`. Event names describe
+the operation; they must not contain identifiers, filenames, URLs, labels,
+free-form backend values, or user-visible error text.
+
+Logger context is intentionally limited to an approved set of scalar
+operational fields, such as a controlled operation, media type, count, retry
+count, or state. Never log patient names, dates of birth, contact details,
+patient hashes, comments, clinical identifiers, form values, sensitive
+metadata, media or segment objects, payloads, request objects, response bodies,
+DOM events, error messages, or stacks. Pass an unknown failure only as the
+second argument to `logger.error(...)`; the logger retains a safe error class
+and optional HTTP status while dropping the raw message and nested data.
+
+Debug and informational records require `VITE_ENABLE_DEBUG=true` (or the
+legacy `DEBUG=true` frontend flag). Test output is silent unless a logger test
+explicitly sets `VITE_ENABLE_TEST_LOGS=true`. Warnings and errors remain enabled
+outside tests, but contain only structured redacted JSON. Application state,
+visible errors, retries, and thrown failures remain authoritative; logging must
+never replace or suppress them.
+
+Audit executable calls outside the single logger sink with:
+
+```bash
+npm run lint:console-inventory
+```
+
+The inventory reports direct calls by file and console method. ESLint enforces
+`no-console` throughout `frontend/src` and exempts only the logger sink module.
+
+Normal lint, both type checks, and affected tests remain required:
+
+```bash
+npm run lint
+npm run type-check
+npm run type-check:component-tests
+```
+
+Do not run `--suppress-all` during routine development; it would conceal a
+regression instead of fixing it. The earlier zero-`any`, unsafe-value boundary,
+async reliability, string-boundary, bound-test-double, and control-flow
+milestones remain part of the same zero-diagnostic gate.
+
+An unavoidable interoperability exception must be attached to the smallest
+possible expression or line. Its inline comment must state why the library
+contract cannot be represented safely, name the responsible owner, and state the
+concrete condition for removal. File-wide disables and exceptions added only to
+preserve existing behavior are not acceptable.
+
+## Django Integration
+
+Example template usage:
+
+```html
+{% load django_vite %} {% vite_asset 'src/main.ts' %}
+```
+
+Example settings snippet:
+
 ```python
 DJANGO_VITE = {
     "default": {
-        "dev_mode": False,  # True für Hot-Reload
-        "manifest_path": BASE_DIR / 'static' / 'dist' / 'manifest.json',
+        "dev_mode": False,
     }
 }
 ```
 
-**base.html Template:**
-```html
-{% load django_vite %}
-<!DOCTYPE html>
-<html>
-<head>
-    <meta name="csrf-token" content="{{ csrf_token }}">
-    {% vite_asset 'src/main.ts' %}
-</head>
-<body>
-    <div id="app"></div>
-</body>
-</html>
-```
+## Troubleshooting
 
-### API Integration
+Frontend does not load:
 
-Frontend kommuniziert mit Django über REST APIs:
-
-```typescript
-// api/axiosInstance.ts
-import axios from 'axios'
-
-const axiosInstance = axios.create({
-  baseURL: '/api/',
-  headers: {
-    'X-CSRFToken': getCsrfToken(),
-  }
-})
-
-// api/patientService.ts
-export const patientService = {
-  async getPatients(): Promise<Patient[]> {
-    const response = await axiosInstance.get('patients/')
-    return response.data
-  }
-}
-```
-
-## 🎯 Hauptfunktionen
-
-### Video-Annotation
-- **Video-Player** mit Timeline-Navigation
-- **Label-Segmentierung** für medizinische Bereiche
-- **Examination Forms** für strukturierte Datenerfassung
-- **Real-Time API** Synchronisation
-
-### Patient Management
-- **CRUD Operations** für Patientendaten
-- **Form Validation** mit TypeScript
-- **Dropdown-Integration** mit Backend-Daten
-
-### State Management (Pinia)
-```typescript
-// stores/videoStore.ts
-export const useVideoStore = defineStore('videos', {
-  state: () => ({
-    videos: [],
-    currentVideo: null
-  }),
-  actions: {
-    async fetchVideos() {
-      this.videos = await videoService.getVideos()
-    }
-  }
-})
-```
-
-## 📦 Build-Prozess
-
-### Vite Konfiguration
-
-```typescript
-// vite.config.ts
-export default defineConfig({
-  build: {
-    manifest: 'manifest.json',           // Asset-Mapping für Django
-    outDir: '../static/dist',            // Output in Django static
-    rollupOptions: {
-      input: { main: 'src/main.ts' },
-      output: {
-        entryFileNames: '[name].js',     // main.js
-        assetFileNames: '[name].[ext]',  // main.css
-      },
-    },
-  },
-  server: {
-    proxy: {
-      '/api': 'http://127.0.0.1:8000',   // API-Proxy zu Django
-    },
-  },
-})
-```
-
-### Generated Assets
-
-Nach `npm run build`:
-```
-static/dist/
-├── main.js          # Vue App Bundle (~175KB)
-├── main.css         # Compiled Styles
-├── manifest.json    # Asset-Mapping für django-vite
-└── assets/          # Zusätzliche Assets
-```
-
-## 🔧 Troubleshooting
-
-### Vue App lädt nicht
 ```bash
-# Prüfen ob Assets existieren
-ls static/dist/
-
-# Build neu ausführen
-cd frontend && npm run build
-
-# Django-Vite Settings prüfen
-# dev_mode = False in Produktion
+cd frontend
+npm run build
 ```
 
-### API-Calls schlagen fehl
-```bash
-# Django Server läuft?
-curl http://127.0.0.1:8000/api/patients/
+API requests fail:
 
-# CSRF-Token konfiguriert?
-# Siehe base.html: <meta name="csrf-token" content="{{ csrf_token }}">
-```
+- Ensure Django runs on `http://127.0.0.1:8000`
+- Verify CSRF token handling in frontend API client
 
-### Build-Fehler
+Type errors:
+
 ```bash
-# TypeScript-Fehler beheben
+cd frontend
 npm run type-check
-
-# Dependencies aktualisieren
-npm install
-
-# Cache löschen
-rm -rf node_modules/.vite
 ```
 
-## 🚀 Deployment
+## Environment
 
-### Production Checklist
-- [ ] `npm run build` ausführen
-- [ ] `dev_mode = False` in Django settings
-- [ ] Static files konfiguriert (WhiteNoise/Nginx)
-- [ ] CORS/CSRF für Production domain
-- [ ] `ALLOWED_HOSTS` aktualisiert
+Development backend settings module:
 
-### Environment Variables
 ```bash
-# Development
-export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
-
-# Production
-export DJANGO_SETTINGS_MODULE=lx_annotate.settings.prod
+export DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_dev
 ```
 
-## 📚 Weitere Informationen
+Production backend settings module:
 
-- **Vue 3 Dokumentation**: https://vuejs.org/
-- **Vite Dokumentation**: https://vitejs.dev/
-- **django-vite**: https://github.com/MrBin99/django-vite
-- **Material Dashboard**: https://demos.creative-tim.com/material-dashboard/
-
-## 🤝 Mitwirken
-
-1. Fork das Repository
-2. Erstelle einen Feature Branch
-3. Implementiere Änderungen mit TypeScript
-4. Teste mit `npm run build`
-5. Erstelle Pull Request
-
----
-
-**Hinweis**: Diese Anwendung ist für medizinische Datenvalidierung konzipiert und erfordert entsprechende Sicherheits- und Compliance-Maßnahmen.
-
-
+```bash
+export DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_prod
+```

@@ -1,0 +1,355 @@
+schema_version: '1.0'
+id: reporting_shell_aaa_test_coverage
+name: ReportingShell End-to-End AAA Unit Test Coverage
+description: 'Establish complete, reviewable Arrange-Act-Assert unit coverage for the
+
+  first-party caller and callee graph of ReportingShell, from Vue routing and
+
+  nested workflow pages through Pinia and TypeScript API services to
+
+  knowledge-base graph resolution, draft persistence, and finalized report and
+
+  artifact persistence.
+
+
+  "All callers and callees" means every first-party production boundary that
+
+  invokes ReportingShell, is invoked directly by ReportingShell, consumes the
+
+  same reporting-flow state, or participates in the draft-to-final persistence
+
+  path. Framework internals, generated API declarations, type-only modules, and
+
+  unrelated consumers of shared infrastructure are excluded, but every
+
+  exclusion must be recorded with a reason. The inventory is refreshed from
+
+  imports, router registration, endpoint wiring, and backend call sites before
+
+  this feature can be completed.
+
+
+  An accepted test has an identifiable Arrange phase that establishes typed
+
+  inputs and dependency behavior, one Act phase that invokes the behavior under
+
+  test, and an Assert phase that verifies returned or rendered output, state
+
+  mutations, collaborator calls, and forbidden side effects where relevant.
+
+  Merely executing a line, snapshotting a large component without behavioral
+
+  assertions, or relying only on an end-to-end happy path does not satisfy this
+
+  tracker.'
+owners:
+- lx-annotate frontend maintainers
+- endoreg-db maintainers
+- lx-dtypes maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: docs/guides/reporting-template-requirements-page.md
+  disposition: reference
+  note: Canonical reporting workflow and lookup contract.
+- path: docs/guides/reporting-shell-aaa-testing.md
+  disposition: reference
+  note: Caller/callee inventory, AAA conventions, ownership matrix, exclusions, and verification commands.
+definition_of_done:
+- id: caller_callee_inventory
+  category: requirements
+  title: The complete first-party ReportingShell test surface is inventoried
+  acceptance:
+  - The inventory traces router and application callers into ReportingShell, every nested reporting route
+    rendered through its RouterView, and every direct component, composable, store, helper, and TypeScript
+    API import used by the shell.
+  - The inventory follows endpoint constants and HTTP methods into the owning endoreg-db or lx-dtypes
+    route, schema, resolver, service, model, transaction, and stored-artifact boundary for graph reads,
+    report drafts, submissions, report generation, history, and finalized reads.
+  - Each inventory row records production symbol, repository and file, direction (caller or callee), owning
+    suite, covered behaviors, and any justified exclusion; no item is considered covered only because
+    a transitive end-to-end test executes it.
+  - At minimum, the inventory includes frontend/src/router/index.ts, frontend/src/main.ts, frontend/src/views/reporting/ReportingShell.vue,
+    all of its nested reporting pages, the five directly used Pinia stores, its TypeScript API/composable/helper
+    modules, and the backend boundaries named by the remaining criteria.
+  required: true
+  verification:
+    kind: manual
+    instructions: Regenerate the dependency inventory with repository search, compare it with imports,
+      router declarations, endpoint constants, backend route registration, and service call sites, and
+      review every exclusion.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: docs/guides/reporting-shell-aaa-testing.md
+    - kind: review
+      reference: Imports, router registrations, endpoint wiring, and backend call sites audited across
+        lx-annotate, lx-data-models, and endoreg-db
+    note: The matrix maps callers, nested pages, direct callees, backend graph/draft/final persistence
+      boundaries, owning suites, behaviors, and justified exclusions.
+    assessed_by: codex-reportingshell-aaa-tests
+    assessed_at: '2026-08-27T09:29:18.970398Z'
+- id: vue_route_and_shell_aaa_suite
+  category: functionality
+  title: Router callers, ReportingShell, and nested Vue workflow pages have AAA suites
+  acceptance:
+  - AAA tests cover direct entry at /reporting, deep links for every child route, valid and invalid patient_examination_id
+    parameters, redirects, auth-bound flow initialization, and context reset or preservation during navigation.
+  - ReportingShell component tests cover initial context resolution, patient-examination creation, restored
+    drafts, template and language selection, lifecycle changes, media preload, navigation guards, superseded
+    work, errors, and teardown without replacing the shell's decision logic with mocks.
+  - ReportingWorklistPage, ReportTemplateBuilderPage, CaseResolutionPage, CaseSetupPage, FindingsCapturePage,
+    ReportEditorPage, FrameSelectorPage, ReportExportPage, and FinalizedResultPage each have focused AAA
+    component suites for the reporting context they receive from or return to the shell.
+  - Assertions include visible state, accessibility-relevant disabled or error state, exact dependency
+    arguments, and forbidden navigation or persistence when prerequisites are absent or stale.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review frontend router and reporting component suites for explicit AAA structure and
+      execute every focused suite together to expose shared mock, timer, and Pinia leakage.
+    timeout_seconds: 1800
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'Frontend reporting matrix: 37 files, 277 tests passed'
+    - kind: command
+      reference: cd frontend && npm run type-check && npm run type-check:component-tests (passed)
+    note: Router, ReportingShell, every nested reporting page, and ReportImportPanel have focused suites;
+      the combined lane passes with strict application/component typing and lint.
+    assessed_by: codex-reportingshell-aaa-tests
+    assessed_at: '2026-08-27T09:29:20.123779Z'
+- id: pinia_state_aaa_suite
+  category: testing
+  title: Every ReportingShell Pinia boundary has an isolated AAA suite
+  acceptance:
+  - Dedicated AAA suites cover reportingFlowStore, terminologyStore, patientStore, examinationStore, and
+    patientExaminationStore actions, computed state, reset behavior, authenticated-subject changes, and
+    failure propagation used by ReportingShell.
+  - reportingFlowStore coverage includes draft dirty tracking, autosave coalescing, flush, optimistic
+    revision conflicts, stale response rejection, persistence blocking for unverified identities, final
+    transition handoff, and state isolation between patient examinations and authenticated subjects.
+  - Store tests use a fresh Pinia and reset mocks, timers, storage, and pending promises per test; assertions
+    target the exact bound dependency invoked by production code.
+  - Error tests prove that failed persistence and inconsistent identity state remain visible and do not
+    silently clear dirty state, overwrite a newer revision, or broaden the active reporting context.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect all five store suites against the ReportingShell call sites, run them both alone
+      and as one group, and verify success, rejection, retry, conflict, and stale-response branches.
+    timeout_seconds: 1800
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: reportingFlow, terminology, examination, patient, and patientExamination stores included
+        in the 37-file/277-test frontend matrix
+    - kind: test
+      reference: frontend/src/stores/__tests__/patientStore.reportingShell.test.ts; frontend/src/stores/__tests__/patientExaminationStore.reportingShell.test.ts
+    note: All five directly used stores cover ReportingShell-facing actions/state; new patient stores
+      explicitly assert typed failure and fresh-Pinia isolation.
+    assessed_by: codex-reportingshell-aaa-tests
+    assessed_at: '2026-08-27T09:29:21.298181Z'
+- id: typescript_service_contract_aaa_suite
+  category: security
+  title: TypeScript service and runtime-contract callees fail closed under AAA tests
+  acceptance:
+  - Focused AAA tests cover the ReportingShell paths through casesApi, findingsApi, knowledgeBaseGraphApi,
+    reportDraftApi, reportingLanguagesApi, reportingTimelineApi, reportTemplatesApi, axiosInstance endpoint
+    resolution, and useAuthenticatedVideoStream.
+  - Tests assert the exact HTTP method, snake_case wire payload, encoded path and query, response normalization,
+    and typed return value for every operation used by the shell or its nested report pages.
+  - Malformed payloads, contradictory or missing IDs, module/version/template identity mismatches, unknown
+    contract versions, unauthorized responses, network failures, and cancellation or supersession all
+    fail visibly without state mutation or fallback to another clinical context.
+  - Pure reporting helpers and composables used for knowledge-base context, presentation, indication normalization,
+    error mapping, lifecycle propagation, and concept coverage have table-driven AAA tests for valid boundaries
+    and negative cases.
+  required: true
+  verification:
+    kind: manual
+    instructions: Compare each service/helper export used by ReportingShell and its nested pages with
+      a named AAA test, then run the combined frontend API, composable, and helper suites.
+    timeout_seconds: 1800
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'Frontend reporting API/composable/helper matrix: 37 files, 277 tests passed'
+    - kind: test
+      reference: frontend/src/api/__tests__/reportExportApi.test.ts; frontend/src/views/reporting/__tests__/reportingError.test.ts;
+        frontend/src/views/reporting/__tests__/reportingKnowledgeBaseContext.test.ts; frontend/src/views/reporting/__tests__/useReportingKnowledgeBase.test.ts
+    note: Every direct ReportingShell service/helper has focused positive and fail-closed coverage; TypeScript
+      and ESLint gates pass.
+    assessed_by: codex-reportingshell-aaa-tests
+    assessed_at: '2026-08-27T09:29:22.425677Z'
+- id: deterministic_dag_resolution_aaa_suite
+  category: functionality
+  title: Frontend and backend reporting graph resolution have deterministic AAA suites
+  acceptance:
+  - frontend/src/views/reporting/reportingResolutionGraph.ts has AAA unit tests for empty and duplicate
+    nodes, missing dependencies, cycles, stable wave planning, same-wave isolation, wave barriers, rejection,
+    supersession before and after a wave, immutable inputs, and atomic commit.
+  - ReportingShell integration tests arrange deferred graph dependencies, act by changing route, examination,
+    terminology, module, or version, and assert that only the current immutable evaluation may commit
+    to Vue or Pinia state.
+  - lx-dtypes knowledge_base_graph contracts and knowledge_base_graph_routes have AAA unit tests for exact
+    module/version loading, deterministic snapshot construction, examination projection, missing or ambiguous
+    nodes, incoherent graphs, serialization, and HTTP status mapping.
+  - KnowledgeBaseResolver branches reached by graph routes are independently covered for registry absence,
+    unknown versions, identity mismatch, and explicit-source resolution without example-data fallback.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the focused Vitest DAG/shell suites and lx-dtypes graph route, contract, and resolver
+      suites repeatedly with deterministic barriers and compare their cases with every resolver branch.
+    timeout_seconds: 1800
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: Frontend DAG suites included in 277 passed; lx-dtypes graph/resolver matrix included
+        in 92 passed
+    - kind: test
+      reference: frontend/src/views/reporting/__tests__/reportingResolutionGraph.aaa.test.ts; /home/admin/lx-data-models/tests/unit/lx_dtypes/django/api/test_reporting_shell_graph_aaa.py
+    note: AAA suites cover structural errors, immutability, barriers, rejection, supersession, atomic
+      commit, exact backend identities, closed projections, and 404/409 mapping.
+    assessed_by: codex-reportingshell-aaa-tests
+    assessed_at: '2026-08-27T09:29:23.563085Z'
+- id: draft_persistence_aaa_suite
+  category: data_integrity
+  title: Draft persistence has AAA coverage from browser state to validated database storage
+  acceptance:
+  - AAA tests trace fetchPatientExaminationDraft and savePatientExaminationDraft through the patient-examinations/{id}/draft/
+    GET and PUT route, request serializer, lx-dtypes PatientExaminationReportDraft schema, PatientExamination
+    model boundary, transaction, and response normalization.
+  - Tests cover canonical round trips, empty drafts, every persisted field, malformed persisted JSON,
+    missing examinations, authorization, required expected_revision, legacy revision upgrade, concurrent
+    writers, rollback, and monotonically increasing revisions and timestamps.
+  - Draft tests prove module, knowledge-base version, template version and hash remain pinned; unverified
+    identities cannot become persistable; unknown keys or invalid nested structures cannot bypass model
+    validation.
+  - Autosave failure or a revision conflict preserves the user's newer in-memory work and surfaces a recoverable
+    error without last-writer-wins overwrite or silent data loss.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the frontend draft API/store/shell suites, endoreg-db draft route/model suites,
+      and lx-dtypes report-draft contract suite; inspect transaction and negative-path assertions.
+    timeout_seconds: 1800
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: Frontend reporting matrix 277 passed; lx-dtypes graph/draft/final matrix 92 passed; endoreg
+        reporting route/service/model matrix 84 passed
+    - kind: test
+      reference: /home/admin/lx-data-models/tests/unit/lx_dtypes/models/contracts/test_reporting_shell_persistence_aaa.py;
+        /home/admin/endoreg-db/tests/views/patient_examination/test_patient_examination_draft_viewset.py
+    note: Browser serialization/store behavior, strict canonical contract validation, optimistic revision
+      conflicts, model validation, rollback, final clearing, and failure retention are covered.
+    assessed_by: codex-reportingshell-aaa-tests
+    assessed_at: '2026-08-27T09:29:24.757637Z'
+- id: finalized_persistence_aaa_suite
+  category: data_integrity
+  title: Finished report and artifact persistence has AAA coverage through durable storage
+  acceptance:
+  - AAA tests trace save-submission, make-report, report list/detail/history, export, and finalized-page
+    reads through frontend services/components and the endoreg-db PatientExaminationReport API, typed
+    payload contracts, serializers, runtime validation, and report_persistence service.
+  - Service-level tests cover draft create/update, transition to final, idempotent replay, provenance,
+    author/finalizer fields, finding synchronization, patient and history snapshots, template identity,
+    database locking, rollback, and rejection of edits to finalized reports.
+  - Artifact tests cover FullReport and PDF materialization, renderer success and failure, durable linkage,
+    MIME/type metadata, digest and size integrity, atomic file behavior through approved typed filesystem
+    wrappers, URL generation, and no partially committed database or file state after failure.
+  - Finalization clears PatientExamination.report_draft only after the report and required artifacts commit;
+    validation, registry, renderer, storage, or transaction failure retains the draft and produces no
+    false finalized UI state.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the frontend report submission/export/finalized suites and the endoreg-db route,
+      report-persistence, renderer, model, history, finding-sync, and artifact integrity suites with failure
+      injection at each transaction and storage boundary.
+    timeout_seconds: 2400
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'Endoreg reporting route/service/model matrix: 84 tests passed'
+    - kind: code
+      reference: /home/admin/endoreg-db/endoreg_db/views/report/patient_examination_report.py
+    - kind: test
+      reference: /home/admin/endoreg-db/tests/views/report/test_reporting_shell_finalization_aaa.py
+    note: Finalization and artifact persistence are transactional for make-report. New regressions prove
+      renderer rollback, forbidden work on identity mismatch, and valid zero-frame finalization without
+      a false final state.
+    assessed_by: codex-reportingshell-aaa-tests
+    assessed_at: '2026-08-27T09:29:25.957144Z'
+- id: aaa_suite_quality_gate
+  category: operations
+  title: Automated gates enforce stable AAA suites across all three repositories
+  acceptance:
+  - A maintained manifest or equivalent test matrix maps every inventory row to one or more focused tests
+    and causes verification to fail for an unmapped production boundary, missing test file, skipped test,
+    focused-only test, or unjustified exclusion.
+  - Frontend unit tests, component-test type checking, application type checking, and scoped lint pass
+    with no unhandled rejections, leaked fake timers, shared Pinia state, network access, order dependence,
+    or snapshot-only acceptance.
+  - lx-dtypes and endoreg-db focused unit suites pass with their configured type and lint gates; tests
+    do not depend on the installed site-packages copy when a source repository is the ownership boundary.
+  - The combined reporting test matrix runs in CI and reports frontend, lx-dtypes, endoreg-db draft, and
+    endoreg-db finalized persistence failures as distinct required jobs.
+  required: true
+  verification:
+    kind: manual
+    instructions: Execute the committed cross-repository test matrix from clean source checkouts, inspect
+      collection for skipped or focused-only cases, then run the frontend type/lint lanes and backend
+      type/lint lanes used by CI.
+    timeout_seconds: 3600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: document
+      reference: docs/guides/reporting-shell-aaa-testing.md
+    - kind: command
+      reference: Frontend 277 tests and both type lanes passed; lx-dtypes 92 tests and Pyright passed;
+        endoreg-db 84 tests and Pyright passed
+    note: The maintained matrix and all local gates pass. Distinct required CI jobs and automatic rejection
+      of unmapped inventory rows remain before verification.
+    assessed_by: codex-reportingshell-aaa-tests
+    assessed_at: '2026-08-27T09:29:27.099107Z'
+- id: maintained_aaa_test_contract
+  category: documentation
+  title: ReportingShell test ownership and AAA conventions stay reviewable
+  acceptance:
+  - English contributor documentation defines the caller/callee scope, AAA conventions, unit boundaries,
+    fixture ownership, deterministic async testing, persistence failure injection, and the commands for
+    each repository.
+  - The dependency inventory and this tracker are reviewed whenever ReportingShell imports, nested routes,
+    Pinia dependencies, endpoint constants, backend route registration, graph resolution, draft schema,
+    or final persistence calls change.
+  - Completion evidence names exact suites and commands with passing counts and an assessor; aggregate
+    coverage percentage alone is not accepted as evidence that every caller and callee is tested.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the English testing guide, dependency inventory, CI matrix, and recorded tracker
+      evidence against the current production call graph.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: docs/guides/reporting-shell-aaa-testing.md
+    note: The English guide defines AAA, ownership, deterministic async isolation, failure injection,
+      exclusions, exact suites, and commands for all three repositories.
+    assessed_by: codex-reportingshell-aaa-tests
+    assessed_at: '2026-08-27T09:29:28.228437Z'
