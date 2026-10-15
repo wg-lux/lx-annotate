@@ -148,3 +148,25 @@ Retry blackening to complete that media gate. **Video für Transfer reparieren**
 opens the explicit unresolved-provenance acknowledgment described in the
 [hub export workflow](hub-export-workflow.md#unresolved-frame-provenance); it does
 not reapprove segments or claim that blackening succeeded.
+
+## Dashboard progress and reflection
+
+The dashboard leads with the authenticated practitioner's total number of distinct
+frame-label annotation pairs across accessible videos, including annotations from
+segment validation. Participation milestones advance through 10, 50, 100, 500 and
+1,000 annotations, then in increments of 1,000. Duplicate source records count once;
+these totals are not validated-track counts and do not award clinical quality scores. No progress state is stored separately.
+
+The separate peer and AI overlap summaries divide summed intersections by summed unions across
+video/practitioner or video/prediction-run pairs with available timing and a positive union on the current
+comparison page. It is not an average of percentages or an all-pages aggregate.
+Unavailable timing stays distinct from measured zero overlap. Detailed named
+comparisons, denominators, conflicts and report mapping limitations remain visible.
+
+The guidance links to segment annotation, frame annotation and comparison review.
+It does not change anonymization acceptance or segment validation permissions.
+
+AI comparisons use existing prediction segment ranges and remain separated by run in
+the detail tables. Missing predictions are unavailable, not zero agreement. Deploy the
+updated endoreg-db contract alongside the frontend; older contracts produce a visible
+load error rather than an invented total.

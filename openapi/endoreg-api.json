@@ -755,6 +755,9 @@
               "$ref": "#/components/schemas/VideoComparison"
             },
             "type": "array"
+          },
+          "total": {
+            "type": "integer"
           }
         },
         "required": [
@@ -762,7 +765,8 @@
           "page",
           "pages",
           "practitioner",
-          "results"
+          "results",
+          "total"
         ],
         "type": "object"
       },
@@ -7358,6 +7362,12 @@
             },
             "type": "array"
           },
+          "predictions": {
+            "items": {
+              "$ref": "#/components/schemas/AnnotationComparison"
+            },
+            "type": "array"
+          },
           "unavailable": {
             "items": {
               "type": "string"
@@ -7378,6 +7388,7 @@
           "annotations",
           "conflicts",
           "findings",
+          "predictions",
           "unavailable",
           "unmapped",
           "video"

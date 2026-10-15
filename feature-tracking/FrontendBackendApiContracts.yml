@@ -54,6 +54,8 @@ definition_of_done:
     practitioners, overlap denominators and report finding matches.
   - Empty, unavailable and failed comparisons remain distinguishable from zero agreement; requests use
     the canonical endoreg API client.
+  - Personal annotation totals count distinct frame-label pairs across accessible videos; milestones and
+    workflow guidance accompany separate page-scoped human and AI overlap summaries with run details.
   required: true
   verification:
     kind: manual
@@ -61,7 +63,7 @@ definition_of_done:
       contract documented in endoreg-db docs/annotation_comparisons.md.
     timeout_seconds: 600
   assessment:
-    status: verified
+    status: in_progress
     evidence:
     - kind: test
       reference: frontend/src/components/Dashboard/__tests__/AnnotationComparisons.test.ts
@@ -71,11 +73,14 @@ definition_of_done:
       reference: '2026-10-14: 6 component/dashboard tests passed; npm run type-check passed including
         OpenAPI freshness, vue-tsc and ESLint using matching local endoreg-db and lx-dtypes source checkouts
         on PYTHONPATH. Structure lint and git diff checks passed.'
-    note: Dashboard uses generated comparison response types. Installed lx-dtypes lacked VideoProvenanceRecovery
-      required by other current backend work; source-aligned validation passed without changing dependency
-      pins. Deploy matching backend/frontend packages; no deployment performed.
-    assessed_by: codex-annotation-overlap-20261014
-    assessed_at: '2026-10-14T08:08:11.056954Z'
+    - kind: command
+      reference: '2026-10-15: 13 dashboard/API-prefix tests passed; vue-tsc build, scoped ESLint, OpenAPI
+        freshness with source-aligned PYTHONPATH, structure lint and diff checks passed.'
+    note: Implemented guidance, distinct frame-label totals, participation milestones and separate page-scoped
+      human/AI overlap with run details. Requires matching endoreg-db changes in /home/admin/endoreg-db.
+      Live browser review and production-scale load validation not performed; no deployment.
+    assessed_by: codex-dashboard-20261015
+    assessed_at: '2026-10-15T07:55:05.922718Z'
 - id: route_paths
   category: requirements
   title: Frontend paths resolve against the intended backend mount

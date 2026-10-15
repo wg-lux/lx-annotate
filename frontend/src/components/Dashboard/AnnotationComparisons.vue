@@ -1,10 +1,14 @@
 <template>
   <section
-    class="card p-4"
+    id="annotation-comparisons"
+    class="comparison-panel"
     aria-label="Meine Annotationsvergleiche"
   >
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <h3 class="h5 mb-0">Meine Annotationen im Vergleich</h3>
+    <div class="comparison-heading">
+      <div>
+        <p class="eyebrow">Fortschritt &amp; Reflexion</p>
+        <h3 class="h4 mb-0">Meine Annotationen im Vergleich</h3>
+      </div>
       <button
         class="btn btn-outline-primary btn-sm"
         :disabled="loading"
@@ -13,12 +17,15 @@
         Aktualisieren
       </button>
     </div>
-    <p class="text-muted">
-      Vergleich mit benannten Annotatoren auf denselben Videos und mit finalisierten Berichten
-      derselben Untersuchung. Zeitüberlappung = gemeinsame positive Label-Zeit geteilt durch die
-      gesamte positive Label-Zeit beider Annotatoren. Mehrere Labels zählen getrennt. Fehlende
-      Annotationen sind keine negativen Befunde.
-    </p>
+    <details class="comparison-help">
+      <summary>Wie wird die Überlappung berechnet?</summary>
+      <p>
+        Vergleich mit benannten Annotatoren auf denselben Videos und mit finalisierten Berichten
+        derselben Untersuchung. Zeitüberlappung = gemeinsame positive Label-Zeit geteilt durch die
+        gesamte positive Label-Zeit beider Annotatoren. Mehrere Labels zählen getrennt. Fehlende
+        Annotationen sind keine negativen Befunde.
+      </p>
+    </details>
     <p
       v-if="loading"
       role="status"
@@ -32,18 +39,72 @@
       {{ error }}
     </p>
     <template v-else-if="data">
-      <p>
-        Annotator: <strong>{{ data.practitioner }}</strong> · {{ data.count }} Videos
-      </p>
+      <div class="progress-grid">
+        <article class="progress-card contribution-card">
+          <p class="eyebrow">Ihr Beitrag · {{ data.practitioner }}</p>
+          <strong class="metric">{{ data.total.toLocaleString('de-DE') }}</strong>
+          <h4>Eigene Annotationen insgesamt</h4>
+          <p>
+            {{ data.count }} Videos · Eindeutige Frame-Label-Paare, einschließlich Annotationen aus
+            Segmentvalidierung.
+          </p>
+          <label for="video-milestone">Nächster Meilenstein: {{ milestone }} Annotationen</label>
+          <progress
+            id="video-milestone"
+            :value="data.total"
+            :max="milestone"
+          />
+          <p>{{ milestone - data.total }} weitere Annotationen bis zum nächsten Meilenstein.</p>
+        </article>
+        <article
+          v-for="summary in summaries"
+          :key="summary.kind"
+          class="progress-card"
+        >
+          <p class="eyebrow">
+            {{ summary.kind === 'annotations' ? 'Gemeinsam reflektieren' : 'KI als Vergleich' }}
+          </p>
+          <strong
+            class="metric"
+            :data-test="summary.kind === 'annotations' ? 'peer-overlap' : 'ai-overlap'"
+            >{{ percent(summary.overlap) }}</strong
+          >
+          <h4>
+            {{
+              summary.kind === 'annotations'
+                ? 'Zeitüberlappung mit anderen'
+                : 'Zeitüberlappung mit KI'
+            }}
+          </h4>
+          <meter
+            v-if="summary.overlap !== null"
+            min="0"
+            max="100"
+            :value="summary.overlap"
+            :aria-label="
+              summary.kind === 'annotations'
+                ? 'Zeitüberlappung mit anderen in Prozent'
+                : 'Zeitüberlappung mit KI in Prozent'
+            "
+          />
+          <p>Gewichtet nach positiver Label-Zeit, über auswertbare Vergleiche dieser Seite.</p>
+          <p>
+            {{ summary.count }} auswertbare
+            {{ summary.kind === 'annotations' ? 'Video-Annotator-Paare' : 'Video-KI-Lauf-Paare' }} ·
+            Seite {{ data.page }} von {{ data.pages }}
+          </p>
+        </article>
+      </div>
+
       <p v-if="!data.results.length">
         Noch keine zugeordneten menschlichen Annotationen auf zugänglichen Videos vorhanden.
       </p>
       <article
         v-for="video in data.results"
         :key="video.video"
-        class="border-top pt-3 mb-3"
+        class="video-comparison"
       >
-        <h4 class="h6">Video {{ video.video }}</h4>
+        <h4 class="h6">Video {{ video.video }} · Vergleich im Detail</h4>
         <p
           v-if="video.conflicts"
           role="status"
@@ -51,10 +112,17 @@
           {{ video.conflicts }} widersprüchliche Frame-Label-Zuordnungen wurden ausgeschlossen.
         </p>
         <div
-          v-if="video.annotations.length"
+          v-for="kind in comparisonKinds"
+          :key="kind"
           class="table-responsive"
         >
-          <table class="table table-sm">
+          <h5 class="h6">
+            {{ kind === 'annotations' ? 'Andere Annotatoren' : 'KI-Segmente nach Vorhersagelauf' }}
+          </h5>
+          <table
+            v-if="video[kind].length"
+            class="table table-sm"
+          >
             <caption>
               Vergleich der vorhandenen Annotationen
             </caption>
@@ -69,7 +137,7 @@
             </thead>
             <tbody>
               <tr
-                v-for="peer in video.annotations"
+                v-for="peer in video[kind]"
                 :key="peer.practitioner"
               >
                 <td>{{ peer.practitioner }}</td>
@@ -83,16 +151,21 @@
               </tr>
             </tbody>
           </table>
+          <p v-else>
+            {{
+              kind === 'annotations'
+                ? 'Keine Annotationen anderer Praktizierender für dieses Video vorhanden.'
+                : 'Keine KI-Segmente für dieses Video vorhanden.'
+            }}
+          </p>
         </div>
-        <p v-else>Keine Annotationen anderer Praktizierender für dieses Video vorhanden.</p>
         <div
           v-if="video.findings.length"
           class="table-responsive"
         >
           <table class="table table-sm">
             <caption>
-              Befundvergleich anhand der hinterlegten Label-Zuordnung; keine Aussage über
-              diagnostische Richtigkeit.
+              Befundvergleich anhand der hinterlegten Label-Zuordnung.
             </caption>
             <thead>
               <tr>
@@ -163,7 +236,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import axios from '@/api/axiosInstance'
 import { r } from '@/api/axiosInstance'
 import type { components } from '@/types/generated/endoreg-api'
@@ -174,7 +247,32 @@ const data = ref<ComparisonPage | null>(null)
 const loading = ref(false)
 const error = ref('')
 const page = ref(1)
+const milestone = computed(() => {
+  const count = data.value?.total ?? 0
+  return (
+    [10, 50, 100, 500, 1000].find((target) => target > count) ??
+    (Math.floor(count / 1000) + 1) * 1000
+  )
+})
+const comparisonKinds = ['annotations', 'predictions'] as const
+const summaries = computed(() =>
+  comparisonKinds.map((kind) => {
+    const peers = (data.value?.results ?? [])
+      .flatMap((video) => video[kind])
+      .filter((peer) => peer.intersection !== null && peer.union !== null && peer.union > 0)
+    const union = peers.reduce((total, peer) => total + (peer.union ?? 0), 0)
+    return {
+      kind,
+      count: peers.length,
+      overlap:
+        union > 0
+          ? (100 * peers.reduce((total, peer) => total + (peer.intersection ?? 0), 0)) / union
+          : null
+    }
+  })
+)
 const reasons: Record<string, string> = {
+  prediction_missing_label: 'KI-Segmente ohne Label wurden vom Vergleich ausgeschlossen.',
   no_mapped_positive_findings:
     'Keine eigenen positiven Befunde mit hinterlegter Label-Zuordnung vorhanden.',
   peer_without_mapped_positive_findings:
@@ -183,7 +281,7 @@ const reasons: Record<string, string> = {
   missing_terminology: 'Keine versionierte Terminologie für den Befundvergleich vorhanden.',
   missing_mapping: 'Keine Label-zu-Befund-Zuordnung vorhanden.',
   report_missing_attribution_or_snapshot:
-    'Bericht ohne Finalisierer oder historischen Befundstand ausgeschlossen.',
+    'Bericht ohne Finalisierung oder historischen Befundstand ausgeschlossen.',
   report_terminology_mismatch: 'Bericht mit abweichender Terminologie ausgeschlossen.'
 }
 const percent = (value: number | null): string =>
@@ -198,7 +296,14 @@ async function load(target: number): Promise<void> {
     const response = await axios.get<ComparisonPage>(r('media/annotations/comparisons/'), {
       params: { page: target }
     })
-    if (!Array.isArray(response.data.results)) throw new Error('Invalid comparison response')
+    if (
+      !Array.isArray(response.data.results) ||
+      !Number.isSafeInteger(response.data.total) ||
+      response.data.total < 0 ||
+      response.data.results.some((video) => !Array.isArray(video.predictions))
+    ) {
+      throw new Error('Invalid comparison response')
+    }
     data.value = response.data
     page.value = response.data.page
   } catch {
@@ -210,3 +315,137 @@ async function load(target: number): Promise<void> {
 }
 onMounted(() => load(1))
 </script>
+
+<style scoped>
+.comparison-panel {
+  padding: clamp(1rem, 3vw, 2rem);
+  background: #fff;
+  border: 1px solid #dfe7ef;
+  border-radius: 20px;
+  box-shadow: 0 12px 36px #24354b08;
+  scroll-margin-top: 2rem;
+}
+.comparison-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.eyebrow {
+  color: #52647a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+.comparison-help {
+  margin: 1.25rem 0;
+  color: #52647a;
+  font-size: 0.875rem;
+}
+.comparison-help summary {
+  cursor: pointer;
+  color: #254c87;
+  font-weight: 600;
+}
+.comparison-help p {
+  margin-top: 0.75rem;
+  max-width: 85ch;
+}
+.progress-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+.progress-card {
+  padding: 1.5rem;
+  border: 1px solid #dfe7ef;
+  border-radius: 16px;
+  background: #f7f9fc;
+}
+.contribution-card {
+  background: linear-gradient(125deg, #edf5ff, #f2faf7);
+}
+.metric {
+  display: block;
+  font-size: clamp(1.6rem, 3vw, 2.5rem);
+  letter-spacing: -0.04em;
+  color: #1b425d;
+  margin: 0.5rem 0;
+}
+.progress-card h4 {
+  font-size: 1rem;
+  color: #24354b;
+}
+.progress-card p,
+.progress-card label {
+  font-size: 0.85rem;
+  color: #52647a;
+}
+.progress-card label {
+  margin: 0;
+}
+progress,
+meter {
+  display: block;
+  width: 100%;
+  height: 0.65rem;
+  margin: 0.75rem 0;
+  accent-color: #247c76;
+  border: 0;
+  border-radius: 20px;
+  overflow: hidden;
+}
+meter::-webkit-meter-bar {
+  background: #dce7eb;
+  border: 0;
+}
+meter::-webkit-meter-optimum-value {
+  background: #486fa6;
+}
+meter::-moz-meter-bar {
+  background: #486fa6;
+}
+progress::-webkit-progress-bar {
+  background: #dce7eb;
+}
+progress::-webkit-progress-value {
+  background: #247c76;
+}
+progress::-moz-progress-bar {
+  background: #247c76;
+}
+.reflection-note {
+  padding: 1rem 0;
+  font-size: 0.85rem;
+  color: #52647a;
+}
+.video-comparison {
+  padding-top: 1.5rem;
+  margin-top: 1rem;
+  border-top: 1px solid #dfe7ef;
+}
+.table th {
+  color: #52647a;
+  font-size: 0.75rem;
+}
+.table td {
+  font-size: 0.875rem;
+}
+.table caption {
+  color: #52647a;
+  font-size: 0.8rem;
+}
+summary:focus-visible,
+button:focus-visible {
+  outline: 3px solid #315b9b;
+  outline-offset: 4px;
+}
+@media (max-width: 1000px) {
+  .progress-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

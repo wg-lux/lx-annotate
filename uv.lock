@@ -950,7 +950,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "1.5.6"
+version = "1.5.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery", extra = ["redis"] },
@@ -1016,9 +1016,9 @@ dependencies = [
     { name = "xlrd" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/35/c5/77e0ffda6a7380d29e05326c77e704c8a4fa1b32f551957ba2cbed48b625/endoreg_db-1.5.6.tar.gz", hash = "sha256:40581ccbe0c897fb285ab5b02cb51b71fc784c6a5fab5b436b783f6f3b172403", size = 1451312, upload-time = "2026-10-14T12:38:32.686Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0a/c7/289085270ee04bf8a64a0a41772002c4bc96986352bc2a8eabf445f15a38/endoreg_db-1.5.7.tar.gz", hash = "sha256:a853c0aec310b148c60af08b78aa857268d344ebac385ab7db8e4edaa0502229", size = 1451600, upload-time = "2026-10-15T09:17:02.174Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/08/64/75fc56968614981ffaec585263564751a944d7acba50446d99c047de64dc/endoreg_db-1.5.6-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:09b17f05ac426a682fba30bb30de4c8d8e811e5d5e600ba4e68e95a7ce12a5fc", size = 2515877, upload-time = "2026-10-14T12:38:27.187Z" },
+    { url = "https://files.pythonhosted.org/packages/30/05/718fff6bb526e1c5ee6d5efb85213a27606d6a3f594b5ad22c9af3be1c76/endoreg_db-1.5.7-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d9cc41631b5e052f43dd65c760cf722ac3b045c1f6ec786198076eaa968ae0e5", size = 2515873, upload-time = "2026-10-15T09:16:59.751Z" },
 ]
 
 [[package]]
@@ -1690,7 +1690,7 @@ torch = [
 
 [[package]]
 name = "lx-annotate"
-version = "1.5.4"
+version = "1.5.6"
 source = { editable = "." }
 dependencies = [
     { name = "asgiref" },
@@ -1792,7 +1792,7 @@ requires-dist = [
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "djangorestframework-types", marker = "extra == 'dev'", specifier = ">=0.9.0" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==1.5.6" },
+    { name = "endoreg-db", specifier = "==1.5.7" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },

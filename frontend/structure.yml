@@ -42,3 +42,6 @@ files:
   - src/components/Dashboard/__tests__/AnnotationComparisons.test.ts
   - src/components/VideoExamination/VideoProvenanceRepairPanel.vue
   - src/components/Export/HubRecoveryReturnLink.vue
+  - src/utils/timeHelpers.ts
+  - src/utils/timeUtils.ts
+  - src/utils/__tests__/timeHelpers.test.ts

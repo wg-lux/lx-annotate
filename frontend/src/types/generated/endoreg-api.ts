@@ -3838,6 +3838,7 @@ export type components = {
             pages: number;
             practitioner: string;
             results: components["schemas"]["VideoComparison"][];
+            total: number;
         };
         /** ContraindicationReference */
         ContraindicationReference: {
@@ -5915,6 +5916,7 @@ export type components = {
             annotations: components["schemas"]["AnnotationComparison"][];
             conflicts: number;
             findings: components["schemas"]["FindingComparison"][];
+            predictions: components["schemas"]["AnnotationComparison"][];
             unavailable: string[];
             unmapped: string[];
             video: number;

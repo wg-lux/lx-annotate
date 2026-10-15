@@ -83,7 +83,7 @@ describe('AnnotationDashboard operational state', () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     axios.get.mockResolvedValue({
-      data: { practitioner: 'alice', count: 0, page: 1, pages: 1, results: [] }
+      data: { practitioner: 'alice', count: 0, total: 0, page: 1, pages: 1, results: [] }
     })
     api.fetchAiDatasetOptions.mockResolvedValue([
       {
@@ -131,7 +131,13 @@ describe('AnnotationDashboard operational state', () => {
 
     const links = wrapper.findAllComponents(RouterLinkStub)
     expect(links.map((link) => link.props('to'))).toEqual(
-      expect.arrayContaining(['/ai-dataset-settings', '/studies', '/administration'])
+      expect.arrayContaining([
+        '/ai-dataset-settings',
+        '/studies',
+        '/administration',
+        '/video-untersuchung',
+        '/frame-annotation'
+      ])
     )
   })
 

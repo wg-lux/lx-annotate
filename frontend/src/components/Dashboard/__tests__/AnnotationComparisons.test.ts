@@ -10,12 +10,14 @@ vi.mock('@/api/axiosInstance', () => ({
 
 const response = () => ({
   practitioner: 'alice',
+  total: 6,
   count: 6,
   page: 1,
   pages: 2,
   results: [
     {
       video: 7,
+      predictions: [],
       conflicts: 0,
       unmapped: [],
       unavailable: [],
@@ -77,6 +79,76 @@ describe('AnnotationComparisons', () => {
     expect(wrapper.text()).toContain('Seite 2 von 2')
   })
 
+  it('weights peer overlap by duration and scopes it to the current page', async () => {
+    const data = response()
+    data.results[0].annotations.push({
+      practitioner: 'dave',
+      shared: 2,
+      agreeing: 2,
+      agreement: 100,
+      intersection: 0.9,
+      union: 1.6,
+      overlap: 56.25,
+      missing: 0
+    })
+    get.mockResolvedValue({ data })
+    const wrapper = mount(AnnotationComparisons)
+    await flushPromises()
+    expect(wrapper.get('[data-test="peer-overlap"]').text()).toBe('50.0 %')
+    expect(wrapper.text()).toContain('2 auswertbare Video-Annotator-Paare · Seite 1 von 2')
+    expect(wrapper.get('progress').attributes()).toMatchObject({ value: '6', max: '10' })
+    expect(wrapper.text()).toContain('4 weitere Annotationen')
+  })
+
+  it.each([
+    [0, 10],
+    [10, 50],
+    [100, 500]
+  ])('keeps the next milestone ahead of %i annotations', async (count, target) => {
+    get.mockResolvedValue({ data: { ...response(), count, total: count, results: [] } })
+    const wrapper = mount(AnnotationComparisons)
+    await flushPromises()
+    expect(wrapper.get('progress').attributes()).toMatchObject({
+      value: String(count),
+      max: String(target)
+    })
+    expect(wrapper.get('[data-test="peer-overlap"]').text()).toBe('Nicht auswertbar')
+  })
+
+  it('displays measured zero overlap as zero', async () => {
+    const data = response()
+    data.results[0].annotations[0].intersection = 0
+    data.results[0].annotations[0].overlap = 0
+    get.mockResolvedValue({ data })
+    const wrapper = mount(AnnotationComparisons)
+    await flushPromises()
+    expect(wrapper.get('[data-test="peer-overlap"]').text()).toBe('0.0 %')
+  })
+
+  it('shows AI separately and rejects an outdated contract instead of inventing totals', async () => {
+    const data = response()
+    get.mockResolvedValue({
+      data: {
+        ...data,
+        results: [
+          {
+            ...data.results[0],
+            predictions: [{ ...data.results[0].annotations[0], practitioner: 'KI-Lauf 12' }]
+          }
+        ]
+      }
+    })
+    const wrapper = mount(AnnotationComparisons)
+    await flushPromises()
+    expect(wrapper.get('[data-test="ai-overlap"]').text()).toBe('25.0 %')
+    expect(wrapper.text()).toContain('KI-Lauf 12')
+    get.mockResolvedValue({ data: { ...data, total: undefined } })
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+    expect(wrapper.find('progress').exists()).toBe(false)
+  })
+
   it('distinguishes unavailable timing from zero overlap', async () => {
     const data = response()
     get.mockResolvedValue({
@@ -115,7 +187,7 @@ describe('AnnotationComparisons', () => {
     await flushPromises()
     expect(wrapper.find('[role="alert"]').text()).toContain('konnten nicht geladen werden')
     get.mockResolvedValue({
-      data: { practitioner: 'alice', count: 0, page: 1, pages: 1, results: [] }
+      data: { practitioner: 'alice', count: 0, total: 0, page: 1, pages: 1, results: [] }
     })
     await wrapper.find('button').trigger('click')
     await flushPromises()

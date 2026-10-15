@@ -2,8 +2,11 @@
   <div class="container-fluid py-4 annotation-dashboard">
     <section class="dashboard-hero mb-4">
       <div>
-        <h2 class="dashboard-title mb-1">Dashboard</h2>
-        <p class="dashboard-subtitle mb-0">Status und Schnellzugriffe an einem Ort.</p>
+        <p class="state-kicker">Ihr Annotationsarbeitsplatz</p>
+        <h2 class="dashboard-title mb-1">Jede sorgfältige Annotation zählt.</h2>
+        <p class="dashboard-subtitle mb-0">
+          Fortschritt verfolgen, Unterschiede verstehen und den nächsten Schritt finden.
+        </p>
       </div>
 
       <button
@@ -17,6 +20,57 @@
       </button>
     </section>
 
+    <AnnotationComparisons />
+    <section
+      class="workflow-guide"
+      aria-label="Ihr nächster Schritt"
+    >
+      <div class="guide-heading">
+        <p class="state-kicker">Orientierung</p>
+        <h3 class="h5">In drei Schritten zur geprüften Annotation</h3>
+        <p>Arbeiten Sie in Ihrem Tempo. Sorgfalt zählt mehr als Geschwindigkeit.</p>
+      </div>
+      <ol class="guide-steps">
+        <li>
+          <span
+            class="step-number"
+            aria-hidden="true"
+            >01</span
+          >
+          <div>
+            <RouterLink to="/video-untersuchung">Segmente annotieren</RouterLink>
+            <p>
+              Ein freigegebenes anonymisiertes Video wählen, Labels setzen und Zeitgrenzen prüfen.
+            </p>
+          </div>
+        </li>
+        <li>
+          <span
+            class="step-number"
+            aria-hidden="true"
+            >02</span
+          >
+          <div>
+            <RouterLink to="/frame-annotation">Frames beurteilen</RouterLink>
+            <p>Einzelbilder sorgfältig bewerten. Unklare Befunde nicht als negativ einstufen.</p>
+          </div>
+        </li>
+        <li>
+          <span
+            class="step-number"
+            aria-hidden="true"
+            >03</span
+          >
+          <div>
+            <a href="#annotation-comparisons">Unterschiede reflektieren</a>
+            <p>
+              Labels und Zeitgrenzen vergleichen. Hohe Überlappung ist kein Beleg für diagnostische
+              Richtigkeit.
+            </p>
+          </div>
+        </li>
+      </ol>
+    </section>
     <section
       class="operational-state-grid mb-4"
       aria-label="Aktueller Betriebszustand"
@@ -236,7 +290,6 @@
         </template>
       </article>
     </section>
-    <AnnotationComparisons />
   </div>
 </template>
 
@@ -400,7 +453,9 @@ onMounted(() => {
 
 <style scoped>
 .annotation-dashboard {
-  --dashboard-border: rgba(45, 48, 71, 0.1);
+  --dashboard-border: #dfe7ef;
+  max-width: 1600px;
+  color: #24354b;
 }
 
 .dashboard-hero {
@@ -408,7 +463,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 1.25rem;
+  padding: 2rem;
   border: 1px solid var(--dashboard-border);
   border-radius: 14px;
   background: radial-gradient(
@@ -421,7 +476,7 @@ onMounted(() => {
 
 .dashboard-title {
   color: #2d3047;
-  font-size: 1.35rem;
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
   font-weight: 700;
 }
 
@@ -560,6 +615,52 @@ onMounted(() => {
   overflow-wrap: anywhere;
 }
 
+.workflow-guide {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  border: 1px solid var(--dashboard-border);
+  border-radius: 20px;
+  background: #f7f9fc;
+}
+.guide-heading p {
+  color: #52647a;
+}
+.guide-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.5rem;
+  padding: 0;
+  margin: 1.5rem 0 0;
+  list-style: none;
+}
+.guide-steps li {
+  display: flex;
+  gap: 0.8rem;
+}
+.step-number {
+  color: #315b9b;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.guide-steps a {
+  font-weight: 700;
+  color: #254c87;
+}
+.guide-steps p {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: #52647a;
+}
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid #315b9b;
+  outline-offset: 4px;
+}
+@media (max-width: 900px) {
+  .guide-steps {
+    grid-template-columns: 1fr;
+  }
+}
 @media (max-width: 768px) {
   .dashboard-hero {
     flex-direction: column;
