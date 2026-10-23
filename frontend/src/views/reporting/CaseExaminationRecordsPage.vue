@@ -2,7 +2,18 @@
   <main class="card shadow-sm">
     <div class="card-header"><h5>Untersuchungsfassungen und Fallabschluss</h5></div>
     <div class="card-body">
-      <RouterLink to="/reporting/case-setup">Zurück zur Fallanlage</RouterLink>
+      <RouterLink :to="{ path: '/reporting/case-setup', query: route.query }">
+        Zurück zur Fallanlage
+      </RouterLink>
+      <RouterLink
+        class="ms-3"
+        :to="{
+          path: '/reporting/medication',
+          query: { ...route.query, patient_examination_id: examId ?? undefined }
+        }"
+      >
+        Medikation und Laborwerte erfassen
+      </RouterLink>
       <p class="mt-3">
         Speichern Sie die klinischen Angaben zuerst. Erstellen Sie dann eine Fassung mit dem
         gewünschten Bericht, Video oder Annotationstrack. Medien sind optional. Pro Untersuchung
@@ -148,9 +159,9 @@
       >
         <strong>{{ record.title }}</strong> · {{ record.finalizedAt ? 'Abgeschlossen' : 'Entwurf' }}
         <p class="small text-muted mb-1">
-          Bericht: {{ record.snapshot.evidence?.reportId ?? 'ohne' }} ·
-          Video: {{ record.snapshot.evidence?.videoId ?? 'ohne' }} ·
-          Annotationen: {{ record.snapshot.evidence?.annotations?.length ?? 0 }}
+          Bericht: {{ record.snapshot.evidence?.reportId ?? 'ohne' }} · Video:
+          {{ record.snapshot.evidence?.videoId ?? 'ohne' }} · Annotationen:
+          {{ record.snapshot.evidence?.annotations?.length ?? 0 }}
         </p>
         <span
           v-if="selected.some((item) => item.revisionId === record.id)"
@@ -419,6 +430,16 @@ function selectedPatientId(): number {
   return patientId
 }
 
+function initialExaminationId(selectedCase: PatientCase): number | null {
+  if (!('patient_examination_id' in route.query))
+    return selectedCase.patientExaminations[0]?.id ?? null
+  const selected = selectedCase.patientExaminations.find(
+    (exam) => String(exam.id) === route.query.patient_examination_id
+  )
+  if (!selected) throw new Error('Die ausgewählte Untersuchung gehört nicht zu diesem Fall.')
+  return selected.id
+}
+
 async function load() {
   const context = ++contextGeneration
   const runId = ++generation
@@ -439,7 +460,7 @@ async function load() {
           item.patient === patientId && item.caseId === route.query.case_id && !item.isDeleted
       ) ?? null
     if (!patientCase.value) throw new Error('Der Fall ist nicht verfügbar.')
-    examId.value = patientCase.value.patientExaminations[0]?.id ?? null
+    examId.value = initialExaminationId(patientCase.value)
     await loadRecords()
   } catch (caught: unknown) {
     if (context === contextGeneration)
@@ -512,5 +533,9 @@ async function download() {
     URL.revokeObjectURL(url)
   })
 }
-watch(() => [route.query.patient_id, route.query.case_id], load, { immediate: true })
+watch(
+  () => [route.query.patient_id, route.query.case_id, route.query.patient_examination_id],
+  load,
+  { immediate: true }
+)
 </script>

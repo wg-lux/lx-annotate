@@ -31,8 +31,26 @@
       </p>
       <template v-if="currentCase && ledger">
         <p>Fall: {{ currentCase.caseId }}</p>
-        <p v-if="currentCase.isClosed" class="alert alert-info">
-          Der Fall ist geschlossen. Öffnen Sie ihn unter Untersuchungsfassungen für neue Einträge wieder.
+        <div class="alert alert-info">
+          <h6>Medikation zur Untersuchung dokumentieren</h6>
+          <p>
+            Speichern Sie Medikamente und Laborwerte zunächst im Fall. Übernehmen Sie die
+            gespeicherten Angaben anschließend zusammen mit den Befunden in eine
+            Untersuchungsfassung. Bereits abgeschlossene Fassungen bleiben unverändert.
+          </p>
+          <RouterLink
+            :to="{ path: '/reporting/examination-records', query: route.query }"
+            data-testid="medication-examination-records"
+          >
+            Mit Befunden in Untersuchungsfassung übernehmen
+          </RouterLink>
+        </div>
+        <p
+          v-if="currentCase.isClosed"
+          class="alert alert-info"
+        >
+          Der Fall ist geschlossen. Öffnen Sie ihn unter Untersuchungsfassungen für neue Einträge
+          wieder.
         </p>
         <form @submit.prevent="save">
           <fieldset :disabled="saving || loading || currentCase.isClosed">
@@ -419,13 +437,17 @@ async function save() {
     const body = JSON.stringify(payload)
     if (pending?.body !== body) pending = { body, key: crypto.randomUUID() }
     saving.value = true
-    const result = await createCaseMedicalRecords(selected.patient, payload, pending.key)
+    await createCaseMedicalRecords(selected.patient, payload, pending.key)
     if (run !== generation) return
-    ledger.value = result
     resetForm()
     success.value = 'Eintrag gespeichert und dem Fall zugeordnet.'
-    const cases = await fetchPatientCases({ patientId: selected.patient })
+    // POST returns only this write's records; reload the canonical ledger for the full case.
+    const [cases, records] = await Promise.all([
+      fetchPatientCases({ patientId: selected.patient }),
+      patientService.getMedicalLedger(selected.patient)
+    ])
     if (run !== generation) return
+    ledger.value = records
     currentCase.value = refreshedCase(cases, selected)
     if (!currentCase.value)
       throw new Error('Der Fall ist nicht mehr verfügbar. Bitte zur Fallanlage zurückkehren.')

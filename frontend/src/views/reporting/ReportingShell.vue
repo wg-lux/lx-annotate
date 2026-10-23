@@ -1621,6 +1621,12 @@ const navItems = computed(() => [
     requiresPatientExamination: true
   },
   {
+    label: 'Untersuchungsfassungen',
+    to: '/reporting/examination-records',
+    requiresCase: true,
+    requiresPatientExamination: false
+  },
+  {
     label: 'Bericht schreiben',
     to: reportEditorStepTarget.value,
     requiresPatientExamination: true,

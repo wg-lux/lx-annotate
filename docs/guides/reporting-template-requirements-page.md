@@ -28,6 +28,27 @@ The goal of this page is simple:
 
 This means it is part of the guided multi-step reporting process, not a standalone page.
 
+## Medication And Examination Records
+
+Owner: lx-annotate reporting frontend maintainers.
+
+The reporting shell exposes **Medikation und Laborwerte** at
+`/reporting/medication`. Entries use the existing patient medical-ledger API,
+which persists canonical EndoReg `PatientMedication` and `PatientLabValue`
+rows and associates them with the selected case. `Medication` and `LabValue`
+remain the terminology sources; the frontend does not maintain a second ledger.
+
+After saving, follow **Mit Befunden in Untersuchungsfassung übernehmen**.
+The examination-record page preserves the selected examination and rejects an
+examination outside the selected case. Creating a revision with **Zugeordnete
+Medikamente und Laborwerte dieses Falls übernehmen** includes the saved case
+records alongside findings through the existing examination-revision API.
+This is an explicit snapshot: later medication changes do not alter completed
+revisions. The shell also exposes this page as **Untersuchungsfassungen**.
+
+The canonical persistence contracts are EndoReg's `docs/medical_ledger_contract.md`
+and `docs/case_graph_persistence.md`.
+
 ## Publication And Runtime Visibility
 
 The template builder runs inside `ReportingShell` and uses the shell's active

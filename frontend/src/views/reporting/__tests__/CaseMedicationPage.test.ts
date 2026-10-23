@@ -81,6 +81,14 @@ describe('case medication and laboratory entry', () => {
       path: '/reporting/case-setup',
       query: { patient_id: '7', case_id: 'case-7', patient_examination_id: '314' }
     })
+    expect(
+      JSON.parse(
+        wrapper.get('[data-testid="medication-examination-records"]').attributes('data-to') || '{}'
+      )
+    ).toEqual({
+      path: '/reporting/examination-records',
+      query: { patient_id: '7', case_id: 'case-7', patient_examination_id: '314' }
+    })
     wrapper.unmount()
   })
 
@@ -141,6 +149,17 @@ describe('case medication and laboratory entry', () => {
       }),
       expect.any(String)
     )
+  })
+
+  it('reloads canonical records after a write instead of replacing them with the receipt subset', async () => {
+    const wrapper = await form()
+    mocks.save.mockResolvedValue({ medications: [], labValues: [] })
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(mocks.ledger).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('example_med')
+    expect(wrapper.text()).toContain('example_lab: 0')
+    expect(wrapper.text()).not.toContain('unrelated_med')
   })
 
   it('sends text measurements without a competing numeric value', async () => {

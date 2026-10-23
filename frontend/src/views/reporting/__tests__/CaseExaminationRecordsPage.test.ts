@@ -105,6 +105,52 @@ describe('examination alternatives', () => {
     })
   })
 
+  it('includes canonical medication and laboratory IDs alongside findings for the requested examination', async () => {
+    Object.assign(mocks.route.query, { patient_examination_id: '6' })
+    mocks.cases.mockResolvedValue([
+      {
+        id: 3,
+        caseId: 'case-7',
+        patient: 7,
+        isClosed: false,
+        isDeleted: false,
+        patientExaminations: [{ id: 5 }, { id: 6 }],
+        documents: [],
+        patientMedications: [11],
+        patientLabValues: [12]
+      }
+    ])
+    const wrapper = mount(CaseExaminationRecordsPage)
+    await flushPromises()
+    expect(mocks.list).toHaveBeenCalledWith(6)
+    await wrapper.get('#revision-title').setValue('Medication review')
+    await wrapper.get('input[type="checkbox"]').setValue(true)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(mocks.create).toHaveBeenCalledWith(6, 'Medication review', {
+      reportId: null,
+      videoId: null,
+      annotator: null,
+      medicationIds: [11],
+      labValueIds: [12]
+    })
+    Object.assign(mocks.route.query, { patient_examination_id: '5' })
+    await flushPromises()
+    expect(mocks.list).toHaveBeenLastCalledWith(5)
+    wrapper.unmount()
+  })
+
+  it('rejects an examination outside the case without loading or creating its revisions', async () => {
+    Object.assign(mocks.route.query, { patient_examination_id: '999' })
+    const wrapper = mount(CaseExaminationRecordsPage)
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('gehört nicht zu diesem Fall')
+    expect(mocks.list).not.toHaveBeenCalled()
+    await wrapper.get('form').trigger('submit')
+    expect(mocks.create).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
   it('separates finalization from case selection and clears foreign context', async () => {
     mocks.list.mockResolvedValue([
       { ...structuredClone(record), finalizedAt: '2026-01-01T10:00:00Z' }

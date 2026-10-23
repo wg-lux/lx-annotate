@@ -1141,7 +1141,7 @@ describe('ReportingShell media preload', () => {
     }
   )
 
-  it.each(['case-setup', 'medication'])(
+  it.each(['case-setup', 'medication', 'examination-records'])(
     'retains the patient and examination when returning to %s without route parameters',
     async (page) => {
       hoisted.routeRef.current = reactive({
@@ -1167,6 +1167,13 @@ describe('ReportingShell media preload', () => {
           patient_examination_id: '314',
           case_id: 'case-uuid-314'
         }
+      })
+      const recordsLink = wrapper
+        .findAllComponents({ name: 'RouterLink' })
+        .find((link) => (link.props('to') as { path: string }).path === '/reporting/examination-records')
+      expect(recordsLink?.props('to')).toEqual({
+        path: '/reporting/examination-records',
+        query: { patient_id: '42', patient_examination_id: '314', case_id: 'case-uuid-314' }
       })
     }
   )
