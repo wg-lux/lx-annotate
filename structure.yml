@@ -1,0 +1,78 @@
+version: 1
+tier: root
+path: "."
+parent: null
+summary: "Clinical media annotation application and developer context entry point."
+responsibilities:
+  - "Coordinate Django, Vue, external clinical packages, and developer verification."
+  - "Own small deployment examples, CI configuration, and source assets at this tier."
+boundaries:
+  - "Do not edit clinical data, secrets, generated bundles, or installed dependencies as source."
+  - "Context metadata must not change application runtime or imply production approval."
+entrypoints:
+  - name: "manage"
+    file: "manage.py"
+    purpose: "Django command entrypoint"
+  - name: "developer commands"
+    file: "Makefile"
+    purpose: "Test and lint workflows"
+dependencies:
+  internal: []
+  external: ["Django","Vue","endoreg-db","lx-dtypes"]
+submodules:
+  - name: "lx_annotate"
+    path: "lx_annotate"
+    manifest: "lx_annotate/structure.yml"
+    summary: "Django application integration, local APIs, workflow orchestration, and environment conversion."
+  - name: "frontend"
+    path: "frontend"
+    manifest: "frontend/structure.yml"
+    summary: "Vue clinical annotation, reporting, administration, and study interfaces."
+  - name: "lx_annotate_assets"
+    path: "lx_annotate_assets"
+    manifest: "lx_annotate_assets/structure.yml"
+    summary: "Standalone installed frontend artifact and Vite manifest verification."
+  - name: "openapi"
+    path: "openapi"
+    manifest: "openapi/structure.yml"
+    summary: "Generated canonical endoreg and dtypes OpenAPI specifications."
+  - name: "devenv"
+    path: "devenv"
+    manifest: "devenv/structure.yml"
+    summary: "Nix development environment modules, services, processes, and task commands."
+  - name: "nix"
+    path: "nix"
+    manifest: "nix/structure.yml"
+    summary: "Nix service module and host runtime environment contracts."
+  - name: "scripts"
+    path: "scripts"
+    manifest: "scripts/structure.yml"
+    summary: "Developer verification commands and operational helper entrypoints."
+  - name: "tests"
+    path: "tests"
+    manifest: "tests/structure.yml"
+    summary: "Backend and cross-boundary regression suites with isolated PostgreSQL fixtures."
+  - name: "docs"
+    path: "docs"
+    manifest: "docs/structure.yml"
+    summary: "English architecture, workflow, operational, and publication documentation."
+  - name: "feature-tracking"
+    path: "feature-tracking"
+    manifest: "feature-tracking/structure.yml"
+    summary: "YAML-backed feature readiness, agent locking, messaging, and evidence governance."
+contracts:
+  - name: "agent protocol"
+    doc: "AGENTS.md"
+  - name: "context schema"
+    doc: "docs/agent_context.md"
+tests:
+  directory: "tests/system"
+  command: "python scripts/lint_structure.py"
+files:
+  - .github/workflows/ci-cd.yml
+  - .github/workflows/wheel-testpypi.yml
+  - conf_template/db.yaml
+  - container/README.md
+  - deployment_example/deploy.sh
+  - k8s/deployment.tmpl.yaml
+  - static/silent-check-sso.html

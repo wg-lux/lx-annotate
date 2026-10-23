@@ -1,0 +1,68 @@
+version: 1
+tier: domain
+path: "frontend"
+parent: "../structure.yml"
+summary: "Vue clinical annotation, reporting, administration, and study interfaces."
+responsibilities:
+  - "Render workflows through router, views, components, and Pinia stores."
+  - "Keep anonymization acceptance separate from segment review validation."
+  - "Own component polling lifecycles through the shared usePolling composable."
+boundaries:
+  - "Do not reproduce backend clinical persistence or encryption logic."
+  - "Generated API types are maintained through typegen; request case conversion belongs to axiosInstance."
+entrypoints:
+  - name: "application"
+    file: "src/main.ts"
+    purpose: "Vue application setup"
+  - name: "router"
+    file: "src/router/index.ts"
+    purpose: "Workflow navigation"
+  - name: "tooling"
+    file: "package.json"
+    purpose: "Frontend build, type checking, and tests"
+dependencies:
+  internal: ["lx_annotate","openapi"]
+  external: ["Vue","Pinia","Vue Router","Axios","Vite","Vitest"]
+submodules:
+  - name: "api"
+    path: "src/api"
+    manifest: "src/api/structure.yml"
+    summary: "Typed frontend API adapters and canonical request/response case conversion."
+contracts:
+  - name: "annotation workflow"
+    doc: "../docs/guides/segment-annotation-workflow.md"
+  - name: "media workflow frontend"
+    doc: "../docs/guides/media-workflow-frontend-contract.md"
+  - name: "API generation"
+    doc: "../docs/guides/openapi-type-generation.md"
+  - name: "remote machine selector"
+    doc: "../docs/guides/hub-remote-access.md"
+tests:
+  directory: "src"
+  command: "npm --prefix frontend run test:unit -- --run src/api/__tests__/apiPrefixContract.test.ts"
+
+files:
+  - src/composables/usePolling.ts
+  - src/composables/useModelChat.ts
+  - src/composables/__tests__/useModelChat.test.ts
+  - src/composables/reporting/useLlmModelSelection.ts
+  - src/views/ModelChatPage.vue
+  - src/views/__tests__/ModelChatPage.test.ts
+  - src/api/mediaWorkflowApi.ts
+  - src/api/__tests__/mediaWorkflowApi.test.ts
+  - src/components/Workflow/WorkflowProgressStrip.vue
+  - src/components/Workflow/__tests__/WorkflowProgressStrip.test.ts
+  - src/composables/__tests__/usePolling.test.ts
+  - src/components/Dashboard/AnnotationComparisons.vue
+  - src/components/Dashboard/AnnotationDashboard.vue
+  - src/components/Dashboard/__tests__/AnnotationComparisons.test.ts
+  - src/components/VideoExamination/VideoProvenanceRepairPanel.vue
+  - src/components/Export/HubRecoveryReturnLink.vue
+  - src/utils/timeHelpers.ts
+  - src/utils/timeUtils.ts
+  - src/utils/__tests__/timeHelpers.test.ts
+  - src/components/StudyRuleEditor.vue
+  - src/components/StudyAnalysisEditor.vue
+  - src/components/StudyAnalysisEditor.test.ts
+  - src/components/Export/StudyLedgerExchange.vue
+  - src/components/Export/StudyLedgerExchange.test.ts

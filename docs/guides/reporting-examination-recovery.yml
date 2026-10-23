@@ -1,0 +1,21 @@
+schema_version: 1
+workflow: Recover a patient examination without an examination type
+entry_point: /reporting/<patient-examination-id>/report-editor
+behavior:
+  - A persisted patient examination is incomplete when its loaded detail has neither an examination name nor an examination ID.
+  - The shell displays an explicit examination selector instead of claiming that the context is complete.
+  - The operator selects the correct clinical examination; no examination is guessed from the PDF.
+  - Saving updates the existing patient examination through its PATCH endpoint, using the canonical examination name.
+  - The client re-reads the detail before saving and refuses to replace an already assigned examination.
+  - After successful persistence, the shell refreshes reporting context while retaining existing draft content and media associations.
+  - Existing template compatibility checks remain active. If the old draft has no compatible template, select a published template through the existing template selector.
+limitations:
+  - The API has no conditional update token; the preflight read does not prevent a concurrent write between GET and PATCH.
+  - This UI change requires a frontend release before it is available in deployed installations.
+verification:
+  - frontend/src/components/Reporting/__tests__/ReportingExaminationRecovery.test.ts
+  - frontend/src/views/reporting/__tests__/ReportingShell.mediaPreload.test.ts
+results:
+  focused_tests: 57 passed across recovery component, shell integration and examination resolution.
+  type_checks: Application and component-test vue-tsc checks passed.
+  tracker: 54 feature definitions valid; reporting workflow readiness remains 7 of 8, unchanged.

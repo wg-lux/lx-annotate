@@ -5,8 +5,7 @@
 </template>
 
 <script setup lang="ts">
-import VideoExaminationAnnotation from '@/components/VideoExamination/VideoExaminationAnnotation.vue';
+import VideoExaminationAnnotation from '@/components/VideoExamination/VideoExaminationAnnotation.vue'
 </script>
 
-<style>
-</style>
+<style></style>

@@ -1,14 +1,12 @@
 {
   "name": "agent-review-cli",
-  "version": "1.0.0",
-  "description": "Vue 3 + Pinia + Vitest Agent Review CLI",
   "private": true,
   "type": "module",
   "scripts": {
-    "collect": "ts-node src/cli.ts collect",
-    "prompt": "ts-node src/cli.ts prompt", 
-    "validate": "ts-node src/cli.ts validate",
-    "full-review": "npm run collect && npm run prompt"
+    "agent:prompt": "ts-node tools/agent-cli/src/cli.ts prompt",
+    "agent:validate": "ts-node tools/agent-cli/src/cli.ts validate --output agent_output.json",
+    "agent:collect": "ts-node tools/agent-cli/src/cli.ts collect",
+    "agent:full": "npm run test:unit -- RequirementGenerator.simplified --reporter=json > vitest.json && npm run agent:collect && npm run agent:prompt"
   },
   "devDependencies": {
     "ts-node": "^10.9.2",

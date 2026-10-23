@@ -1,0 +1,33 @@
+schema_version: '1.0'
+definition_id: study_3894c7f482534e5baedf28bb5500f2eb
+definition_version: 1.0.0
+datasets:
+- name: Cohort table
+  description: ''
+  dataset_type: clinical
+  ai_model_type: null
+  is_active: true
+  definition_id: dataset_39
+cohorts:
+- name: Imported table
+  hypothesis: Test membership
+  filters:
+    date_from: null
+    date_to: null
+    center_key: null
+    examination_name: null
+    document_type: null
+    finding: null
+    annotation_label: null
+    has_report: null
+    has_video: null
+    limit: 100
+  study_metadata:
+    participating_centers: []
+    age_groups: []
+    terminology_requirements: []
+    inclusion_criteria: []
+    analysis_definitions: []
+  definition_id: cohort_6
+  dataset_refs:
+  - dataset_39

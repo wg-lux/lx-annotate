@@ -1,0 +1,24 @@
+version: 1
+tier: package
+path: "lx_annotate_assets"
+parent: "../structure.yml"
+summary: "Standalone installed frontend artifact and Vite manifest verification."
+responsibilities:
+  - "Check installed static asset completeness."
+  - "Expose the static-check CLI without Django initialization."
+boundaries:
+  - "Do not build frontend assets or repair production bundles silently."
+entrypoints:
+  - name: "static checker"
+    file: "__init__.py"
+    purpose: "Installed artifact verification entrypoint"
+dependencies:
+  internal: ["frontend"]
+  external: []
+submodules: []
+contracts:
+  - name: "asset contract"
+    doc: "../docs/guides/asset-deployment.md"
+tests:
+  directory: "../tests/system"
+  command: "python -m pytest tests/system/test_static_assets_contract.py -q -k 'not build_hook and not editable and not sdist'"

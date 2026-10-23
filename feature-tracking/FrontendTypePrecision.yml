@@ -1,0 +1,216 @@
+schema_version: '1.0'
+id: frontend_type_precision
+name: Frontend Type Precision
+description: Remove the remaining strict TypeScript ESLint suppressions by expressing runtime boundaries,
+  internal invariants, and public APIs with precise maintainable types.
+owners:
+- lx-annotate frontend maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-professionalism
+    changed_at: '2026-08-04T18:25:55.849100Z'
+    note: 'Completed 2026-08-04: all 56 remaining strict diagnostics eliminated; bulk suppression baseline
+      removed; zero-scope inventory, lint, both type checks, 89 files/558 tests, production build, and
+      scoped diff hygiene all pass.'
+source_documents:
+- path: frontend/README.md
+  disposition: reference
+  note: Frontend strict quality-gate and boundary-type guidance.
+definition_of_done:
+- id: reproducible_remaining_inventory
+  category: requirements
+  title: Remaining strict diagnostics are reproducibly inventoried
+  acceptance:
+  - The inventory covers first-party TypeScript and Vue files under frontend/src, frontend/tests, and
+    frontend/cypress.
+  - Production, test, and Cypress findings are reported separately by rule and file.
+  - Generated output, dependencies, coverage, and legacy frontend trees are excluded.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the documented unsuppressed strict inventory and compare it with the checked-in
+      suppression baseline.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: cd frontend && npm run lint:strict-inventory
+    - kind: code
+      reference: frontend/scripts/strict-lint-inventory.mjs
+    - kind: code
+      reference: frontend/scripts/lint-inventory.mjs
+    note: The reproducible strict inventory reduced from 56 diagnostics across 21 files (52 production,
+      4 test, 0 Cypress) to zero in every scope; output includes rule and file breakdowns.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:25:33.009960Z'
+- id: truthful_boundary_types
+  category: security
+  title: External and persisted boundary types remain truthful
+  acceptance:
+  - Open-ended API values remain unknown or are validated before use rather than being disguised as closed
+    literal unions.
+  - Closed domain values use explicit unions or enums where the backend contract is genuinely exhaustive.
+  - Authentication, clinical workflow, and persisted-state guards remain fail closed for malformed values.
+  - Material boundary changes have negative-path regression coverage.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review affected API, auth, workflow, and storage call sites and run their focused contract
+      tests.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: frontend/src/api/__tests__/casesApi.test.ts
+    - kind: test
+      reference: frontend/src/api/__tests__/reportingTimelineApi.test.ts
+    - kind: test
+      reference: frontend/src/api/__tests__/anonymizationMetricsApi.test.ts
+    - kind: test
+      reference: frontend/src/stores/__tests__/reportingFlow.template.spec.ts
+    note: Reviewed affected AI dataset, anonymization metrics, case, timeline, report-template, auth,
+      and persisted-state boundaries. Closed domains remain literal unions; forward-compatible kinds remain
+      validated strings; malformed non-string and incomplete payloads fail explicitly with negative coverage.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:25:34.139996Z'
+- id: precise_internal_types
+  category: functionality
+  title: Internal types and transformations express real invariants
+  acceptance:
+  - Redundant union constituents and conversions are removed without changing runtime behavior.
+  - Generic parameters remain only when they relate at least two signature positions or enforce a real
+    constraint.
+  - Static-only utility APIs and collection transforms use idiomatic module or object patterns.
+  - Dynamic keyed state updates remain type safe and preserve reactivity and persistence behavior.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review every changed diagnostic site and run focused tests for its consumers.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/utils/dateHelpers.ts
+    - kind: code
+      reference: frontend/src/api/mediaManagement.ts
+    - kind: code
+      reference: frontend/src/stores/reportingFlowStore.ts
+    - kind: test
+      reference: frontend/src/utils/dateHelpers.test.ts
+    - kind: test
+      reference: frontend/src/stores/__tests__/reportingFlow.template.spec.ts
+    note: Removed redundant constituents/conversions and one-use generics, converted static-only utilities
+      to source-compatible objects, replaced the dynamic draft delete with immutable typed filtering,
+      and corrected reduce typing without runtime casts.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:25:35.233599Z'
+- id: public_api_compatibility
+  category: functionality
+  title: Existing frontend public APIs remain compatible
+  acceptance:
+  - Existing imports, component contracts, store actions, and API return shapes continue to type-check.
+  - Static utility call sites remain source-compatible unless all first-party consumers are migrated atomically.
+  - No any types, blanket casts, rule disables, placeholder fallbacks, or silent error suppression are
+    introduced.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect affected imports and call sites, then run both application and component-test
+      type checks.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: cd frontend && npm run type-check
+    - kind: command
+      reference: cd frontend && npm run type-check:component-tests
+    - kind: code
+      reference: frontend/src/api/mediaManagement.ts
+    - kind: code
+      reference: frontend/src/utils/dateHelpers.ts
+    note: All repository imports and method-style calls remain source-compatible. Explicit Axios generics
+      preserve media API runtime behavior; both application and component-test TypeScript projects pass
+      without new any types, casts, or disables.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:25:36.299376Z'
+- id: regression_verification
+  category: testing
+  title: Changed behavior and contracts have deterministic verification
+  acceptance:
+  - Focused tests cover materially changed boundaries and state transformations.
+  - The complete frontend unit suite passes.
+  - The production build succeeds.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run affected suites together, the complete unit suite, and the production build.
+    timeout_seconds: 1800
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: cd frontend && npm run test:unit -- --run
+    - kind: command
+      reference: cd frontend && npm run build-only
+    note: Delegated focused suites passed (65 API/literal tests, 61 conversion tests, 20 core/media tests)
+      and parent-focused tests passed. Consolidated verification passed 89 files/558 tests and the Vite
+      production build; build emitted only its existing non-failing large-chunk advisory.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:25:37.390602Z'
+- id: zero_suppression_baseline
+  category: operations
+  title: The temporary strict suppression baseline is eliminated
+  acceptance:
+  - The unsuppressed strict inventory reports zero production, test, and Cypress diagnostics.
+  - The suppression baseline contains no entries and is removed if ESLint no longer needs it.
+  - Normal lint rejects new strict diagnostics and stale suppressions.
+  required: true
+  verification:
+    kind: manual
+    instructions: Prune suppressions, run normal lint, and run the unsuppressed strict inventory.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: cd frontend && npm run lint:prune
+    - kind: command
+      reference: cd frontend && npm run lint
+    - kind: command
+      reference: cd frontend && npm run lint:strict-inventory
+    - kind: code
+      reference: frontend/package.json
+    note: Pruning reduced the 56-entry baseline to an empty object, after which eslint-suppressions.json
+      was removed. Normal lint passes with no bulk suppression file and the independent inventory reports
+      0 production, 0 test, and 0 Cypress errors.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:25:38.526943Z'
+- id: contributor_guidance
+  category: documentation
+  title: Contributors can maintain precise boundary and internal types
+  acceptance:
+  - Frontend documentation explains closed unions versus validated open-ended values.
+  - Guidance explains when conversions, generics, static utility classes, and dynamic deletes are inappropriate.
+  - The documented quality gate reflects the zero-suppression target.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review frontend README guidance against the implemented patterns and scripts.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: frontend/README.md
+    note: Frontend guidance now documents closed versus open boundary types, exact conversions, meaningful
+      generics, static-only utility objects, immutable keyed state updates, the complete inventory, and
+      the zero-suppression policy.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:25:39.835680Z'

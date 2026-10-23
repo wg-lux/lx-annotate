@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.app.json",
+  "include": [
+    "env.d.ts",
+    "src/**/*.ts",
+    "src/**/*.vue",
+    "tests/**/*.ts",
+    "cypress/**/*.ts",
+    "*.config.ts",
+    "eslint.config.ts"
+  ],
+  "exclude": ["coverage", "dist", "lx-annotate", "node_modules", "src/components/unused", "tools"],
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "types": ["node", "vite/client", "vitest/globals"]
+  }
+}

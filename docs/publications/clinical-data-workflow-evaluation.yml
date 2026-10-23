@@ -1,0 +1,478 @@
+document_type: manuscript_claim_evaluation
+language: en
+date: '2026-09-28'
+assessor: codex-claims-20260928
+status: local_evaluation_complete_not_publication_approval
+scope:
+  repository: /home/admin/dev/lx-annotate
+  git_head: d4ffa63d9901f1305ba663e04ecde13db1bba2e0
+  branch: main
+  working_tree: Existing staged and unstaged modifications included; application code was not changed by this
+    evaluation.
+  versions:
+    lx-annotate: 1.3.13
+    endoreg-db: 1.3.15
+    lx-dtypes: 0.3.7
+    Django: 6.0.3
+    pytest: 9.0.3
+  backend_git_revision: null
+  backend_source: Installed package, not an independently inspected prototype checkout.
+  deployment_evaluated: false
+  clinical_data_accessed: false
+document:
+  path: clinical-data-workflow-evidence-revision.docx
+  original_sha256: 9949d913b37b9ac84b6b7faeb09e48379c33222cd25827a20691217248f336e6
+  revised_sha256: 6ed4a05d61c3695d7da0aa092f6332b49dd7d9ca1a44b9cf24471f0a721cf4e4
+  changed_paragraphs: 34
+findings:
+- Patient-grouped split plans are implemented, with membership-only snapshots; public release enforcement remains
+  unestablished.
+- Storage implementation is owned by installed endoreg-db; LX-Annotate retains compatibility exports.
+- Sender mTLS is required by default but configurable; in-process tests are not certificate-negotiation evidence.
+- A bounded local processed-video reaper exists; reports and raw media are outside its deletion scope.
+- No clinical anonymization, annotation-quality, production reliability or institutional release outcome was
+  measured.
+- Earlier baseline and prototype blob references cannot identify the evaluated installed dependency.
+- EDPB draft adoption corrected from 8 July to 7 July 2026.
+verification:
+  runs:
+  - argv:
+    - .devenv/state/venv/bin/python
+    - -m
+    - pytest
+    - tests/hub/test_hub_export_payload_guards.py
+    - tests/hub/test_hub_export_end_to_end.py
+    - tests/hub/test_hub_export_envelope.py
+    - tests/hub/test_publication_readiness_aaa.py
+    - tests/hub/test_hub_export_video_state_path.py
+    - tests/privacy/test_publication_materialization_aaa.py
+    - tests/api/test_ai_dataset_splits.py
+    - -q
+    - --tb=short
+    - --show-capture=no
+    exit_code: 0
+    result: 83 passed in 7.85s; no failures or skips
+  - argv:
+    - .devenv/state/venv/bin/python
+    - -m
+    - pytest
+    - tests/hub/test_hub_export_cleanup.py
+    - -q
+    - --tb=short
+    - --show-capture=no
+    exit_code: 0
+    result: 6 passed in 1.34s; no failures or skips
+  passed_by_module:
+    tests/hub/test_hub_export_payload_guards.py: 30
+    tests/hub/test_hub_export_end_to_end.py: 4
+    tests/hub/test_hub_export_envelope.py: 6
+    tests/hub/test_publication_readiness_aaa.py: 15
+    tests/hub/test_hub_export_video_state_path.py: 8
+    tests/privacy/test_publication_materialization_aaa.py: 7
+    tests/api/test_ai_dataset_splits.py: 13
+    tests/hub/test_hub_export_cleanup.py: 6
+  registry_validation: 54 definitions valid; invoked using .devenv/state/venv/bin/python because default Python
+    lacks endoreg_db
+  document_checks:
+  - ZIP integrity passed
+  - Every non-document.xml ZIP member preserved byte-for-byte
+  - Paragraph count, tables and paragraph properties preserved
+  - Every unchanged paragraph retains identical text
+  - Every replacement matches its recorded text
+  visual_rendering: Not performed; no Word/LibreOffice layout review claimed.
+source_files:
+- path: pyproject.toml
+  sha256: 000f15904edec16a1ade578470f8242f00598165c0ad9b093558e60ac48d08a1
+- path: uv.lock
+  sha256: 8f8846bd2ec94bd34fe11b41690ea012007f351430b88641e59ba26e1b4c9fb0
+- path: flake.lock
+  sha256: 3f755aa25b0b9aacdfb3f261a41ad94ae97e95df892541e53dc1619c4aea345d
+- path: pytest.ini
+  sha256: a92b1b553b3f392781b97e242e6bd2bb9f11200c665404787def96f2b6774478
+- path: tests/conftest.py
+  sha256: 2276cae0d70744a8b75076fc281dfdb584f517777e547dc256d3faec74714334
+- path: docs/guides/hub-export-workflow.md
+  sha256: c293bc3b447157b3d65631a4fb8574de69b913b64b1208633173a73573c12e54
+- path: docs/guides/encrypted-storage-process.md
+  sha256: 8fc54840186a6511036122157719417c0b99bba3dfc4817d0550d0e28b074215
+- path: docs/guides/ai-training-data-export.md
+  sha256: 90992e5fee61d56c49bfaaec8e001d7cbc9be0de19612fb964a152c4a08e329d
+- path: feature-tracking/ClinicalPublicationReadiness.yml
+  sha256: c53390feed5be84aa80306cbe9a436866a31f351a8a4f7f2b6c2bb5c4b28f833
+- path: feature-tracking/AiDatasetSplits.yml
+  sha256: 33261c3374a72b774b7e2ebee271c43e093d4127b2159cd85420787af2edf2f9
+- path: lx_annotate/file_watcher.py
+  sha256: 2bdba1efba9d0f1641781e3b1e223da8efdb7aa1a687b6858d33004fe2765bd8
+- path: lx_annotate/settings/settings_base.py
+  sha256: 70b9d651f62459c5762b92a3e23ec86224a58cd287870f94183fdc5ed8902057
+- path: lx_annotate/storage/encrypted.py
+  sha256: a1f2d0136aaca9561fea634401f1d6d42965dcd162c0a298698b6e72711e826f
+- path: lx_annotate/hub/hub_export_state.py
+  sha256: 0630eecbf7268050fbcfbc532e8469231a25f85715e2052cb3f2936bfbb13ef5
+- path: lx_annotate/hub/hub_export_jobs.py
+  sha256: 29576315f30169431e3377a791cf59a94bfeed5c9d9f197701c0b6902af1a308
+- path: lx_annotate/hub/hub_export_payloads.py
+  sha256: 7c536fed5d2e9b326fc4ed90a298b0abfa5b90e2b5bb2490395b3bbd2f82a6e6
+- path: lx_annotate/hub/hub_export_envelope.py
+  sha256: babaa35f68bdbc846927b49c25a4c8bd12e6c2581d3ac58218b36800dab5f3ec
+- path: lx_annotate/hub/hub_export_cleanup.py
+  sha256: a48da37bdfc48d2fbd8ef1a20fbb7322ed9a6ddde088a86ae9ae6a267fac52b8
+- path: lx_annotate/management/commands/reap_verified_hub_exports.py
+  sha256: 0d7fd852df502739d57bf846f75d7ac402dd8ea60407f15f4a1e8f4d5302e447
+- path: lx_annotate/services/ai_dataset_splits.py
+  sha256: 25a99925e9306719ccaf86d2cc6f4e9a0a1ad996f129acbc96dc5ece825d4864
+- path: frontend/src/components/Anonymizer/AnonymizationValidationComponent.vue
+  sha256: 9a0d831e3ddb9497255d5f13647869814b72df2e4f5a84b1584c771baa8d8735
+- path: frontend/src/components/VideoExamination/VideoExaminationAnnotation.vue
+  sha256: a983dc9add3a02c2fcb5d3796c199ae3a0987b415552558d3f0382b6db9ad570
+- path: tests/hub/test_hub_export_payload_guards.py
+  sha256: 4535963538efefc06dd2105c352530dbd38b725f49130798945b7c7ad8c0c156
+- path: tests/hub/test_hub_export_end_to_end.py
+  sha256: 06d78995fd00f58a1af96fce636f999808b6fca33c2b1ac7d8a41ab49d190c05
+- path: tests/hub/test_hub_export_envelope.py
+  sha256: 2abd18fc2efdeb6951398918009551e918c29c9ed1eff8372b5684b5e9bea99b
+- path: tests/hub/test_publication_readiness_aaa.py
+  sha256: 363ef69dd04e471893e6aa9ef1c153bd8baa1078834d0205491a6a090e22b089
+- path: tests/hub/test_hub_export_video_state_path.py
+  sha256: 1cda716210eadb2988fbbcaa42d64cba48f8304630739454d2c7f01c07b4e727
+- path: tests/privacy/test_publication_materialization_aaa.py
+  sha256: 6d7ebff3d9d14e43b6516e7bc47e6383a4e0a29d8c4d3971f36a7e78e73a890f
+- path: tests/api/test_ai_dataset_splits.py
+  sha256: f3b6bf39d1d529c1119cd471e55deed5cabb1772af8d62b6f97f02bb2a7b04c2
+- path: tests/hub/test_hub_export_cleanup.py
+  sha256: f2528d2b17f4d88da0d32b0f567453d41cbd65c38a4bae5f03958cc7c0d40c6c
+- path: .devenv/state/venv/lib/python3.12/site-packages/endoreg_db/utils/encryption/encrypted.py
+  sha256: b89a89140066def7ae0d5444c100460f981889c0a6f513f490f89bfed65c720d
+- path: .devenv/state/venv/lib/python3.12/site-packages/endoreg_db/utils/encryption/encryption.py
+  sha256: 0ebcb321880945ee30d94df87580c1658ec562749c6f0aa1d08862349ce26895
+- path: .devenv/state/venv/lib/python3.12/site-packages/endoreg_db/utils/encryption/storage_materialization.py
+  sha256: 17dd84135668413abd9c25d70d6d85e8eaa6357f1018c1bea3c69947c182f768
+external_verification:
+- url: https://www.edpb.europa.eu/system/files/2026-07/edpb_guidelines_202602_anonymisation_v1_en_0.pdf
+  finding: Version 1.0 adopted 7 July 2026 for public consultation; relevant-entity perspective and three criteria
+    on pages 1-3.
+- url: https://www.edpb.europa.eu/public-consultations_en
+  finding: Consultation period 8 July to 30 October 2026.
+limitations:
+- Selected tests only; complete backend and frontend suites not run.
+- No separate two-node deployment or production configuration inspected.
+- No clinical records, residual identifiers, label accuracy or institutional approval evaluated.
+- Hashes identify selected contents but do not archive the full modified tree or establish an upstream backend
+  commit.
+- Original September 10 YAML manuscript retained unchanged as a historical draft.
+paragraph_changes:
+- paragraph_index: 0
+  original: 'From clinical endoscopy data to publication-ready research resources: a governed workflow and
+    registry template'
+  revised: 'From clinical endoscopy data to research resources: implemented workflow gates and proposed publication
+    controls'
+- paragraph_index: 2
+  original: Infrastructure manuscript | revised 14 September 2026
+  revised: Infrastructure manuscript | evaluated and revised 28 September 2026 | LX-Annotate 1.3.13 / endoreg-db
+    1.3.15
+- paragraph_index: 6
+  original: 'Methods: We conducted a bounded source and test inspection of LX-Annotate main and endoreg-db
+    prototype, focusing on sender eligibility, typed transfer, receiver acknowledgement and failure handling.
+    We distinguished executable test assertions from operational guidance and proposed release controls. No
+    clinical dataset or deployment was tested for this article.'
+  revised: 'Methods: We inspected the local LX-Annotate 1.3.13 working tree and installed endoreg-db 1.3.15
+    and lx-dtypes 0.3.7 dependencies, and executed eight focused test modules covering sender eligibility,
+    payload guards, envelope transfer, receiver acknowledgement, encrypted PDF consumption, patient-grouped
+    splits and local cleanup. Existing uncommitted changes form part of the evaluated snapshot. No clinical
+    dataset or production deployment was evaluated.'
+- paragraph_index: 7
+  original: 'Findings: The reviewed source includes negative-path payload checks and an in-process sender–receiver
+    test that covers video delivery, report acknowledgement loss, replay conflict and denial of a missing mutual-TLS
+    attestation. The test uses a single test database and mocked HTTP forwarding; these observations establish
+    test coverage, not measured reliability in a deployed fleet.'
+  revised: 'Findings: Across two focused runs, 89 tests passed without failures or skips. These include in-process
+    sender–receiver scenarios for video delivery, report acknowledgement loss, changed replay rejection and
+    missing mutual-TLS attestation; encrypted PDF materialization failure cases; and patient-grouped split
+    invariants. The transfer harness uses one database and mocked HTTP forwarding. These results demonstrate
+    the tested behaviors in the local test environment, not network certificate negotiation or reliability
+    in a deployed fleet.'
+- paragraph_index: 8
+  original: 'Conclusion: The system implements separable review and transfer gates and offers testable artifact-continuity
+    claims. Residual identifiers, clinical annotation quality, operational performance and public-release suitability
+    remain unmeasured.'
+  revised: 'Conclusion: The evaluated snapshot implements distinct review and transfer gates, tested artifact-integrity
+    checks and persisted patient-grouped split plans. Residual identifiers, clinical annotation quality, operational
+    performance and public-release suitability remain unevaluated. A public-release metadata policy, immutable
+    release package and institutional authorization remain separate requirements.'
+- paragraph_index: 14
+  original: To make the strength of each statement inspectable, this manuscript uses three evidence classes.
+    Repository-evidenced means that the reviewed snapshot contains corresponding implementation, tests or operational
+    documentation. Proposed identifies a governance or publication control recommended by this manuscript but
+    not established as implemented. Not evaluated identifies an outcome that requires empirical, legal, institutional
+    or production evidence beyond source inspection. These labels constrain the claims throughout the paper.
+  revised: This manuscript distinguishes source evidence, executed test evidence, proposed controls and unevaluated
+    outcomes. Source evidence identifies an implementation or documented contract in the inspected snapshot;
+    executed test evidence identifies the named local tests that passed. Proposed controls are not established
+    as an enforced publication pathway. Clinical, legal and production outcomes require evidence beyond these
+    source and test observations.
+- paragraph_index: 16
+  original: The application term “anonymization validation” denotes an operational human-review gate, not a
+    legal determination that data are anonymous. The General Data Protection Regulation (GDPR) distinguishes
+    pseudonymization, defined in Article 4(5), from information rendered anonymous; Recital 26 requires consideration
+    of the means reasonably likely to be used for identification [4]. Historical Article 29 Working Party guidance
+    assesses singling out, linkability and inference [5], and the European Data Protection Board’s 2026 consultation
+    draft uses the corresponding criteria of record isolation, linkage and inference [7]. Because the controlled
+    clinical environment preserves longitudinal relationships under reassigned pseudonyms and retains additional
+    linkage information, its records remain pseudonymized personal data. Only the exact release dataset, evaluated
+    in its recipient and disclosure context, can support a separate anonymity determination.
+  revised: The application term “anonymization validation” denotes a human-review workflow gate, not a legal
+    determination of anonymity. GDPR Article 4(5) defines pseudonymization, while Recital 26 addresses identification
+    using means reasonably likely to be used [4]. Historical guidance discusses singling out, linkability and
+    inference [5]. The EDPB consultation draft adopted on 7 July 2026 sets out No Record Isolation, No Linkage
+    and No Inference criteria and assessment from relevant entities’ perspectives [7]. Where the clinical controller
+    retains usable identity linkage, reassigned pseudonyms do not establish anonymity for that controller.
+    The inspected data model supports longitudinal patient relationships; this review did not inspect actual
+    records or determine their legal status. Any release needs an assessment of the exact data and intended
+    disclosure context.
+- paragraph_index: 20
+  original: Managed file storage uses authenticated encryption with a fresh per-file data-encryption key. The
+    long-lived local master key wraps these file keys and must remain local. Consumers obtain decrypted content
+    through the storage interface or a scoped materialization helper, rather than passing ciphertext paths
+    directly to video, PDF or model parsers.
+  revised: The default application storage backend delegates to endoreg_db EncryptedStorage, which uses authenticated
+    encryption and a fresh per-file data-encryption key wrapped by a local master key. Storage-mediated reads
+    and scoped plaintext materialization are the supported consumption interfaces. Seven executed synthetic-PDF
+    tests cover successful private materialization, ciphertext preservation, wrong-key and malformed or tampered
+    input rejection, cleanup after a consumer exception and propagation of cleanup failure. They do not prove
+    that every parser call site or every file on a deployed host follows this boundary.
+- paragraph_index: 21
+  original: 'The current hub guide and envelope module describe a Phase 2 transfer boundary: mutual TLS protects
+    and authenticates the channel, while a per-transfer key encrypts standalone processed media and is wrapped
+    for the receiving hub. Shared secrets authenticate requests and are not payload-encryption keys. KMS integration
+    belongs to the architectural roadmap and is not claimed here as deployed functionality.'
+  revised: The inspected hub envelope implementation provides Phase 2 encryption of standalone processed artifacts
+    with a per-transfer key wrapped for the receiving hub. Sender settings require mutual TLS by default, but
+    this requirement is configurable; the in-process transfer tests disable the sender requirement and simulate
+    receiver proxy attestation. Consequently, this evaluation does not establish live channel authentication.
+    Shared secrets serve request authentication rather than payload encryption. KMS integration remains an
+    architectural roadmap item.
+- paragraph_index: 43
+  original: Annotation approval and required outside-segment mark for cleanup
+  revised: Segment annotation approval; successful outside-segment cleanup is required for subsequent video
+    export readiness
+- paragraph_index: 62
+  original: Video and PDF reports enter through the supported watcher or API intake pathways. Intake creates
+    managed resources and workflow state under an assigned pseudonym.
+  revised: Video and PDF intake is implemented through watcher and API pathways. The watcher delegates ingestion
+    to endoreg_db services, including a distinct preanonymized intake path. Managed resources and patient or
+    examination linkage are workflow outputs; merely accepting an upload is not evidence that its content is
+    already pseudonymized or anonymization-validated.
+- paragraph_index: 63
+  original: Source-center and examination assignment preserve the context required for correct processing and
+    authorized local linkage. Within the clinical boundary, this context may remain identifying when human
+    validation fails. The publication workflow should retain only the relationships needed for its scientific
+    purpose and keep identity linkage outside the release package. Collection purpose, lawful processing basis,
+    ethics requirements and any consent conditions are established within the study by the institution before
+    research use [4].
+  revised: Source-center and examination assignment preserve processing context and authorized local linkage.
+    This context can remain identifying even after successful per-media review where the controller can link
+    it to an individual. A proposed publication workflow should retain only scientifically necessary relationships
+    and exclude the clinical identity linkage. The institution must establish the applicable processing basis,
+    ethics requirements and consent conditions before research use; their fulfillment was not assessed here
+    [4].
+- paragraph_index: 70
+  original: The acceptance decision concerns the exact reviewed content. After correction, the reviewer compares
+    the new result rather than inheriting approval from the earlier object. At dataset-release time, a separate
+    review examines combinations of records and metadata that are not visible in a single-media review.
+  revised: The intended acceptance decision concerns the reviewed content. Correction and artifact replacement
+    require renewed review and export-readiness checks; the executed export tests cover selected integrity
+    and rejection paths, not every frontend correction route. A separate dataset-release review must examine
+    combinations of records and metadata beyond the single-media review.
+- paragraph_index: 77
+  original: This establishes byte-level continuity between approval and transfer. It does not prove clinical
+    label accuracy or anonymity. Processed-artifact replacement or segment changes clear the readiness proof,
+    requiring renewed promotion. Report transfer has its own validated anonymized text and processed-PDF checks;
+    video-specific segment gates should not be generalized to reports.
+  revised: The tested digest checks support byte-level continuity at the evaluated export boundaries. They
+    do not measure label accuracy or anonymity, and do not constitute an exhaustive concurrency or mutation-path
+    audit. The workflow requires renewed readiness after processed-artifact or segment changes. Report transfer
+    has separate validated-state, anonymized-text and processed-PDF checks; video segment gates do not apply
+    to reports.
+- paragraph_index: 81
+  original: Local cleanup remains a distinct decision after verified receipt, with retention of processed media
+    documented as the conservative default. A failed or inconsistent acknowledgement cannot authorize deletion.
+    Because transfer metadata can contain linkable research context, all hub-bound metadata still requires
+    authorized handling even when the media has passed anonymization review.
+  revised: Retention of local processed media remains the default. An implemented, bounded reaper can remove
+    a local processed-video copy only under the explicit cleanup policy after verified apply, with receipt,
+    digest, size and idle-media checks. It defaults to dry-run and does not reap raw media or processed reports.
+    Six focused cleanup tests passed. This is local test evidence, not a deployed retention or disaster-recovery
+    assessment. Hub-bound metadata can retain linkable research context and remains subject to authorized handling.
+- paragraph_index: 86
+  original: For machine-learning use, partitioning should occur at the patient level where authorized linkage
+    permits, keeping related examinations and adjacent frames together. Preprocessing or selection based on
+    the full dataset can also introduce leakage. These recommendations address known reproducibility concerns
+    in machine-learning research [6]; their enforcement by the current export endpoints was not established.
+  revised: The current application implements persisted patient-grouped split plans with a fixed test holdout
+    and rotating validation folds. Thirteen tests passed for split construction, invalid input, membership
+    validation and scoped API persistence. Missing or conflicting patient links are rejected. Ratios target
+    patients rather than frames; membership snapshots freeze identifiers, not annotation content or media,
+    and labels are not stratified. These plans do not by themselves enforce partition use in training or export,
+    resolve duplicate identities across sites, or prevent preprocessing leakage [6]. Public-release identifiers,
+    a field allowlist and an immutable release manifest remain proposed controls.
+- paragraph_index: 111
+  original: On 28 September 2026 we inspected LX-Annotate main and endoreg-db prototype through the named repository
+    files in Appendix A. This is a purposive inspection of transfer-facing documentation and selected executable
+    tests, not a systematic audit of all code paths. The extraction unit was a source file or test case; we
+    recorded its boundary, asserted outcome and conditions that make an inference invalid. We did not execute
+    the suites, inspect a clean deployment, sample clinical media or audit repository history. File-level content
+    hashes in Appendix A identify the retrieved evidence; publication should additionally pin both full repository
+    commits and dependency locks.
+  revised: On 28 September 2026 we evaluated /home/admin/dev/lx-annotate on main at HEAD d4ffa63d9901f1305ba663e04ecde13db1bba2e0,
+    with existing staged and unstaged changes. Both project metadata and the installed distribution report
+    LX-Annotate 1.3.13; installed dependencies are endoreg-db 1.3.15 and lx-dtypes 0.3.7. We inspected selected
+    workflow, storage and transfer paths and ran eight focused test modules. This was a purposive local evaluation,
+    not a complete implementation audit or a test of a clean release. No separate endoreg-db prototype checkout
+    or backend Git commit was established; the installed package is the evaluated dependency. The companion
+    YAML records source hashes, dependency-lock hashes, commands, results and paragraph changes.
+- paragraph_index: 113
+  original: The sender guide specifies that video eligibility requires a nonempty processed artifact, separate
+    validated anonymization and segments, an attributable export decision and agreement between persisted digests.
+    It specifies a fresh digest check at marking and transfer. The payload-guard test module asserts rejection
+    of raw-media transfer mode, incomplete sensitive metadata, non-anonymized state, inconsistent segment identity
+    and invalid processed-file conditions. These are assertions present in source; the present inspection does
+    not report an independently executed pass rate.
+  revised: The current sender implementation checks processed-artifact availability, separate video review
+    states, export readiness and persisted digest agreement; explicit marking and payload construction request
+    fresh content verification. The focused run passed 30 payload-guard cases, 15 publication-readiness cases
+    and 8 video-state cases. These exercise rejection and integrity behavior under their fixtures, including
+    unreadable or changed media. They do not establish that a human reviewed every exported byte or that arbitrary
+    concurrent modification is impossible.
+- paragraph_index: 114
+  original: The end-to-end test module feeds worker requests to Django receiver views in process. It asserts
+    a video transfer with an envelope receipt, rejection before registration when mutual-TLS attestation is
+    absent, and recovery from a lost report acknowledgement followed by rejection of a changed replay. Its
+    class-level test setting disables the sender’s mutual-TLS requirement, while receiver-focused cases override
+    receiver settings and simulate proxy attestation. It does not establish certificate negotiation over a
+    network, independent databases, latency, throughput or production recovery.
+  revised: All four sender–receiver test cases and six envelope tests passed locally. The transfer harness
+    forwards worker requests to Django receiver views in process and exercises video delivery, report acknowledgement
+    loss and retry, changed replay rejection, and missing receiver mutual-TLS attestation. Its class-level
+    setting disables sender mutual TLS; receiver cases simulate proxy attestation. It uses one test database
+    and mocked HTTP forwarding, so these results do not establish real certificate negotiation, independent-node
+    consistency, throughput, latency or production recovery.
+- paragraph_index: 115
+  original: The endoreg-db prototype operations guide defines receiver-side node and center scoping, a proxy
+    trust condition for mutual-TLS headers, a verified receipt and explicit quarantine and recovery steps.
+    The presence of this runbook shows a documented operational contract; it does not establish that any particular
+    installation satisfies the proxy, key, storage, backup or monitoring requirements.
+  revised: The local hub guide references the endoreg-db receiver operations runbook for proxy trust, key rotation,
+    storage, restore and quarantine procedures. That external runbook was not independently retrieved for this
+    local revision, so its earlier prototype blob is not treated as current implementation evidence. Separately,
+    seven encrypted-PDF materialization tests, thirteen patient-grouped split tests and six cleanup tests passed.
+    None certifies a deployed proxy, key configuration, backup or monitoring system.
+- paragraph_index: 117
+  original: Source inspection identifies controls and test scenarios. Clinical and operational outcome claims
+    require observations at the relevant boundary. The protocol below distinguishes those prospective measurements
+    from the findings above. Prespecify thresholds, sampling frames, denominators and exclusions before collecting
+    release evidence.
+  revised: Executed tests support the bounded infrastructure findings above. Clinical and operational outcomes
+    still require observations at the relevant boundary. The protocol below is prospective; prespecify thresholds,
+    sampling frames, denominators and exclusions before collecting dataset-release evidence.
+- paragraph_index: 146
+  original: A zero-finding review does not demonstrate zero risk. It supports only the stated detection bound
+    for the sampled artifacts and review method. Likewise, passing transfer tests establishes transport and
+    integrity behavior, not privacy or clinical validity. These property-specific claims prevent evidence from
+    one control from being used as a proxy for another.
+  revised: A zero-finding review does not demonstrate zero risk; any detection bound depends on the sampling
+    design and review sensitivity. Passing transfer tests establishes only the tested transport-contract and
+    integrity behaviors, not clinical validity, anonymity or successful TLS negotiation in production.
+- paragraph_index: 149
+  original: The workflow’s main strength is the separation of privacy, annotation, integrity and transfer decisions.
+    It provides a way to reason about exactly which artifact was reviewed, which clinical labels were accepted
+    and whether the hub acknowledged the expected resource. This structure is useful for asynchronous processing
+    because a completed task cannot silently stand in for a human approval.
+  revised: The inspected workflow separates privacy review, annotation validation, export integrity and transfer
+    decisions. Passing tests support selected gates and failure paths. That separation improves traceability
+    in asynchronous processing, but the evaluation does not establish that all possible task, override or concurrency
+    paths preserve every approval invariant.
+- paragraph_index: 152
+  original: This study is limited to a purposive documentation and source-test inspection, including an in-process
+    test harness that represents both nodes within one database. We did not run the test suites, inspect full
+    production configuration, measure identifier removal, assess label quality, perform a legal determination,
+    conduct an independent two-node deployment trial or evaluate a completed dataset release. The proposed
+    framework in Section 6.3 is a research agenda; none of its performance measures is presented as a result.
+  revised: This evaluation is limited to selected source paths and 89 passing local tests in a modified working
+    tree. The transfer harness represents sender and receiver in one database; encrypted-PDF tests use synthetic
+    content. We did not run the complete backend or frontend suites, inspect production configuration, measure
+    identifier removal or label quality, perform a legal determination, conduct an independent two-node trial
+    or evaluate a completed dataset release. The prospective measurements in Section 6.3 are not reported as
+    achieved outcomes.
+- paragraph_index: 154
+  original: LX-Annotate and endoreg_db provide inspectable review gates, payload guards and sender–receiver
+    test scenarios for processed-media transfer. The observed evidence supports a bounded architecture and
+    test-coverage description. Deployment validation, measured privacy and annotation outcomes, and a separate
+    authorized release decision are needed before stronger scientific or public-dataset claims.
+  revised: The evaluated LX-Annotate 1.3.13 snapshot with endoreg-db 1.3.15 provides review gates, tested payload
+    and artifact-integrity checks, envelope-transfer scenarios, patient-grouped split plans and guarded local
+    video cleanup. Eight focused modules yielded 89 passing tests. Stronger claims about clinical privacy,
+    deployed reliability or publication readiness require separate empirical evaluation and authorization of
+    the exact dataset release.
+- paragraph_index: 162
+  original: European Data Protection Board. Guidelines 02/2026 on Anonymisation, Version 1 for public consultation.
+    Adopted 8 July 2026. Consultation page and draft. This draft was under public consultation at the manuscript
+    date and is cited as non-final guidance.
+  revised: 'European Data Protection Board. Guidelines 02/2026 on Anonymisation, Version 1.0. Adopted 7 July
+    2026 for public consultation. Official draft: https://www.edpb.europa.eu/system/files/2026-07/edpb_guidelines_202602_anonymisation_v1_en_0.pdf.
+    Consultation runs from 8 July to 30 October 2026; this manuscript treats the draft as non-final guidance.'
+- paragraph_index: 164
+  original: 'Source repositories: https://github.com/wg-lux/lx-annotate (main) and https://github.com/wg-lux/endoreg-db
+    (prototype). The file hashes and branch names below describe this inspection, not a frozen, reproducible
+    release. Before submission, archive exact commit identifiers for both projects, dependency locks, test
+    commands and their logs. Clinical source material was not accessed for this revision; no participant-level
+    data or new human-subject measurements are reported.'
+  revised: 'Evaluated source: local LX-Annotate working tree at Git HEAD d4ffa63d9901f1305ba663e04ecde13db1bba2e0,
+    with existing modifications, and installed endoreg-db 1.3.15 / lx-dtypes 0.3.7. The companion docs/publications/clinical-data-workflow-evaluation.yml
+    records selected file SHA-256 hashes, lockfile hashes, dependency versions, exact commands, results and
+    original/revised paragraph text. A Git HEAD plus hashes does not archive all uncommitted content; this
+    record is not a reproducible release bundle. No backend Git revision is asserted. Clinical source material
+    was not accessed.'
+- paragraph_index: 168
+  original: These project sources support system-specific descriptions; the external literature does not validate
+    this implementation. Paths are relative to the LX-Annotate repository. The inspected baseline was commit
+    b5ebf16da55a203cf3014291a1dd687b6de79171 (9 September 2026), with existing uncommitted working-tree changes
+    inspected on 10 September 2026. Because uncommitted changes are not an immutable source baseline, release
+    evidence should identify a clean commit and locked dependency set before evaluation.
+  revised: Paths below are relative to /home/admin/dev/lx-annotate. The current evaluation supersedes the earlier
+    September 10 working-tree baseline and branch-only supplementary inspection. Current Git HEAD is d4ffa63d9901f1305ba663e04ecde13db1bba2e0;
+    the working tree is modified. The companion YAML identifies inspected file contents and installed dependency
+    sources. These records support a local claims evaluation, not production acceptance.
+- paragraph_index: 176
+  original: Managed-file encryption and storage-mediated reads
+  revised: Default encrypted-storage contract; current implementation delegates to installed endoreg-db and
+    scoped synthetic-PDF tests
+- paragraph_index: 188
+  original: Negative-path payload checks and end-to-end transfer contract behavior
+  revised: 30 passing payload-guard cases and 4 passing in-process sender–receiver cases; no real network TLS
+    trial
+- paragraph_index: 190
+  original: Envelope preparation, replay and rejection behavior
+  revised: 6 passing envelope cases; patient splits, materialization, readiness and cleanup results are itemized
+    in the companion YAML
+- paragraph_index: 191
+  original: Public-release governance in Sections 4.7 and 5 and the evaluation framework in Section 6 are proposed
+    manuscript methods, not claims that these controls have been deployed or measured.
+  revised: Public-release field selection, release-scoped identifiers, immutable manifests and authorization
+    remain proposed. Patient-grouped split plans are implemented and locally tested, but their automatic enforcement
+    by training and export is not established. Clinical and production measurements in Section 6.3 remain prospective.
+- paragraph_index: 192
+  original: Supplementary source inspection, 28 September 2026
+  revised: Current verification record, 28 September 2026
+- paragraph_index: 193
+  original: 'LX-Annotate main: docs/guides/hub-export-workflow.md, Git blob SHA f52b0ec498369d995364be54c692587a2588bf70;
+    tests/hub/test_hub_export_payload_guards.py, Git blob SHA 56f2aca9607e11880e4b88aaed19eb8c6104cbc0; tests/hub/test_hub_export_end_to_end.py,
+    Git blob SHA ee7d060a7aee318e393f87fbd26a3ca8d60e6a95. Endoreg-db prototype: docs/hub_ingest_operations.md,
+    Git blob SHA 40d068abceb9acdd063a015e50364e22dd291ab7. Source links: https://github.com/wg-lux/lx-annotate/tree/main/tests/hub
+    and https://github.com/wg-lux/endoreg-db/blob/prototype/docs/hub_ingest_operations.md. Blob hashes identify
+    file contents; they are not repository commit IDs.'
+  revised: 'Run 1: payload guards, sender–receiver, envelope, publication readiness, video state, encrypted
+    PDF materialization and patient splits: 83 passed in 7.85 s. Run 2: local hub-export cleanup: 6 passed
+    in 1.34 s. Both commands exited 0 with no failures or skips. Feature registry validation passed for 54
+    definitions. Exact command arguments, per-module counts, source SHA-256 hashes and paragraph changes are
+    recorded in docs/publications/clinical-data-workflow-evaluation.yml. Earlier branch/blob references are
+    superseded for this evaluation; no claim of a frozen release or deployed acceptance is made.'

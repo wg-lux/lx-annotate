@@ -1,0 +1,35 @@
+version: 1
+tier: domain
+path: "tests"
+parent: "../structure.yml"
+summary: "Backend and cross-boundary regression suites with isolated PostgreSQL fixtures."
+responsibilities:
+  - "Verify application APIs, hub workflows, privacy, ingestion, and system contracts."
+  - "Check the context graph in ordinary pytest runs."
+boundaries:
+  - "Do not mutate production data or treat fixtures as deployment sources."
+entrypoints:
+  - name: "packaged watcher acceptance"
+    file: "ingestion/test_packaged_watcher_acceptance.py"
+    purpose: "Opt-in installed-wheel one-shot checks against disposable PostgreSQL"
+  - name: "fixtures"
+    file: "conftest.py"
+    purpose: "Isolated runtime and database fixtures"
+  - name: "context regressions"
+    file: "system/test_structure_manifests.py"
+    purpose: "Validator schema and graph tests"
+dependencies:
+  internal: ["lx_annotate","scripts","frontend"]
+  external: ["pytest","pytest-django","pytest-postgresql"]
+submodules: []
+contracts:
+  - name: "pytest configuration"
+    doc: "../pytest.ini"
+  - name: "API contract"
+    doc: "../docs/guides/openapi-type-generation.md"
+tests:
+  directory: "."
+  command: "python -m pytest tests/system/test_structure_manifests.py -q"
+
+files:
+  - system/test_identity_response_boundary.py

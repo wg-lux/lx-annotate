@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 from rest_framework import serializers
+
 # Import the advanced LabelVideoSegmentSerializer from endoreg_db
-from endoreg_db.serializers.label_serializer import LabelVideoSegmentSerializer
+
 
 class FileUploadSerializer(serializers.Serializer):
     file = serializers.FileField()
 
+
 class VideoSerializer(serializers.Serializer):
     video = serializers.FileField()
+
 
 # LabelVideoSegmentSerializer is now imported from endoreg_db
 # The endoreg_db version includes:

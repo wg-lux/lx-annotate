@@ -1,0 +1,880 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites name="pytest tests">
+    <testsuite name="pytest"
+               errors="0"
+               failures="32"
+               skipped="0"
+               tests="46"
+               time="92.858"
+               timestamp="2026-10-22T14:58:42.496740+02:00"
+               hostname="gc-02">
+        <testcase classname="tests.api.test_central_hub_training_access" name="test_hub_read_and_training_after_raw_deletion[source]" time="40.926">
+            <failure message="AssertionError: b'{&quot;errors&quot;:{&quot;manifest&quot;:&quot;AIDataSet has no extracted or validated processed frame annotations from manual or confirmed sources for the selected scope.&quot;}}'&#10;assert 400 == 200&#10; +  where 400 = &lt;Response status_code=400, &quot;application/json&quot;&gt;.status_code">tests/api/test_central_hub_training_access.py:208: in test_hub_read_and_training_after_raw_deletion
+    assert manifest.status_code == 200, manifest.content
+E   AssertionError: b'{"errors":{"manifest":"AIDataSet has no extracted or validated processed frame annotations from manual or confirmed sources for the selected scope."}}'
+E   assert 400 == 200
+E    +  where 400 = &lt;Response status_code=400, "application/json"&gt;.status_code</failure>
+        </testcase>
+        <testcase classname="tests.api.test_central_hub_training_access" name="test_hub_read_and_training_after_raw_deletion[other]" time="0.146">
+            <failure message="assert 2 in set()&#10; +  where 2 = &lt;VideoFile: VideoFile (Processed): hub-processed_ToD2tRM.mp4 (UUID: 51dd959ae727963b6c52f737a6232ee1b83a12e4628bc3131a3d1db19d17ac17)&gt;.pk">tests/api/test_central_hub_training_access.py:188: in test_hub_read_and_training_after_raw_deletion
+    assert video.pk in {row["id"] for row in json.loads(listing.content)["results"]}
+E   assert 2 in set()
+E    +  where 2 = &lt;VideoFile: VideoFile (Processed): hub-processed_ToD2tRM.mp4 (UUID: 51dd959ae727963b6c52f737a6232ee1b83a12e4628bc3131a3d1db19d17ac17)&gt;.pk</failure>
+        </testcase>
+        <testcase classname="tests.api.test_central_hub_training_access" name="test_hub_read_and_training_after_raw_deletion[none]" time="0.144">
+            <failure message="assert 3 in set()&#10; +  where 3 = &lt;VideoFile: VideoFile (Processed): hub-processed_1lmApeY.mp4 (UUID: 51dd959ae727963b6c52f737a6232ee1b83a12e4628bc3131a3d1db19d17ac17)&gt;.pk">tests/api/test_central_hub_training_access.py:188: in test_hub_read_and_training_after_raw_deletion
+    assert video.pk in {row["id"] for row in json.loads(listing.content)["results"]}
+E   assert 3 in set()
+E    +  where 3 = &lt;VideoFile: VideoFile (Processed): hub-processed_1lmApeY.mp4 (UUID: 51dd959ae727963b6c52f737a6232ee1b83a12e4628bc3131a3d1db19d17ac17)&gt;.pk</failure>
+        </testcase>
+        <testcase classname="tests.api.test_dataset_lifecycle" name="test_create_update_read_and_study_crud" time="15.882">
+            <failure message="django.db.models.deletion.ProtectedError: (&quot;Cannot delete some instances of model 'StudyCohort' because they are referenced through protected foreign keys: 'StudyCollectionEntry.cohort'.&quot;, {&lt;StudyCollectionEntry: StudyCollectionEntry object (1)&gt;})">tests/api/test_dataset_lifecycle.py:42: in test_create_update_read_and_study_crud
+    assert client.delete(study).status_code == 204
+           ^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/rest_framework/test.py:307: in delete
+    response = super().delete(
+.devenv/state/venv/lib/python3.12/site-packages/rest_framework/test.py:209: in delete
+    return self.generic('DELETE', path, data, content_type, **extra)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/rest_framework/test.py:221: in generic
+    return super().generic(
+.devenv/state/venv/lib/python3.12/site-packages/django/test/client.py:671: in generic
+    return self.request(**r)
+           ^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/rest_framework/test.py:273: in request
+    return super().request(**kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/rest_framework/test.py:225: in request
+    request = super().request(**kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/django/test/client.py:1087: in request
+    self.check_exception(response)
+.devenv/state/venv/lib/python3.12/site-packages/django/test/client.py:802: in check_exception
+    raise exc_value
+.devenv/state/venv/lib/python3.12/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/django/core/handlers/base.py:198: in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/csrf.py:65: in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/django/views/generic/base.py:106: in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/rest_framework/views.py:515: in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/rest_framework/views.py:475: in handle_exception
+    self.raise_uncaught_exception(exc)
+.devenv/state/venv/lib/python3.12/site-packages/rest_framework/views.py:486: in raise_uncaught_exception
+    raise exc
+.devenv/state/venv/lib/python3.12/site-packages/rest_framework/views.py:512: in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/rest_framework/decorators.py:50: in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+lx_annotate/views/study_cohorts.py:186: in study_cohort_detail
+    cohort.delete()
+.devenv/state/venv/lib/python3.12/site-packages/django/db/models/base.py:1299: in delete
+    collector.collect([self], keep_parents=keep_parents)
+.devenv/state/venv/lib/python3.12/site-packages/django/db/models/deletion.py:354: in collect
+    raise ProtectedError(
+E   django.db.models.deletion.ProtectedError: ("Cannot delete some instances of model 'StudyCohort' because they are referenced through protected foreign keys: 'StudyCollectionEntry.cohort'.", {&lt;StudyCollectionEntry: StudyCollectionEntry object (1)&gt;})</failure>
+        </testcase>
+        <testcase classname="tests.hub.test_hub_export_api.HubExportApiTests" name="test_bulk_offload_and_overview_only_discover_allowed_centers" time="0.249">
+            <failure message="pydantic_core._pydantic_core.ValidationError: 2 validation errors for HubTransferSensitiveMetaPayload&#10;patient_uuid&#10;  UUID input should be a string, bytes or UUID object [type=uuid_type, input_value=None, input_type=NoneType]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/uuid_type&#10;examination_uuid&#10;  UUID input should be a string, bytes or UUID object [type=uuid_type, input_value=None, input_type=NoneType]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/uuid_type">tests/hub/test_hub_export_api.py:854: in test_bulk_offload_and_overview_only_discover_allowed_centers
+    overview = self.client.get("/api/hub-export/overview/")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/django/test/client.py:1124: in get
+    response = super().get(
+.devenv/state/venv/lib/python3.12/site-packages/django/test/client.py:475: in get
+    return self.generic(
+.devenv/state/venv/lib/python3.12/site-packages/django/test/client.py:671: in generic
+    return self.request(**r)
+           ^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/django/test/client.py:1087: in request
+    self.check_exception(response)
+.devenv/state/venv/lib/python3.12/site-packages/django/test/client.py:802: in check_exception
+    raise exc_value
+.devenv/state/venv/lib/python3.12/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/django/core/handlers/base.py:198: in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/csrf.py:65: in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/django/views/generic/base.py:106: in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/rest_framework/views.py:515: in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/rest_framework/views.py:475: in handle_exception
+    self.raise_uncaught_exception(exc)
+.devenv/state/venv/lib/python3.12/site-packages/rest_framework/views.py:486: in raise_uncaught_exception
+    raise exc
+.devenv/state/venv/lib/python3.12/site-packages/rest_framework/views.py:512: in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/rest_framework/decorators.py:50: in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+lx_annotate/views/hub_export.py:99: in hub_export_overview
+    payload = build_hub_export_overview(
+lx_annotate/hub/hub_export_jobs.py:860: in build_hub_export_overview
+    _collect_video_overview(
+lx_annotate/hub/hub_export_jobs.py:620: in _collect_video_overview
+    recovery = video_recovery_assessment(video, readiness)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lx_annotate/hub/hub_export_recovery.py:57: in video_recovery_assessment
+    build_hub_identity_payload(video.sensitive_meta)
+lx_annotate/hub/hub_export_payloads.py:167: in build_hub_identity_payload
+    identity = HubTransferSensitiveMetaPayload.model_validate({
+E   pydantic_core._pydantic_core.ValidationError: 2 validation errors for HubTransferSensitiveMetaPayload
+E   patient_uuid
+E     UUID input should be a string, bytes or UUID object [type=uuid_type, input_value=None, input_type=NoneType]
+E       For further information visit https://errors.pydantic.dev/2.13/v/uuid_type
+E   examination_uuid
+E     UUID input should be a string, bytes or UUID object [type=uuid_type, input_value=None, input_type=NoneType]
+E       For further information visit https://errors.pydantic.dev/2.13/v/uuid_type</failure>
+        </testcase>
+        <testcase classname="tests.hub.test_hub_export_api.HubExportApiTests" name="test_identity_and_export_proof_are_distinct_recovery_blockers" time="0.545">
+            <failure message="pydantic_core._pydantic_core.ValidationError: 2 validation errors for HubTransferSensitiveMetaPayload&#10;patient_uuid&#10;  UUID input should be a string, bytes or UUID object [type=uuid_type, input_value=None, input_type=NoneType]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/uuid_type&#10;examination_uuid&#10;  UUID input should be a string, bytes or UUID object [type=uuid_type, input_value=None, input_type=NoneType]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/uuid_type">tests/hub/test_hub_export_api.py:957: in test_identity_and_export_proof_are_distinct_recovery_blockers
+    overview = self.client.get("/api/hub-export/overview/")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/django/test/client.py:1124: in get
+    response = super().get(
+.devenv/state/venv/lib/python3.12/site-packages/django/test/client.py:475: in get
+    return self.generic(
+.devenv/state/venv/lib/python3.12/site-packages/django/test/client.py:671: in generic
+    return self.request(**r)
+           ^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/django/test/client.py:1087: in request
+    self.check_exception(response)
+.devenv/state/venv/lib/python3.12/site-packages/django/test/client.py:802: in check_exception
+    raise exc_value
+.devenv/state/venv/lib/python3.12/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/django/core/handlers/base.py:198: in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/csrf.py:65: in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/django/views/generic/base.py:106: in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/rest_framework/views.py:515: in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/rest_framework/views.py:475: in handle_exception
+    self.raise_uncaught_exception(exc)
+.devenv/state/venv/lib/python3.12/site-packages/rest_framework/views.py:486: in raise_uncaught_exception
+    raise exc
+.devenv/state/venv/lib/python3.12/site-packages/rest_framework/views.py:512: in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/rest_framework/decorators.py:50: in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+lx_annotate/views/hub_export.py:99: in hub_export_overview
+    payload = build_hub_export_overview(
+lx_annotate/hub/hub_export_jobs.py:860: in build_hub_export_overview
+    _collect_video_overview(
+lx_annotate/hub/hub_export_jobs.py:620: in _collect_video_overview
+    recovery = video_recovery_assessment(video, readiness)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lx_annotate/hub/hub_export_recovery.py:57: in video_recovery_assessment
+    build_hub_identity_payload(video.sensitive_meta)
+lx_annotate/hub/hub_export_payloads.py:167: in build_hub_identity_payload
+    identity = HubTransferSensitiveMetaPayload.model_validate({
+E   pydantic_core._pydantic_core.ValidationError: 2 validation errors for HubTransferSensitiveMetaPayload
+E   patient_uuid
+E     UUID input should be a string, bytes or UUID object [type=uuid_type, input_value=None, input_type=NoneType]
+E       For further information visit https://errors.pydantic.dev/2.13/v/uuid_type
+E   examination_uuid
+E     UUID input should be a string, bytes or UUID object [type=uuid_type, input_value=None, input_type=NoneType]
+E       For further information visit https://errors.pydantic.dev/2.13/v/uuid_type</failure>
+        </testcase>
+        <testcase classname="tests.hub.test_hub_export_api.HubExportApiTests" name="test_operator_retry_preserves_failure_until_identity_metadata_is_repaired" time="0.245">
+            <failure message="AssertionError: 'Complete metadata review' not found in '{&quot;detail&quot;:&quot;Transfer payload is still invalid. Review the protected logs before retrying.&quot;}'">tests/hub/test_hub_export_api.py:417: in test_operator_retry_preserves_failure_until_identity_metadata_is_repaired
+    self.assertIn("Complete metadata review", response.content.decode())
+E   AssertionError: 'Complete metadata review' not found in '{"detail":"Transfer payload is still invalid. Review the protected logs before retrying."}'</failure>
+        </testcase>
+        <testcase classname="tests.hub.test_hub_export_api.HubExportApiTests" name="test_reviewed_running_cleanup_uses_shared_rollback_and_retains_media" time="0.544">
+            <failure message="AttributeError: &lt;module 'endoreg_db.services.jobs.video_post_validation_jobs' from '/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/services/jobs/video_post_validation_jobs.py'&gt; does not have the attribute 'rollback_video_frame_artifacts'">tests/hub/test_hub_export_api.py:1316: in test_reviewed_running_cleanup_uses_shared_rollback_and_retains_media
+    with patch(
+/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/unittest/mock.py:1467: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/unittest/mock.py:1437: in get_original
+    raise AttributeError(
+E   AttributeError: &lt;module 'endoreg_db.services.jobs.video_post_validation_jobs' from '/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/services/jobs/video_post_validation_jobs.py'&gt; does not have the attribute 'rollback_video_frame_artifacts'</failure>
+        </testcase>
+        <testcase classname="tests.hub.test_hub_export_end_to_end.HubExportEndToEndTests" name="test_report_mark_then_mocked_transfer_completes" time="0.253">
+            <failure message="AssertionError: '5.0' != '3.0'&#10;- 5.0&#10;? ^&#10;+ 3.0&#10;? ^">tests/hub/test_hub_export_end_to_end.py:335: in test_report_mark_then_mocked_transfer_completes
+    self._assert_sender_payload_accepted_by_receiver(job)
+tests/hub/test_hub_export_end_to_end.py:140: in _assert_sender_payload_accepted_by_receiver
+    self.assertEqual(validated_data["payload_schema_version"], "3.0")
+E   AssertionError: '5.0' != '3.0'
+E   - 5.0
+E   ? ^
+E   + 3.0
+E   ? ^</failure>
+        </testcase>
+        <testcase classname="tests.hub.test_hub_export_end_to_end.HubExportEndToEndTests" name="test_report_worker_recovers_lost_ack_and_rejects_changed_replay" time="0.261">
+            <failure message="endoreg_db.models.hub.transfer_job.TransferJob.DoesNotExist: TransferJob matching query does not exist.">tests/hub/test_hub_export_end_to_end.py:541: in test_report_worker_recovers_lost_ack_and_rejects_changed_replay
+    receiver_job = TransferJob.objects.get(transfer_key=outbound_job.transfer_key)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/django/db/models/query.py:639: in get
+    raise self.model.DoesNotExist(
+E   endoreg_db.models.hub.transfer_job.TransferJob.DoesNotExist: TransferJob matching query does not exist.</failure>
+        </testcase>
+        <testcase classname="tests.hub.test_hub_export_end_to_end.HubExportEndToEndTests" name="test_video_in_process_lifecycle_uses_raw_ciphertext_contract" time="0.451">
+            <failure message="endoreg_db.models.hub.transfer_job.TransferJob.DoesNotExist: TransferJob matching query does not exist.">tests/hub/test_hub_export_end_to_end.py:821: in test_video_in_process_lifecycle_uses_raw_ciphertext_contract
+    receiver_job = TransferJob.objects.get(transfer_key=job.transfer_key)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/django/db/models/query.py:639: in get
+    raise self.model.DoesNotExist(
+E   endoreg_db.models.hub.transfer_job.TransferJob.DoesNotExist: TransferJob matching query does not exist.</failure>
+        </testcase>
+        <testcase classname="tests.hub.test_hub_transfer_security.HubTransferSecurityTests" name="test_transfer_create_accepts_secure_proxy_attested_request" time="0.024">
+            <failure message="AssertionError: 400 != 201">tests/hub/test_hub_transfer_security.py:159: in test_transfer_create_accepts_secure_proxy_attested_request
+    self.assertEqual(response.status_code, 201)
+E   AssertionError: 400 != 201</failure>
+        </testcase>
+        <testcase classname="tests.hub.test_hub_transfer_security.HubTransferSecurityTests" name="test_transfer_create_rejects_insecure_transport" time="0.021">
+            <failure message="AssertionError: 400 != 403">tests/hub/test_hub_transfer_security.py:118: in test_transfer_create_rejects_insecure_transport
+    self.assertEqual(response.status_code, 403)
+E   AssertionError: 400 != 403</failure>
+        </testcase>
+        <testcase classname="tests.hub.test_hub_transfer_security.HubTransferSecurityTests" name="test_transfer_create_rejects_missing_mtls_attestation" time="0.025">
+            <failure message="AssertionError: 400 != 403">tests/hub/test_hub_transfer_security.py:138: in test_transfer_create_rejects_missing_mtls_attestation
+    self.assertEqual(response.status_code, 403)
+E   AssertionError: 400 != 403</failure>
+        </testcase>
+        <testcase classname="tests.api.test_terminology_editor_compatibility" name="test_lx_terminology_editor_export_is_accepted[single-root]" time="0.025">
+            <failure message="lx_dtypes.terminology.terminology_service.TerminologyError: WARNING /tmp/pytest-of-admin/pytest-1325/test_lx_terminology_editor_exp0/terminology/terminology-packages/.staging-3aj8d9t7/custom_terminology/lx_findings/data/custom.yaml:1:3 [missing_language_coverage] 'finding' 'custom_finding' lacks authored display text: name_de, name_en. Provide nonempty translations; identifier fallbacks and 'unknown' placeholders do not establish language coverage.">.devenv/state/venv/lib/python3.12/site-packages/lx_dtypes/terminology/terminology_service.py:307: in import_zip
+    load_package(staged / name / "config.yaml")
+.devenv/state/venv/lib/python3.12/site-packages/lx_dtypes/packages.py:114: in load_package
+    raise PackageValidationError(result)
+E   lx_dtypes.packages.PackageValidationError: WARNING /tmp/pytest-of-admin/pytest-1325/test_lx_terminology_editor_exp0/terminology/terminology-packages/.staging-3aj8d9t7/custom_terminology/lx_findings/data/custom.yaml:1:3 [missing_language_coverage] 'finding' 'custom_finding' lacks authored display text: name_de, name_en. Provide nonempty translations; identifier fallbacks and 'unknown' placeholders do not establish language coverage.
+
+The above exception was the direct cause of the following exception:
+tests/api/test_terminology_editor_compatibility.py:49: in test_lx_terminology_editor_export_is_accepted
+    result = service.import_zip(BytesIO(archive_buffer.getvalue()))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/lx_dtypes/terminology/terminology_service.py:309: in import_zip
+    raise TerminologyError(400, str(exc)) from exc
+E   lx_dtypes.terminology.terminology_service.TerminologyError: WARNING /tmp/pytest-of-admin/pytest-1325/test_lx_terminology_editor_exp0/terminology/terminology-packages/.staging-3aj8d9t7/custom_terminology/lx_findings/data/custom.yaml:1:3 [missing_language_coverage] 'finding' 'custom_finding' lacks authored display text: name_de, name_en. Provide nonempty translations; identifier fallbacks and 'unknown' placeholders do not establish language coverage.</failure>
+        </testcase>
+        <testcase classname="tests.api.test_terminology_editor_compatibility" name="test_lx_terminology_editor_export_is_accepted[flat]" time="0.018">
+            <failure message="lx_dtypes.terminology.terminology_service.TerminologyError: WARNING /tmp/pytest-of-admin/pytest-1325/test_lx_terminology_editor_exp1/terminology/terminology-packages/.staging-r7tkano5/custom_terminology/lx_findings/data/custom.yaml:1:3 [missing_language_coverage] 'finding' 'custom_finding' lacks authored display text: name_de, name_en. Provide nonempty translations; identifier fallbacks and 'unknown' placeholders do not establish language coverage.">.devenv/state/venv/lib/python3.12/site-packages/lx_dtypes/terminology/terminology_service.py:307: in import_zip
+    load_package(staged / name / "config.yaml")
+.devenv/state/venv/lib/python3.12/site-packages/lx_dtypes/packages.py:114: in load_package
+    raise PackageValidationError(result)
+E   lx_dtypes.packages.PackageValidationError: WARNING /tmp/pytest-of-admin/pytest-1325/test_lx_terminology_editor_exp1/terminology/terminology-packages/.staging-r7tkano5/custom_terminology/lx_findings/data/custom.yaml:1:3 [missing_language_coverage] 'finding' 'custom_finding' lacks authored display text: name_de, name_en. Provide nonempty translations; identifier fallbacks and 'unknown' placeholders do not establish language coverage.
+
+The above exception was the direct cause of the following exception:
+tests/api/test_terminology_editor_compatibility.py:49: in test_lx_terminology_editor_export_is_accepted
+    result = service.import_zip(BytesIO(archive_buffer.getvalue()))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/lx_dtypes/terminology/terminology_service.py:309: in import_zip
+    raise TerminologyError(400, str(exc)) from exc
+E   lx_dtypes.terminology.terminology_service.TerminologyError: WARNING /tmp/pytest-of-admin/pytest-1325/test_lx_terminology_editor_exp1/terminology/terminology-packages/.staging-r7tkano5/custom_terminology/lx_findings/data/custom.yaml:1:3 [missing_language_coverage] 'finding' 'custom_finding' lacks authored display text: name_de, name_en. Provide nonempty translations; identifier fallbacks and 'unknown' placeholders do not establish language coverage.</failure>
+        </testcase>
+        <testcase classname="tests.api.test_urls_state" name="test_spa_resolution_does_not_import_api_url_modules" time="0.581">
+            <failure message="subprocess.CalledProcessError: Command '['/home/admin/dev/lx-annotate/.devenv/state/venv/bin/python3', '-c', &quot;import django, sys; django.setup(); from django.urls import resolve; assert resolve('/anonymisierung/uebersicht').url_name == 'vue_spa'; assert not set(('lx_annotate.api_urls', 'lx_annotate.dtypes_api_urls', 'endoreg_db.urls', 'endoreg_db.urls.settings', 'endoreg_db.views.misc.application_settings', 'endoreg_db.utils.ai.model_training.config')).intersection(sys.modules)&quot;]' returned non-zero exit status 1.">tests/api/test_urls_state.py:51: in test_spa_resolution_does_not_import_api_url_modules
+    subprocess.run(
+/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/subprocess.py:571: in run
+    raise CalledProcessError(retcode, process.args,
+E   subprocess.CalledProcessError: Command '['/home/admin/dev/lx-annotate/.devenv/state/venv/bin/python3', '-c', "import django, sys; django.setup(); from django.urls import resolve; assert resolve('/anonymisierung/uebersicht').url_name == 'vue_spa'; assert not set(('lx_annotate.api_urls', 'lx_annotate.dtypes_api_urls', 'endoreg_db.urls', 'endoreg_db.urls.settings', 'endoreg_db.views.misc.application_settings', 'endoreg_db.utils.ai.model_training.config')).intersection(sys.modules)"]' returned non-zero exit status 1.</failure>
+        </testcase>
+        <testcase classname="tests.hub.test_hub_export_payload_guards" name="test_transfer_contract_rejects_non_processed_media_mode" time="0.001">
+            <failure message="AssertionError: Regex pattern did not match.&#10;  Expected regex: 'requires processed-media mode'&#10;  Actual message: &quot;Outbound hub transfer requires payload_schema_version='5.0'.&quot;">tests/hub/test_hub_export_payload_guards.py:39: in test_transfer_contract_rejects_non_processed_media_mode
+    _validate_transfer_contract(payload)
+lx_annotate/hub/hub_export_payloads.py:600: in _validate_transfer_contract
+    raise ValueError("Outbound hub transfer requires payload_schema_version='5.0'.")
+E   ValueError: Outbound hub transfer requires payload_schema_version='5.0'.
+
+During handling of the above exception, another exception occurred:
+tests/hub/test_hub_export_payload_guards.py:38: in test_transfer_contract_rejects_non_processed_media_mode
+    with pytest.raises(ValueError, match="requires processed-media mode"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: 'requires processed-media mode'
+E     Actual message: "Outbound hub transfer requires payload_schema_version='5.0'."</failure>
+        </testcase>
+        <testcase classname="tests.hub.test_hub_export_payload_guards" name="test_sensitive_meta_rejects_identifiers_and_invalid_hashes[sensitive_meta1-contains prohibited fields: patient_name]" time="0.001">
+            <failure message="AssertionError: Regex pattern did not match.&#10;  Expected regex: 'contains prohibited fields: patient_name'&#10;  Actual message: &quot;5 validation errors for HubTransferSensitiveMetaPayload\npatient_uuid\n  Field required [type=missing, input_value={'patient_hash': 'aaaaaaa...ent_name': 'prohibited'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nexamination_uuid\n  Field required [type=missing, input_value={'patient_hash': 'aaaaaaa...ent_name': 'prohibited'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\npatient_hash\n  Extra inputs are not permitted [type=extra_forbidden, input_value='aaaaaaaaaaaaaaaaaaaaaaaa...aaaaaaaaaaaaaaaaaaaaaaa', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nexamination_hash\n  Extra inputs are not permitted [type=extra_forbidden, input_value='bbbbbbbbbbbbbbbbbbbbbbbb...bbbbbbbbbbbbbbbbbbbbbbb', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\npatient_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='prohibited', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden&quot;">tests/hub/test_hub_export_payload_guards.py:67: in test_sensitive_meta_rejects_identifiers_and_invalid_hashes
+    _validate_sensitive_meta_row({"sensitive_meta": sensitive_meta})
+lx_annotate/hub/hub_export_payloads.py:793: in _validate_sensitive_meta_row
+    HubTransferSensitiveMetaPayload.model_validate(sensitive_meta)
+E   pydantic_core._pydantic_core.ValidationError: 5 validation errors for HubTransferSensitiveMetaPayload
+E   patient_uuid
+E     Field required [type=missing, input_value={'patient_hash': 'aaaaaaa...ent_name': 'prohibited'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing
+E   examination_uuid
+E     Field required [type=missing, input_value={'patient_hash': 'aaaaaaa...ent_name': 'prohibited'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing
+E   patient_hash
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='aaaaaaaaaaaaaaaaaaaaaaaa...aaaaaaaaaaaaaaaaaaaaaaa', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden
+E   examination_hash
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='bbbbbbbbbbbbbbbbbbbbbbbb...bbbbbbbbbbbbbbbbbbbbbbb', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden
+E   patient_name
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='prohibited', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden
+
+During handling of the above exception, another exception occurred:
+tests/hub/test_hub_export_payload_guards.py:66: in test_sensitive_meta_rejects_identifiers_and_invalid_hashes
+    with pytest.raises(ValueError, match=error):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: 'contains prohibited fields: patient_name'
+E     Actual message: "5 validation errors for HubTransferSensitiveMetaPayload\npatient_uuid\n  Field required [type=missing, input_value={'patient_hash': 'aaaaaaa...ent_name': 'prohibited'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nexamination_uuid\n  Field required [type=missing, input_value={'patient_hash': 'aaaaaaa...ent_name': 'prohibited'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\npatient_hash\n  Extra inputs are not permitted [type=extra_forbidden, input_value='aaaaaaaaaaaaaaaaaaaaaaaa...aaaaaaaaaaaaaaaaaaaaaaa', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nexamination_hash\n  Extra inputs are not permitted [type=extra_forbidden, input_value='bbbbbbbbbbbbbbbbbbbbbbbb...bbbbbbbbbbbbbbbbbbbbbbb', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\npatient_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='prohibited', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"</failure>
+        </testcase>
+        <testcase classname="tests.hub.test_hub_export_payload_guards" name="test_sensitive_meta_rejects_identifiers_and_invalid_hashes[sensitive_meta2-patient_hash must be a SHA-256 hex digest]" time="0.001">
+            <failure message="AssertionError: Regex pattern did not match.&#10;  Expected regex: 'patient_hash must be a SHA-256 hex digest'&#10;  Actual message: &quot;4 validation errors for HubTransferSensitiveMetaPayload\npatient_uuid\n  Field required [type=missing, input_value={'patient_hash': 'not-a-h...bbbbbbbbbbbbbbbbbbbbbb'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nexamination_uuid\n  Field required [type=missing, input_value={'patient_hash': 'not-a-h...bbbbbbbbbbbbbbbbbbbbbb'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\npatient_hash\n  Extra inputs are not permitted [type=extra_forbidden, input_value='not-a-hash', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nexamination_hash\n  Extra inputs are not permitted [type=extra_forbidden, input_value='bbbbbbbbbbbbbbbbbbbbbbbb...bbbbbbbbbbbbbbbbbbbbbbb', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden&quot;">tests/hub/test_hub_export_payload_guards.py:67: in test_sensitive_meta_rejects_identifiers_and_invalid_hashes
+    _validate_sensitive_meta_row({"sensitive_meta": sensitive_meta})
+lx_annotate/hub/hub_export_payloads.py:793: in _validate_sensitive_meta_row
+    HubTransferSensitiveMetaPayload.model_validate(sensitive_meta)
+E   pydantic_core._pydantic_core.ValidationError: 4 validation errors for HubTransferSensitiveMetaPayload
+E   patient_uuid
+E     Field required [type=missing, input_value={'patient_hash': 'not-a-h...bbbbbbbbbbbbbbbbbbbbbb'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing
+E   examination_uuid
+E     Field required [type=missing, input_value={'patient_hash': 'not-a-h...bbbbbbbbbbbbbbbbbbbbbb'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing
+E   patient_hash
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='not-a-hash', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden
+E   examination_hash
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='bbbbbbbbbbbbbbbbbbbbbbbb...bbbbbbbbbbbbbbbbbbbbbbb', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden
+
+During handling of the above exception, another exception occurred:
+tests/hub/test_hub_export_payload_guards.py:66: in test_sensitive_meta_rejects_identifiers_and_invalid_hashes
+    with pytest.raises(ValueError, match=error):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: 'patient_hash must be a SHA-256 hex digest'
+E     Actual message: "4 validation errors for HubTransferSensitiveMetaPayload\npatient_uuid\n  Field required [type=missing, input_value={'patient_hash': 'not-a-h...bbbbbbbbbbbbbbbbbbbbbb'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nexamination_uuid\n  Field required [type=missing, input_value={'patient_hash': 'not-a-h...bbbbbbbbbbbbbbbbbbbbbb'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\npatient_hash\n  Extra inputs are not permitted [type=extra_forbidden, input_value='not-a-hash', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nexamination_hash\n  Extra inputs are not permitted [type=extra_forbidden, input_value='bbbbbbbbbbbbbbbbbbbbbbbb...bbbbbbbbbbbbbbbbbbbbbbb', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"</failure>
+        </testcase>
+        <testcase classname="tests.hub.test_hub_export_payload_guards" name="test_unknown_resource_kind_is_rejected" time="0.001">
+            <failure message="AssertionError: Regex pattern did not match.&#10;  Expected regex: 'Unsupported outbound resource_kind'&#10;  Actual message: &quot;4 validation errors for HubTransferSensitiveMetaPayload\npatient_uuid\n  Field required [type=missing, input_value={'patient_hash': 'aaaaaaa...bbbbbbbbbbbbbbbbbbbbbb'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nexamination_uuid\n  Field required [type=missing, input_value={'patient_hash': 'aaaaaaa...bbbbbbbbbbbbbbbbbbbbbb'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\npatient_hash\n  Extra inputs are not permitted [type=extra_forbidden, input_value='aaaaaaaaaaaaaaaaaaaaaaaa...aaaaaaaaaaaaaaaaaaaaaaa', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nexamination_hash\n  Extra inputs are not permitted [type=extra_forbidden, input_value='bbbbbbbbbbbbbbbbbbbbbbbb...bbbbbbbbbbbbbbbbbbbbbbb', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden&quot;">tests/hub/test_hub_export_payload_guards.py:186: in test_unknown_resource_kind_is_rejected
+    _validate_privacy_preserving_resource_rows(
+lx_annotate/hub/hub_export_payloads.py:1117: in _validate_privacy_preserving_resource_rows
+    _validate_sensitive_meta_row(resource_rows)
+lx_annotate/hub/hub_export_payloads.py:793: in _validate_sensitive_meta_row
+    HubTransferSensitiveMetaPayload.model_validate(sensitive_meta)
+E   pydantic_core._pydantic_core.ValidationError: 4 validation errors for HubTransferSensitiveMetaPayload
+E   patient_uuid
+E     Field required [type=missing, input_value={'patient_hash': 'aaaaaaa...bbbbbbbbbbbbbbbbbbbbbb'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing
+E   examination_uuid
+E     Field required [type=missing, input_value={'patient_hash': 'aaaaaaa...bbbbbbbbbbbbbbbbbbbbbb'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing
+E   patient_hash
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='aaaaaaaaaaaaaaaaaaaaaaaa...aaaaaaaaaaaaaaaaaaaaaaa', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden
+E   examination_hash
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='bbbbbbbbbbbbbbbbbbbbbbbb...bbbbbbbbbbbbbbbbbbbbbbb', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden
+
+During handling of the above exception, another exception occurred:
+tests/hub/test_hub_export_payload_guards.py:185: in test_unknown_resource_kind_is_rejected
+    with pytest.raises(ValueError, match="Unsupported outbound resource_kind"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: 'Unsupported outbound resource_kind'
+E     Actual message: "4 validation errors for HubTransferSensitiveMetaPayload\npatient_uuid\n  Field required [type=missing, input_value={'patient_hash': 'aaaaaaa...bbbbbbbbbbbbbbbbbbbbbb'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nexamination_uuid\n  Field required [type=missing, input_value={'patient_hash': 'aaaaaaa...bbbbbbbbbbbbbbbbbbbbbb'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\npatient_hash\n  Extra inputs are not permitted [type=extra_forbidden, input_value='aaaaaaaaaaaaaaaaaaaaaaaa...aaaaaaaaaaaaaaaaaaaaaaa', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nexamination_hash\n  Extra inputs are not permitted [type=extra_forbidden, input_value='bbbbbbbbbbbbbbbbbbbbbbbb...bbbbbbbbbbbbbbbbbbbbbbb', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"</failure>
+        </testcase>
+        <testcase classname="tests.hub.test_hub_export_payload_guards" name="test_sensitive_meta_requires_both_pseudonymous_hashes[None]" time="0.001">
+            <failure message="AssertionError: Regex pattern did not match.&#10;  Expected regex: 'patient_hash and examination_hash'&#10;  Actual message: '2 validation errors for HubTransferSensitiveMetaPayload\npatient_uuid\n  UUID input should be a string, bytes or UUID object [type=uuid_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.13/v/uuid_type\nexamination_uuid\n  UUID input should be a string, bytes or UUID object [type=uuid_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.13/v/uuid_type'">tests/hub/test_hub_export_payload_guards.py:221: in test_sensitive_meta_requires_both_pseudonymous_hashes
+    build_hub_identity_payload(sensitive_meta)
+lx_annotate/hub/hub_export_payloads.py:167: in build_hub_identity_payload
+    identity = HubTransferSensitiveMetaPayload.model_validate({
+E   pydantic_core._pydantic_core.ValidationError: 2 validation errors for HubTransferSensitiveMetaPayload
+E   patient_uuid
+E     UUID input should be a string, bytes or UUID object [type=uuid_type, input_value=None, input_type=NoneType]
+E       For further information visit https://errors.pydantic.dev/2.13/v/uuid_type
+E   examination_uuid
+E     UUID input should be a string, bytes or UUID object [type=uuid_type, input_value=None, input_type=NoneType]
+E       For further information visit https://errors.pydantic.dev/2.13/v/uuid_type
+
+During handling of the above exception, another exception occurred:
+tests/hub/test_hub_export_payload_guards.py:220: in test_sensitive_meta_requires_both_pseudonymous_hashes
+    with pytest.raises(ValueError, match="patient_hash and examination_hash"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: 'patient_hash and examination_hash'
+E     Actual message: '2 validation errors for HubTransferSensitiveMetaPayload\npatient_uuid\n  UUID input should be a string, bytes or UUID object [type=uuid_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.13/v/uuid_type\nexamination_uuid\n  UUID input should be a string, bytes or UUID object [type=uuid_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.13/v/uuid_type'</failure>
+        </testcase>
+        <testcase classname="tests.hub.test_hub_export_payload_guards" name="test_sensitive_meta_requires_both_pseudonymous_hashes[sensitive_meta1]" time="0.001">
+            <failure message="AssertionError: Regex pattern did not match.&#10;  Expected regex: 'patient_hash and examination_hash'&#10;  Actual message: '2 validation errors for HubTransferSensitiveMetaPayload\npatient_uuid\n  UUID input should be a string, bytes or UUID object [type=uuid_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.13/v/uuid_type\nexamination_uuid\n  UUID input should be a string, bytes or UUID object [type=uuid_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.13/v/uuid_type'">tests/hub/test_hub_export_payload_guards.py:221: in test_sensitive_meta_requires_both_pseudonymous_hashes
+    build_hub_identity_payload(sensitive_meta)
+lx_annotate/hub/hub_export_payloads.py:167: in build_hub_identity_payload
+    identity = HubTransferSensitiveMetaPayload.model_validate({
+E   pydantic_core._pydantic_core.ValidationError: 2 validation errors for HubTransferSensitiveMetaPayload
+E   patient_uuid
+E     UUID input should be a string, bytes or UUID object [type=uuid_type, input_value=None, input_type=NoneType]
+E       For further information visit https://errors.pydantic.dev/2.13/v/uuid_type
+E   examination_uuid
+E     UUID input should be a string, bytes or UUID object [type=uuid_type, input_value=None, input_type=NoneType]
+E       For further information visit https://errors.pydantic.dev/2.13/v/uuid_type
+
+During handling of the above exception, another exception occurred:
+tests/hub/test_hub_export_payload_guards.py:220: in test_sensitive_meta_requires_both_pseudonymous_hashes
+    with pytest.raises(ValueError, match="patient_hash and examination_hash"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: 'patient_hash and examination_hash'
+E     Actual message: '2 validation errors for HubTransferSensitiveMetaPayload\npatient_uuid\n  UUID input should be a string, bytes or UUID object [type=uuid_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.13/v/uuid_type\nexamination_uuid\n  UUID input should be a string, bytes or UUID object [type=uuid_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.13/v/uuid_type'</failure>
+        </testcase>
+        <testcase classname="tests.system.test_config_unit" name="test_app_config_rejects_short_inline_secret" time="0.004">
+            <failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">tests/system/test_config_unit.py:268: in test_app_config_rejects_short_inline_secret
+    with pytest.raises(ValueError, match="at least 32 characters"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE &lt;class 'ValueError'&gt;</failure>
+        </testcase>
+        <testcase classname="tests.system.test_focused_coverage" name="test_settings_base_rejects_missing_secret_in_production" time="0.006">
+            <failure message="Failed: DID NOT RAISE &lt;class 'RuntimeError'&gt;">tests/system/test_focused_coverage.py:242: in test_settings_base_rejects_missing_secret_in_production
+    with pytest.raises(RuntimeError, match=r"DJANGO_SECRET_KEY is missing"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE &lt;class 'RuntimeError'&gt;</failure>
+        </testcase>
+        <testcase classname="tests.system.test_focused_coverage" name="test_settings_prod_import_uses_static_vite_manifest" time="0.003">
+            <failure message="django.core.exceptions.ImproperlyConfigured: Invalid identity salt configuration">tests/system/test_focused_coverage.py:525: in test_settings_prod_import_uses_static_vite_manifest
+    module = _fresh_import("lx_annotate.settings.settings_prod")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/system/test_focused_coverage.py:26: in _fresh_import
+    return importlib.import_module(module_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1387: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1360: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1331: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:935: in _load_unlocked
+    ???
+&lt;frozen importlib._bootstrap_external&gt;:999: in exec_module
+    ???
+&lt;frozen importlib._bootstrap&gt;:488: in _call_with_frames_removed
+    ???
+lx_annotate/settings/settings_prod.py:47: in &lt;module&gt;
+    DJANGO_SALT = load_identity_salt(required=True, allow_inline=False)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py:60: in load_identity_salt
+    return validate_identity_salt(value)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py:33: in validate_identity_salt
+    raise ImproperlyConfigured("Invalid identity salt configuration") from None
+E   django.core.exceptions.ImproperlyConfigured: Invalid identity salt configuration</failure>
+        </testcase>
+        <testcase classname="tests.system.test_focused_coverage" name="test_settings_prod_import_reads_luxnix_style_service_environment" time="0.002">
+            <failure message="django.core.exceptions.ImproperlyConfigured: Invalid identity salt configuration">tests/system/test_focused_coverage.py:587: in test_settings_prod_import_reads_luxnix_style_service_environment
+    module = importlib.import_module("lx_annotate.settings.settings_prod")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1387: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1360: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1331: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:935: in _load_unlocked
+    ???
+&lt;frozen importlib._bootstrap_external&gt;:999: in exec_module
+    ???
+&lt;frozen importlib._bootstrap&gt;:488: in _call_with_frames_removed
+    ???
+lx_annotate/settings/settings_prod.py:19: in &lt;module&gt;
+    from .settings_base import (
+lx_annotate/settings/settings_base.py:28: in &lt;module&gt;
+    DJANGO_SALT = load_identity_salt()
+                  ^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py:60: in load_identity_salt
+    return validate_identity_salt(value)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py:33: in validate_identity_salt
+    raise ImproperlyConfigured("Invalid identity salt configuration") from None
+E   django.core.exceptions.ImproperlyConfigured: Invalid identity salt configuration</failure>
+        </testcase>
+        <testcase classname="tests.system.test_production_celery_redis_recovery" name="test_production_hls_real_redis_worker_loss_and_visibility" time="7.446">
+            <failure message="AssertionError: Redis recovery probe failed.&#10;  #x1F512 ENFORCE_AUTH=1 → Keycloak enabled (session SSO) + RBAC ON&#10;  #x1F510 PRODUCTION SETTINGS LOADED&#10;  {&quot;event&quot;: &quot;installed_module_attestation&quot;, &quot;package&quot;: &quot;endoreg-db&quot;, &quot;version&quot;: &quot;1.6.0&quot;, &quot;module&quot;: &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/tasks.py&quot;, &quot;module_sha256&quot;: &quot;cb2c49edc5dcb412cba9fb5e375843187d94e29a78d9ffc77fde9b233e3832e6&quot;, &quot;record_sha256&quot;: &quot;1642e65641fd84bf2401bef8e9eef410c030c74585ca1f44343f745bf3231719&quot;, &quot;celery&quot;: &quot;5.6.3&quot;, &quot;kombu&quot;: &quot;5.6.2&quot;}&#10;  {&quot;event&quot;: &quot;installed_module_attestation&quot;, &quot;package&quot;: &quot;endoreg-db&quot;, &quot;version&quot;: &quot;1.6.0&quot;, &quot;module&quot;: &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/services/streaming/hls_media.py&quot;, &quot;module_sha256&quot;: &quot;f85938b16d988f1d1b223633babf434f777846634c6b4e1257832660b8ba4e9e&quot;, &quot;record_sha256&quot;: &quot;1642e65641fd84bf2401bef8e9eef410c030c74585ca1f44343f745bf3231719&quot;, &quot;celery&quot;: &quot;5.6.3&quot;, &quot;kombu&quot;: &quot;5.6.2&quot;}&#10;  {&quot;event&quot;: &quot;installed_module_attestation&quot;, &quot;package&quot;: &quot;endoreg-db&quot;, &quot;version&quot;: &quot;1.6.0&quot;, &quot;module&quot;: &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/import_files/file_storage/state_management.py&quot;, &quot;module_sha256&quot;: &quot;c9233a409f18fef7063394ada08f3fece18ee294c3401e118ddbf0d93de3ce50&quot;, &quot;record_sha256&quot;: &quot;1642e65641fd84bf2401bef8e9eef410c030c74585ca1f44343f745bf3231719&quot;, &quot;celery&quot;: &quot;5.6.3&quot;, &quot;kombu&quot;: &quot;5.6.2&quot;}&#10;  {&quot;event&quot;: &quot;installed_module_attestation&quot;, &quot;package&quot;: &quot;endoreg-db&quot;, &quot;version&quot;: &quot;1.6.0&quot;, &quot;module&quot;: &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/services/hub/ingest.py&quot;, &quot;module_sha256&quot;: &quot;5578f71b8edbdd55ea98d1fe459129347344338c3bf8c1cbf73541c4c949ebfc&quot;, &quot;record_sha256&quot;: &quot;1642e65641fd84bf2401bef8e9eef410c030c74585ca1f44343f745bf3231719&quot;, &quot;celery&quot;: &quot;5.6.3&quot;, &quot;kombu&quot;: &quot;5.6.2&quot;}&#10;  {&quot;event&quot;: &quot;installed_module_attestation&quot;, &quot;package&quot;: &quot;lx-dtypes&quot;, &quot;version&quot;: &quot;0.5.5&quot;, &quot;module&quot;: &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/lx_dtypes/models/contracts/video_segments.py&quot;, &quot;module_sha256&quot;: &quot;a51a13308e2dd92a0763a05340a4910675b69e027e26fa8f9f83fbca9d447a35&quot;, &quot;record_sha256&quot;: &quot;436103850718cb9db7655dda1cf1953f0f74cab6fab5651e157aab619ceb0993&quot;, &quot;celery&quot;: &quot;5.6.3&quot;, &quot;kombu&quot;: &quot;5.6.2&quot;}&#10;  &#10;  [2026-10-22 14:59:50,463: CRITICAL/MainProcess] Media import workers require --pool=prefork --max-tasks-per-child=1 to retain task deadlines and recycle model state after each job.&#10;  &#10;assert 1 == 0&#10; +  where 1 = &lt;Popen: returncode: 1 args: ['/home/admin/dev/lx-annotate/.devenv/state/venv...&gt;.returncode">tests/system/test_production_celery_redis_recovery.py:233: in test_production_hls_real_redis_worker_loss_and_visibility
+    assert process.returncode == 0, (
+E   AssertionError: Redis recovery probe failed.
+E     #x1F512 ENFORCE_AUTH=1 → Keycloak enabled (session SSO) + RBAC ON
+E     #x1F510 PRODUCTION SETTINGS LOADED
+E     {"event": "installed_module_attestation", "package": "endoreg-db", "version": "1.6.0", "module": "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/tasks.py", "module_sha256": "cb2c49edc5dcb412cba9fb5e375843187d94e29a78d9ffc77fde9b233e3832e6", "record_sha256": "1642e65641fd84bf2401bef8e9eef410c030c74585ca1f44343f745bf3231719", "celery": "5.6.3", "kombu": "5.6.2"}
+E     {"event": "installed_module_attestation", "package": "endoreg-db", "version": "1.6.0", "module": "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/services/streaming/hls_media.py", "module_sha256": "f85938b16d988f1d1b223633babf434f777846634c6b4e1257832660b8ba4e9e", "record_sha256": "1642e65641fd84bf2401bef8e9eef410c030c74585ca1f44343f745bf3231719", "celery": "5.6.3", "kombu": "5.6.2"}
+E     {"event": "installed_module_attestation", "package": "endoreg-db", "version": "1.6.0", "module": "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/import_files/file_storage/state_management.py", "module_sha256": "c9233a409f18fef7063394ada08f3fece18ee294c3401e118ddbf0d93de3ce50", "record_sha256": "1642e65641fd84bf2401bef8e9eef410c030c74585ca1f44343f745bf3231719", "celery": "5.6.3", "kombu": "5.6.2"}
+E     {"event": "installed_module_attestation", "package": "endoreg-db", "version": "1.6.0", "module": "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/services/hub/ingest.py", "module_sha256": "5578f71b8edbdd55ea98d1fe459129347344338c3bf8c1cbf73541c4c949ebfc", "record_sha256": "1642e65641fd84bf2401bef8e9eef410c030c74585ca1f44343f745bf3231719", "celery": "5.6.3", "kombu": "5.6.2"}
+E     {"event": "installed_module_attestation", "package": "lx-dtypes", "version": "0.5.5", "module": "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/lx_dtypes/models/contracts/video_segments.py", "module_sha256": "a51a13308e2dd92a0763a05340a4910675b69e027e26fa8f9f83fbca9d447a35", "record_sha256": "436103850718cb9db7655dda1cf1953f0f74cab6fab5651e157aab619ceb0993", "celery": "5.6.3", "kombu": "5.6.2"}
+E     
+E     [2026-10-22 14:59:50,463: CRITICAL/MainProcess] Media import workers require --pool=prefork --max-tasks-per-child=1 to retain task deadlines and recycle model state after each job.
+E     
+E   assert 1 == 0
+E    +  where 1 = &lt;Popen: returncode: 1 args: ['/home/admin/dev/lx-annotate/.devenv/state/venv...&gt;.returncode</failure>
+        </testcase>
+        <testcase classname="tests.system.test_production_celery_routing" name="test_production_settings_reject_unusable_identity_salt[missing]" time="0.491" />
+        <testcase classname="tests.system.test_production_celery_routing" name="test_production_settings_reject_unusable_identity_salt[public]" time="0.457" />
+        <testcase classname="tests.system.test_production_celery_routing" name="test_production_settings_reject_unusable_identity_salt[blank]" time="0.479" />
+        <testcase classname="tests.system.test_production_celery_routing" name="test_production_settings_revoke_retired_signing_generations" time="0.475" />
+        <testcase classname="tests.system.test_production_celery_routing" name="test_production_settings_export_hub_transfer_routes" time="0.460" />
+        <testcase classname="tests.system.test_production_celery_routing" name="test_production_settings_export_hub_transfer_configuration" time="4.135" />
+        <testcase classname="tests.system.test_production_celery_routing" name="test_production_settings_reject_stale_window_that_can_race_request" time="0.447" />
+        <testcase classname="tests.system.test_production_celery_routing" name="test_production_settings_reject_unsafe_visibility_timeout[not-an-integer]" time="0.454" />
+        <testcase classname="tests.system.test_production_celery_routing" name="test_production_settings_reject_unsafe_visibility_timeout[0]" time="0.452" />
+        <testcase classname="tests.system.test_production_celery_routing" name="test_production_settings_reject_unsafe_visibility_timeout[-1]" time="0.461" />
+        <testcase classname="tests.system.test_production_celery_routing" name="test_production_settings_reject_unsafe_visibility_timeout[86400]" time="0.463" />
+        <testcase classname="tests.system.test_production_celery_routing" name="test_production_visibility_exceeds_registered_late_ack_tasks" time="5.991" />
+        <testcase classname="tests.system.test_production_celery_routing" name="test_production_identity_delivery_binding[None]" time="0.511" />
+        <testcase classname="tests.system.test_production_celery_routing" name="test_production_identity_delivery_binding[wrong_center]" time="0.522">
+            <failure message="AssertionError: Traceback (most recent call last):&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 38, in current_identity_keyring&#10;      return identity_keyring_snapshot.get()&#10;             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;  LookupError: &lt;ContextVar name='identity_keyring_snapshot' at 0x72fbd9b01cb0&gt;&#10;  &#10;  During handling of the above exception, another exception occurred:&#10;  &#10;  Traceback (most recent call last):&#10;    File &quot;&lt;string&gt;&quot;, line 9, in &lt;module&gt;&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 75, in __getattr__&#10;      self._setup(name)&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 62, in _setup&#10;      self._wrapped = Settings(settings_module)&#10;                      ^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 162, in __init__&#10;      mod = importlib.import_module(self.SETTINGS_MODULE)&#10;            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/importlib/__init__.py&quot;, line 90, in import_module&#10;      return _bootstrap._gcd_import(name[level:], package, level)&#10;             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1387, in _gcd_import&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1360, in _find_and_load&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1310, in _find_and_load_unlocked&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 488, in _call_with_frames_removed&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1387, in _gcd_import&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1360, in _find_and_load&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1310, in _find_and_load_unlocked&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 488, in _call_with_frames_removed&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1387, in _gcd_import&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1360, in _find_and_load&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1331, in _find_and_load_unlocked&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 935, in _load_unlocked&#10;    File &quot;&lt;frozen importlib._bootstrap_external&gt;&quot;, line 999, in exec_module&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 488, in _call_with_frames_removed&#10;    File &quot;/home/admin/dev/lx-annotate/lx_annotate/__init__.py&quot;, line 3, in &lt;module&gt;&#10;      from .celery import app as celery_app&#10;    File &quot;/home/admin/dev/lx-annotate/lx_annotate/celery.py&quot;, line 69, in &lt;module&gt;&#10;      app.config_from_object(&quot;django.conf:settings&quot;, namespace=&quot;CELERY&quot;, force=True)&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/celery/app/base.py&quot;, line 720, in config_from_object&#10;      if self.loader.config_from_object(obj, silent=silent):&#10;         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/celery/loaders/base.py&quot;, line 127, in config_from_object&#10;      self._conf = force_mapping(obj)&#10;                   ^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/celery/utils/collections.py&quot;, line 42, in force_mapping&#10;      if isinstance(m, (LazyObject, LazySettings)):&#10;         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/utils/functional.py&quot;, line 280, in __getattribute__&#10;      value = super().__getattribute__(name)&#10;              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/utils/functional.py&quot;, line 251, in inner&#10;      self._setup()&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 62, in _setup&#10;      self._wrapped = Settings(settings_module)&#10;                      ^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 162, in __init__&#10;      mod = importlib.import_module(self.SETTINGS_MODULE)&#10;            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/importlib/__init__.py&quot;, line 90, in import_module&#10;      return _bootstrap._gcd_import(name[level:], package, level)&#10;             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py&quot;, line 19, in &lt;module&gt;&#10;      from .settings_base import (&#10;    File &quot;/home/admin/dev/lx-annotate/lx_annotate/settings/settings_base.py&quot;, line 28, in &lt;module&gt;&#10;      DJANGO_SALT = load_identity_salt()&#10;                    ^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 49, in load_identity_salt&#10;      ring = current_identity_keyring()&#10;             ^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 40, in current_identity_keyring&#10;      return configured_identity_keyring()&#10;             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py&quot;, line 75, in sensitive_variables_wrapper&#10;      return func(*func_args, **func_kwargs)&#10;             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py&quot;, line 269, in configured_identity_keyring&#10;      raise ValueError(&quot;Identity keyring does not match the expected center&quot;)&#10;  ValueError: Identity keyring does not match the expected center&#10;  &#10;assert 'ImproperlyConfigured' in 'Traceback (most recent call last):\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 38, in current_identity_keyring\n    return identity_keyring_snapshot.get()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nLookupError: &lt;ContextVar name=\'identity_keyring_snapshot\' at 0x72fbd9b01cb0&gt;\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File &quot;&lt;string&gt;&quot;, line 9, in &lt;module&gt;\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 75, in __getattr__\n    self._setup(name)\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 62, in _setup\n    self._wrapped = Settings(settings_module)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 162, in __init__\n    mod = importlib.import_module(self.SETTINGS_MODULE)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-p...admin/dev/lx-annotate/lx_annotate/settings/settings_base.py&quot;, line 28, in &lt;module&gt;\n    DJANGO_SALT = load_identity_salt()\n                  ^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 49, in load_identity_salt\n    ring = current_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 40, in current_identity_keyring\n    return configured_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py&quot;, line 75, in sensitive_variables_wrapper\n    return func(*func_args, **func_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py&quot;, line 269, in configured_identity_keyring\n    raise ValueError(&quot;Identity keyring does not match the expected center&quot;)\nValueError: Identity keyring does not match the expected center\n'&#10; +  where 'Traceback (most recent call last):\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 38, in current_identity_keyring\n    return identity_keyring_snapshot.get()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nLookupError: &lt;ContextVar name=\'identity_keyring_snapshot\' at 0x72fbd9b01cb0&gt;\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File &quot;&lt;string&gt;&quot;, line 9, in &lt;module&gt;\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 75, in __getattr__\n    self._setup(name)\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 62, in _setup\n    self._wrapped = Settings(settings_module)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 162, in __init__\n    mod = importlib.import_module(self.SETTINGS_MODULE)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-p...admin/dev/lx-annotate/lx_annotate/settings/settings_base.py&quot;, line 28, in &lt;module&gt;\n    DJANGO_SALT = load_identity_salt()\n                  ^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 49, in load_identity_salt\n    ring = current_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 40, in current_identity_keyring\n    return configured_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py&quot;, line 75, in sensitive_variables_wrapper\n    return func(*func_args, **func_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py&quot;, line 269, in configured_identity_keyring\n    raise ValueError(&quot;Identity keyring does not match the expected center&quot;)\nValueError: Identity keyring does not match the expected center\n' = CompletedProcess(args=['/home/admin/dev/lx-annotate/.devenv/state/venv/bin/python3', '-c', '\nimport hashlib\nimport os\n\nfrom django.conf import settings\nfrom endoreg_db.config.secret_keyring import configured_identity_keyring\n\n# Load production settings before checking the successful binding.\nactive_setting = settings.DJANGO_SALT\nring = configured_identity_keyring()\nassert ring is not None\nassert active_setting == ring.active.decode(&quot;utf-8&quot;)\nassert ring.center_id == &quot;test-center&quot;\nassert ring.generation == 2\nassert hashlib.sha256(ring.active).hexdigest() == (\n    os.environ[&quot;TEST_EXPECTED_ACTIVE_SHA256&quot;]\n)\nassert len(ring.retiring) == 1\nassert hashlib.sha256(ring.retiring[0]).hexdigest() == (\n    os.environ[&quot;TEST_EXPECTED_RETIRING_SHA256&quot;]\n)\n'], returncode=1, stdout='', stderr='Traceback (most recent call last):\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 38, in current_identity_keyring\n    return identity_keyring_snapshot.get()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nLookupError: &lt;ContextVar name=\'identity_keyring_snapshot\' at 0x72fbd9b01cb0&gt;\n\nDuring handling of the...dmin/dev/lx-annotate/lx_annotate/settings/settings_base.py&quot;, line 28, in &lt;module&gt;\n    DJANGO_SALT = load_identity_salt()\n                  ^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 49, in load_identity_salt\n    ring = current_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 40, in current_identity_keyring\n    return configured_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py&quot;, line 75, in sensitive_variables_wrapper\n    return func(*func_args, **func_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py&quot;, line 269, in configured_identity_keyring\n    raise ValueError(&quot;Identity keyring does not match the expected center&quot;)\nValueError: Identity keyring does not match the expected center\n').stderr">tests/system/test_production_celery_routing.py:690: in test_production_identity_delivery_binding
+    assert "ImproperlyConfigured" in result.stderr, result.stderr
+E   AssertionError: Traceback (most recent call last):
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 38, in current_identity_keyring
+E         return identity_keyring_snapshot.get()
+E                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E     LookupError: &lt;ContextVar name='identity_keyring_snapshot' at 0x72fbd9b01cb0&gt;
+E     
+E     During handling of the above exception, another exception occurred:
+E     
+E     Traceback (most recent call last):
+E       File "&lt;string&gt;", line 9, in &lt;module&gt;
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 75, in __getattr__
+E         self._setup(name)
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 62, in _setup
+E         self._wrapped = Settings(settings_module)
+E                         ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 162, in __init__
+E         mod = importlib.import_module(self.SETTINGS_MODULE)
+E               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/importlib/__init__.py", line 90, in import_module
+E         return _bootstrap._gcd_import(name[level:], package, level)
+E                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1387, in _gcd_import
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1360, in _find_and_load
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1310, in _find_and_load_unlocked
+E       File "&lt;frozen importlib._bootstrap&gt;", line 488, in _call_with_frames_removed
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1387, in _gcd_import
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1360, in _find_and_load
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1310, in _find_and_load_unlocked
+E       File "&lt;frozen importlib._bootstrap&gt;", line 488, in _call_with_frames_removed
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1387, in _gcd_import
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1360, in _find_and_load
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1331, in _find_and_load_unlocked
+E       File "&lt;frozen importlib._bootstrap&gt;", line 935, in _load_unlocked
+E       File "&lt;frozen importlib._bootstrap_external&gt;", line 999, in exec_module
+E       File "&lt;frozen importlib._bootstrap&gt;", line 488, in _call_with_frames_removed
+E       File "/home/admin/dev/lx-annotate/lx_annotate/__init__.py", line 3, in &lt;module&gt;
+E         from .celery import app as celery_app
+E       File "/home/admin/dev/lx-annotate/lx_annotate/celery.py", line 69, in &lt;module&gt;
+E         app.config_from_object("django.conf:settings", namespace="CELERY", force=True)
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/celery/app/base.py", line 720, in config_from_object
+E         if self.loader.config_from_object(obj, silent=silent):
+E            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/celery/loaders/base.py", line 127, in config_from_object
+E         self._conf = force_mapping(obj)
+E                      ^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/celery/utils/collections.py", line 42, in force_mapping
+E         if isinstance(m, (LazyObject, LazySettings)):
+E            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/utils/functional.py", line 280, in __getattribute__
+E         value = super().__getattribute__(name)
+E                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/utils/functional.py", line 251, in inner
+E         self._setup()
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 62, in _setup
+E         self._wrapped = Settings(settings_module)
+E                         ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 162, in __init__
+E         mod = importlib.import_module(self.SETTINGS_MODULE)
+E               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/importlib/__init__.py", line 90, in import_module
+E         return _bootstrap._gcd_import(name[level:], package, level)
+E                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py", line 19, in &lt;module&gt;
+E         from .settings_base import (
+E       File "/home/admin/dev/lx-annotate/lx_annotate/settings/settings_base.py", line 28, in &lt;module&gt;
+E         DJANGO_SALT = load_identity_salt()
+E                       ^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 49, in load_identity_salt
+E         ring = current_identity_keyring()
+E                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 40, in current_identity_keyring
+E         return configured_identity_keyring()
+E                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py", line 75, in sensitive_variables_wrapper
+E         return func(*func_args, **func_kwargs)
+E                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py", line 269, in configured_identity_keyring
+E         raise ValueError("Identity keyring does not match the expected center")
+E     ValueError: Identity keyring does not match the expected center
+E     
+E   assert 'ImproperlyConfigured' in 'Traceback (most recent call last):\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 38, in current_identity_keyring\n    return identity_keyring_snapshot.get()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nLookupError: &lt;ContextVar name=\'identity_keyring_snapshot\' at 0x72fbd9b01cb0&gt;\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File "&lt;string&gt;", line 9, in &lt;module&gt;\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 75, in __getattr__\n    self._setup(name)\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 62, in _setup\n    self._wrapped = Settings(settings_module)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 162, in __init__\n    mod = importlib.import_module(self.SETTINGS_MODULE)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-p...admin/dev/lx-annotate/lx_annotate/settings/settings_base.py", line 28, in &lt;module&gt;\n    DJANGO_SALT = load_identity_salt()\n                  ^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 49, in load_identity_salt\n    ring = current_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 40, in current_identity_keyring\n    return configured_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py", line 75, in sensitive_variables_wrapper\n    return func(*func_args, **func_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py", line 269, in configured_identity_keyring\n    raise ValueError("Identity keyring does not match the expected center")\nValueError: Identity keyring does not match the expected center\n'
+E    +  where 'Traceback (most recent call last):\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 38, in current_identity_keyring\n    return identity_keyring_snapshot.get()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nLookupError: &lt;ContextVar name=\'identity_keyring_snapshot\' at 0x72fbd9b01cb0&gt;\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File "&lt;string&gt;", line 9, in &lt;module&gt;\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 75, in __getattr__\n    self._setup(name)\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 62, in _setup\n    self._wrapped = Settings(settings_module)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 162, in __init__\n    mod = importlib.import_module(self.SETTINGS_MODULE)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-p...admin/dev/lx-annotate/lx_annotate/settings/settings_base.py", line 28, in &lt;module&gt;\n    DJANGO_SALT = load_identity_salt()\n                  ^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 49, in load_identity_salt\n    ring = current_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 40, in current_identity_keyring\n    return configured_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py", line 75, in sensitive_variables_wrapper\n    return func(*func_args, **func_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py", line 269, in configured_identity_keyring\n    raise ValueError("Identity keyring does not match the expected center")\nValueError: Identity keyring does not match the expected center\n' = CompletedProcess(args=['/home/admin/dev/lx-annotate/.devenv/state/venv/bin/python3', '-c', '\nimport hashlib\nimport os\n\nfrom django.conf import settings\nfrom endoreg_db.config.secret_keyring import configured_identity_keyring\n\n# Load production settings before checking the successful binding.\nactive_setting = settings.DJANGO_SALT\nring = configured_identity_keyring()\nassert ring is not None\nassert active_setting == ring.active.decode("utf-8")\nassert ring.center_id == "test-center"\nassert ring.generation == 2\nassert hashlib.sha256(ring.active).hexdigest() == (\n    os.environ["TEST_EXPECTED_ACTIVE_SHA256"]\n)\nassert len(ring.retiring) == 1\nassert hashlib.sha256(ring.retiring[0]).hexdigest() == (\n    os.environ["TEST_EXPECTED_RETIRING_SHA256"]\n)\n'], returncode=1, stdout='', stderr='Traceback (most recent call last):\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 38, in current_identity_keyring\n    return identity_keyring_snapshot.get()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nLookupError: &lt;ContextVar name=\'identity_keyring_snapshot\' at 0x72fbd9b01cb0&gt;\n\nDuring handling of the...dmin/dev/lx-annotate/lx_annotate/settings/settings_base.py", line 28, in &lt;module&gt;\n    DJANGO_SALT = load_identity_salt()\n                  ^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 49, in load_identity_salt\n    ring = current_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 40, in current_identity_keyring\n    return configured_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py", line 75, in sensitive_variables_wrapper\n    return func(*func_args, **func_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py", line 269, in configured_identity_keyring\n    raise ValueError("Identity keyring does not match the expected center")\nValueError: Identity keyring does not match the expected center\n').stderr</failure>
+        </testcase>
+        <testcase classname="tests.system.test_production_celery_routing" name="test_production_identity_delivery_binding[stale_generation]" time="0.480">
+            <failure message="AssertionError: Traceback (most recent call last):&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 38, in current_identity_keyring&#10;      return identity_keyring_snapshot.get()&#10;             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;  LookupError: &lt;ContextVar name='identity_keyring_snapshot' at 0x7e4a7d301cb0&gt;&#10;  &#10;  During handling of the above exception, another exception occurred:&#10;  &#10;  Traceback (most recent call last):&#10;    File &quot;&lt;string&gt;&quot;, line 9, in &lt;module&gt;&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 75, in __getattr__&#10;      self._setup(name)&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 62, in _setup&#10;      self._wrapped = Settings(settings_module)&#10;                      ^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 162, in __init__&#10;      mod = importlib.import_module(self.SETTINGS_MODULE)&#10;            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/importlib/__init__.py&quot;, line 90, in import_module&#10;      return _bootstrap._gcd_import(name[level:], package, level)&#10;             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1387, in _gcd_import&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1360, in _find_and_load&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1310, in _find_and_load_unlocked&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 488, in _call_with_frames_removed&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1387, in _gcd_import&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1360, in _find_and_load&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1310, in _find_and_load_unlocked&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 488, in _call_with_frames_removed&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1387, in _gcd_import&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1360, in _find_and_load&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1331, in _find_and_load_unlocked&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 935, in _load_unlocked&#10;    File &quot;&lt;frozen importlib._bootstrap_external&gt;&quot;, line 999, in exec_module&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 488, in _call_with_frames_removed&#10;    File &quot;/home/admin/dev/lx-annotate/lx_annotate/__init__.py&quot;, line 3, in &lt;module&gt;&#10;      from .celery import app as celery_app&#10;    File &quot;/home/admin/dev/lx-annotate/lx_annotate/celery.py&quot;, line 69, in &lt;module&gt;&#10;      app.config_from_object(&quot;django.conf:settings&quot;, namespace=&quot;CELERY&quot;, force=True)&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/celery/app/base.py&quot;, line 720, in config_from_object&#10;      if self.loader.config_from_object(obj, silent=silent):&#10;         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/celery/loaders/base.py&quot;, line 127, in config_from_object&#10;      self._conf = force_mapping(obj)&#10;                   ^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/celery/utils/collections.py&quot;, line 42, in force_mapping&#10;      if isinstance(m, (LazyObject, LazySettings)):&#10;         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/utils/functional.py&quot;, line 280, in __getattribute__&#10;      value = super().__getattribute__(name)&#10;              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/utils/functional.py&quot;, line 251, in inner&#10;      self._setup()&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 62, in _setup&#10;      self._wrapped = Settings(settings_module)&#10;                      ^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 162, in __init__&#10;      mod = importlib.import_module(self.SETTINGS_MODULE)&#10;            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/importlib/__init__.py&quot;, line 90, in import_module&#10;      return _bootstrap._gcd_import(name[level:], package, level)&#10;             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py&quot;, line 19, in &lt;module&gt;&#10;      from .settings_base import (&#10;    File &quot;/home/admin/dev/lx-annotate/lx_annotate/settings/settings_base.py&quot;, line 28, in &lt;module&gt;&#10;      DJANGO_SALT = load_identity_salt()&#10;                    ^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 49, in load_identity_salt&#10;      ring = current_identity_keyring()&#10;             ^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 40, in current_identity_keyring&#10;      return configured_identity_keyring()&#10;             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py&quot;, line 75, in sensitive_variables_wrapper&#10;      return func(*func_args, **func_kwargs)&#10;             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py&quot;, line 278, in configured_identity_keyring&#10;      raise ValueError(&quot;Identity keyring does not match the expected generation&quot;)&#10;  ValueError: Identity keyring does not match the expected generation&#10;  &#10;assert 'ImproperlyConfigured' in 'Traceback (most recent call last):\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 38, in current_identity_keyring\n    return identity_keyring_snapshot.get()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nLookupError: &lt;ContextVar name=\'identity_keyring_snapshot\' at 0x7e4a7d301cb0&gt;\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File &quot;&lt;string&gt;&quot;, line 9, in &lt;module&gt;\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 75, in __getattr__\n    self._setup(name)\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 62, in _setup\n    self._wrapped = Settings(settings_module)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 162, in __init__\n    mod = importlib.import_module(self.SETTINGS_MODULE)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-p...v/lx-annotate/lx_annotate/settings/settings_base.py&quot;, line 28, in &lt;module&gt;\n    DJANGO_SALT = load_identity_salt()\n                  ^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 49, in load_identity_salt\n    ring = current_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 40, in current_identity_keyring\n    return configured_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py&quot;, line 75, in sensitive_variables_wrapper\n    return func(*func_args, **func_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py&quot;, line 278, in configured_identity_keyring\n    raise ValueError(&quot;Identity keyring does not match the expected generation&quot;)\nValueError: Identity keyring does not match the expected generation\n'&#10; +  where 'Traceback (most recent call last):\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 38, in current_identity_keyring\n    return identity_keyring_snapshot.get()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nLookupError: &lt;ContextVar name=\'identity_keyring_snapshot\' at 0x7e4a7d301cb0&gt;\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File &quot;&lt;string&gt;&quot;, line 9, in &lt;module&gt;\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 75, in __getattr__\n    self._setup(name)\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 62, in _setup\n    self._wrapped = Settings(settings_module)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 162, in __init__\n    mod = importlib.import_module(self.SETTINGS_MODULE)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-p...v/lx-annotate/lx_annotate/settings/settings_base.py&quot;, line 28, in &lt;module&gt;\n    DJANGO_SALT = load_identity_salt()\n                  ^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 49, in load_identity_salt\n    ring = current_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 40, in current_identity_keyring\n    return configured_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py&quot;, line 75, in sensitive_variables_wrapper\n    return func(*func_args, **func_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py&quot;, line 278, in configured_identity_keyring\n    raise ValueError(&quot;Identity keyring does not match the expected generation&quot;)\nValueError: Identity keyring does not match the expected generation\n' = CompletedProcess(args=['/home/admin/dev/lx-annotate/.devenv/state/venv/bin/python3', '-c', '\nimport hashlib\nimport os\n\nfrom django.conf import settings\nfrom endoreg_db.config.secret_keyring import configured_identity_keyring\n\n# Load production settings before checking the successful binding.\nactive_setting = settings.DJANGO_SALT\nring = configured_identity_keyring()\nassert ring is not None\nassert active_setting == ring.active.decode(&quot;utf-8&quot;)\nassert ring.center_id == &quot;test-center&quot;\nassert ring.generation == 2\nassert hashlib.sha256(ring.active).hexdigest() == (\n    os.environ[&quot;TEST_EXPECTED_ACTIVE_SHA256&quot;]\n)\nassert len(ring.retiring) == 1\nassert hashlib.sha256(ring.retiring[0]).hexdigest() == (\n    os.environ[&quot;TEST_EXPECTED_RETIRING_SHA256&quot;]\n)\n'], returncode=1, stdout='', stderr='Traceback (most recent call last):\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 38, in current_identity_keyring\n    return identity_keyring_snapshot.get()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nLookupError: &lt;ContextVar name=\'identity_keyring_snapshot\' at 0x7e4a7d301cb0&gt;\n\nDuring handling of the.../lx-annotate/lx_annotate/settings/settings_base.py&quot;, line 28, in &lt;module&gt;\n    DJANGO_SALT = load_identity_salt()\n                  ^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 49, in load_identity_salt\n    ring = current_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 40, in current_identity_keyring\n    return configured_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py&quot;, line 75, in sensitive_variables_wrapper\n    return func(*func_args, **func_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py&quot;, line 278, in configured_identity_keyring\n    raise ValueError(&quot;Identity keyring does not match the expected generation&quot;)\nValueError: Identity keyring does not match the expected generation\n').stderr">tests/system/test_production_celery_routing.py:690: in test_production_identity_delivery_binding
+    assert "ImproperlyConfigured" in result.stderr, result.stderr
+E   AssertionError: Traceback (most recent call last):
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 38, in current_identity_keyring
+E         return identity_keyring_snapshot.get()
+E                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E     LookupError: &lt;ContextVar name='identity_keyring_snapshot' at 0x7e4a7d301cb0&gt;
+E     
+E     During handling of the above exception, another exception occurred:
+E     
+E     Traceback (most recent call last):
+E       File "&lt;string&gt;", line 9, in &lt;module&gt;
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 75, in __getattr__
+E         self._setup(name)
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 62, in _setup
+E         self._wrapped = Settings(settings_module)
+E                         ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 162, in __init__
+E         mod = importlib.import_module(self.SETTINGS_MODULE)
+E               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/importlib/__init__.py", line 90, in import_module
+E         return _bootstrap._gcd_import(name[level:], package, level)
+E                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1387, in _gcd_import
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1360, in _find_and_load
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1310, in _find_and_load_unlocked
+E       File "&lt;frozen importlib._bootstrap&gt;", line 488, in _call_with_frames_removed
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1387, in _gcd_import
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1360, in _find_and_load
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1310, in _find_and_load_unlocked
+E       File "&lt;frozen importlib._bootstrap&gt;", line 488, in _call_with_frames_removed
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1387, in _gcd_import
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1360, in _find_and_load
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1331, in _find_and_load_unlocked
+E       File "&lt;frozen importlib._bootstrap&gt;", line 935, in _load_unlocked
+E       File "&lt;frozen importlib._bootstrap_external&gt;", line 999, in exec_module
+E       File "&lt;frozen importlib._bootstrap&gt;", line 488, in _call_with_frames_removed
+E       File "/home/admin/dev/lx-annotate/lx_annotate/__init__.py", line 3, in &lt;module&gt;
+E         from .celery import app as celery_app
+E       File "/home/admin/dev/lx-annotate/lx_annotate/celery.py", line 69, in &lt;module&gt;
+E         app.config_from_object("django.conf:settings", namespace="CELERY", force=True)
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/celery/app/base.py", line 720, in config_from_object
+E         if self.loader.config_from_object(obj, silent=silent):
+E            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/celery/loaders/base.py", line 127, in config_from_object
+E         self._conf = force_mapping(obj)
+E                      ^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/celery/utils/collections.py", line 42, in force_mapping
+E         if isinstance(m, (LazyObject, LazySettings)):
+E            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/utils/functional.py", line 280, in __getattribute__
+E         value = super().__getattribute__(name)
+E                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/utils/functional.py", line 251, in inner
+E         self._setup()
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 62, in _setup
+E         self._wrapped = Settings(settings_module)
+E                         ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 162, in __init__
+E         mod = importlib.import_module(self.SETTINGS_MODULE)
+E               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/importlib/__init__.py", line 90, in import_module
+E         return _bootstrap._gcd_import(name[level:], package, level)
+E                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py", line 19, in &lt;module&gt;
+E         from .settings_base import (
+E       File "/home/admin/dev/lx-annotate/lx_annotate/settings/settings_base.py", line 28, in &lt;module&gt;
+E         DJANGO_SALT = load_identity_salt()
+E                       ^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 49, in load_identity_salt
+E         ring = current_identity_keyring()
+E                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 40, in current_identity_keyring
+E         return configured_identity_keyring()
+E                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py", line 75, in sensitive_variables_wrapper
+E         return func(*func_args, **func_kwargs)
+E                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py", line 278, in configured_identity_keyring
+E         raise ValueError("Identity keyring does not match the expected generation")
+E     ValueError: Identity keyring does not match the expected generation
+E     
+E   assert 'ImproperlyConfigured' in 'Traceback (most recent call last):\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 38, in current_identity_keyring\n    return identity_keyring_snapshot.get()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nLookupError: &lt;ContextVar name=\'identity_keyring_snapshot\' at 0x7e4a7d301cb0&gt;\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File "&lt;string&gt;", line 9, in &lt;module&gt;\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 75, in __getattr__\n    self._setup(name)\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 62, in _setup\n    self._wrapped = Settings(settings_module)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 162, in __init__\n    mod = importlib.import_module(self.SETTINGS_MODULE)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-p...v/lx-annotate/lx_annotate/settings/settings_base.py", line 28, in &lt;module&gt;\n    DJANGO_SALT = load_identity_salt()\n                  ^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 49, in load_identity_salt\n    ring = current_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 40, in current_identity_keyring\n    return configured_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py", line 75, in sensitive_variables_wrapper\n    return func(*func_args, **func_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py", line 278, in configured_identity_keyring\n    raise ValueError("Identity keyring does not match the expected generation")\nValueError: Identity keyring does not match the expected generation\n'
+E    +  where 'Traceback (most recent call last):\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 38, in current_identity_keyring\n    return identity_keyring_snapshot.get()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nLookupError: &lt;ContextVar name=\'identity_keyring_snapshot\' at 0x7e4a7d301cb0&gt;\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File "&lt;string&gt;", line 9, in &lt;module&gt;\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 75, in __getattr__\n    self._setup(name)\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 62, in _setup\n    self._wrapped = Settings(settings_module)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 162, in __init__\n    mod = importlib.import_module(self.SETTINGS_MODULE)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-p...v/lx-annotate/lx_annotate/settings/settings_base.py", line 28, in &lt;module&gt;\n    DJANGO_SALT = load_identity_salt()\n                  ^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 49, in load_identity_salt\n    ring = current_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 40, in current_identity_keyring\n    return configured_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py", line 75, in sensitive_variables_wrapper\n    return func(*func_args, **func_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py", line 278, in configured_identity_keyring\n    raise ValueError("Identity keyring does not match the expected generation")\nValueError: Identity keyring does not match the expected generation\n' = CompletedProcess(args=['/home/admin/dev/lx-annotate/.devenv/state/venv/bin/python3', '-c', '\nimport hashlib\nimport os\n\nfrom django.conf import settings\nfrom endoreg_db.config.secret_keyring import configured_identity_keyring\n\n# Load production settings before checking the successful binding.\nactive_setting = settings.DJANGO_SALT\nring = configured_identity_keyring()\nassert ring is not None\nassert active_setting == ring.active.decode("utf-8")\nassert ring.center_id == "test-center"\nassert ring.generation == 2\nassert hashlib.sha256(ring.active).hexdigest() == (\n    os.environ["TEST_EXPECTED_ACTIVE_SHA256"]\n)\nassert len(ring.retiring) == 1\nassert hashlib.sha256(ring.retiring[0]).hexdigest() == (\n    os.environ["TEST_EXPECTED_RETIRING_SHA256"]\n)\n'], returncode=1, stdout='', stderr='Traceback (most recent call last):\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 38, in current_identity_keyring\n    return identity_keyring_snapshot.get()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nLookupError: &lt;ContextVar name=\'identity_keyring_snapshot\' at 0x7e4a7d301cb0&gt;\n\nDuring handling of the.../lx-annotate/lx_annotate/settings/settings_base.py", line 28, in &lt;module&gt;\n    DJANGO_SALT = load_identity_salt()\n                  ^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 49, in load_identity_salt\n    ring = current_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 40, in current_identity_keyring\n    return configured_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py", line 75, in sensitive_variables_wrapper\n    return func(*func_args, **func_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py", line 278, in configured_identity_keyring\n    raise ValueError("Identity keyring does not match the expected generation")\nValueError: Identity keyring does not match the expected generation\n').stderr</failure>
+        </testcase>
+        <testcase classname="tests.system.test_production_celery_routing" name="test_production_identity_delivery_binding[missing_manifest]" time="0.458">
+            <failure message="AssertionError: Traceback (most recent call last):&#10;    File &quot;&lt;string&gt;&quot;, line 9, in &lt;module&gt;&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 75, in __getattr__&#10;      self._setup(name)&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 62, in _setup&#10;      self._wrapped = Settings(settings_module)&#10;                      ^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 162, in __init__&#10;      mod = importlib.import_module(self.SETTINGS_MODULE)&#10;            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/importlib/__init__.py&quot;, line 90, in import_module&#10;      return _bootstrap._gcd_import(name[level:], package, level)&#10;             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1387, in _gcd_import&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1360, in _find_and_load&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1310, in _find_and_load_unlocked&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 488, in _call_with_frames_removed&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1387, in _gcd_import&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1360, in _find_and_load&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1310, in _find_and_load_unlocked&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 488, in _call_with_frames_removed&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1387, in _gcd_import&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1360, in _find_and_load&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1331, in _find_and_load_unlocked&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 935, in _load_unlocked&#10;    File &quot;&lt;frozen importlib._bootstrap_external&gt;&quot;, line 999, in exec_module&#10;    File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 488, in _call_with_frames_removed&#10;    File &quot;/home/admin/dev/lx-annotate/lx_annotate/__init__.py&quot;, line 3, in &lt;module&gt;&#10;      from .celery import app as celery_app&#10;    File &quot;/home/admin/dev/lx-annotate/lx_annotate/celery.py&quot;, line 69, in &lt;module&gt;&#10;      app.config_from_object(&quot;django.conf:settings&quot;, namespace=&quot;CELERY&quot;, force=True)&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/celery/app/base.py&quot;, line 720, in config_from_object&#10;      if self.loader.config_from_object(obj, silent=silent):&#10;         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/celery/loaders/base.py&quot;, line 127, in config_from_object&#10;      self._conf = force_mapping(obj)&#10;                   ^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/celery/utils/collections.py&quot;, line 42, in force_mapping&#10;      if isinstance(m, (LazyObject, LazySettings)):&#10;         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/utils/functional.py&quot;, line 280, in __getattribute__&#10;      value = super().__getattribute__(name)&#10;              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/utils/functional.py&quot;, line 251, in inner&#10;      self._setup()&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 62, in _setup&#10;      self._wrapped = Settings(settings_module)&#10;                      ^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 162, in __init__&#10;      mod = importlib.import_module(self.SETTINGS_MODULE)&#10;            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/importlib/__init__.py&quot;, line 90, in import_module&#10;      return _bootstrap._gcd_import(name[level:], package, level)&#10;             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py&quot;, line 19, in &lt;module&gt;&#10;      from .settings_base import (&#10;    File &quot;/home/admin/dev/lx-annotate/lx_annotate/settings/settings_base.py&quot;, line 28, in &lt;module&gt;&#10;      DJANGO_SALT = load_identity_salt()&#10;                    ^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 49, in load_identity_salt&#10;      ring = current_identity_keyring()&#10;             ^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py&quot;, line 40, in current_identity_keyring&#10;      return configured_identity_keyring()&#10;             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py&quot;, line 75, in sensitive_variables_wrapper&#10;      return func(*func_args, **func_kwargs)&#10;             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py&quot;, line 267, in configured_identity_keyring&#10;      ring = load_keyring(Path(path), kind=&quot;identity&quot;) if path else None&#10;             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py&quot;, line 183, in load_keyring&#10;      manifest = _parse_manifest(read_private_file(path))&#10;                                 ^^^^^^^^^^^^^^^^^^^^^^^&#10;    File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py&quot;, line 126, in read_private_file&#10;      raise ValueError(&quot;Cannot read private secret file&quot;) from None&#10;  ValueError: Cannot read private secret file&#10;  &#10;assert 'ImproperlyConfigured' in 'Traceback (most recent call last):\n  File &quot;&lt;string&gt;&quot;, line 9, in &lt;module&gt;\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 75, in __getattr__\n    self._setup(name)\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 62, in _setup\n    self._wrapped = Settings(settings_module)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 162, in __init__\n    mod = importlib.import_module(self.SETTINGS_MODULE)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/importlib/__init__.py&quot;, line 90, in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1387, in _gcd_import\n  File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1360, in _find_and_load\n  File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1310, in _find_and_load_unlocked\n  File &quot;...hing.py&quot;, line 40, in current_identity_keyring\n    return configured_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py&quot;, line 75, in sensitive_variables_wrapper\n    return func(*func_args, **func_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py&quot;, line 267, in configured_identity_keyring\n    ring = load_keyring(Path(path), kind=&quot;identity&quot;) if path else None\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py&quot;, line 183, in load_keyring\n    manifest = _parse_manifest(read_private_file(path))\n                               ^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py&quot;, line 126, in read_private_file\n    raise ValueError(&quot;Cannot read private secret file&quot;) from None\nValueError: Cannot read private secret file\n'&#10; +  where 'Traceback (most recent call last):\n  File &quot;&lt;string&gt;&quot;, line 9, in &lt;module&gt;\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 75, in __getattr__\n    self._setup(name)\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 62, in _setup\n    self._wrapped = Settings(settings_module)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 162, in __init__\n    mod = importlib.import_module(self.SETTINGS_MODULE)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/importlib/__init__.py&quot;, line 90, in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1387, in _gcd_import\n  File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1360, in _find_and_load\n  File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1310, in _find_and_load_unlocked\n  File &quot;...hing.py&quot;, line 40, in current_identity_keyring\n    return configured_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py&quot;, line 75, in sensitive_variables_wrapper\n    return func(*func_args, **func_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py&quot;, line 267, in configured_identity_keyring\n    ring = load_keyring(Path(path), kind=&quot;identity&quot;) if path else None\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py&quot;, line 183, in load_keyring\n    manifest = _parse_manifest(read_private_file(path))\n                               ^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py&quot;, line 126, in read_private_file\n    raise ValueError(&quot;Cannot read private secret file&quot;) from None\nValueError: Cannot read private secret file\n' = CompletedProcess(args=['/home/admin/dev/lx-annotate/.devenv/state/venv/bin/python3', '-c', '\nimport hashlib\nimport os\n\nfrom django.conf import settings\nfrom endoreg_db.config.secret_keyring import configured_identity_keyring\n\n# Load production settings before checking the successful binding.\nactive_setting = settings.DJANGO_SALT\nring = configured_identity_keyring()\nassert ring is not None\nassert active_setting == ring.active.decode(&quot;utf-8&quot;)\nassert ring.center_id == &quot;test-center&quot;\nassert ring.generation == 2\nassert hashlib.sha256(ring.active).hexdigest() == (\n    os.environ[&quot;TEST_EXPECTED_ACTIVE_SHA256&quot;]\n)\nassert len(ring.retiring) == 1\nassert hashlib.sha256(ring.retiring[0]).hexdigest() == (\n    os.environ[&quot;TEST_EXPECTED_RETIRING_SHA256&quot;]\n)\n'], returncode=1, stdout='', stderr='Traceback (most recent call last):\n  File &quot;&lt;string&gt;&quot;, line 9, in &lt;module&gt;\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 75, in __getattr__\n    self._setup(name)\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py&quot;, line 62, in _setup\n    self._wrapped = Settin...ing.py&quot;, line 40, in current_identity_keyring\n    return configured_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py&quot;, line 75, in sensitive_variables_wrapper\n    return func(*func_args, **func_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py&quot;, line 267, in configured_identity_keyring\n    ring = load_keyring(Path(path), kind=&quot;identity&quot;) if path else None\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py&quot;, line 183, in load_keyring\n    manifest = _parse_manifest(read_private_file(path))\n                               ^^^^^^^^^^^^^^^^^^^^^^^\n  File &quot;/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py&quot;, line 126, in read_private_file\n    raise ValueError(&quot;Cannot read private secret file&quot;) from None\nValueError: Cannot read private secret file\n').stderr">tests/system/test_production_celery_routing.py:690: in test_production_identity_delivery_binding
+    assert "ImproperlyConfigured" in result.stderr, result.stderr
+E   AssertionError: Traceback (most recent call last):
+E       File "&lt;string&gt;", line 9, in &lt;module&gt;
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 75, in __getattr__
+E         self._setup(name)
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 62, in _setup
+E         self._wrapped = Settings(settings_module)
+E                         ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 162, in __init__
+E         mod = importlib.import_module(self.SETTINGS_MODULE)
+E               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/importlib/__init__.py", line 90, in import_module
+E         return _bootstrap._gcd_import(name[level:], package, level)
+E                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1387, in _gcd_import
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1360, in _find_and_load
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1310, in _find_and_load_unlocked
+E       File "&lt;frozen importlib._bootstrap&gt;", line 488, in _call_with_frames_removed
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1387, in _gcd_import
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1360, in _find_and_load
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1310, in _find_and_load_unlocked
+E       File "&lt;frozen importlib._bootstrap&gt;", line 488, in _call_with_frames_removed
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1387, in _gcd_import
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1360, in _find_and_load
+E       File "&lt;frozen importlib._bootstrap&gt;", line 1331, in _find_and_load_unlocked
+E       File "&lt;frozen importlib._bootstrap&gt;", line 935, in _load_unlocked
+E       File "&lt;frozen importlib._bootstrap_external&gt;", line 999, in exec_module
+E       File "&lt;frozen importlib._bootstrap&gt;", line 488, in _call_with_frames_removed
+E       File "/home/admin/dev/lx-annotate/lx_annotate/__init__.py", line 3, in &lt;module&gt;
+E         from .celery import app as celery_app
+E       File "/home/admin/dev/lx-annotate/lx_annotate/celery.py", line 69, in &lt;module&gt;
+E         app.config_from_object("django.conf:settings", namespace="CELERY", force=True)
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/celery/app/base.py", line 720, in config_from_object
+E         if self.loader.config_from_object(obj, silent=silent):
+E            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/celery/loaders/base.py", line 127, in config_from_object
+E         self._conf = force_mapping(obj)
+E                      ^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/celery/utils/collections.py", line 42, in force_mapping
+E         if isinstance(m, (LazyObject, LazySettings)):
+E            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/utils/functional.py", line 280, in __getattribute__
+E         value = super().__getattribute__(name)
+E                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/utils/functional.py", line 251, in inner
+E         self._setup()
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 62, in _setup
+E         self._wrapped = Settings(settings_module)
+E                         ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 162, in __init__
+E         mod = importlib.import_module(self.SETTINGS_MODULE)
+E               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/importlib/__init__.py", line 90, in import_module
+E         return _bootstrap._gcd_import(name[level:], package, level)
+E                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py", line 19, in &lt;module&gt;
+E         from .settings_base import (
+E       File "/home/admin/dev/lx-annotate/lx_annotate/settings/settings_base.py", line 28, in &lt;module&gt;
+E         DJANGO_SALT = load_identity_salt()
+E                       ^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 49, in load_identity_salt
+E         ring = current_identity_keyring()
+E                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/identity_hashing.py", line 40, in current_identity_keyring
+E         return configured_identity_keyring()
+E                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py", line 75, in sensitive_variables_wrapper
+E         return func(*func_args, **func_kwargs)
+E                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py", line 267, in configured_identity_keyring
+E         ring = load_keyring(Path(path), kind="identity") if path else None
+E                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py", line 183, in load_keyring
+E         manifest = _parse_manifest(read_private_file(path))
+E                                    ^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py", line 126, in read_private_file
+E         raise ValueError("Cannot read private secret file") from None
+E     ValueError: Cannot read private secret file
+E     
+E   assert 'ImproperlyConfigured' in 'Traceback (most recent call last):\n  File "&lt;string&gt;", line 9, in &lt;module&gt;\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 75, in __getattr__\n    self._setup(name)\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 62, in _setup\n    self._wrapped = Settings(settings_module)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 162, in __init__\n    mod = importlib.import_module(self.SETTINGS_MODULE)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/importlib/__init__.py", line 90, in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "&lt;frozen importlib._bootstrap&gt;", line 1387, in _gcd_import\n  File "&lt;frozen importlib._bootstrap&gt;", line 1360, in _find_and_load\n  File "&lt;frozen importlib._bootstrap&gt;", line 1310, in _find_and_load_unlocked\n  File "...hing.py", line 40, in current_identity_keyring\n    return configured_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py", line 75, in sensitive_variables_wrapper\n    return func(*func_args, **func_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py", line 267, in configured_identity_keyring\n    ring = load_keyring(Path(path), kind="identity") if path else None\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py", line 183, in load_keyring\n    manifest = _parse_manifest(read_private_file(path))\n                               ^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py", line 126, in read_private_file\n    raise ValueError("Cannot read private secret file") from None\nValueError: Cannot read private secret file\n'
+E    +  where 'Traceback (most recent call last):\n  File "&lt;string&gt;", line 9, in &lt;module&gt;\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 75, in __getattr__\n    self._setup(name)\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 62, in _setup\n    self._wrapped = Settings(settings_module)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 162, in __init__\n    mod = importlib.import_module(self.SETTINGS_MODULE)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/nix/store/gjxh2gcfrpcs5cmihq593yrqw9z2g8xc-python3-3.12.14-env/lib/python3.12/importlib/__init__.py", line 90, in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "&lt;frozen importlib._bootstrap&gt;", line 1387, in _gcd_import\n  File "&lt;frozen importlib._bootstrap&gt;", line 1360, in _find_and_load\n  File "&lt;frozen importlib._bootstrap&gt;", line 1310, in _find_and_load_unlocked\n  File "...hing.py", line 40, in current_identity_keyring\n    return configured_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py", line 75, in sensitive_variables_wrapper\n    return func(*func_args, **func_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py", line 267, in configured_identity_keyring\n    ring = load_keyring(Path(path), kind="identity") if path else None\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py", line 183, in load_keyring\n    manifest = _parse_manifest(read_private_file(path))\n                               ^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py", line 126, in read_private_file\n    raise ValueError("Cannot read private secret file") from None\nValueError: Cannot read private secret file\n' = CompletedProcess(args=['/home/admin/dev/lx-annotate/.devenv/state/venv/bin/python3', '-c', '\nimport hashlib\nimport os\n\nfrom django.conf import settings\nfrom endoreg_db.config.secret_keyring import configured_identity_keyring\n\n# Load production settings before checking the successful binding.\nactive_setting = settings.DJANGO_SALT\nring = configured_identity_keyring()\nassert ring is not None\nassert active_setting == ring.active.decode("utf-8")\nassert ring.center_id == "test-center"\nassert ring.generation == 2\nassert hashlib.sha256(ring.active).hexdigest() == (\n    os.environ["TEST_EXPECTED_ACTIVE_SHA256"]\n)\nassert len(ring.retiring) == 1\nassert hashlib.sha256(ring.retiring[0]).hexdigest() == (\n    os.environ["TEST_EXPECTED_RETIRING_SHA256"]\n)\n'], returncode=1, stdout='', stderr='Traceback (most recent call last):\n  File "&lt;string&gt;", line 9, in &lt;module&gt;\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 75, in __getattr__\n    self._setup(name)\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/conf/__init__.py", line 62, in _setup\n    self._wrapped = Settin...ing.py", line 40, in current_identity_keyring\n    return configured_identity_keyring()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/django/views/decorators/debug.py", line 75, in sensitive_variables_wrapper\n    return func(*func_args, **func_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py", line 267, in configured_identity_keyring\n    ring = load_keyring(Path(path), kind="identity") if path else None\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py", line 183, in load_keyring\n    manifest = _parse_manifest(read_private_file(path))\n                               ^^^^^^^^^^^^^^^^^^^^^^^\n  File "/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db/config/secret_keyring.py", line 126, in read_private_file\n    raise ValueError("Cannot read private secret file") from None\nValueError: Cannot read private secret file\n').stderr</failure>
+        </testcase>
+        <testcase classname="tests.system.test_secretspec_environment_contract" name="test_python_environment_accesses_are_classified" time="0.429" />
+        <testcase classname="tests.system.test_worker_thread_imports" name="test_lx_annotate_modules_import_inside_luxnix_worker_threads" time="6.581">
+            <failure message="AssertionError: lx-annotate-celery-ffmpeg-worker failed importing lx_annotate.settings.settings_prod: AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1331, in _find_and_load_unlocked&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 935, in _load_unlocked&#10;        File &quot;&lt;frozen importlib._bootstrap_external&gt;&quot;, line 999, in exec_module&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 488, in _call_with_frames_removed&#10;        File &quot;/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py&quot;, line 188, in &lt;module&gt;&#10;          assert REST_FRAMEWORK[&quot;DEFAULT_PERMISSION_CLASSES&quot;] == [&#10;                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;      AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!&#10;  lx-annotate-celery-frame-extraction-worker failed importing lx_annotate.settings.settings_prod: AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1331, in _find_and_load_unlocked&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 935, in _load_unlocked&#10;        File &quot;&lt;frozen importlib._bootstrap_external&gt;&quot;, line 999, in exec_module&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 488, in _call_with_frames_removed&#10;        File &quot;/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py&quot;, line 188, in &lt;module&gt;&#10;          assert REST_FRAMEWORK[&quot;DEFAULT_PERMISSION_CLASSES&quot;] == [&#10;                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;      AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!&#10;  lx-annotate-celery-inference-worker failed importing lx_annotate.settings.settings_prod: AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1331, in _find_and_load_unlocked&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 935, in _load_unlocked&#10;        File &quot;&lt;frozen importlib._bootstrap_external&gt;&quot;, line 999, in exec_module&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 488, in _call_with_frames_removed&#10;        File &quot;/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py&quot;, line 188, in &lt;module&gt;&#10;          assert REST_FRAMEWORK[&quot;DEFAULT_PERMISSION_CLASSES&quot;] == [&#10;                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;      AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!&#10;  lx-annotate-celery-llm-inference-worker failed importing lx_annotate.settings.settings_prod: AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1331, in _find_and_load_unlocked&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 935, in _load_unlocked&#10;        File &quot;&lt;frozen importlib._bootstrap_external&gt;&quot;, line 999, in exec_module&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 488, in _call_with_frames_removed&#10;        File &quot;/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py&quot;, line 188, in &lt;module&gt;&#10;          assert REST_FRAMEWORK[&quot;DEFAULT_PERMISSION_CLASSES&quot;] == [&#10;                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;      AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!&#10;  lx-annotate-celery-pipeline-worker failed importing lx_annotate.settings.settings_prod: AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1331, in _find_and_load_unlocked&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 935, in _load_unlocked&#10;        File &quot;&lt;frozen importlib._bootstrap_external&gt;&quot;, line 999, in exec_module&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 488, in _call_with_frames_removed&#10;        File &quot;/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py&quot;, line 188, in &lt;module&gt;&#10;          assert REST_FRAMEWORK[&quot;DEFAULT_PERMISSION_CLASSES&quot;] == [&#10;                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;      AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!&#10;  lx-annotate-celery-training-worker failed importing lx_annotate.settings.settings_prod: AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1331, in _find_and_load_unlocked&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 935, in _load_unlocked&#10;        File &quot;&lt;frozen importlib._bootstrap_external&gt;&quot;, line 999, in exec_module&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 488, in _call_with_frames_removed&#10;        File &quot;/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py&quot;, line 188, in &lt;module&gt;&#10;          assert REST_FRAMEWORK[&quot;DEFAULT_PERMISSION_CLASSES&quot;] == [&#10;                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;      AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!&#10;  lx-annotate-celery-worker failed importing lx_annotate.settings.settings_prod: RuntimeError: #x1F6A8 SECURITY ERROR: Database password must be set in production!&#10;  Set DJANGO_DB_PASSWORD or DJANGO_DB_PASSWORD_FILE.&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1331, in _find_and_load_unlocked&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 935, in _load_unlocked&#10;        File &quot;&lt;frozen importlib._bootstrap_external&gt;&quot;, line 999, in exec_module&#10;        File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 488, in _call_with_frames_removed&#10;        File &quot;/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py&quot;, line 222, in &lt;module&gt;&#10;          raise RuntimeError(&#10;      RuntimeError: #x1F6A8 SECURITY ERROR: Database password must be set in production!&#10;      Set DJANGO_DB_PASSWORD or DJANGO_DB_PASSWORD_FILE.&#10;assert not 'lx-annotate-celery-ffmpeg-worker failed importing lx_annotate.settings.settings_prod: AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!\n      File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1331, in _find_and_load_unlocked\n      File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 935, in _load_unlocked\n      File &quot;&lt;frozen importlib._bootstrap_external&gt;&quot;, line 999, in exec_module\n      File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 488, in _call_with_frames_removed\n      File &quot;/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py&quot;, line 188, in &lt;module&gt;\n        assert REST_FRAMEWORK[&quot;DEFAULT_PERMISSION_CLASSES&quot;] == [\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!\nlx-annotate-celery-frame-extraction-worker failed importing lx_annotate.settings.settings_prod: AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!\n      File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1331, in _find_and_load_unlocked\n      File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 935, in _load_unlocked\n      File &quot;&lt;frozen importlib._bootstrap_external&gt;&quot;, line 999, i...      File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 488, in _call_with_frames_removed\n      File &quot;/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py&quot;, line 188, in &lt;module&gt;\n        assert REST_FRAMEWORK[&quot;DEFAULT_PERMISSION_CLASSES&quot;] == [\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!\nlx-annotate-celery-worker failed importing lx_annotate.settings.settings_prod: RuntimeError: #x1F6A8 SECURITY ERROR: Database password must be set in production!\nSet DJANGO_DB_PASSWORD or DJANGO_DB_PASSWORD_FILE.\n      File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 1331, in _find_and_load_unlocked\n      File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 935, in _load_unlocked\n      File &quot;&lt;frozen importlib._bootstrap_external&gt;&quot;, line 999, in exec_module\n      File &quot;&lt;frozen importlib._bootstrap&gt;&quot;, line 488, in _call_with_frames_removed\n      File &quot;/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py&quot;, line 222, in &lt;module&gt;\n        raise RuntimeError(\n    RuntimeError: #x1F6A8 SECURITY ERROR: Database password must be set in production!\n    Set DJANGO_DB_PASSWORD or DJANGO_DB_PASSWORD_FILE.'">tests/system/test_worker_thread_imports.py:285: in test_lx_annotate_modules_import_inside_luxnix_worker_threads
+    assert not failure_report, failure_report
+E   AssertionError: lx-annotate-celery-ffmpeg-worker failed importing lx_annotate.settings.settings_prod: AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!
+E           File "&lt;frozen importlib._bootstrap&gt;", line 1331, in _find_and_load_unlocked
+E           File "&lt;frozen importlib._bootstrap&gt;", line 935, in _load_unlocked
+E           File "&lt;frozen importlib._bootstrap_external&gt;", line 999, in exec_module
+E           File "&lt;frozen importlib._bootstrap&gt;", line 488, in _call_with_frames_removed
+E           File "/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py", line 188, in &lt;module&gt;
+E             assert REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] == [
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E         AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!
+E     lx-annotate-celery-frame-extraction-worker failed importing lx_annotate.settings.settings_prod: AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!
+E           File "&lt;frozen importlib._bootstrap&gt;", line 1331, in _find_and_load_unlocked
+E           File "&lt;frozen importlib._bootstrap&gt;", line 935, in _load_unlocked
+E           File "&lt;frozen importlib._bootstrap_external&gt;", line 999, in exec_module
+E           File "&lt;frozen importlib._bootstrap&gt;", line 488, in _call_with_frames_removed
+E           File "/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py", line 188, in &lt;module&gt;
+E             assert REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] == [
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E         AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!
+E     lx-annotate-celery-inference-worker failed importing lx_annotate.settings.settings_prod: AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!
+E           File "&lt;frozen importlib._bootstrap&gt;", line 1331, in _find_and_load_unlocked
+E           File "&lt;frozen importlib._bootstrap&gt;", line 935, in _load_unlocked
+E           File "&lt;frozen importlib._bootstrap_external&gt;", line 999, in exec_module
+E           File "&lt;frozen importlib._bootstrap&gt;", line 488, in _call_with_frames_removed
+E           File "/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py", line 188, in &lt;module&gt;
+E             assert REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] == [
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E         AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!
+E     lx-annotate-celery-llm-inference-worker failed importing lx_annotate.settings.settings_prod: AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!
+E           File "&lt;frozen importlib._bootstrap&gt;", line 1331, in _find_and_load_unlocked
+E           File "&lt;frozen importlib._bootstrap&gt;", line 935, in _load_unlocked
+E           File "&lt;frozen importlib._bootstrap_external&gt;", line 999, in exec_module
+E           File "&lt;frozen importlib._bootstrap&gt;", line 488, in _call_with_frames_removed
+E           File "/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py", line 188, in &lt;module&gt;
+E             assert REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] == [
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E         AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!
+E     lx-annotate-celery-pipeline-worker failed importing lx_annotate.settings.settings_prod: AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!
+E           File "&lt;frozen importlib._bootstrap&gt;", line 1331, in _find_and_load_unlocked
+E           File "&lt;frozen importlib._bootstrap&gt;", line 935, in _load_unlocked
+E           File "&lt;frozen importlib._bootstrap_external&gt;", line 999, in exec_module
+E           File "&lt;frozen importlib._bootstrap&gt;", line 488, in _call_with_frames_removed
+E           File "/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py", line 188, in &lt;module&gt;
+E             assert REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] == [
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E         AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!
+E     lx-annotate-celery-training-worker failed importing lx_annotate.settings.settings_prod: AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!
+E           File "&lt;frozen importlib._bootstrap&gt;", line 1331, in _find_and_load_unlocked
+E           File "&lt;frozen importlib._bootstrap&gt;", line 935, in _load_unlocked
+E           File "&lt;frozen importlib._bootstrap_external&gt;", line 999, in exec_module
+E           File "&lt;frozen importlib._bootstrap&gt;", line 488, in _call_with_frames_removed
+E           File "/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py", line 188, in &lt;module&gt;
+E             assert REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] == [
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E         AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!
+E     lx-annotate-celery-worker failed importing lx_annotate.settings.settings_prod: RuntimeError: #x1F6A8 SECURITY ERROR: Database password must be set in production!
+E     Set DJANGO_DB_PASSWORD or DJANGO_DB_PASSWORD_FILE.
+E           File "&lt;frozen importlib._bootstrap&gt;", line 1331, in _find_and_load_unlocked
+E           File "&lt;frozen importlib._bootstrap&gt;", line 935, in _load_unlocked
+E           File "&lt;frozen importlib._bootstrap_external&gt;", line 999, in exec_module
+E           File "&lt;frozen importlib._bootstrap&gt;", line 488, in _call_with_frames_removed
+E           File "/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py", line 222, in &lt;module&gt;
+E             raise RuntimeError(
+E         RuntimeError: #x1F6A8 SECURITY ERROR: Database password must be set in production!
+E         Set DJANGO_DB_PASSWORD or DJANGO_DB_PASSWORD_FILE.
+E   assert not 'lx-annotate-celery-ffmpeg-worker failed importing lx_annotate.settings.settings_prod: AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!\n      File "&lt;frozen importlib._bootstrap&gt;", line 1331, in _find_and_load_unlocked\n      File "&lt;frozen importlib._bootstrap&gt;", line 935, in _load_unlocked\n      File "&lt;frozen importlib._bootstrap_external&gt;", line 999, in exec_module\n      File "&lt;frozen importlib._bootstrap&gt;", line 488, in _call_with_frames_removed\n      File "/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py", line 188, in &lt;module&gt;\n        assert REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] == [\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!\nlx-annotate-celery-frame-extraction-worker failed importing lx_annotate.settings.settings_prod: AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!\n      File "&lt;frozen importlib._bootstrap&gt;", line 1331, in _find_and_load_unlocked\n      File "&lt;frozen importlib._bootstrap&gt;", line 935, in _load_unlocked\n      File "&lt;frozen importlib._bootstrap_external&gt;", line 999, i...      File "&lt;frozen importlib._bootstrap&gt;", line 488, in _call_with_frames_removed\n      File "/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py", line 188, in &lt;module&gt;\n        assert REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] == [\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    AssertionError: #x1F6A8 SECURITY ERROR: Production API must require authentication!\nlx-annotate-celery-worker failed importing lx_annotate.settings.settings_prod: RuntimeError: #x1F6A8 SECURITY ERROR: Database password must be set in production!\nSet DJANGO_DB_PASSWORD or DJANGO_DB_PASSWORD_FILE.\n      File "&lt;frozen importlib._bootstrap&gt;", line 1331, in _find_and_load_unlocked\n      File "&lt;frozen importlib._bootstrap&gt;", line 935, in _load_unlocked\n      File "&lt;frozen importlib._bootstrap_external&gt;", line 999, in exec_module\n      File "&lt;frozen importlib._bootstrap&gt;", line 488, in _call_with_frames_removed\n      File "/home/admin/dev/lx-annotate/lx_annotate/settings/settings_prod.py", line 222, in &lt;module&gt;\n        raise RuntimeError(\n    RuntimeError: #x1F6A8 SECURITY ERROR: Database password must be set in production!\n    Set DJANGO_DB_PASSWORD or DJANGO_DB_PASSWORD_FILE.'</failure>
+        </testcase>
+    </testsuite>
+</testsuites>

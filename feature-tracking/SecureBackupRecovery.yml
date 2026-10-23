@@ -1,0 +1,269 @@
+schema_version: '1.0'
+id: secure_backup_recovery
+name: Secure Backup and Disaster Recovery
+description: Provide encrypted, recoverable, and routinely verified backups for the LX-Annotate database,
+  application encryption identity, and protected media without weakening the local storage or key boundaries.
+owners:
+- LuxNix maintainers
+- lx-annotate maintainers
+- database operations
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: docs/guides/deployment-strategy.md
+  disposition: reference
+  note: Application and LuxNix deployment, encrypted-storage, and recovery context.
+- path: docs/guides/secure-backup-disaster-recovery.md
+  disposition: reference
+  note: Canonical operator runbook for database-only and full disaster recovery.
+definition_of_done:
+- id: backup_scope_and_recovery_objectives
+  category: requirements
+  title: Backup scope, recovery objectives, and ownership are approved
+  acceptance:
+  - PostgreSQL data, application-encrypted database fields, protected video and report media, configuration
+    needed for restore, and the required encryption identities are all explicitly in scope.
+  - Recovery point objective, recovery time objective, retention, deletion, legal hold, and geographic
+    or host separation requirements are documented.
+  - Database, LuxNix, application, security, and clinical owners approve the restore boundary and responsibilities.
+  - A database-only restore is not presented as complete LX-Annotate disaster recovery.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the scope and recovery objectives with application, database, security, operations,
+      and clinical owners.
+    timeout_seconds: 600
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: review
+      reference: Backup and recovery review from 2026-07-28
+      note: The review established that the SQL archive is recoverable independently of gc-10, but application-encrypted
+        fields and media require additional protected backup material.
+    note: Database, application master-key, and media boundaries are identified; formal recovery objectives,
+      retention, and approvals remain open.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T11:15:00+02:00'
+- id: encrypted_database_copy
+  category: functionality
+  title: PostgreSQL backups are encrypted, integrity checked, and stored off-node
+  acceptance:
+  - A consistent PostgreSQL backup is created without exposing unencrypted transfer artifacts.
+  - The off-node copy is encrypted to an approved recovery recipient and stored with root ownership and
+    mode 0600.
+  - Size and SHA-256 are recorded, age decryption succeeds, gzip integrity succeeds, and the encrypted
+    copy remains available if the source node is lost.
+  - The source backup is retained or expired according to the approved retention policy rather than removed
+    implicitly after transfer.
+  required: true
+  verification:
+    kind: manual
+    instructions: On gs-02, verify metadata and hash, decrypt through a pipe without persisting plaintext,
+      run gzip integrity checking, and confirm the source copy according to policy.
+    timeout_seconds: 1200
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: demonstration
+      reference: gs-02:/var/backup/postgresql/gc-10/gc-10-postgresql-all-20260728T094044CEST.sql.gz.age
+      note: Operator-reported size 35,188,721 bytes, root:root ownership, mode 0600, SHA-256 1791ef7d8326dcde33b4dafb84609af0e0b914dc806724b9055863d479df8c17,
+        and successful age and gzip verification on 2026-07-28.
+    - kind: document
+      reference: /home/admin/.lxv/host-ssh-keys/gs-02/README.md
+      note: Recovery instructions identify the related encrypted database copy on gs-02.
+    note: One point-in-time encrypted copy has been demonstrated and the original remains on gc-10. Scheduling,
+      retention, monitoring, and repeated evidence are not yet established.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T11:15:00+02:00'
+- id: recipient_identity_escrow
+  category: security
+  title: The database-backup decryption identity is recoverable under controlled custody
+  acceptance:
+  - The recipient private identity is never stored with the encrypted database archive as unprotected
+    plaintext.
+  - An encrypted recovery bundle contains the exact gs-02 SSH host-key pairs needed after host loss or
+    key rotation.
+  - The recovery bundle is protected by an independently stored operator age identity, has recorded ownership,
+    mode, and SHA-256, and has a tested decryption procedure.
+  - Custody, access authorization, rotation, compromise response, and restoration of root ownership and
+    mode 0600 are documented.
+  - Recovery does not depend on a single unbacked-up host or operator identity.
+  required: true
+  verification:
+    kind: manual
+    instructions: Under an approved two-person recovery exercise, verify the encrypted bundle hash, decrypt
+      it without persistent plaintext, compare public fingerprints, and restore keys only on a disposable
+      host.
+    timeout_seconds: 1200
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: document
+      reference: /home/admin/.lxv/host-ssh-keys/gs-02/README.md
+    - kind: demonstration
+      reference: /home/admin/.lxv/host-ssh-keys/gs-02/gs-02-ssh-host-keys-20260728.age
+      note: Locally confirmed on 2026-07-28 as 10,440 bytes, mode 0600, owner admin:users, SHA-256 5ac78d6a7895d3dc31fb663d64a7813d4de53c60345b69fa9a4e799158431838.
+        Key material was not decrypted or inspected during tracker authoring.
+    note: The recovery bundle exists and is encrypted to the operator age identity. Independent custody,
+      rotation policy, and a disposable-host restoration exercise remain open.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T11:15:00+02:00'
+- id: application_master_key_recovery
+  category: security
+  title: The LX-Annotate application master key has a separate protected recovery path
+  acceptance:
+  - The long-lived application master key is backed up without transmission to application nodes or storage
+    in LX-Annotate configuration.
+  - The backup uses an approved KMS, Vault recovery mechanism, or independently encrypted offline escrow
+    with access control and audit.
+  - Key version, recipient identity, rotation, revocation, recovery authorization, and restore verification
+    are documented.
+  - A recovery exercise proves application-encrypted database fields can be decrypted after total loss
+    of gc-10.
+  required: true
+  verification:
+    kind: manual
+    instructions: Perform an approved recovery exercise against disposable restored data without exposing
+      the key in logs, shell history, repository files, or network payloads.
+    timeout_seconds: 1800
+  assessment:
+    status: blocked
+    evidence:
+    - kind: review
+      reference: Backup and recovery review from 2026-07-28
+      note: The gs-02 host-key bundle does not contain the LX-Annotate application master key, and that
+        key was not accessed or exported.
+    note: Full database recovery is blocked because application-encrypted fields still require gc-10's
+      LX-Annotate application master key and no separately verified recovery path is recorded.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T11:15:00+02:00'
+- id: protected_media_backup
+  category: functionality
+  title: Protected video and report media are backed up with integrity and lifecycle guarantees
+  acceptance:
+  - Raw and processed media, reports, required HLS artifacts, and provenance are classified by recovery
+    need and retention policy.
+  - Backup data remains encrypted at rest and raw media is never exported through the anonymized hub-transfer
+    path.
+  - Backup and restore use atomic typed filesystem operations, structured JSON logs, hashes, and reconciliation
+    against database records.
+  - Restore preserves storage modes, ownership, permissions, relationships, and LOST states without unsafe
+    automatic recovery.
+  required: true
+  verification:
+    kind: manual
+    instructions: Restore a representative encrypted media set and reconcile hashes, database references,
+      storage modes, permissions, and playback or report access.
+    timeout_seconds: 1800
+  assessment:
+    status: blocked
+    evidence:
+    - kind: review
+      reference: Backup and recovery review from 2026-07-28
+      note: The PostgreSQL archive does not include video or media files.
+    note: Full disaster recovery remains blocked until protected media have a separate encrypted, integrity-checked
+      backup and restore path.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T11:15:00+02:00'
+- id: automated_backup_operations
+  category: operations
+  title: Backup creation, transfer, verification, retention, and alerting are automated
+  acceptance:
+  - LuxNix declares the backup schedule, source node, destination, recipient identity, bandwidth limits,
+    retention, and failure policy.
+  - Every run records immutable structured metadata including timestamp, source, size, SHA-256, recipient
+    fingerprint, verification result, and cleanup result.
+  - Partial uploads are never published as valid backups and temporary plaintext or transfer files are
+    removed after success and safely handled after failure.
+  - Missed backups, verification failures, capacity pressure, key expiry, and retention failures alert
+    operators.
+  - Backup automation never accesses or transmits the long-lived application master key outside its approved
+    recovery boundary.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review evaluated LuxNix units and observe successful, failed-transfer, failed-verification,
+      low-capacity, and retention runs.
+    timeout_seconds: 1800
+  assessment:
+    status: blocked
+    evidence:
+    - kind: code
+      reference: /home/admin/dev/luxnix/modules/nixos/services/postgres/default.nix
+    - kind: code
+      reference: /home/admin/dev/luxnix/tests/test_postgresql_encrypted_backup_contract.py
+    - kind: command
+      reference: cd /home/admin/dev/luxnix && pytest tests/test_postgresql_encrypted_backup_contract.py
+        -q (5 passed)
+    note: LuxNix now exposes a disabled-by-default destination/public-recipient/recipient-identity contract,
+      but deliberately refuses activation. No installed endoreg_db command currently owns encryption,
+      atomic publication, cleanup, and structured audit through endoreg_db.utils.file_operations; direct
+      shell mutation was rejected. Scheduling beyond the existing plaintext dump, off-node transfer, retention,
+      alerting, and restore verification remain blocked.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T09:41:29.218861Z'
+- id: full_restore_drill
+  category: testing
+  title: A clean-host restore drill proves complete LX-Annotate recovery
+  acceptance:
+  - A disposable replacement for gc-10 restores PostgreSQL, the correct application master-key version,
+    and protected media without using surviving gc-10 state.
+  - Database constraints, application-encrypted fields, media hashes, representative playback, reports,
+    and workflow provenance are verified.
+  - Recovery time and recovery point are measured against the approved objectives.
+  - Negative drills cover unavailable recipient identity, wrong key, corrupt archive, missing media, interrupted
+    restore, and inconsistent database or filesystem state.
+  - Failed recovery remains fail closed, preserves evidence, and marks unrecoverable artifacts LOST where
+    applicable.
+  required: true
+  verification:
+    kind: manual
+    instructions: Execute and review a documented disaster-recovery exercise on an isolated production-like
+      host.
+    timeout_seconds: 3600
+  assessment:
+    status: blocked
+    evidence:
+    - kind: review
+      reference: Backup and recovery review from 2026-07-28
+      note: Only outer SQL archive decryption and gzip integrity have been demonstrated; full application
+        and media restoration has not.
+    note: The drill cannot pass until application master-key recovery and protected media backup are available.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T11:15:00+02:00'
+- id: recovery_runbook_and_audit
+  category: documentation
+  title: Operators have one audited backup and recovery runbook
+  acceptance:
+  - The English runbook identifies backup locations without embedding secret values and documents database-only
+    versus full recovery.
+  - It covers authorization, recipient fingerprints, hash verification, streaming decryption, PostgreSQL
+    restore, application-key recovery, media restore, reconciliation, cleanup, rotation, and incident
+    escalation.
+  - Commands avoid plaintext key files, shell-history leakage, broad permissions, and destructive actions
+    against ambiguous targets.
+  - Each drill and real recovery records approvers, actions, checks, exceptions, and final disposition
+    in an audit trail.
+  required: true
+  verification:
+    kind: manual
+    instructions: Have database, security, LuxNix, and LX-Annotate owners execute the runbook on a disposable
+      environment and approve the resulting audit record.
+    timeout_seconds: 1800
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: document
+      reference: /home/admin/.lxv/host-ssh-keys/gs-02/README.md
+      note: Current instructions document the gs-02 host-identity recovery bundle, recipient, fingerprints,
+        database archive location, and private-key permission requirement.
+    - kind: document
+      reference: docs/guides/secure-backup-disaster-recovery.md
+      note: Canonical English runbook covers authorization, non-persistent integrity checking, isolated
+        database restore, application-key and media boundaries, reconciliation, audit, rotation, and escalation.
+    note: The canonical runbook is documented, but owner review and execution on a disposable environment
+      remain open.
+    assessed_by: Codex
+    assessed_at: '2026-07-28T11:15:00+02:00'

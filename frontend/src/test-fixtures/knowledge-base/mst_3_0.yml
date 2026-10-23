@@ -1,0 +1,68 @@
+# Representative frontend contract slice from MST 3.0 terminology records.
+# Copyright 2008 World Endoscopy Organization (formerly OMED). All rights reserved.
+- model: finding_type
+  name: mst30_luminal_finding
+  name_en: Luminal finding
+  description: MST 3.0 section 3.1.
+- model: indication_type
+  name: mst30_symptom
+  name_en: Symptom
+  description: MST 3.0 section 4 symptom.
+- model: intervention_type
+  name: mst30_luminal_procedure
+  name_en: Luminal procedure
+  description: MST 3.0 section 6.1.
+- model: examination_type
+  name: mst30_endoscopic_procedure
+  name_en: Endoscopic procedure
+  description: MST 3.0 procedure context.
+- model: classification_type
+  name: mst30_location
+  name_en: Location
+  description: MST 3.0 section 2.
+- model: examination
+  name: mst30_egd
+  name_en: EGD
+  examination_types: [mst30_endoscopic_procedure]
+  description: '§2.3 relevant organs: Esophagus, Stomach, Duodenum, Jejunum.'
+- model: classification
+  name: mst30_location_esophagus
+  name_en: Esophagus location
+  name_de: Esophagus location
+  classification_types: [mst30_location]
+  classification_choices: [mst30_esophagus_esophagus, mst30_esophagus_z_line]
+  description: 'MST 3.0 §2.1. Modifiers: xx cm from incisors/nares.'
+- model: classification_choice
+  name: mst30_esophagus_esophagus
+  name_en: Esophagus
+  name_de: Esophagus
+- model: finding
+  name: mst30_luminal_normal
+  name_en: Normal
+  name_de: Normal
+  finding_types: [mst30_luminal_finding]
+  description: §3.1 Lumen.
+- model: indication
+  name: mst30_upper_symptom_abdominal_distress_pain
+  name_en: Abdominal distress/pain
+  name_de: Abdominal distress/pain
+  indication_types: [mst30_symptom]
+  description: '§4.1; qualifiers: Duration, Degree.'
+- model: intervention
+  name: mst30_proc_luminal_sampling
+  name_en: Sampling
+  name_de: Sampling
+  intervention_types: [mst30_luminal_procedure]
+- model: unit
+  name: mst30_millimeter
+  abbreviation: mm
+  name_de: Millimeter
+  name_en: Millimeter
+- model: classification_choice_descriptor
+  name: mst30_size_mm_value
+  name_de: Größe in Millimetern
+  name_en: Size in millimeters
+  classification_choice_descriptor_type: numeric
+  unit: mst30_millimeter
+  numeric_min: 0
+  numeric_max: 1000

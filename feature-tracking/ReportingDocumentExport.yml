@@ -1,0 +1,142 @@
+schema_version: '1.0'
+id: reporting_document_export
+name: Reporting Document Export
+description: Provide explicit, readable PDF and plain-text exports from the reporting shell.
+owners:
+- lx-annotate frontend maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: docs/guides/reporting-template-requirements-page.md
+  disposition: reference
+  note: Reporting workflow and frontend ownership context.
+definition_of_done:
+- id: export_formats
+  category: requirements
+  title: Reporting exposes PDF and text export formats
+  acceptance:
+  - The export step clearly offers a server-generated PDF and a UTF-8 plain-text document.
+  - Export actions are disabled when their required source data is unavailable.
+  required: true
+  verification:
+    kind: manual
+    instructions: Exercise the report export page with and without a persisted rendered report.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/views/reporting/ReportExportPage.vue
+    - kind: test
+      reference: 'ReportExportPage.test.ts: 4 passed'
+    note: Export step clearly presents server-generated PDF and UTF-8 TXT actions with source-aware disabled
+      states.
+    assessed_by: codex-report-export-20260814
+    assessed_at: '2026-08-14T07:10:11.305934Z'
+- id: readable_text_document
+  category: functionality
+  title: Text exports are readable and clinically contextualized
+  acceptance:
+  - The text document includes patient, examination, report status, version, and update metadata.
+  - The persisted rendered report body is preserved without HTML or debug payloads.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review formatter tests covering whitespace, metadata, and filename generation.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/views/reporting/reportingTextExport.ts
+    - kind: test
+      reference: 'reportingTextExport.test.ts: 2 passed'
+    note: Plain-text formatter emits clinical metadata and preserves the saved rendered report body with
+      normalized line endings.
+    assessed_by: codex-report-export-20260814
+    assessed_at: '2026-08-14T07:10:12.914122Z'
+- id: validated_report_boundary
+  category: security
+  title: Export data is validated at the report-list boundary
+  acceptance:
+  - Rendered text and template metadata are accepted only as typed strings or null.
+  - Malformed export fields fail visibly instead of being coerced.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run negative report-list parser tests.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/views/reporting/reportListPayload.ts
+    - kind: test
+      reference: reportListPayload.test.ts malformed renderedText rejection passed
+    note: Rendered text and template name are validated as nullable strings by the shared report-list
+      parser.
+    assessed_by: codex-report-export-20260814
+    assessed_at: '2026-08-14T07:10:14.514419Z'
+- id: export_regression_coverage
+  category: testing
+  title: Export behavior has focused regression coverage
+  acceptance:
+  - Unit tests cover report-list parsing and text document formatting.
+  - Component tests cover PDF generation and text download availability.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the focused report export suites and frontend type checks.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'npm exec -- vitest run focused export suites: 3 files, 11 tests passed'
+    - kind: command
+      reference: 'npm run type-check; npm run type-check:component-tests; scoped ESLint: passed'
+    note: Focused export tests, both Vue TypeScript lanes, scoped ESLint, and diff whitespace checks pass.
+    assessed_by: codex-report-export-20260814
+    assessed_at: '2026-08-14T07:10:16.081259Z'
+- id: actionable_export_failures
+  category: operations
+  title: Missing export inputs are visible and actionable
+  acceptance:
+  - The page explains why a PDF or text action is unavailable.
+  - Download failures are surfaced through the existing reporting error presentation.
+  required: true
+  verification:
+    kind: manual
+    instructions: Inspect empty-report and incompatible-template states in component tests.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: ReportExportPage.test.ts empty rendered-text state passed
+    note: Missing saved text and missing patient identity disable export and present actionable German
+      guidance; runtime failures use reporting error presentation.
+    assessed_by: codex-report-export-20260814
+    assessed_at: '2026-08-14T07:10:17.642668Z'
+- id: maintained_export_contract
+  category: documentation
+  title: Export ownership remains maintainable
+  acceptance:
+  - The YAML tracker records supported formats and verification evidence in English.
+  - PDF persistence remains owned by the backend while text formatting remains a frontend concern.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the tracker and changed API/UI ownership boundaries.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: feature-tracking/ReportingDocumentExport.yml
+    note: Backend PDF persistence is unchanged; frontend-only TXT formatting and supported formats are
+      recorded in the dedicated YAML tracker.
+    assessed_by: codex-report-export-20260814
+    assessed_at: '2026-08-14T07:10:19.213880Z'

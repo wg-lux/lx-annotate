@@ -1,0 +1,27 @@
+version: 1
+tier: package
+path: "openapi"
+parent: "../structure.yml"
+summary: "Generated canonical endoreg and dtypes OpenAPI specifications."
+responsibilities:
+  - "Expose API contracts consumed by frontend type generation."
+  - "Keep root and frontend specification copies synchronized."
+boundaries:
+  - "Do not edit generated JSON by hand or redefine shared API ownership."
+entrypoints:
+  - name: "endoreg API"
+    file: "endoreg-api.json"
+    purpose: "Clinical API specification"
+  - name: "dtypes API"
+    file: "dtypes-api.json"
+    purpose: "Knowledge-base API specification"
+dependencies:
+  internal: ["lx_annotate","frontend"]
+  external: ["OpenAPI","drf-spectacular","openapi-typescript"]
+submodules: []
+contracts:
+  - name: "generation protocol"
+    doc: "../docs/guides/openapi-type-generation.md"
+tests:
+  directory: "../tests/system"
+  command: "python -m pytest tests/system/test_openapi_type_generation.py -q -k shared_canonical"

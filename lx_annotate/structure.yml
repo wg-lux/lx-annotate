@@ -1,0 +1,65 @@
+version: 1
+tier: domain
+path: "lx_annotate"
+parent: "../structure.yml"
+summary: "Django application integration, local APIs, workflow orchestration, and environment conversion."
+responsibilities:
+  - "Mount shared endoreg and dtypes APIs with local endpoints."
+  - "Resolve protected credentials through backend validators; reject retired signing authentication."
+  - "Coordinate watcher, Celery and application-owned workflow services; clinical persistence stays in endoreg-db."
+  - "Resolve authorized study dataset membership and delegate saved rule validation and descriptive statistics to lx_dtypes."
+boundaries:
+  - "Clinical core models and encrypted storage belong to endoreg_db."
+  - "The shared response guard rejects source identity hashes; hash-bearing study workbooks cannot be published."
+  - "Lookup and knowledge-base schemas belong to lx_dtypes; never bypass scoped decryption."
+entrypoints:
+  - name: "queued HLS dispatch"
+    file: "management/commands/dispatch_hls_materialization.py"
+    purpose: "Application dispatch policy over backend HLS selection, validation and processing"
+  - name: "routes"
+    file: "urls.py"
+    purpose: "Canonical API mounts and SPA"
+  - name: "API integration"
+    file: "api_urls.py"
+    purpose: "Local and shared routes"
+  - name: "settings"
+    file: "settings/settings_base.py"
+    purpose: "Typed environment conversion"
+  - name: "worker"
+    file: "celery.py"
+    purpose: "Celery application and discovery"
+  - name: "watcher"
+    file: "file_watcher.py"
+    purpose: "Ingestion orchestration"
+dependencies:
+  internal: ["frontend","openapi"]
+  external: ["Django","Django REST framework","Celery","endoreg-db","lx-dtypes"]
+submodules:
+  - name: "hub"
+    path: "hub"
+    manifest: "hub/structure.yml"
+    summary: "Outbound hub export and storage orchestration with typed transfer envelopes and job lifecycle."
+contracts:
+  - name: "secret rotation integration"
+    doc: "../docs/guides/secret-rotation.md"
+  - name: "clinical ownership"
+    doc: "../docs/guides/core-concept-contract.md"
+  - name: "storage contract"
+    doc: "../docs/guides/encrypted-storage-process.md"
+  - name: "configuration specification"
+    doc: "../secretspec.toml"
+  - name: "hub remote access"
+    doc: "../docs/guides/hub-remote-access.md"
+tests:
+  directory: "../tests/system"
+  command: "python -m pytest tests/system/test_config_unit.py -q"
+
+files:
+  - services/study_setup_import.py
+  - services/study_definitions.py
+  - services/study_eligibility.py
+  - views/study_cohorts.py
+  - views/study_export.py
+  - views/study_ledger_exchange.py
+  - views/study_setup_import.py
+  - management/commands/import_study_setup.py

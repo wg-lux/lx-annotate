@@ -1,0 +1,7 @@
+.devenv/
+src/default.nix
+.gitignore
+.direnv/
+src/assets
+src/types/
+*.nix

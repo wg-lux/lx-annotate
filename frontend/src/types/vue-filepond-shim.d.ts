@@ -1,1 +1,4 @@
-declare module 'vue-filepond' { const x: any; export = x }
+declare module 'vue-filepond' {
+  const x: any
+  export = x
+}
