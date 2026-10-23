@@ -1,0 +1,209 @@
+schema_version: '1.0'
+id: frontend_runtime_logging_hygiene
+name: Frontend Runtime Logging Hygiene
+description: Replace direct browser-console output with a centralized redacting logger so clinical payloads
+  are not exposed, diagnostics are structured, and tests and operations remain quiet by default.
+owners:
+- lx-annotate frontend maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-professionalism
+    changed_at: '2026-08-04T18:52:05.814403Z'
+    note: Central redacting structured logging is implemented across frontend production source; executable
+      console inventory is zero, enforcement and contributor guidance are active, all seven criteria are
+      verified, full unit regression passed 90 files/563 tests, both type projects and lint pass, and
+      the current 517-module production build succeeds.
+source_documents:
+- path: frontend/README.md
+  disposition: reference
+  note: Frontend logging, privacy, and quality-gate guidance.
+definition_of_done:
+- id: reproducible_console_inventory
+  category: requirements
+  title: Direct-console scope and baseline are reproducible
+  acceptance:
+  - The inventory covers first-party TypeScript and Vue production files under frontend/src.
+  - Findings are reported by file and console method.
+  - Comments, dependencies, generated output, coverage, tests, and legacy frontend trees are excluded.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the documented ESLint Node API console inventory and compare its totals with the
+      initial assessment.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: cd frontend && npm run lint:console-inventory
+    - kind: code
+      reference: frontend/scripts/console-lint-inventory.mjs
+    note: Typed ESLint inventory measured 274 executable calls across 32 production files at baseline
+      and now reports zero outside the centralized sink.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:51:41.352422Z'
+- id: clinical_data_redaction
+  category: security
+  title: Runtime diagnostics cannot expose raw clinical payloads
+  acceptance:
+  - Patient forms, patient records, sensitive metadata, media payloads, backend response bodies, request
+    objects, event objects, and stacks are never passed to a logging sink.
+  - Logger context accepts only explicitly safe scalar values and rejects nested objects at the type and
+    runtime boundaries.
+  - Unknown errors are reduced to a safe error class and optional HTTP status without message, stack,
+    request, or response data.
+  - Regression tests prove nested and sensitive unknown values are omitted.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review logger inputs and high-risk patient/anonymization/video call sites; run redaction
+      and boundary tests.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/utils/runtimeLogger.ts
+    - kind: test
+      reference: frontend/src/utils/__tests__/runtimeLogger.test.ts
+    - kind: test
+      reference: frontend/src/api/__tests__/patientService.medicalLedger.test.ts
+    note: The logger accepts only approved scalar context, filters unknown keys and nested values at runtime,
+      and reduces errors to an allowlisted class plus optional HTTP status; migrated calls pass no clinical
+      payloads, identifiers, URLs, response bodies, messages, or stacks.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:51:42.325552Z'
+- id: structured_runtime_logger
+  category: functionality
+  title: Diagnostics use one structured runtime logger contract
+  acceptance:
+  - Logger records contain a stable event name, scope, severity, timestamp, and only safe scalar context.
+  - Debug and informational output is disabled unless an explicit frontend debug flag is enabled.
+  - Test-mode output is silent by default and can be enabled explicitly for logger tests.
+  - Warning and error logging does not suppress, replace, or mutate existing application error propagation
+    or visible error state.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run logger unit tests and inspect migrated error paths against their existing state
+      and throw/return behavior.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/utils/runtimeLogger.ts
+    - kind: code
+      reference: frontend/src/composables/useDebug.ts
+    - kind: test
+      reference: frontend/src/utils/__tests__/runtimeLogger.test.ts
+    note: All migrated diagnostics use stable structured scope/event records; debug and info require an
+      explicit flag, tests are silent by default, and warning/error paths preserve application behavior.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:51:43.312454Z'
+- id: workflow_behavior_integrity
+  category: data_integrity
+  title: Clinical workflow behavior remains unchanged
+  acceptance:
+  - Removing console calls does not change patient creation, anonymization, segment annotation, reporting,
+    polling, or export decisions.
+  - Existing user-visible success, warning, error, retry, and loading states remain authoritative.
+  - No fake lookup data, silent fallback, swallowed error, or detached failing promise is introduced.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review each migrated workflow and run its focused success and failure tests.
+    timeout_seconds: 1800
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: cd frontend && npm run test:unit -- --run
+    - kind: test
+      reference: frontend/src/stores/__tests__/videoStore.segmentDraft.test.ts
+    note: Focused workflow tests and the complete 90-file, 563-test frontend suite passed. Existing visible
+      error, polling, retry, export, anonymization, patient, reporting, and segment behavior remains authoritative;
+      one previously detached video play rejection now has explicit ownership.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:51:44.281257Z'
+- id: automated_no_console_gate
+  category: operations
+  title: Direct production console calls cannot regress
+  acceptance:
+  - ESLint rejects direct console calls throughout frontend/src except inside the logger sink module.
+  - The unsuppressed console inventory reports zero executable calls outside the sink.
+  - Normal lint and both TypeScript projects pass.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the console inventory, normal lint, and both frontend type checks.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/eslint.config.ts
+    - kind: command
+      reference: cd frontend && npm run lint
+    - kind: command
+      reference: cd frontend && npm run lint:console-inventory
+    - kind: command
+      reference: cd frontend && npm run type-check
+    - kind: command
+      reference: cd frontend && npm run type-check:component-tests
+    note: ESLint rejects console use throughout production source except the logger sink; normal lint,
+      the zero-finding inventory, and both TypeScript projects pass.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:51:45.284213Z'
+- id: regression_verification
+  category: testing
+  title: Logging migration has complete regression verification
+  acceptance:
+  - Focused logger and migrated-workflow tests pass.
+  - The complete frontend unit suite passes without routine application log noise.
+  - The production build succeeds.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run affected suites, the complete unit suite, and the production build.
+    timeout_seconds: 1800
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: cd frontend && npm run test:unit -- --run
+    - kind: command
+      reference: cd frontend && npm run build
+    - kind: test
+      reference: frontend/src/components/VideoExamination/__tests__/ExportAnnotations.pts-contract.test.ts
+    note: Focused migrated-workflow tests passed, the full unit suite passed 90 files and 563 tests without
+      routine application-log noise, and the current production build passed with 517 modules; only the
+      existing chunk-size advisory remains.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:51:46.274086Z'
+- id: contributor_guidance
+  category: documentation
+  title: Contributors can add safe actionable diagnostics
+  acceptance:
+  - Frontend documentation defines safe event naming and scalar context.
+  - Guidance prohibits raw errors, payloads, clinical identifiers, stacks, request objects, and response
+    bodies.
+  - Documentation explains debug/test gating and the direct-console lint rule.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review frontend README logging guidance against the logger API, tests, and ESLint gate.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: frontend/README.md
+    note: Contributor guidance now defines stable lowercase scope/event naming, approved scalar context,
+      prohibited clinical and transport data, debug/test gating, the inventory command, and the sink-only
+      exception.
+    assessed_by: codex-professionalism
+    assessed_at: '2026-08-04T18:51:52.688014Z'

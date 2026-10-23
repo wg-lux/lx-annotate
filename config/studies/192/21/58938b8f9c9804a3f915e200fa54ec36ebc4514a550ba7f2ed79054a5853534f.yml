@@ -1,0 +1,26 @@
+schema_version: '1.0'
+definition_id: study_05e571820b214155900a289a07bf8421
+definition_version: 1.0.0
+datasets: []
+cohorts:
+- name: Follow-up study
+  hypothesis: Explicit study hypothesis
+  filters:
+    date_from: null
+    date_to: null
+    center_key: null
+    examination_name: null
+    document_type: null
+    finding: null
+    annotation_label: null
+    has_report: null
+    has_video: null
+    limit: 100
+  study_metadata:
+    participating_centers: []
+    age_groups: []
+    terminology_requirements: []
+    inclusion_criteria: []
+    analysis_definitions: []
+  definition_id: cohort_21
+  dataset_refs: []

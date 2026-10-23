@@ -1,16 +1,17 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import axiosInstance from '@/api/axiosInstance'
+import { endpoints } from '@/types/api/endpoints'
 import FinalizedResultPage from '../FinalizedResultPage.vue'
 
 const setActiveReportId = vi.fn()
+const axiosGet = vi.hoisted(() => vi.fn())
 
-vi.mock('@/api/axiosInstance', () => ({
+vi.mock('@/api/axiosInstance', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api/axiosInstance')>()),
   default: {
-    get: vi.fn()
-  },
-  r: (path: string) => `api/${path}`
+    get: axiosGet
+  }
 }))
 
 vi.mock('vue-router', () => ({
@@ -30,57 +31,72 @@ vi.mock('@/stores/reportingFlowStore', () => ({
 }))
 
 describe('FinalizedResultPage', () => {
+  const pdfViewUrl = `/endoreg-api/${endpoints.media.pdfStream(12)}?type=raw`
+  const pdfDownloadUrl = `/endoreg-api/${endpoints.media.pdfStream(12)}?type=raw&download=1`
+  const patientTimelineUrl = `/endoreg-api/${endpoints.media.patientTimeline(9)}`
+
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
   it('loads latest report and displays artifact links', async () => {
-    vi.mocked(axiosInstance.get)
+    axiosGet
       .mockResolvedValueOnce({
         data: [{ id: 88, status: 'final', version: 4, updatedAt: '2026-02-27T08:00:00Z' }]
-      } as any)
+      })
       .mockResolvedValueOnce({
         data: {
           id: 88,
           persistedArtifacts: {
-            pdfViewUrl: '/api/media/pdfs/12/stream/?type=raw',
-            pdfDownloadUrl: '/api/media/pdfs/12/stream/?type=raw&download=1',
-            patientTimelineUrl: '/api/media/patients/9/timeline/'
+            pdfViewUrl,
+            pdfDownloadUrl,
+            patientTimelineUrl
           }
         }
-      } as any)
+      })
 
     const wrapper = mount(FinalizedResultPage)
     await flushPromises()
 
     expect(setActiveReportId).toHaveBeenCalledWith(88)
-    expect(wrapper.text()).toContain('Bericht #88 geladen.')
+    expect(wrapper.text()).toContain('Der abgeschlossene Bericht wurde geladen.')
+    expect(wrapper.text()).toContain('Abgeschlossen')
+    expect(wrapper.text()).not.toContain('Bericht #88')
+    expect(
+      wrapper.get('[data-testid="finalized-technical-details"]').attributes('open')
+    ).toBeUndefined()
 
     const hrefs = wrapper.findAll('a').map((a) => a.attributes('href'))
-    expect(hrefs).toContain('/api/media/pdfs/12/stream/?type=raw')
-    expect(hrefs).toContain('/api/media/pdfs/12/stream/?type=raw&download=1')
-    expect(hrefs).toContain('/api/media/patients/9/timeline/?patient_examination_id=17')
+    expect(hrefs).toContain(pdfViewUrl)
+    expect(hrefs).toContain(pdfDownloadUrl)
+    expect(hrefs).toContain(`${patientTimelineUrl}?patient_examination_id=17`)
+    for (const link of wrapper.findAll('a')) {
+      expect(link.element.origin).toBe(window.location.origin)
+    }
   })
 
   it('builds fallback timeline link with patient_examination_id filter', async () => {
-    vi.mocked(axiosInstance.get)
+    axiosGet
       .mockResolvedValueOnce({
         data: [{ id: 88, status: 'final', version: 4, updatedAt: '2026-02-27T08:00:00Z' }]
-      } as any)
+      })
       .mockResolvedValueOnce({
         data: {
           id: 88,
           persistedArtifacts: {
-            pdfViewUrl: '/api/media/pdfs/12/stream/?type=raw',
-            pdfDownloadUrl: '/api/media/pdfs/12/stream/?type=raw&download=1'
+            pdfViewUrl,
+            pdfDownloadUrl
           }
         }
-      } as any)
+      })
 
     const wrapper = mount(FinalizedResultPage)
     await flushPromises()
 
     const hrefs = wrapper.findAll('a').map((a) => a.attributes('href'))
-    expect(hrefs).toContain('/api/media/patients/9/timeline/?patient_examination_id=17')
+    expect(hrefs).toContain(`${patientTimelineUrl}?patient_examination_id=17`)
+    for (const link of wrapper.findAll('a')) {
+      expect(link.element.origin).toBe(window.location.origin)
+    }
   })
 })

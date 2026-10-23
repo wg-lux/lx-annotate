@@ -1,30 +1,100 @@
-import js from "@eslint/js";
-import vue from "eslint-plugin-vue";
-import tseslint from "@typescript-eslint/eslint-plugin";
-import tsparser from "@typescript-eslint/parser";
-import prettier from "eslint-plugin-prettier";
+import js from '@eslint/js'
+import pluginVue from 'eslint-plugin-vue'
+import globals from 'globals'
+import {
+  configureVueProject,
+  defineConfigWithVueTs,
+  vueTsConfigs
+} from '@vue/eslint-config-typescript'
+import skipFormatting from '@vue/eslint-config-prettier/skip-formatting'
 
-export default [
-  js.configs.recommended,
-  ...vue.configs["flat/recommended"],
+configureVueProject({
+  scriptLangs: ['ts', 'js'],
+  allowComponentTypeUnsafety: false
+})
+
+export default defineConfigWithVueTs(
   {
-    files: ["**/*.ts", "**/*.vue"],
+    ignores: [
+      'coverage/**',
+      'dist/**',
+      '.vite/**',
+      'lx-annotate/**',
+      'tools/**',
+      '**/*.d.ts',
+      'src/**/*.js'
+    ]
+  },
+  js.configs.recommended,
+  pluginVue.configs['flat/recommended'],
+  vueTsConfigs.strictTypeChecked,
+  {
+    files: ['**/*.{ts,vue}'],
     languageOptions: {
-      parser: tsparser,
       parserOptions: {
-        project: "./tsconfig.json",
-        extraFileExtensions: [".vue"],
-      },
-    },
-    plugins: {
-      "@typescript-eslint": tseslint,
-      prettier,
+        projectService: false,
+        project: './tsconfig.eslint.json',
+        tsconfigRootDir: import.meta.dirname
+      }
     },
     rules: {
-      "prettier/prettier": "warn",
-      "vue/multi-word-component-names": "off",
-      "no-unused-vars": "off",
-      "@typescript-eslint/no-unused-vars": ["warn"],
-    },
+      complexity: ['warn', 10],
+      'vue/multi-word-component-names': 'off',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+          varsIgnorePattern: '^_'
+        }
+      ]
+    }
   },
-];
+  {
+    files: ['src/**/*.{ts,vue}'],
+    languageOptions: {
+      globals: globals.browser
+    },
+    rules: {
+      'no-console': 'error'
+    }
+  },
+  {
+    files: ['src/utils/runtimeLogger.ts'],
+    rules: {
+      'no-console': 'off'
+    }
+  },
+  {
+    files: ['src/**/__tests__/**/*.ts', 'src/**/*.{test,spec}.ts', 'tests/**/*.ts'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        ...globals.jest,
+        vi: 'readonly'
+      }
+    }
+  },
+  {
+    files: ['cypress/**/*.ts'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        ...globals.mocha,
+        cy: 'readonly',
+        Cypress: 'readonly'
+      }
+    }
+  },
+  {
+    files: ['*.config.ts', 'vite.config.ts', 'vitest.config.ts', 'eslint.config.ts'],
+    languageOptions: {
+      globals: globals.node
+    }
+  },
+  skipFormatting
+)

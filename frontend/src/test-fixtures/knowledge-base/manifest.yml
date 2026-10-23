@@ -1,0 +1,26 @@
+fixture_contract: lx_frontend_core_concepts_yaml_v1
+graph_contract: knowledge_base_graph_v1
+upstream_repository: lx-data-models
+upstream_graph_contract_commit: d7f7a7e
+selection_rule: One representative record for every core-concept model type observed in each source module.
+coverage_note: The shipped records are a portable representative slice, not a dependency-complete knowledge base. Graph tests therefore expose only edges whose source and target both occur in the slice.
+excluded_models:
+  - examination_validator
+  - findings_validator
+  - report_finding
+  - report_template
+  - report_template_section
+modules:
+  mst_3_0:
+    version: 3.0.0
+    source: lx_dtypes/data/mst_3_0
+    fixture: mst_3_0.yml
+  star_upper_gi:
+    version: 0.1.1
+    source: lx_dtypes/data/star_upper_gi
+    fixture: star_upper_gi.yml
+  terminology:
+    version: 0.1.0
+    source: lx_dtypes/data/terminology
+    fixture: terminology.yml
+    note: The umbrella declares child modules; representative records are selected across those child catalogs.

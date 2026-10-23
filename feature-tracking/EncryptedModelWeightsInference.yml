@@ -1,0 +1,138 @@
+schema_version: '1.0'
+id: encrypted_model_weights_inference
+name: Encrypted Model Weights Inference
+description: Ensure AI inference loads application-encrypted model weights through the authenticated
+  storage boundary without exposing persistent plaintext, while preserving actionable failure diagnostics
+  and production-safe cleanup behavior.
+owners:
+- endoreg-db maintainers
+- lx-annotate maintainers
+- LuxNix maintainers
+- security operations
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: AGENTS.md
+  disposition: reference
+  note: Canonical encrypted runtime file consumption and cryptographic invariants.
+- path: docs/guides/deployment-strategy.md
+  disposition: reference
+  note: Protected runtime storage and production deployment boundaries.
+- path: docs/guides/wheel-deployment.md
+  disposition: reference
+  note: Packaged runtime, target-host verification, and release acceptance contract.
+definition_of_done:
+- id: encrypted_weights_contract
+  category: requirements
+  title: Model-weight storage and consumption boundaries are explicit
+  acceptance:
+  - Model weights managed by Django remain encrypted at rest and may carry an LXENC01 header even when
+    their logical filename ends in .safetensors, .pt, or .pth.
+  - Code distinguishes the encrypted storage object from the scoped plaintext path required by third-party
+    model loaders; a FileField path is never treated as proof of plaintext format.
+  - Supported model formats, storage backends, key-identity requirements, and fail-closed behavior are
+    documented without exposing key material.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the ModelMeta weights field, configured storage backend, inference call sites,
+      and encrypted-file contract against representative model formats.
+    timeout_seconds: 600
+  assessment:
+    status: not_assessed
+- id: storage_aware_model_loading
+  category: functionality
+  title: Inference loads weights through authenticated scoped decryption
+  acceptance:
+  - The prediction pipeline opens ModelMeta.weights through the configured storage backend and uses the
+    existing scoped plaintext materialization abstraction rather than passing model_meta.weights.path to
+    Safetensors, PyTorch, Lightning, or another model loader.
+  - The plaintext path remains valid for the complete model-loading operation, including GPU-to-CPU retry,
+    and is released only after the loader no longer needs the file.
+  - Safetensors, PyTorch checkpoint, stub-weight, output-class inference, and label-mapping behavior operate
+    on the same authenticated plaintext representation without duplicate decryption paths.
+  required: true
+  verification:
+    kind: manual
+    instructions: Exercise encrypted .safetensors and checkpoint weights through the production prediction
+      entry point on CPU and, where available, GPU with CPU fallback.
+    timeout_seconds: 1200
+  assessment:
+    status: not_assessed
+- id: plaintext_lifecycle_security
+  category: security
+  title: Temporary plaintext is bounded, protected, and reliably removed
+  acceptance:
+  - Materialized weights use restrictive permissions and a bounded temporary location outside persistent
+    model storage; filenames, logs, exceptions, and metrics do not reveal plaintext or key material.
+  - Cleanup uses the typed filesystem wrappers and runs after success, loader failure, CUDA fallback failure,
+    cancellation, and worker termination wherever application cleanup can execute.
+  - Missing keys, wrong key identity, malformed LXENC01 headers, authentication-tag failures, and unexpected
+    plaintext-at-rest inputs fail closed without rewriting or silently accepting the artifact.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review temporary-file ownership and cleanup, then inject wrong-key, tampered-ciphertext,
+      malformed-header, loader-error, and cancellation cases while checking structured non-secret logs.
+    timeout_seconds: 1200
+  assessment:
+    status: not_assessed
+- id: encrypted_weights_regression_tests
+  category: testing
+  title: Regression tests reproduce the ciphertext-path defect and prove the fix
+  acceptance:
+  - A regression test stores valid model weights through the encrypted Django storage backend and proves
+    inference receives valid plaintext rather than the LXENC01 container.
+  - Negative tests cover wrong key, tampering, truncated ciphertext, unsupported plaintext model format,
+    GPU-load failure followed by CPU retry, and exceptions raised inside the model loader.
+  - Tests assert that ciphertext remains unchanged at rest and that no persistent plaintext or abandoned
+    temporary file remains after every success and failure path.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the focused endoreg-db AI inference and encryption tests, then the broader temporal
+      inference acceptance lane with filesystem cleanup assertions enabled.
+    timeout_seconds: 1800
+  assessment:
+    status: not_assessed
+- id: inference_failure_observability
+  category: operations
+  title: Operators can distinguish decryption, format, resource, and loader failures
+  acceptance:
+  - Structured diagnostics identify the failing stage as encrypted-storage access, authenticated decryption,
+    plaintext format validation, GPU loading, CPU fallback, or model construction without logging secrets
+    or payload fragments.
+  - VideoProcessingHistory retains an actionable non-secret failure category instead of only the outer
+    Failed to load AI model message, while the inference worker remains available for later jobs.
+  - Runtime checks include worker queue health, master-key identity readiness, storage-pressure admission,
+    GPU availability, and confirmation that cleanup did not leave plaintext files.
+  required: true
+  verification:
+    kind: manual
+    instructions: Trigger each classified failure on a production-like host and correlate the history entry,
+      structured service logs, queue health, key preflight, resource state, and temporary-file inventory.
+    timeout_seconds: 1800
+  assessment:
+    status: not_assessed
+- id: release_and_operator_documentation
+  category: documentation
+  title: Release acceptance and operator guidance cover encrypted model loading
+  acceptance:
+  - English documentation explains that model filename extensions describe decrypted content and that an
+    LXENC01 on-disk header is expected, not evidence of corruption by itself.
+  - The runbook provides read-only checks for file ownership, encrypted header, key preflight, inference
+    worker queue, storage pressure, and classified errors without instructing operators to decrypt or copy
+    weights manually.
+  - Production acceptance records the exact lx-annotate, endoreg-db, LuxNix, Safetensors, and PyTorch versions,
+    target host, model identity and ciphertext digest, focused test results, and a successful encrypted-weight
+    inference while preserving the deployment-source-hygiene gate.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the English runbook and release evidence, then perform one approved encrypted-model
+      inference acceptance run on the named target host without exposing plaintext or secrets.
+    timeout_seconds: 1800
+  assessment:
+    status: not_assessed

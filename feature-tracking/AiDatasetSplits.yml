@@ -1,0 +1,241 @@
+schema_version: '1.0'
+id: ai_dataset_splits
+name: Patient-grouped AI dataset splits
+description: Saved annotation membership snapshots with a fixed patient test holdout and rotating k-fold
+  validation, Bootstrap bucket fill levels and label presence histograms. Fractions target patient counts,
+  not frame counts. Missing or inconsistent patient links fail closed. Existing dataset display filters
+  do not filter split membership. Plans use all attached image and segment annotations. The seed shuffles
+  sorted patient IDs; rounded holdout patients remain fixed across k values for the same population, seed
+  and test percentage. Remaining patients rotate through validation once. Labels are not stratified. Snapshots
+  freeze membership IDs, not annotation content or media. Training consumers can read membership from
+  the plan detail endpoint; this feature does not modify training execution or export media. Endpoints
+  are GET/POST settings/application/ai_datasets/{dataset_id}/split_plans/ and GET settings/application/ai_datasets/{dataset_id}/split_plans/{plan_id}/
+  under endoreg-api/. POST accepts name, k (2-20), test_percent (1-50), and seed (0-2147483647). A membership
+  validation_fold of null is test; for fold i, validation_fold i is validation and other non-null folds
+  are training. Persistence is owned by endoreg-db (endoreg_db.models.aidataset.AIDatasetSplitPlan); lx_annotate.models.AIDatasetSplitPlan
+  is a compatibility import. Apply migrations through lx_annotate.0016_application_persistence (which
+  requires endoreg_db.0097_application_persistence and moves rows created by lx_annotate.0008_aidatasetsplitplan)
+  before using the page. No migration has been applied to an application or production database by this
+  task.
+owners:
+- lx-annotate maintainers
+production_critical: false
+tracking:
+  state: active
+  history: []
+source_documents: []
+definition_of_done:
+- id: split_integrity
+  category: requirements
+  title: Reproducible persisted patient-grouped splits
+  acceptance:
+  - Test patients stay fixed across folds and each remaining patient validates exactly once.
+  - No patient, video, or annotation is shared between roles within a fold.
+  - Invalid requests and missing or conflicting patient associations fail without saving.
+  - Saved plans retain snapshot membership and are accessible only within authorized centers.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run focused backend and frontend split tests and inspect migration consistency.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: '.devenv/state/venv/bin/pytest tests/api/test_ai_dataset_splits.py tests/contracts/test_frontend_backend_api_contract.py
+        -q: 22 passed'
+    - kind: test
+      reference: tests/api/test_ai_dataset_splits.py
+    note: 'Verified deterministic patient grouping, fixed test across k values, immutable membership,
+      invalid-input rejection, authenticated center scope and API persistence; frontend suite: 25 passed.'
+    assessed_by: codex-buckets-20260911-a
+    assessed_at: '2026-09-11T08:34:37.890907Z'
+- id: permissions
+  category: security
+  title: Authentication and center scope enforced
+  acceptance:
+  - Unauthorized requests cannot read or create plans.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run permission tests.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: '.devenv/state/venv/bin/pytest tests/api/test_ai_dataset_splits.py tests/contracts/test_frontend_backend_api_contract.py
+        -q: 22 passed'
+    - kind: test
+      reference: tests/api/test_ai_dataset_splits.py
+    note: 'Verified deterministic patient grouping, fixed test across k values, immutable membership,
+      invalid-input rejection, authenticated center scope and API persistence; frontend suite: 25 passed.'
+    assessed_by: codex-buckets-20260911-a
+    assessed_at: '2026-09-11T08:34:39.925646Z'
+- id: persistence
+  category: data_integrity
+  title: Snapshot validation at model boundary
+  acceptance:
+  - Invalid persisted membership is rejected.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run model validation tests.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: '.devenv/state/venv/bin/pytest tests/api/test_ai_dataset_splits.py tests/contracts/test_frontend_backend_api_contract.py
+        -q: 22 passed'
+    - kind: test
+      reference: tests/api/test_ai_dataset_splits.py
+    note: 'Verified deterministic patient grouping, fixed test across k values, immutable membership,
+      invalid-input rejection, authenticated center scope and API persistence; frontend suite: 25 passed.'
+    assessed_by: codex-buckets-20260911-a
+    assessed_at: '2026-09-11T08:34:41.484543Z'
+- id: visualization
+  category: functionality
+  title: Accessible bucket and label distribution displays
+  acceptance:
+  - Counts and fill levels are displayed with readable labels.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run component tests.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'npx vitest run src/components/AiDataset/AiDatasetSplitBuilder.test.ts src/views/__tests__/AiDatasetBucketsPage.test.ts
+        src/api/__tests__/aiDatasetSplitApi.test.ts src/api/__tests__/aiDatasetApi.test.ts: 25 passed;
+        npm run build-only: passed'
+    note: DOM tests verify bucket counts, fill proportions, histogram labels, saved plans, errors and
+      stale requests. No browser screenshot review was performed.
+    assessed_by: codex-buckets-20260911-a
+    assessed_at: '2026-09-11T08:34:11.587424Z'
+- id: contracts
+  category: testing
+  title: Frontend and backend contracts agree
+  acceptance:
+  - Creation and reload preserve saved configuration.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run API and UI tests.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: '2026-10-01, assessor codex-failure-triage-20261001: tests/api/test_ai_dataset_settings_api.py'
+      note: 'endoreg-db 1.4.1 migration 0078_video_joined_dataset seeds a system-managed dataset. Invalid-request
+        tests now compare persisted rows before and after POST instead of assuming an empty table. Video-default
+        creation preserves existing dropdown entries and adds the exact expected new entry. Validation
+        status codes and error messages remain asserted. Focused rerun of dataset API, storage balance
+        worker and storage recovery tests: 31 passed, 4 failed in 84.27s; all 12 dataset API tests passed.
+        The four remaining failures are endoreg-db PostgreSQL locking defects. Ruff check and format --check
+        passed for the changed test file. Final cross-repository rerun with PYTHONPATH=/home/admin/endoreg-db:
+        all 35 selected tests passed in 75.41s, including all 12 dataset API tests.'
+    - kind: command
+      reference: '.devenv/state/venv/bin/pytest tests/api/test_ai_dataset_splits.py tests/contracts/test_frontend_backend_api_contract.py
+        -q: 22 passed'
+    - kind: test
+      reference: tests/api/test_ai_dataset_splits.py
+    - kind: command
+      reference: '2026-10-23: .devenv/state/venv/bin/python -m pytest tests/api/test_ai_dataset_splits.py
+        tests/api/test_ai_dataset_settings_api.py tests/contracts/test_frontend_backend_api_contract.py
+        tests/migrations/test_application_persistence_move.py -q: 42 passed in 71.95s; frontend npx vitest
+        run (4 AiDataset files): 25 passed'
+    note: Re-verified 2026-10-23 against endoreg-db 1.6.1 ownership; earlier evidence retained.
+    assessed_by: claude-ai-dataset-splits-20261023
+    assessed_at: '2026-10-23T07:11:12.779282Z'
+- id: documentation
+  category: documentation
+  title: Scope and limitations documented
+  acceptance:
+  - Patient-based ratios and snapshot semantics are documented.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review feature scope against code.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: feature-tracking/AiDatasetSplits.yml description
+    - kind: code
+      reference: lx_annotate/api_urls.py:151-158 split_plans endpoints; lx_annotate/models/ai_dataset_split_plan.py
+        compatibility import of endoreg_db model
+    note: 'Re-assessed 2026-10-23: scope still documents patient ratios, membership snapshots, fixed holdout
+      across k, absent label stratification and API paths; migration prerequisite corrected from lx_annotate.0008
+      to the endoreg-db ownership move (lx_annotate.0016 / endoreg_db.0097).'
+    assessed_by: claude-ai-dataset-splits-20261023
+    assessed_at: '2026-10-23T07:11:10.480045Z'
+- id: migration
+  category: operations
+  title: Migration is reviewable and consistent with the model
+  acceptance:
+  - Migration graph resolves and no additional model migration is needed.
+  required: true
+  verification:
+    kind: manual
+    instructions: Check migration graph and run makemigrations --check with migrations enabled.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_test .devenv/state/venv/bin/python
+        manage.py makemigrations lx_annotate endoreg_db --check --dry-run (migrations enabled, endoreg-db
+        1.6.1): No changes detected'
+    - kind: test
+      reference: 'tests/migrations/test_application_persistence_move.py: 2 passed (lx_annotate.0016 moves
+        AIDatasetSplitPlan to endoreg_db.0097)'
+    note: Re-assessed 2026-10-23 after persistence moved to endoreg-db. Installed endoreg_db model is
+      identical to /home/admin/endoreg-db at 1.6.1. Application and production databases were not migrated;
+      apply through lx_annotate.0016 before use.
+    assessed_by: claude-ai-dataset-splits-20261023
+    assessed_at: '2026-10-23T07:11:08.590595Z'
+- id: saved_patient_link_integrity
+  category: data_integrity
+  title: Saved split membership rejects changed patient associations
+  acceptance:
+  - Before returning saved membership, recheck every saved video against its recorded patient using the
+    same direct/examination resolution as plan creation.
+  - Return HTTP 409 without membership for reassigned, missing, conflicting or deleted video/patient links.
+    Preserve the original snapshot and historical list summaries.
+  - Check center authorization before returning drift errors. Accept equivalent examination-based linkage
+    and dataset membership changes that leave the saved video-to-patient mapping intact.
+  required: true
+  verification:
+    kind: command
+    command:
+    - .devenv/state/venv/bin/python
+    - -m
+    - pytest
+    - tests/api/test_ai_dataset_splits.py
+    - -q
+    - --tb=short
+    - --show-capture=no
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: 'tests/api/test_ai_dataset_splits.py: 19 passed in 6.27s; six new cases cover four drift
+        modes, equivalent examination linkage and authorization precedence.'
+    - kind: test
+      reference: '.devenv/state/venv/bin/python -m pytest tests/api/test_ai_dataset_settings_api.py tests/contracts/test_frontend_backend_api_contract.py
+        -q --tb=short --show-capture=no: 21 passed in 5.46s.'
+    - kind: command
+      reference: Ruff check and format --check passed for both changed Python modules and the split test
+        module.
+    note: Membership detail now returns 409 on current patient-link drift. Historical summaries remain
+      available and snapshots remain immutable. This is a retrieval-time check, not a lock covering later
+      training, annotation-content freezing, cross-site identity resolution or public-release approval.
+      No schema or migration changes.
+    assessed_by: codex-claims-20260928
+    assessed_at: '2026-09-28T09:40:00.707899Z'

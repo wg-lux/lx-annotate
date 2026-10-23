@@ -1,0 +1,51 @@
+schema_version: '1.0'
+kind: operational_audit
+assessor: codex-gc02-transfer-20261008
+performed_at: '2026-10-08T07:22:14.722075+00:00'
+authorization: User requested cleanup of unrecoverable limbo records on gc-02 and gc-10 while preserving recoverable records.
+scope:
+  database: endoregDbLocal
+  method: Reviewed import jobs, provenance locations, storage files, matching media, task references, and outbound transfer jobs using sudo psql and read-only filesystem metadata checks.
+  cleanup: Mark unrecoverable imports LOST and dismiss from overview using existing model and overview semantics; retain audit history.
+  exclusions: No media deletion, source cleanup, job requeue, service restart, transfer deletion, or credential changes.
+gc_02:
+  changed:
+    - id: 5f6c7999-c3d7-47db-85a1-a96f2f106bf1
+      previous_status: pending
+      previous_updated_at: '2026-04-10T11:09:50.051267+00:00'
+      status: lost
+      error_code: invalid_input
+      dismissed: true
+      reason: Migration record represents a four-byte lock sidecar, not media; no matching media or linked transfer, LLM, or quarantine records.
+    - id: 27d28601-dc30-47c6-a7dc-e31303ad9060
+      previous_status: pending
+      previous_updated_at: '2026-04-10T11:56:58.393692+00:00'
+      status: lost
+      error_code: source_missing
+      dismissed: true
+      reason: Source absent at storage and recorded provenance locations; protected data tree contains no test.mp4; no matching media or linked transfer, LLM, or quarantine records.
+  preserved_pending:
+    - id: e80b508b-fa05-4086-9112-10b364957363
+      evidence: Matching PDF 3 has a nonempty raw file.
+    - id: 0f351324-5fcb-45e1-a124-936bfbd669be
+      evidence: Matching PDF 2 has nonempty raw and processed files.
+    - id: d6d8da88-9a3d-45a1-975e-9fe2b68091d5
+      evidence: Retained upload source is 88051 bytes.
+  outbound_transfers: Two queued and one completed; unchanged.
+  upload_job_count_after: 46
+gc_10:
+  mutations: 0
+  visible_failed_imports_preserved: 6
+  evidence: All six have nonempty retained upload sources; four also match retained video records.
+  outbound_transfers: One completed; unchanged.
+  upload_job_count_after: 33
+verification:
+  - Transaction locked the two selected rows and required their complete row fingerprints to match inspection.
+  - Transaction required exactly two updates, inactive leases, pending migration status, and no cleanup in progress.
+  - Transaction compared fingerprints of all other gc-02 import rows before and after; unchanged.
+  - Fresh database reads confirmed both selected records LOST, dismissed, not retryable, and without active leases.
+  - Fresh reads confirmed three pending gc-02 migration records, six visible failed gc-10 imports, and unchanged outbound transfer states.
+limitations:
+  - Retained-source checks establish potential recoverability, not authenticated decryption or successful processing; ambiguous records were preserved.
+  - Already dismissed historical attempts were left intact.
+  - Recovery of retained jobs and repair of gc-02 transfer authentication are outside this cleanup.

@@ -43,6 +43,12 @@ describe('reportSubmissionUtils', () => {
     expect(merged).toHaveLength(3)
   })
 
+  it('preserves API selections when the finding has no local selection map', () => {
+    expect(
+      mergeClassificationSelections(10, [{ classification: 1, classificationChoice: 11 }], {})
+    ).toEqual([{ classification: 1, classificationChoice: 11 }])
+  })
+
   it('normalizes interventions and filters invalid entries', () => {
     const normalized = normalizeInterventions([
       123, // ignored primitive entry

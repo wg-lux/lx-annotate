@@ -1,0 +1,237 @@
+{
+  "active": {
+    "module_name": "star_upper_gi",
+    "version": "0.1.2"
+  },
+  "modules": {
+    "coloreg": {
+      "0.1.0": {
+        "hydrated_from_sha256": "ae7575f24fa6a3535f1dd4ae53fa642086d77a847e73d15952e7d666f4b8b8fb",
+        "medical_field": "gastroenterology",
+        "shipped_tree_sha256": "08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039",
+        "sources": [
+          {
+            "input_dirs": [
+              "/home/admin/dev/lx-annotate/terminology/shipped/08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039/data/terminology/versions/coloreg/0.1.0"
+            ],
+            "kind": "filesystem"
+          }
+        ]
+      },
+      "0.2.0": {
+        "hydrated_from_sha256": "4818d02181e6f19412eb4bdab54354f620484a82e0420cfb086aa5092392e92a",
+        "medical_field": "gastroenterology",
+        "shipped_tree_sha256": "08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039",
+        "sources": [
+          {
+            "input_dirs": [
+              "/home/admin/dev/lx-annotate/terminology/shipped/08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039/data/terminology/versions/coloreg/0.2.0"
+            ],
+            "kind": "filesystem"
+          }
+        ]
+      },
+      "0.3.0": {
+        "hydrated_from_sha256": "1f8dcf81bb71452c3a0756655e65dd27b197d4604793332f645054445453f80b",
+        "medical_field": "gastroenterology",
+        "shipped_tree_sha256": "08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039",
+        "sources": [
+          {
+            "input_dirs": [
+              "/home/admin/dev/lx-annotate/terminology/shipped/08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039/data"
+            ],
+            "kind": "filesystem"
+          }
+        ]
+      }
+    },
+    "coloreg_terminology": {
+      "0.3.0": {
+        "hydrated_from_sha256": "a9cc11ed344d955bf48c23cf4e7e7e995b049e7529f445f512cd15217a178af8",
+        "medical_field": "gastroenterology",
+        "shipped_tree_sha256": "08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039",
+        "sources": [
+          {
+            "input_dirs": [
+              "/home/admin/dev/lx-annotate/terminology/shipped/08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039/data"
+            ],
+            "kind": "filesystem"
+          }
+        ]
+      }
+    },
+    "dgvs_reporting": {
+      "0.1.0": {
+        "hydrated_from_sha256": "3641cde9c205b1c57140613abc01fd6e4c83a176870aca0963b8554e6e8e07b5",
+        "medical_field": "gastroenterology",
+        "shipped_tree_sha256": "08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039",
+        "sources": [
+          {
+            "input_dirs": [
+              "/home/admin/dev/lx-annotate/terminology/shipped/08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039/data"
+            ],
+            "kind": "filesystem"
+          }
+        ]
+      }
+    },
+    "endoreg_green_endoscopy": {
+      "1.0.0": {
+        "hydrated_from_sha256": "d8a48ad330f803bc4de50fd598f81e00b819854c0b72afbf9abf021d69f1dd73",
+        "shipped_tree_sha256": "08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039",
+        "sources": [
+          {
+            "input_dirs": [
+              "/home/admin/dev/lx-annotate/terminology/shipped/08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039/data"
+            ],
+            "kind": "filesystem"
+          }
+        ]
+      }
+    },
+    "endoreg_reference": {
+      "1.0.0": {
+        "hydrated_from_sha256": "c1c362543217bd79bbef41eecd72d668ac54ef704e7dd5442ebdeeab3101b962",
+        "medical_field": "gastroenterology",
+        "shipped_tree_sha256": "08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039",
+        "sources": [
+          {
+            "input_dirs": [
+              "/home/admin/dev/lx-annotate/terminology/shipped/08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039/data"
+            ],
+            "kind": "filesystem"
+          }
+        ]
+      }
+    },
+    "endoreg_workforce": {
+      "1.0.0": {
+        "hydrated_from_sha256": "d1a7ed9c3d77efb4106a705dbeab72bcb100cca4431bb93515937bd5ef38355a",
+        "shipped_tree_sha256": "08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039",
+        "sources": [
+          {
+            "input_dirs": [
+              "/home/admin/dev/lx-annotate/terminology/shipped/08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039/data"
+            ],
+            "kind": "filesystem"
+          }
+        ]
+      }
+    },
+    "mst_3_0": {
+      "3.0.0": {
+        "hydrated_from_sha256": "edf6439f9654f773cbef4ac2c83c252c22033467d25534472dde4d71ac8b8607",
+        "medical_field": "gastroenterology",
+        "shipped_tree_sha256": "08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039",
+        "sources": [
+          {
+            "input_dirs": [
+              "/home/admin/dev/lx-annotate/terminology/shipped/08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039/data"
+            ],
+            "kind": "filesystem"
+          }
+        ]
+      }
+    },
+    "mst_3_0_terminology": {
+      "3.0.0": {
+        "hydrated_from_sha256": "c773d2a2b673172fadf9b65da864a0964161d598973a7e139a2535d23659a780",
+        "medical_field": "gastroenterology",
+        "shipped_tree_sha256": "08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039",
+        "sources": [
+          {
+            "input_dirs": [
+              "/home/admin/dev/lx-annotate/terminology/shipped/08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039/data"
+            ],
+            "kind": "filesystem"
+          }
+        ]
+      }
+    },
+    "polyp_size_category": {
+      "1.0.0": {
+        "hydrated_from_sha256": "79b3fc288b7a065e8156cd7a24da3a8001aee5de3e824b7e05f65e6fdd2bc3b5",
+        "medical_field": "gastroenterology",
+        "shipped_tree_sha256": "08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039",
+        "sources": [
+          {
+            "input_dirs": [
+              "/home/admin/dev/lx-annotate/terminology/shipped/08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039/data/terminology/versions/polyp_size_category/1.0.0"
+            ],
+            "kind": "filesystem"
+          }
+        ]
+      },
+      "2.0.0": {
+        "hydrated_from_sha256": "2010ffed3374f9c0d8fa09b11d6c43930659fb54c3f320f59032be01238473eb",
+        "medical_field": "gastroenterology",
+        "shipped_tree_sha256": "08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039",
+        "sources": [
+          {
+            "input_dirs": [
+              "/home/admin/dev/lx-annotate/terminology/shipped/08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039/data"
+            ],
+            "kind": "filesystem"
+          }
+        ]
+      }
+    },
+    "report_template_examples_terminology": {
+      "0.1.1": {
+        "hydrated_from_sha256": "8a5d7764613122abde931693bd78e6108946420a12113a162fb847dcdddf9d47",
+        "shipped_tree_sha256": "08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039",
+        "sources": [
+          {
+            "input_dirs": [
+              "/home/admin/dev/lx-annotate/terminology/shipped/08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039/data"
+            ],
+            "kind": "filesystem"
+          }
+        ]
+      }
+    },
+    "star_upper_gi": {
+      "0.1.1.post1": {
+        "hydrated_from_sha256": "00302e5d8e91dcc41c9b75dd1fc18bba23389ee0fada61e227c7d51c3346122e",
+        "medical_field": "gastroenterology",
+        "shipped_tree_sha256": "08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039",
+        "sources": [
+          {
+            "input_dirs": [
+              "/home/admin/dev/lx-annotate/terminology/shipped/08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039/data/terminology/versions/star_upper_gi/0.1.1.post1"
+            ],
+            "kind": "filesystem"
+          }
+        ]
+      },
+      "0.1.2": {
+        "hydrated_from_sha256": "cb5273a00abf017db38ef5d5cf0baa7746082f977994c9ee21698f6112ceebf4",
+        "medical_field": "gastroenterology",
+        "shipped_tree_sha256": "08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039",
+        "sources": [
+          {
+            "input_dirs": [
+              "/home/admin/dev/lx-annotate/terminology/shipped/08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039/data"
+            ],
+            "kind": "filesystem"
+          }
+        ]
+      }
+    },
+    "star_upper_gi_terminology": {
+      "0.1.2": {
+        "hydrated_from_sha256": "0bb484c9c8a7d5b5ae505ed5767e2c489a5e22ccb8dc7b936a04ca4b5d996b68",
+        "medical_field": "gastroenterology",
+        "shipped_tree_sha256": "08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039",
+        "sources": [
+          {
+            "input_dirs": [
+              "/home/admin/dev/lx-annotate/terminology/shipped/08b32225312e2a0c4c2e8bb0468e1175b1502eb596ac28f0d99ce7d35efd9039/data"
+            ],
+            "kind": "filesystem"
+          }
+        ]
+      }
+    }
+  }
+}

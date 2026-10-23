@@ -6,12 +6,25 @@ let
           set -euo pipefail
           REPO_ROOT="''${WORKING_DIR:-$(pwd)}"
           cd "$REPO_ROOT"
-          BUILD_PATH="$(${pkgs.nix}/bin/nix build ./frontend#frontend --no-link --print-out-paths)"
-          mkdir -p staticfiles
-          cp -r "$BUILD_PATH/dist/." staticfiles/
+          devenv tasks run vue:build
+
+          static_root="''${DJANGO_STATIC_ROOT:-$REPO_ROOT/staticfiles}"
+          if [ "''${static_root%/}" = "$REPO_ROOT/static" ]; then
+            echo "Misconfigured DJANGO_STATIC_ROOT: $static_root" >&2
+            echo "DJANGO_STATIC_ROOT must not point to $REPO_ROOT/static (Vite source assets)." >&2
+            exit 1
+          fi
+          if [ -L "$static_root" ]; then
+            static_root="$(readlink -f "$static_root")"
+          fi
 
           if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
             echo "Not a git checkout; skipping static drift check."
+            exit 0
+          fi
+
+          if [ "''${static_root%/}" != "$REPO_ROOT/staticfiles" ]; then
+            echo "Skipping git static drift check for external DJANGO_STATIC_ROOT=$static_root."
             exit 0
           fi
 

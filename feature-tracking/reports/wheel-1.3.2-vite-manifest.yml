@@ -1,0 +1,23 @@
+schema_version: '1.0'
+assessor: codex-gc02-overview-20260922
+artifact:
+  path: dist/lx_annotate-1.3.2-py3-none-any.whl
+  sha256: f7e25f5e9113970c4df383ded981b1b5450cfa727217a7817965d2ee9ea6562a
+manifest:
+  member: lx_annotate/staticfiles/.vite/manifest.json
+  entries: 84
+  entrypoint: src/main.ts
+  entrypoint_asset: main.js
+verification:
+  archive: Manifest, referenced files, and static/dynamic import references passed the existing asset validator.
+  installation: Isolated --no-deps installation under .devenv/state/wheel-manifest-verification/f7e25f5e9113/site.
+  imports: Confirmed lx_annotate imported from the isolated wheel installation, outside the checkout working directory.
+  configuration: Actual wheel development settings with DJANGO_STATIC_ROOT explicitly pointing to the installed lx_annotate/staticfiles directory.
+  installed_assets: check_installed passed.
+  django_vite: DjangoViteAssetLoader manifest check returned no warnings.
+  template: Django rendered vite_asset for src/main.ts successfully and emitted /static/main.js.
+limits:
+  - Probe reused the development virtualenv dependencies; it was not a fully isolated dependency installation.
+  - An external STATIC_ROOT must contain the deployed wheel assets, including the hidden .vite directory.
+  - The warning path staticfiles/manifest.json differs from the packaged path staticfiles/.vite/manifest.json.
+  - No production deployment or source changes were performed.

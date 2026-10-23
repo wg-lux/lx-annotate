@@ -1,0 +1,79 @@
+schema_version: '1.0'
+definition_id: study_d8235b3359e2427ba6647920d3754955
+definition_version: 1.0.0
+datasets:
+- name: Cohort dataset 0
+  description: ''
+  dataset_type: image
+  ai_model_type: image_multilabel_classification
+  is_active: true
+  definition_id: dataset_62
+- name: Cohort dataset 1
+  description: ''
+  dataset_type: image
+  ai_model_type: image_multilabel_classification
+  is_active: true
+  definition_id: dataset_63
+cohorts:
+- name: Follow-up study
+  hypothesis: Explicit study hypothesis
+  filters:
+    date_from: null
+    date_to: null
+    center_key: null
+    examination_name: null
+    document_type: null
+    finding: null
+    annotation_label: null
+    has_report: null
+    has_video: null
+    limit: 1
+  study_metadata:
+    participating_centers: []
+    age_groups: []
+    terminology_requirements:
+    - module: research
+      version: 1.0.0
+    inclusion_criteria: []
+    analysis_definitions:
+    - schema_version: '1'
+      name: Observed outcomes
+      module: research
+      version: 1.0.0
+      unit_finding: lesion
+      status: ready
+      unresolved_requirements: []
+      inclusion: null
+      groups:
+      - name: All
+        rule:
+          mode: all
+          predicates:
+          - role: index
+            classification: result
+            descriptor: null
+            operator: present
+            value: null
+      endpoints:
+      - name: Outcome
+        positive:
+          mode: all
+          predicates:
+          - role: index
+            classification: result
+            descriptor: null
+            operator: eq
+            value: 'yes'
+        negative:
+          mode: all
+          predicates:
+          - role: index
+            classification: result
+            descriptor: null
+            operator: eq
+            value: 'no'
+        eligible: null
+  definition_id: cohort_19
+  dataset_refs:
+  - dataset_62
+  - dataset_63

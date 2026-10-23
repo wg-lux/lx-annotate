@@ -1,0 +1,139 @@
+schema_version: '1.0'
+id: mypy_enum_compatibility
+name: Mypy Django Enum Compatibility
+description: Keep Django TextChoices test values compatible with repository mypy stubs.
+owners:
+- lx-annotate maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-mypy-enum-20260825
+    changed_at: '2026-08-25T14:38:22.756389Z'
+    note: Replaced invalid TextChoices .value accesses with explicit string casts; repository mypy and
+      health tests pass.
+source_documents:
+- path: docs/guides/openapi-type-generation.md
+  disposition: reference
+  note: Existing typed contract workflow.
+definition_of_done:
+- id: enum_values_typed
+  category: requirements
+  title: Health test enum values type-check
+  acceptance:
+  - TextChoices values passed to model fields are statically strings.
+  required: true
+  verification:
+    kind: command
+    command:
+    - mypy
+    - tests/hub/test_hub_export_health.py
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'mypy tests/hub/test_hub_export_health.py: passed'
+    note: TextChoices members are explicitly cast to the string field type expected by mypy.
+    assessed_by: codex-mypy-enum-20260825
+    assessed_at: '2026-08-25T14:38:08.592079Z'
+- id: health_tests
+  category: testing
+  title: Health tests remain green
+  acceptance:
+  - Hub export health tests pass after typing changes.
+  required: true
+  verification:
+    kind: command
+    command:
+    - pytest
+    - tests/hub/test_hub_export_health.py
+    - -q
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'pytest tests/hub/test_hub_export_health.py -q: 7 passed'
+    note: Hub export health behavior remains green.
+    assessed_by: codex-mypy-enum-20260825
+    assessed_at: '2026-08-25T14:38:10.036115Z'
+- id: no_runtime_change
+  category: functionality
+  title: Enum behavior is unchanged
+  acceptance:
+  - The fix only informs static typing and preserves runtime enum values.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review cast usage around TextChoices members.
+    timeout_seconds: 60
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: Explicit casts only affect static analysis; runtime TextChoices values are unchanged.
+    note: No runtime behavior changed.
+    assessed_by: codex-mypy-enum-20260825
+    assessed_at: '2026-08-25T14:38:11.335343Z'
+- id: repository_mypy
+  category: operations
+  title: Repository mypy remains clean
+  acceptance:
+  - mypy lx_annotate tests reports no errors.
+  required: true
+  verification:
+    kind: command
+    command:
+    - mypy
+    - lx_annotate
+    - tests
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'mypy lx_annotate tests: Success, no issues found in 178 source files'
+    note: Repository-wide mypy remains clean.
+    assessed_by: codex-mypy-enum-20260825
+    assessed_at: '2026-08-25T14:38:12.481017Z'
+- id: no_suppression
+  category: security
+  title: No type-check suppression is added
+  acceptance:
+  - The fix uses an explicit type boundary rather than disabling checks.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the changed test annotations.
+    timeout_seconds: 60
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: No type-check suppression added.
+    note: The type boundary is explicit.
+    assessed_by: codex-mypy-enum-20260825
+    assessed_at: '2026-08-25T14:38:13.634621Z'
+- id: formatting
+  category: documentation
+  title: Changed test remains formatted
+  acceptance:
+  - Ruff formatting and checks pass.
+  required: true
+  verification:
+    kind: command
+    command:
+    - ruff
+    - check
+    - tests/hub/test_hub_export_health.py
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: 'Ruff check and format: passed'
+    note: Changed test remains formatted.
+    assessed_by: codex-mypy-enum-20260825
+    assessed_at: '2026-08-25T14:38:14.849190Z'

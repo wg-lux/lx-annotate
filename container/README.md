@@ -77,13 +77,18 @@ Important variables:
 - `DJANGO_SETTINGS_MODULE`: Django settings module
 - `DJANGO_SECRET_KEY`: required in production
 - `DJANGO_HOST`, `DJANGO_PORT`: bind host and port
-- `STORAGE_DIR`: data root in container (default `/app/data`)
+- `LX_ANNOTATE_ENCRYPTED_DATA_DIR`: canonical protected runtime root when you
+  want to override the default container data path
+- `STORAGE_DIR`: managed storage subtree; for consistency keep it aligned with
+  `${LX_ANNOTATE_ENCRYPTED_DATA_DIR}/storage` when you set both
 
 Notes:
 
 - In development images, set `DJANGO_SETTINGS_MODULE` explicitly to
   `lx_annotate.settings.settings_dev`.
 - In production images, default is `lx_annotate.settings.settings_prod`.
+- If you only set one runtime path variable, prefer
+  `LX_ANNOTATE_ENCRYPTED_DATA_DIR`.
 - `CENTRAL_NODE=true` switches to central-mode logic in entrypoints.
 - Containers do not run the full Nix/`devenv` shell; they only reuse the same
   virtualenv path convention as the repository.

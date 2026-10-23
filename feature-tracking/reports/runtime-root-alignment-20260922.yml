@@ -1,0 +1,112 @@
+schema_version: '1.0'
+legacy_hash_column_repair:
+  assessor: codex-gc02-overview-20260922
+  root_cause: Canonical initial migrations already declare raw_video_hash, so the autodetector cannot see older physical video_hash columns.
+  migration: /home/admin/endoreg-db/endoreg_db/migrations/0083_repair_raw_video_hash_column.py
+  behavior:
+    - Rename video_hash to raw_video_hash only when the legacy column alone exists.
+    - Preserve hash values, primary keys, and unique constraints without recomputing identity hashes.
+    - Leave an already-canonical schema unchanged; repeated execution is harmless.
+    - Reject both-column and missing-column schemas before alteration.
+    - Keep Django migration state canonical; reverse is deliberately a database no-op because migration 0082 also expects raw_video_hash.
+  tests:
+    source: /home/admin/endoreg-db/tests/test_video_hash_migration.py
+    sqlite: Five tests passed with RUN_VIDEO_TESTS=true and SKIP_EXPENSIVE_TESTS=false.
+    fresh_graph: tests/migrations/test_canonical_graph.py passed against a newly migrated database.
+    postgresql: Legacy rename, canonical no-op, repeated execution, preserved uniqueness, and both/neither rejection passed in isolated temporary schemas on development PostgreSQL 16.
+    quality: Ruff and backend tracker validation passed.
+  development_application:
+    database: endoregDbLocal
+    host: 127.0.0.1
+    port: 5434
+    result: Applying endoreg_db.0083_repair_raw_video_hash_column completed successfully.
+  release_boundary: Migration and max_migration.txt copied to the local development virtualenv for verification. Production was not changed; a released backend package must include the migration before production rollout.
+development_startup_resolution:
+  assessor: codex-gc02-overview-20260922
+  database:
+    name: endoregDbLocal
+    host: 127.0.0.1
+    port: 5434
+    cluster: /home/admin/dev/lx-annotate/.devenv/state/postgres
+    credential_file: /home/admin/dev/lx-annotate/.devenv/state/secrets/django-db-password
+    credential_mode: '0600'
+    isolation: Separate development cluster; production endoregDbLocal on port 5432 was not migrated.
+    migrations: All packaged migrations applied successfully; migrate --check exited 0.
+    temporary_setup_cleanup: Removed the empty lxAnnotateLocal database and role created earlier in this task.
+  redis:
+    endpoint: redis://127.0.0.1:6380/0
+    persistence: Append-only log in .devenv/state/redis
+    check: PONG
+  configuration:
+    - Private local .env points to the isolated database and credential file.
+    - Default development profile uses endoregDbLocal on port 5434; production profile retains port 5432 and required SSL.
+    - Development settings export the configured broker URL and preserve configured database SSL options.
+    - Compatibility API mount has a unique namespace.
+    - Watcher initializes the existing OCR processing stack on the main thread before spawning its worker.
+  terminology:
+    issue: Old active star_upper_gi@0.1.1 entry resolved to installed 0.1.2 files.
+    resolution: Validated and selected the existing star_upper_gi@0.1.2 bundle through the typed registry schema.
+    backup: data/terminology/registry.before-dev-startup-20260922.json
+  backend_fix:
+    source: /home/admin/endoreg-db/endoreg_db/apps.py
+    change: Reconciliation signal receiver and its protocol accept Django keyword arguments.
+    installed_development_copy: .devenv/state/venv/lib/python3.12/site-packages/endoreg_db/apps.py
+    limitation: The development virtualenv has a local patch; reinstalling unpatched endoreg-db 1.3.2 can restore the startup bug. Backend source and regression test contain the durable fix; no package was published.
+  verification:
+    - LX-Annotate configuration, Secretspec, and URL tests passed 53 tests.
+    - Watcher initialization-order regression passed 1 test.
+    - EndoReg-DB tests/test_app_startup.py passed 5 tests with isolated SQLite test configuration.
+    - Initial EndoReg test attempt failed during PostgreSQL fixture setup; isolated SQLite rerun passed.
+    - makemigrations --check --dry-run --noinput exited 0 with No changes detected and no database warnings.
+    - migrate --check exited 0 after final migration completion.
+    - Django system check reported no issues and zero silenced checks.
+    - runserver on 127.0.0.1:8017 initialized OCR on the main thread and started the watcher successfully.
+    - Frontend HTTP request returned 200; anonymous overview request returned 403 and access controls were preserved.
+    - Ruff, git diff --check, Nix syntax, and development/production profile-isolation checks passed.
+    - Feature tracker validation passed all 52 LX-Annotate feature definitions.
+  remaining_observations:
+    - Existing local storage artifacts were retained; reconciliation reported no videos or upload jobs in the new development database.
+    - Watcher reported approximately 92 percent filesystem usage; no cleanup was performed.
+    - This is development startup verification, not production or authenticated overview acceptance.
+assessor: codex-gc02-overview-20260922
+scope: LX-Annotate source configuration and management-command startup
+changes:
+  - Devenv exports an absolute LX_RUNTIME_ROOT and rejects configured relative roots.
+  - Settings read the canonical root from the selected environment file before resolving EndoReg-DB paths.
+  - Explicit process LX_RUNTIME_ROOT takes precedence; production has no legacy-root fallback.
+  - Removed deprecated path exports from management, Nix, container, and deployment-example wrappers.
+  - Directory setup uses get_runtime_paths and its typed filesystem helpers.
+  - Development PostgreSQL settings retain configured host, port, user, password, and sslmode.
+verification:
+  focused_tests:
+    command: >-
+      .devenv/state/venv/bin/python -m pytest tests/system/test_config_unit.py
+      tests/system/test_secretspec_environment_contract.py
+      tests/storage/test_data_dir_migration.py
+      tests/system/test_production_celery_routing.py
+      tests/system/test_worker_thread_imports.py -q
+    result: 68 passed
+  lint: Ruff passed for changed management, settings, directory helpers, and focused Python tests.
+  syntax: Bash syntax checks and Nix parsing passed for changed entrypoints and package/service fixtures.
+  migration_dry_run:
+    command: >-
+      DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_dev
+      LX_RUNTIME_ROOT=/home/admin/dev/lx-annotate/data
+      .devenv/state/venv/bin/python manage.py makemigrations --dry-run --noinput
+    exit_code: 0
+    result: No changes detected; database migration-history verification could not complete.
+    blocker: Local PostgreSQL on localhost:5432 does not support SSL, while sslmode requires SSL.
+    other_warnings:
+      - CELERY_BROKER_URL is missing for enabled asynchronous jobs.
+      - Duplicate api and api:endoreg-db-api URL namespaces.
+  production_startup:
+    result: Runtime-root resolution succeeds when explicitly supplied.
+    blocker: Configured /tmp/django_secret.key is missing.
+  tracker:
+    result: Inbox, lock acquisition, validate, and deployment-source readiness checks are blocked.
+    blocker: Missing referenced /home/admin/dev/luxnix/docs/vault-setup.md.
+limits:
+  - No database migrations generated or applied, database access rules changed, or services restarted.
+  - No production deployment or production-readiness approval.
+  - NixOS VM and full package builds were not run.
+  - Django's derived internal storage settings remain available for existing consumers.

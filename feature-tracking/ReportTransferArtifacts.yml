@@ -1,0 +1,149 @@
+schema_version: '1.0'
+id: report_transfer_artifacts
+name: Approved report transfer artifacts
+description: Retain the processed PDF created in correction and verify it on explicit report acceptance
+  before hub transfer.
+owners:
+- lx-annotate maintainers
+- endoreg-db maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents: []
+definition_of_done:
+- id: artifact_contract
+  category: requirements
+  title: Correction owns processed PDF creation
+  acceptance:
+  - Approval retains the existing processed PDF; it does not regenerate a PDF from report text or promote
+    the raw source to a transfer artifact.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review correction upload, report validation and processed-only hub export together.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: Correction posts the processed PDF to apply-redactions; approval now uses enforce_processed_artifact=True;
+        existing integrity verification and raw-only on-commit cleanup are reused, without rendering or
+        copying the raw source.
+    assessed_by: codex-patient-kanban-20260925
+    assessed_at: '2026-09-25T07:31:06.776796Z'
+- id: acceptance_integrity
+  category: functionality
+  title: Approval verifies the retained artifact
+  acceptance:
+  - Backend approval verifies the processed PDF and persisted digest before validation or raw cleanup;
+    rejected approval returns an actionable conflict response.
+  - Correction remains unvalidated until explicit acceptance, and accepted processed bytes remain unchanged
+    and hub eligible.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run endoreg-db validation and artifact-integrity tests and the lx-annotate corrected-report
+      hub API test.
+    timeout_seconds: 300
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: test
+      reference: 'HubExportApiTests.test_manually_corrected_report_is_retained_and_eligible_after_acceptance
+        passed against source backend: correction upload resets approval, explicit acceptance preserves
+        processed filename and SHA-256, removes raw only, and hub overview reports eligible.'
+    note: Backend packaging and clinical browser acceptance remain pending.
+    assessed_by: codex-patient-kanban-20260925
+    assessed_at: '2026-09-25T07:29:11.467162Z'
+- id: regression_tests
+  category: testing
+  title: Retention and failure behavior have regression coverage
+  acceptance:
+  - Tests cover corrected PDF acceptance, byte and filename preservation, hub eligibility, missing artifacts,
+    digest mismatch and no cleanup after rejection.
+  - Frontend tests cover correction retention guidance, successful PDF acceptance and actionable artifact
+    failure without navigation.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run focused backend and frontend suites, Pyright, Vue type checking and lint.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: '2026-09-25: 37 correction/validation frontend tests passed; Vue type checking and scoped
+        ESLint passed. 28 hub API/payload tests passed with PYTHONPATH selecting /home/admin/endoreg-db
+        source. Backend Pyright passed (full: zero errors, six unrelated warnings; focused: zero errors/warnings).'
+    - kind: test
+      reference: 'Final 2026-09-25: 72 frontend tests passed; 28 hub API/payload tests passed against
+        source backend; 33 backend tests passed on SQLite with SKIP_EXPENSIVE_TESTS=false and 12 video
+        tests skipped. Focused Pyright, Vue type checking, ESLint and Ruff passed. Both tracker registries
+        validated.'
+    note: Default backend PostgreSQL profile lacked psycopg; supported SQLite profile completed report
+      coverage. Backend packaging and clinical browser acceptance remain pending.
+    assessed_by: codex-patient-kanban-20260925
+    assessed_at: '2026-09-25T07:32:20.790534Z'
+- id: storage_boundary
+  category: security
+  title: Existing encrypted storage and transfer safeguards remain authoritative
+  acceptance:
+  - No raw export, raw filesystem copy, encryption bypass, transfer execution or secret-handling change
+    is introduced.
+  - Existing authenticated materialization and SHA-256 verification remain mandatory on approval.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the final diff and reused report integrity service.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: review
+      reference: Backend diff changes only approval enforcement and conflict handling. Existing require_usable_completed_report
+        verifies authenticated processed storage and digest. Hub integration confirms accepted processed
+        bytes are retained; no transfer/storage implementation or secret handling changed.
+    assessed_by: codex-patient-kanban-20260925
+    assessed_at: '2026-09-25T07:31:09.711892Z'
+- id: backend_rollout
+  category: operations
+  title: The application consumes the verified backend change
+  acceptance:
+  - The endoreg-db validation fix must be packaged and consumed by the deployed application before rollout
+    acceptance.
+  - Clinical browser acceptance confirms correction, explicit approval and hub eligibility with the deployed
+    backend.
+  required: true
+  verification:
+    kind: manual
+    instructions: Verify installed backend revision and browser behavior using the governed deployment
+      workflow before production readiness.
+    timeout_seconds: 300
+  assessment:
+    status: in_progress
+    evidence: []
+    note: Backend change is in /home/admin/endoreg-db/endoreg_db/views/anonymization/validate.py. No backend
+      package installation or deployment performed. Integration tests select this source explicitly.
+    assessed_by: codex-patient-kanban-20260925
+    assessed_at: '2026-09-25T07:25:34.171366Z'
+- id: clinician_guidance
+  category: documentation
+  title: The UI describes artifact retention accurately
+  acceptance:
+  - Correction explains that the PDF needs renewed approval and is retained afterward; approval confirms
+    retention without claiming transfer has already occurred.
+  - Missing or inconsistent artifacts direct the clinician to save and review the correction PDF.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the German correction and acceptance messages and their tests.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: AnonymizationCorrectionComponent.test.ts (5 tests) and AnonymizationValidationComponent.test.ts
+        (32 tests) passed, including retained-PDF success guidance and artifact conflict without navigation.
+    assessed_by: codex-patient-kanban-20260925
+    assessed_at: '2026-09-25T07:31:03.060467Z'

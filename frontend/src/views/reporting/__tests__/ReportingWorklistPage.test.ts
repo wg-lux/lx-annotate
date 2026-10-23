@@ -1,12 +1,13 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import axiosInstance from '@/api/axiosInstance'
 import ReportingWorklistPage from '../ReportingWorklistPage.vue'
+
+const axiosGet = vi.hoisted(() => vi.fn())
 
 vi.mock('@/api/axiosInstance', () => ({
   default: {
-    get: vi.fn()
+    get: axiosGet
   },
   r: (path: string) => `api/${path}`
 }))
@@ -17,12 +18,12 @@ describe('ReportingWorklistPage', () => {
   })
 
   it('loads reports and filters by status', async () => {
-    vi.mocked(axiosInstance.get).mockResolvedValue({
+    axiosGet.mockResolvedValue({
       data: [
         { id: 101, status: 'final', version: 3, patientExaminationId: 44 },
         { id: 102, status: 'draft', version: 1, patientExaminationId: 45 }
       ]
-    } as any)
+    })
 
     const wrapper = mount(ReportingWorklistPage, {
       global: {
@@ -32,11 +33,16 @@ describe('ReportingWorklistPage', () => {
 
     await flushPromises()
 
-    expect(wrapper.text()).toContain('#101')
-    expect(wrapper.text()).toContain('#102')
+    expect(wrapper.text()).toContain('Abgeschlossen')
+    expect(wrapper.text()).toContain('Entwurf')
+    expect(wrapper.text()).not.toContain('#101')
+    expect(wrapper.findAll('details')).toHaveLength(2)
+    expect(
+      wrapper.findAll('details').every((details) => details.attributes('open') === undefined)
+    ).toBe(true)
 
     await wrapper.find('select').setValue('final')
-    expect(wrapper.text()).toContain('#101')
-    expect(wrapper.text()).not.toContain('#102')
+    expect(wrapper.get('tbody').text()).toContain('Abgeschlossen')
+    expect(wrapper.get('tbody').text()).not.toContain('Entwurf')
   })
 })

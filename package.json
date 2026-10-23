@@ -1,6 +1,6 @@
 {
   "name": "lx-annotate",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "A package to solve challenges in medical ai and data processing.",
   "directories": {
     "doc": "docs",
@@ -28,6 +28,5 @@
   },
   "homepage": "https://github.com/wg-lux/lx-annotate#readme",
   "dependencies": {
-    "@google/gemini-cli": "^0.34.0"
   }
 }

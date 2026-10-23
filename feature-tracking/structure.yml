@@ -1,0 +1,30 @@
+version: 1
+tier: tool
+path: "feature-tracking"
+parent: "../structure.yml"
+summary: "YAML-backed feature readiness, agent locking, messaging, and evidence governance."
+responsibilities:
+  - "Validate readiness criteria and preserve evidence."
+  - "Coordinate scoped work ownership and reviewed agent feedback."
+boundaries:
+  - "Do not mark features ready from passing builds or documentation alone."
+  - "Do not acknowledge unreviewed feedback."
+entrypoints:
+  - name: "tracker"
+    file: "tracker.py"
+    purpose: "Readiness, locks, messages, and validation"
+  - name: "policy"
+    file: "policy.yml"
+    purpose: "Required readiness policy"
+dependencies:
+  internal: ["docs"]
+  external: ["Python","PyYAML","Pydantic"]
+submodules: []
+contracts:
+  - name: "tracking workflow"
+    doc: "README.md"
+  - name: "feature schema"
+    doc: "schema.example.yml"
+tests:
+  directory: "."
+  command: "python -m pytest -c /dev/null -o cache_dir=.pytest_cache feature-tracking/test_tracker.py -q"

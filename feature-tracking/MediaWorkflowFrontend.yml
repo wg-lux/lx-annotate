@@ -1,0 +1,117 @@
+schema_version: '1.0'
+id: media_workflow_frontend
+name: Media Workflow Frontend
+description: Render the per-item media workflow state (privacy, annotation, release) in lx-annotate through
+  a progress strip. The read endpoints in docs/guides/media-workflow-frontend-contract.md exist uncommitted in
+  endoreg_db; write path, stage counts and service wiring are still open there.
+owners:
+- lx-annotate frontend maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: docs/guides/media-workflow-frontend-contract.md
+  disposition: reference
+  note: Endpoint and wire-token contract the frontend implements against.
+definition_of_done:
+- id: backend_endpoints_delivered
+  category: requirements
+  title: endoreg_db serves the workflow read endpoints
+  acceptance:
+  - GET media/videos/<pk>/workflow/ and GET media/pdfs/<pk>/workflow/ conform to the frontend contract.
+  - Wire tokens equal the clinical_lifecycle enums; 409 responses list invariant violations.
+  required: true
+  verification:
+    kind: manual
+    instructions: Call both endpoints against a development database and compare with the contract document.
+    timeout_seconds: 300
+  assessment:
+    status: not_assessed
+    note: Read endpoints inspected in source only, not called. Write endpoint, service wiring (phase 4) and
+      parallel-worker tests are reported open; see the contract document.
+- id: frontend_contract_parsing
+  category: security
+  title: Frontend rejects unknown workflow tokens
+  acceptance:
+  - Responses are validated at the API boundary; unknown stages or negative counts raise a contract error.
+  required: true
+  verification:
+    kind: command
+    command: [npm, --prefix, frontend, run, test:unit, --, --run, src/api/__tests__/mediaWorkflowApi.test.ts]
+    timeout_seconds: 300
+  assessment:
+    status: not_assessed
+- id: server_stage_counts
+  category: functionality
+  title: Sidebar badges use server-side workflow stage counts
+  acceptance:
+  - A stage-count endpoint exists in endoreg_db and the sidebar badges use it instead of anonymization_phase.
+  required: true
+  verification:
+    kind: manual
+    instructions: Blocked until endoreg_db offers a stage-count endpoint; then compare badges with counts.
+    timeout_seconds: 300
+  assessment:
+    status: not_assessed
+- id: progress_strip_in_views
+  category: functionality
+  title: Progress strip is shown on stage pages
+  acceptance:
+  - WorkflowProgressStrip is rendered on the anonymization overview and video examination pages from
+    fetchWorkflowItem.
+  required: true
+  verification:
+    kind: manual
+    instructions: Component exists with tests; page integration is pending.
+    timeout_seconds: 300
+  assessment:
+    status: not_assessed
+- id: progress_strip_component_tests
+  category: testing
+  title: Progress strip renders current, done and terminal states
+  acceptance:
+  - Tests cover the current step, completed export and the lost/failed/withdrawn terminal notes.
+  required: true
+  verification:
+    kind: command
+    command: [npm, --prefix, frontend, run, test:unit, --, --run, src/components/Workflow]
+    timeout_seconds: 300
+  assessment:
+    status: not_assessed
+- id: frontend_quality_gates
+  category: operations
+  title: Type check and lint stay clean
+  acceptance:
+  - vue-tsc reports no errors and eslint reports no new findings for the changed files.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run npx vue-tsc --noEmit and the project lint script in frontend.
+    timeout_seconds: 600
+  assessment:
+    status: not_assessed
+- id: structure_manifests_current
+  category: operations
+  title: Context manifests list the new files
+  acceptance:
+  - python scripts/lint_structure.py reports no drift.
+  required: true
+  verification:
+    kind: command
+    command: [python, scripts/lint_structure.py]
+    timeout_seconds: 300
+  assessment:
+    status: not_assessed
+- id: contract_documented
+  category: documentation
+  title: Frontend workflow contract is documented in English
+  acceptance:
+  - docs/guides/media-workflow-frontend-contract.md lists endpoints, wire tokens and ownership.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the contract document against the implemented endpoints.
+    timeout_seconds: 300
+  assessment:
+    status: not_assessed

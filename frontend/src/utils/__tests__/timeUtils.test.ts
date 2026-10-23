@@ -1,40 +1,97 @@
 import { describe, it, expect } from 'vitest'
 import { formatTime, parseTime, isValidTimeRange, calculateDuration } from '../timeUtils'
+import { formatTime as formatTimeFromHelpers } from '../timeHelpers'
+
+const timeFormatExamples = [
+  { seconds: 0, formatted: '00:00' },
+  { seconds: 30, formatted: '00:30' },
+  { seconds: 60, formatted: '01:00' },
+  { seconds: 90, formatted: '01:30' },
+  { seconds: 3661, formatted: '61:01' } // Over 1 hour
+] as const
+
+const decimalTimeExamples = [
+  { seconds: 30.5, formatted: '00:30' },
+  { seconds: 89.9, formatted: '01:29' }
+] as const
+
+const invalidTimeExamples = [
+  { seconds: NaN, formatted: '00:00' },
+  { seconds: Infinity, formatted: '00:00' },
+  { seconds: -10, formatted: '00:00' }
+] as const
+
+const singleDigitTimeExamples = [
+  { formatted: '1:5', seconds: 65 },
+  { formatted: '10:5', seconds: 605 }
+] as const
+
+const orderedRangeExamples = [
+  { start: 0, end: 10, valid: true },
+  { start: 5, end: 15, valid: true },
+  { start: 10, end: 10, valid: false }, // Same time
+  { start: 15, end: 5, valid: false } // End before start
+] as const
+
+const invalidRangeExamples = [
+  { start: 0, end: 0, valid: false },
+  { start: -5, end: 10, valid: false },
+  { start: 5, end: -10, valid: false },
+  { start: NaN, end: 10, valid: false },
+  { start: 5, end: NaN, valid: false }
+] as const
+
+const durationExamples = [
+  { start: 0, end: 10, duration: 10 },
+  { start: 5, end: 15, duration: 10 },
+  { start: 30, end: 90, duration: 60 }
+] as const
+
+const decimalDurationExamples = [{ start: 1.5, end: 3.7, duration: 2.2 }] as const
+
+const invalidDurationExamples = [
+  { start: 10, end: 5, duration: 0 },
+  { start: 10, end: 10, duration: 0 },
+  { start: NaN, end: 10, duration: 0 }
+] as const
+
+const formatTimeImplementations = [
+  ['timeUtils', formatTime],
+  ['timeHelpers', formatTimeFromHelpers]
+] as const
 
 describe('timeUtils', () => {
-  describe('formatTime', () => {
+  describe.each(formatTimeImplementations)('formatTime (%s)', (_moduleName, formatTime) => {
     it('should format seconds to MM:SS format', () => {
-      expect(formatTime(0)).toBe('00:00')
-      expect(formatTime(30)).toBe('00:30')
-      expect(formatTime(60)).toBe('01:00')
-      expect(formatTime(90)).toBe('01:30')
-      expect(formatTime(3661)).toBe('61:01') // Over 1 hour
+      for (const { seconds, formatted } of timeFormatExamples) {
+        expect(formatTime(seconds)).toBe(formatted)
+      }
     })
 
     it('should handle decimal seconds', () => {
-      expect(formatTime(30.5)).toBe('00:30')
-      expect(formatTime(89.9)).toBe('01:29')
+      for (const { seconds, formatted } of decimalTimeExamples) {
+        expect(formatTime(seconds)).toBe(formatted)
+      }
     })
 
     it('should handle edge cases', () => {
-      expect(formatTime(NaN)).toBe('00:00')
-      expect(formatTime(Infinity)).toBe('00:00')
-      expect(formatTime(-10)).toBe('00:00')
+      for (const { seconds, formatted } of invalidTimeExamples) {
+        expect(formatTime(seconds)).toBe(formatted)
+      }
     })
   })
 
   describe('parseTime', () => {
     it('should parse MM:SS format to seconds', () => {
-      expect(parseTime('00:00')).toBe(0)
-      expect(parseTime('00:30')).toBe(30)
-      expect(parseTime('01:00')).toBe(60)
-      expect(parseTime('01:30')).toBe(90)
-      expect(parseTime('61:01')).toBe(3661)
+      for (const { seconds, formatted } of timeFormatExamples) {
+        expect(parseTime(formatted)).toBe(seconds)
+      }
     })
 
     it('should handle single digit inputs', () => {
-      expect(parseTime('1:5')).toBe(65)
-      expect(parseTime('10:5')).toBe(605)
+      for (const { formatted, seconds } of singleDigitTimeExamples) {
+        expect(parseTime(formatted)).toBe(seconds)
+      }
     })
 
     it('should return null for invalid formats', () => {
@@ -47,36 +104,35 @@ describe('timeUtils', () => {
 
   describe('isValidTimeRange', () => {
     it('should validate time ranges', () => {
-      expect(isValidTimeRange(0, 10)).toBe(true)
-      expect(isValidTimeRange(5, 15)).toBe(true)
-      expect(isValidTimeRange(10, 10)).toBe(false) // Same time
-      expect(isValidTimeRange(15, 5)).toBe(false) // End before start
+      for (const { start, end, valid } of orderedRangeExamples) {
+        expect(isValidTimeRange(start, end)).toBe(valid)
+      }
     })
 
     it('should handle edge cases', () => {
-      expect(isValidTimeRange(0, 0)).toBe(false)
-      expect(isValidTimeRange(-5, 10)).toBe(false)
-      expect(isValidTimeRange(5, -10)).toBe(false)
-      expect(isValidTimeRange(NaN, 10)).toBe(false)
-      expect(isValidTimeRange(5, NaN)).toBe(false)
+      for (const { start, end, valid } of invalidRangeExamples) {
+        expect(isValidTimeRange(start, end)).toBe(valid)
+      }
     })
   })
 
   describe('calculateDuration', () => {
     it('should calculate duration between two times', () => {
-      expect(calculateDuration(0, 10)).toBe(10)
-      expect(calculateDuration(5, 15)).toBe(10)
-      expect(calculateDuration(30, 90)).toBe(60)
+      for (const { start, end, duration } of durationExamples) {
+        expect(calculateDuration(start, end)).toBe(duration)
+      }
     })
 
     it('should handle decimal times', () => {
-      expect(calculateDuration(1.5, 3.7)).toBeCloseTo(2.2)
+      for (const { start, end, duration } of decimalDurationExamples) {
+        expect(calculateDuration(start, end)).toBeCloseTo(duration)
+      }
     })
 
     it('should return 0 for invalid ranges', () => {
-      expect(calculateDuration(10, 5)).toBe(0)
-      expect(calculateDuration(10, 10)).toBe(0)
-      expect(calculateDuration(NaN, 10)).toBe(0)
+      for (const { start, end, duration } of invalidDurationExamples) {
+        expect(calculateDuration(start, end)).toBe(duration)
+      }
     })
   })
 })

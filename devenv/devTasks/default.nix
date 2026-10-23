@@ -22,9 +22,11 @@ let
   dbTasks = (
     import ./db.nix { inherit config pkgs lib; }
   );
+  versionTasks = (
+    import ./version.nix { inherit config pkgs lib; }
+  );
 
   customTasks = {
-    
-  } //envTasks //deployTasks //vueTasks //uvTasks //dbTasks;
+  } //envTasks //deployTasks //vueTasks //uvTasks //dbTasks //versionTasks;
 
-in customTasks 
+in customTasks

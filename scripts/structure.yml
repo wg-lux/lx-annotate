@@ -1,0 +1,32 @@
+version: 1
+tier: tool
+path: "scripts"
+parent: "../structure.yml"
+summary: "Developer verification commands and operational helper entrypoints."
+responsibilities:
+  - "Validate context, runtime bundles, and developer workflows."
+  - "Delegate application operations to canonical Django commands."
+boundaries:
+  - "Do not bypass application storage wrappers or production acceptance gates."
+entrypoints:
+  - name: "context validator"
+    file: "lint_structure.py"
+    purpose: "Offline manifest graph integrity"
+  - name: "backend checks"
+    file: "run-backend-checks.sh"
+    purpose: "Backend tests in the intended development environment"
+  - name: "bundle checks"
+    file: "evaluate_runtime_check_bundle.py"
+    purpose: "Migration bundle contract verification"
+dependencies:
+  internal: ["tests","lx_annotate"]
+  external: ["Python","PyYAML","Git","devenv"]
+submodules: []
+contracts:
+  - name: "script reference"
+    doc: "SCRIPT_REFERENCE.md"
+  - name: "context schema"
+    doc: "../docs/agent_context.md"
+tests:
+  directory: "../tests/system"
+  command: "python -m pytest tests/system/test_structure_manifests.py -q"

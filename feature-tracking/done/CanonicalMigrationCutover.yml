@@ -1,0 +1,176 @@
+schema_version: '1.0'
+id: canonical_migration_cutover
+name: Canonical Migration Cutover
+description: Keep the canonical dependency migration graph fail-closed after retiring the application-owned
+  compatibility graph.
+owners:
+- lx-annotate maintainers
+production_critical: true
+tracking:
+  state: done
+  history:
+  - action: done
+    changed_by: codex-root-20260902-feature-advance
+    changed_at: '2026-09-02T11:30:04.990953Z'
+    note: Completed after manual rollout review, 11 focused migration-history tests, tracker validation,
+      and production-readiness check all passed.
+source_documents:
+- path: docs/guides/deployment-strategy.md
+  disposition: reference
+  note: Defines the runtime schema gate and deployment migration ownership.
+definition_of_done:
+- id: convergence_contract
+  category: requirements
+  title: Historical and canonical migration identities have an explicit safety contract
+  acceptance:
+  - Package ownership, legacy-to-canonical prefix checkpoints, and failure conditions are explicit.
+  - Historical migration records remain recognized by the explicit repair command without blocking Django
+    system checks.
+  required: true
+  verification:
+    kind: command
+    command:
+    - uv
+    - run
+    - --frozen
+    - --extra
+    - dev
+    - pytest
+    - tests/system/test_migration_history_safety.py
+    - tests/system/test_legacy_migration_history_repair.py
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: uv run --frozen --extra dev pytest -q tests/system/test_migration_history_safety.py tests/system/test_legacy_migration_history_repair.py
+    assessed_by: codex-migration-overrides
+    assessed_at: '2026-08-12T12:15:40.847100Z'
+- id: guarded_bridge
+  category: functionality
+  title: The retired dependency migration graph is no longer shipped
+  acceptance:
+  - Base, development, and production settings use dependency-owned canonical migrations.
+  - No compatibility migration package is included; the repair command records history only and never
+    ships or executes replacement schema operations.
+  required: true
+  verification:
+    kind: command
+    command:
+    - uv
+    - run
+    - --frozen
+    - --extra
+    - dev
+    - pytest
+    - tests/system/test_migration_history_safety.py
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: uv run --frozen --extra dev pytest -q tests/system/test_migration_history_safety.py
+    assessed_by: codex-migration-overrides
+    assessed_at: '2026-08-12T12:15:41.909644Z'
+- id: history_tests
+  category: testing
+  title: Fresh, canonical, historical, partial, and unexpected histories are tested
+  acceptance:
+  - Tests permit fresh and canonical-only migration histories.
+  - Tests atomically normalize recognized historical prefixes and reject gapped, unexpected, concurrently
+    changed, or unreviewed histories before writes.
+  required: true
+  verification:
+    kind: command
+    command:
+    - uv
+    - run
+    - --frozen
+    - --extra
+    - dev
+    - pytest
+    - tests/system/test_environment_checks.py
+    - tests/system/test_migration_history_safety.py
+    - tests/system/test_legacy_migration_history_repair.py
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: uv run --frozen --extra dev pytest -q tests/system/test_environment_checks.py tests/system/test_migration_history_safety.py
+        tests/system/test_legacy_migration_history_repair.py
+    assessed_by: codex-migration-overrides
+    assessed_at: '2026-08-12T12:15:42.930425Z'
+- id: fail_closed
+  category: security
+  title: Explicit history repair fails closed without blocking migrate checks
+  acceptance:
+  - The repair command validates reviewed canonical checkpoints without pinning distribution versions
+    or the complete future manifest.
+  - No payload, encryption-key, or application-data mutation is introduced.
+  required: true
+  verification:
+    kind: command
+    command:
+    - uv
+    - run
+    - --frozen
+    - --extra
+    - dev
+    - pytest
+    - tests/system/test_environment_checks.py
+    - tests/system/test_migration_history_safety.py
+    - tests/system/test_legacy_migration_history_repair.py
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: command
+      reference: uv run --frozen --extra dev pytest -q tests/system/test_environment_checks.py tests/system/test_migration_history_safety.py
+        tests/system/test_legacy_migration_history_repair.py
+    assessed_by: codex-migration-overrides
+    assessed_at: '2026-08-12T12:15:44.008513Z'
+- id: rollout
+  category: operations
+  title: Canonical cutover and rollback procedures are documented
+  acceptance:
+  - Existing databases with a recognized contiguous legacy prefix are atomically repaired before Django
+    plans canonical migrations.
+  - Rollback preserves canonical migration records and restores the preceding release when required.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review the canonical migration history safety section of the deployment guide.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: docs/guides/deployment-strategy.md
+    - kind: test
+      reference: tests/system/test_legacy_migration_history_repair.py
+    note: 'Reviewed the canonical migration history safety procedure: recognized contiguous legacy prefixes
+      are planned read-only, atomically recorded only through reviewed canonical checkpoints, and canonical
+      identities are retained when operators restore the preceding release during rollback. Focused repair
+      tests passed (11 tests).'
+    assessed_by: codex-root-20260902-feature-advance
+    assessed_at: '2026-09-02T11:29:19.386553Z'
+- id: documentation
+  category: documentation
+  title: Operator documentation names exact commands and stop conditions
+  acceptance:
+  - Acceptance, stop conditions, remediation, and rollback are documented in English.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review docs/guides/deployment-strategy.md for executable operator guidance.
+    timeout_seconds: 300
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: docs/guides/deployment-strategy.md
+    note: Canonical migration acceptance, stop conditions, bridge-release remediation, and rollback are
+      documented in English.
+    assessed_by: codex-canonical-migration-cutover
+    assessed_at: '2026-08-12T08:15:43.044980Z'

@@ -25,8 +25,9 @@ This page explains the practical workflow for segment annotation in videos after
 
 ## Preconditions
 
-- The selected video must already be anonymized (`done_processing_anonymization`) or validated.
-- Videos already fully validated for segment annotation cannot be edited again in normal flow.
+- The selected video must have usable anonymized processed media.
+- Segment-validated videos remain selectable for review.
+- Segment editing is read-only after segment validation unless an explicit edit override is active.
 
 ## Step-by-Step for Medical Users
 
@@ -46,6 +47,71 @@ This page explains the practical workflow for segment annotation in videos after
 - The video is marked as validated in segment annotation context.
 - `outside` handling is included in this finalization step.
 
+## Operational Monitoring
+
+The `VideoExaminationAnnotation` page has two expensive backend actions that
+are watchable at:
+
+- `KI neu berechnen` posts to
+  `/api/media/videos/<video_id>/segments/rerun-predictions/`.
+- `Außerhalb-Segmente schwärzen` posts to
+  `/api/media/videos/<video_id>/segments/blacken-outside/`.
+
+These requests return `202 Accepted` when the backend queued work. The
+follow-up Celery work does not run in the generic maintenance worker even
+though the task names are listed during that worker's startup.
+
+### Prediction rerun
+
+Prediction reruns dispatch `endoreg_db.video_temporal_inference`.
+
+- Celery queue: `inference`
+- Systemd service: `lx-annotate-celery-inference-worker.service`
+- Typical log terms: `video_temporal_inference`, `rerun-predictions`,
+  `predicting_segments`, `Task ... received`, `succeeded`, `failed`
+
+Monitor it with:
+
+```bash
+journalctl -u lx-annotate-celery-inference-worker.service -f -o short-iso
+```
+
+### Segment censorship / outside blackening
+
+Outside-segment censorship dispatches `endoreg_db.video_post_validation_rebuild`.
+This is intentionally routed to the frame extraction queue because the rebuild
+can perform staged media/frame regeneration.
+
+- Celery queue: `frame_extraction`
+- Systemd service: `lx-annotate-celery-frame-extraction-worker.service`
+- Typical log terms: `video_post_validation_rebuild`, `blacken-outside`,
+  `Starting staged frame extraction`, `Running FFmpeg`, `cleanup_`,
+  `Task ... received`, `succeeded`, `failed`
+
+Monitor it with:
+
+```bash
+journalctl -u lx-annotate-celery-frame-extraction-worker.service -f -o short-iso
+```
+
+### Combined operator view
+
+Use this when testing both buttons from the UI:
+
+```bash
+journalctl \
+  -u lx-annotate-boot.service \
+  -u lx-annotate-celery-inference-worker.service \
+  -u lx-annotate-celery-frame-extraction-worker.service \
+  -f -o short-iso | rg -i 'rerun-predictions|blacken-outside|video_temporal_inference|video_post_validation_rebuild|Task .*received|succeeded|failed|Running FFmpeg|Starting staged frame extraction|cleanup_|predicting_segments'
+```
+
+`lx-annotate-celery-worker.service` is the maintenance/default worker. It may
+print `endoreg_db.video_temporal_inference` and
+`endoreg_db.video_post_validation_rebuild` in its startup task registry, but
+queue routing decides which worker consumes the task. Do not use it as the
+primary journal for these two buttons.
+
 ## Training Notes
 
 - Teach users to finish boundary corrections before full validation.
@@ -56,7 +122,7 @@ This page explains the practical workflow for segment annotation in videos after
 
 ### No video can be selected
 
-- Cause: video is not anonymized yet or already fully validated.
+- Cause: no video has usable anonymized media for the current workflow.
 - Action: return to anonymization workflow and check status.
 
 ### Validation button reports no segments
@@ -74,9 +140,40 @@ This page explains the practical workflow for segment annotation in videos after
 - `frontend/src/components/VideoExamination/VideoExaminationAnnotation.vue`
 - `frontend/src/components/VideoExamination/Timeline.vue`
 
-## Fixed Issues
+## Saved segment review and media recovery
 
-We already made the following UI observations and fixed them:
+Bulk segment validation saves the review before asynchronous media work finishes.
+The interface reports saved review separately from a failed outside-frame rebuild.
+Retry blackening to complete that media gate. **Video für Transfer reparieren**
+opens the explicit unresolved-provenance acknowledgment described in the
+[hub export workflow](hub-export-workflow.md#unresolved-frame-provenance); it does
+not reapprove segments or claim that blackening succeeded.
 
-- Video validation status was hard to read -> add color coding and symbols
-- Button for final validation didnt register -> changed button size and broke color code
+## Dashboard progress and reflection
+
+The dashboard leads with the authenticated practitioner's total number of distinct
+frame-label annotation pairs across accessible videos, including annotations from
+segment validation. Participation milestones advance through 10, 50, 100, 500 and
+1,000 annotations, then in increments of 1,000. Duplicate source records count once;
+these totals are not validated-track counts and do not award clinical quality scores. No progress state is stored separately.
+
+The separate peer and AI overlap summaries divide summed intersections by summed unions across
+video/practitioner or video/prediction-run pairs with available timing and a positive union on the current
+comparison page. It is not an average of percentages or an all-pages aggregate.
+Unavailable timing stays distinct from measured zero overlap. Detailed named
+comparisons, denominators, conflicts and report mapping limitations remain visible.
+
+The guidance links to segment annotation, frame annotation and comparison review.
+It does not change anonymization acceptance or segment validation permissions.
+
+AI comparisons use existing prediction segment ranges and remain separated by run in
+the detail tables. Missing predictions are unavailable, not zero agreement. Deploy the
+updated endoreg-db contract alongside the frontend; older contracts produce a visible
+load error rather than an invented total.
+
+The dashboard uses neutral operational labels without personal greetings or motivational
+messages. A level badge counts reached volume milestones, and the milestone track
+marks reached, next and locked thresholds using both text and color. Above 1,000,
+the track retains the initial thresholds and shows the latest thousand-step milestone
+and next target. Levels measure annotation volume only; peer and AI overlap do not
+award levels. No additional requests or persisted achievement state are introduced.

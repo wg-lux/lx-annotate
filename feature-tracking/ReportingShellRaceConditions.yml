@@ -1,0 +1,273 @@
+schema_version: '1.0'
+id: reporting_shell_race_conditions
+name: Reporting Shell Terminology And Template Race Conditions
+description: "Graph-based analysis of ReportingShell evaluation, with emphasis on the\ndistinction between\
+  \ a patient-examination's persisted knowledge-base identity\nand the mutable process-wide active terminology\
+  \ selection.\n\n```mermaid\nflowchart TD\n  U[\"Route or terminology event\"] --> C[\"Freeze evaluation\
+  \ token: generation, examination, module, version, bundle key, pinned identity\"]\n  C --> K[\"Kahn\
+  \ cycle validation and immutable wave plan\"]\n  K --> W0[\"Wave 0: patient-examination detail\"]\n\
+  \  W0 --> X{\"Pinned identity equals evaluation token?\"}\n  X -- no --> FF[\"Fail closed: no template\
+  \ discovery and no state commit\"]\n  X -- yes --> W1A[\"Wave 1A: version-qualified template graph\"\
+  ]\n  X -- yes --> W1B[\"Wave 1B: version-qualified finding catalog\"]\n  W1A --> BAR[\"Promise.all barrier\"\
+  ]\n  W1B --> BAR\n  BAR --> W2[\"Wave 2: pure draft resolution\"]\n  W2 --> CUR{\"Token still current?\"\
+  }\n  CUR -- no --> DROP[\"Discard superseded evaluation\"]\n  CUR -- yes --> COMMIT[\"One synchronous\
+  \ Vue/Pinia commit\"]\n\n  NONE[\"No published template\"] --> AO[\"Annotation-only draft pinned to\
+  \ token identity\"]\n  AO --> SW[\"User changes terminology later\"]\n  SW --> BLOCK[\"Keep original\
+  \ identity; mark persistence blocked\"]\n\n  FC[\"Background catalog response\"] --> FG{\"Generation,\
+  \ examination, and bundle key match?\"}\n  FG -- no --> DROP\n  FG -- yes --> COMMIT\n  TB[\"Builder\
+  \ list/detail response\"] --> TG{\"Generation, examination, module, version, and response identity match?\"\
+  }\n  TG -- no --> DROP\n  TG -- yes --> COMMIT\n\n  UI[\"User explicitly selects bundle\"] --> REV[\"\
+  Read registry revision\"]\n  REV --> CAS[\"Select with expected_revision under file lock\"]\n  CAS -->|revision\
+  \ matches| S[\"Atomic replace, new revision, cache clear\"]\n  CAS -->|409 conflict| RELOAD[\"Reload\
+  \ current selection; require explicit retry\"]\n  E[\"Template list, detail, preview, validation, publish,\
+  \ unpublish\"] --> EV[\"Require exact version in URL\"]\n  EV --> ID[\"Backend verifies loaded module\
+  \ and version\"]\n  NR[\"No registry, blank version, or unavailable template\"] --> FCLOSED[\"Explicit\
+  \ failure or annotation-only state\"]\n  EX[\"Installed report_template_examples\"] -. \"example data\
+  \ only; never implicit resolver fallback\" .-> FCLOSED\n\n  C -.-> M2[\"F2 mitigated: immutable identity\
+  \ and strict mismatch\"]\n  SW -.-> M5[\"F5 mitigated: hydration never auto-selects global bundle\"\
+  ]\n  FG -.-> M6[\"F6 mitigated: bundle-aware commit guard\"]\n  TG -.-> M7[\"F7 mitigated: stale builder\
+  \ response guard\"]\n  CAS -.-> M1[\"F1 mitigated: serialized revision CAS\"]\n  EV -.-> M3[\"F3 mitigated:\
+  \ all template operations version-qualified\"]\n  FCLOSED -.-> M4[\"F4 mitigated: example fallback removed\"\
+  ]\n\n  classDef mitigated fill:#d3f9d8,stroke:#2b8a3e,color:#123d1b;\n  class M1,M2,M3,M4,M5,M6,M7 mitigated;\n\
+  ```\n\nThe active registry pointer remains an explicitly deployment-wide preference,\nbut selection\
+  \ is serialized with a revision compare-and-swap contract. A\nconflict reloads the winning state and\
+  \ requires a new explicit user action;\nit is never retried automatically. Existing evaluations remain\
+  \ pinned to their\nimmutable module and version and therefore do not follow later preference changes.\n\
+  \nConstruction notes: ReportingShell now validates and executes an immutable\nDAG in three waves. Only\
+  \ the final guarded commit mutates Vue/Pinia state.\nProduction bootstraps a registry of immutable\n\
+  packaged providers. Versioned resolution without a configured registry or\nexplicit source directories\
+  \ now fails closed. report_template_examples remains\npackaged test/example data but is not an implicit\
+  \ clinical resolver or builder\nfallback. Every template route and builder mutation requires the exact\
+  \ version."
+owners:
+- lx-annotate frontend maintainers
+- lx-dtypes maintainers
+production_critical: true
+tracking:
+  state: active
+  history: []
+source_documents:
+- path: docs/guides/reporting-template-requirements-page.md
+  disposition: reference
+  note: Canonical reporting workflow and template requirement context.
+definition_of_done:
+- id: immutable_evaluation_identity
+  category: requirements
+  title: One immutable identity governs each reporting evaluation
+  acceptance:
+  - Capture patient examination ID, examination concept, knowledge-base module, knowledge-base version,
+    and template revision in one evaluation token before issuing dependent requests.
+  - Reject the evaluation if any response identity differs from the token; never reinterpret a pinned
+    examination against a later active terminology selection.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review every ReportingShell bootstrap, restore, validation, export, and finalization
+      path against one immutable evaluation identity.
+    timeout_seconds: 900
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: frontend/src/views/reporting/reportingResolutionGraph.ts
+    - kind: code
+      reference: frontend/src/views/reporting/ReportingShell.vue
+    - kind: code
+      reference: frontend/src/views/reporting/useReportingKnowledgeBase.ts
+    - kind: code
+      reference: frontend/src/views/reporting/reportingKnowledgeBaseContext.ts
+    - kind: test
+      reference: frontend/src/views/reporting/__tests__/reportingResolutionGraph.test.ts
+    note: ReportingShell bootstrap now freezes one identity token, rejects persisted-pin mismatches before
+      dependent nodes run, executes a cycle-checked DAG, and commits once after a current-token guard.
+      Validation, export, and finalization still require the same end-to-end identity audit.
+    assessed_by: codex-reporting-dag-refactor
+    assessed_at: '2026-08-25T10:16:31+02:00'
+- id: scoped_terminology_selection
+  category: security
+  title: Terminology selection cannot be changed by an unrelated browser context
+  acceptance:
+  - Define whether active terminology is deployment-wide, tenant-wide, user-wide, or evaluation-local.
+  - Do not let report hydration automatically mutate a deployment-wide active registry pointer.
+  - Protect mutable registry state with authorization, serialization, and an explicit revision or compare-and-swap
+    contract.
+  required: true
+  verification:
+    kind: manual
+    instructions: Exercise two authenticated sessions selecting different bundles concurrently and verify
+      that neither session changes the other's evaluation identity.
+    timeout_seconds: 900
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: frontend/src/stores/terminologyStore.ts
+    - kind: code
+      reference: /home/admin/lx-data-models/lx_dtypes/django/api/terminology_routes.py
+    - kind: test
+      reference: frontend/src/stores/__tests__/terminologyStore.test.ts
+    - kind: test
+      reference: /home/admin/lx-data-models/tests/unit/lx_dtypes/django/api/test_terminology_routes.py
+    note: The active preference is deployment-wide by design. Selection now uses a SHA registry revision,
+      an inter-process file lock, atomic replacement, and a 409 compare-and-swap conflict. The frontend
+      reloads the winner without automatic retry. The remaining work is the specified two-session manual
+      acceptance exercise; pinned evaluations no longer depend on the mutable active pointer.
+    assessed_by: codex-reporting-dag-refactor
+    assessed_at: '2026-08-25T10:16:31+02:00'
+- id: version_qualified_template_reads
+  category: functionality
+  title: Every report-template read is version-qualified
+  acceptance:
+  - Report-template list, single-template, preview, validation, publish, and unpublish operations identify
+    the exact knowledge-base version rather than resolving it from mutable active state.
+  - The API response identity is checked against the requested identity before frontend state is mutated.
+  required: true
+  verification:
+    kind: manual
+    instructions: Switch between two versions of the same module while delaying every report-template
+      API operation and confirm that no response is evaluated against the other version.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/api/reportTemplatesApi.ts
+    - kind: code
+      reference: /home/admin/lx-data-models/lx_dtypes/django/api/report_template_routes.py
+    - kind: code
+      reference: /home/admin/lx-data-models/lx_dtypes/django/api/main.py
+    - kind: test
+      reference: frontend/src/api/__tests__/reportTemplatesApi.test.ts
+    - kind: test
+      reference: frontend/src/views/reporting/__tests__/ReportTemplateBuilderPage.test.ts
+    - kind: test
+      reference: /home/admin/lx-data-models/tests/unit/lx_dtypes/django/api/test_report_templates_api.py
+    note: List, detail, preview, definition/runtime validation, ledger validation, builder save, readiness,
+      publish, and unpublish all require an exact version. Frontend loaders reject response identities
+      that differ from their immutable request and builder async commits are generation and identity guarded.
+    assessed_by: codex-reporting-dag-refactor
+    assessed_at: '2026-08-25T10:16:31+02:00'
+- id: no_example_source_fallback
+  category: data_integrity
+  title: Clinical reporting never silently falls back to packaged examples
+  acceptance:
+  - A missing registry, missing active identity, blank module, or unavailable template returns an explicit
+    failure or annotation-only state without loading report_template_examples.
+  - Builder writes target a deployment-owned mutable source and never an installed lx-dtypes package path.
+  required: true
+  verification:
+    kind: manual
+    instructions: Test production and development configurations with no registry, no active selection,
+      blank builder module, and no templates; inspect returned template identities and write targets.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: /home/admin/lx-data-models/lx_dtypes/models/interface/data_roots.py
+    - kind: code
+      reference: /home/admin/lx-data-models/lx_dtypes/django/api/report_template_builder.py
+    - kind: code
+      reference: /home/admin/lx-data-models/lx_dtypes/data/report_template_examples/config.yaml
+    - kind: test
+      reference: /home/admin/lx-data-models/tests/unit/lx_dtypes/models/interface/test_knowledge_base_resolver.py
+    note: Versioned resolution now fails without an explicit registry or source directory, builder save
+      requires module name and version, and imports do not activate packages. The packaged examples remain
+      available only when selected explicitly as example data.
+    assessed_by: codex-reporting-dag-refactor
+    assessed_at: '2026-08-25T10:16:31+02:00'
+- id: deterministic_concurrency_regressions
+  category: testing
+  title: Deterministic race tests cover terminology and template interleavings
+  acceptance:
+  - Tests use deferred promises or barriers to cover active-bundle changes before detail response, between
+    detail and template response, after an empty template response, and during restored-draft validation.
+  - Tests cover two tabs or users selecting different bundles and two versions of the same module.
+  - Tests cover late finding-catalog responses and late template-builder list or detail responses after
+    a module, version, or examination change.
+  - Tests assert both positive UI state and forbidden calls or mutations for stale contexts.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run the focused frontend and lx-dtypes concurrency suites repeatedly with controlled
+      response ordering.
+    timeout_seconds: 1200
+  assessment:
+    status: verified
+    evidence:
+    - kind: test
+      reference: frontend/src/views/reporting/__tests__/reportingResolutionGraph.test.ts
+    - kind: test
+      reference: frontend/src/views/reporting/__tests__/ReportingShell.mediaPreload.test.ts
+    - kind: test
+      reference: frontend/src/views/reporting/__tests__/ReportTemplateBuilderPage.test.ts
+    - kind: test
+      reference: frontend/src/composables/reporting/__tests__/useReportTemplates.test.ts
+    - kind: test
+      reference: frontend/src/stores/__tests__/terminologyStore.test.ts
+    - kind: test
+      reference: /home/admin/lx-data-models/tests/unit/lx_dtypes/django/api/test_terminology_routes.py
+    note: Deterministic tests cover cycles, wave barriers, supersession, atomic commit, no-template bundle
+      changes, strict identity mismatches, late builder responses, revision conflicts, and exact-version
+      backend lifecycle operations.
+    assessed_by: codex-reporting-dag-refactor
+    assessed_at: '2026-08-25T10:16:31+02:00'
+- id: observable_identity_failures
+  category: operations
+  title: Identity conflicts and superseded evaluations are observable
+  acceptance:
+  - Structured logs include evaluation ID, patient examination ID, pinned identity, requested identity,
+    response identity, registry revision, and supersession reason without patient-identifying content.
+  - The UI distinguishes no templates, incompatible pinned identity, superseded request, missing registry,
+    and unavailable packaged source.
+  required: true
+  verification:
+    kind: manual
+    instructions: Trigger each failure edge in the Mermaid graph and verify structured logs and distinct,
+      actionable UI messages.
+    timeout_seconds: 900
+  assessment:
+    status: verified
+    evidence:
+    - kind: code
+      reference: frontend/src/views/reporting/ReportingShell.vue
+    - kind: code
+      reference: frontend/src/utils/runtimeLogger.ts
+    - kind: test
+      reference: frontend/src/views/reporting/__tests__/ReportingShell.mediaPreload.test.ts
+    - kind: test
+      reference: frontend/src/utils/__tests__/runtimeLogger.test.ts
+    - kind: command
+      reference: 'Reporting matrix: 69 files, 461 tests passed'
+    - kind: command
+      reference: Frontend application and component-test type checks passed; scoped ESLint passed
+    note: Reporting evaluations now emit structured non-PHI diagnostics for identity mismatches, missing
+      registries, successful or annotation-only commits, failures, and supersession. Each record carries
+      the evaluation ID, patient-examination ID, pinned/requested/response knowledge-base identities,
+      registry revision, and a bounded reason code where applicable. Superseded work remains unable to
+      commit and is shown as a non-blocking UI status; existing UI states continue to distinguish no templates,
+      incompatible pinned identity, missing registry, and unavailable sources.
+    assessed_by: codex-feature-advance-20260902
+    assessed_at: '2026-09-02T11:43:20.862429Z'
+- id: maintained_race_reference
+  category: documentation
+  title: The evaluation graph and source-selection rules remain current
+  acceptance:
+  - Keep this Mermaid graph synchronized with frontend watchers, API route identity parameters, registry
+    scope, packaged catalog membership, and builder write ownership.
+  - Document report_template_examples as test or example data rather than an implicit clinical fallback.
+  required: true
+  verification:
+    kind: manual
+    instructions: Review this graph whenever reporting context, terminology selection, registry provisioning,
+      template APIs, or packaged knowledge bases change.
+    timeout_seconds: 600
+  assessment:
+    status: verified
+    evidence:
+    - kind: document
+      reference: feature-tracking/ReportingShellRaceConditions.yml
+    note: The graph now documents the immutable frontend DAG, exact-version backend routes, serialized
+      registry CAS, non-activating imports, and fail-closed example-source behavior.
+    assessed_by: codex-reporting-dag-refactor
+    assessed_at: '2026-08-25T10:16:31+02:00'

@@ -7,15 +7,37 @@ These settings prioritize speed and isolation:
 - External services (Keycloak) mocked or disabled
 """
 
+from __future__ import annotations
+
 import os
+import secrets
 import tempfile
 from copy import deepcopy
-from typing import Any, cast
 from pathlib import Path
+from typing import Any, cast
+from uuid import uuid4
+
+# The base settings fail closed when no deployment secret is configured.
+# Tests supply their explicitly isolated, non-production key before importing base.
+os.environ.setdefault("DJANGO_SECRET_KEY", "test-insecure-key-do-not-use-00000000")
+# Managed secret files take precedence over inline values; a developer shell's
+# secretspec file handles must not replace the isolated test credentials.
+for _credential_handle in (
+    "DJANGO_SECRET_KEY_FILE",
+    "DJANGO_SIGNING_KEYRING_FILE",
+    "DJANGO_DB_PASSWORD_FILE",
+):
+    os.environ.pop(_credential_handle, None)
+os.environ["LX_RUNTIME_ROOT"] = str(
+    Path(tempfile.gettempdir()) / f"lx_test_runtime_{uuid4().hex}"
+)
 
 # Import everything from base
-from .settings_base import *  # noqa: F403
 from . import settings_base as base
+from .settings_base import *  # noqa: F403
+
+# Disposable per-run identity salt that satisfies the CSPRNG salt policy.
+DJANGO_SALT = secrets.token_hex(32)
 
 # -----------------------------------------------------------------------------
 # 1. SETUP MUTABLE COPIES
@@ -25,12 +47,14 @@ INSTALLED_APPS = deepcopy(base.INSTALLED_APPS)
 MIDDLEWARE = deepcopy(base.MIDDLEWARE)
 REST_FRAMEWORK = deepcopy(base.REST_FRAMEWORK)
 LOGGING = deepcopy(base.LOGGING)
+STORAGES = deepcopy(base.STORAGES)
 
 # Help mypy
 INSTALLED_APPS = cast(list[str], INSTALLED_APPS)
 MIDDLEWARE = cast(list[str], MIDDLEWARE)
 REST_FRAMEWORK = cast(dict[str, Any], REST_FRAMEWORK)
 LOGGING = cast(dict[str, Any], LOGGING)
+STORAGES = cast(dict[str, Any], STORAGES)
 
 # -----------------------------------------------------------------------------
 # 2. CORE TEST OVERRIDES
@@ -53,37 +77,36 @@ for app in REQUIRED_TEST_APPS:
         INSTALLED_APPS.append(app)
 
 # -----------------------------------------------------------------------------
-# 3. DATABASE (In-Memory for Speed)
+# 3. DATABASE — pytest-managed PostgreSQL
 # -----------------------------------------------------------------------------
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": ":memory:",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "lx_test",
+        # Replaced by the session fixture before test-database setup.
+        "USER": "pytest_not_configured",
+        "PASSWORD": "",
+        "HOST": "127.0.0.1",
+        "PORT": "1",
+        "CONN_MAX_AGE": 0,
+        "OPTIONS": {
+            "connect_timeout": 5,
+        },
+        "TEST": {
+            "NAME": "test_lx_test",
+        },
     }
 }
 
-
-# DISABLE MIGRATIONS FOR SPEED
-# ⚠️ Note: This creates tables directly from models.
-# If tests fail due to missing DB constraints, comment this out.
-class DisableMigrations:
-    def __contains__(self, item):
-        return True
-
-    def __getitem__(self, item):
-        return None
-
-
-MIGRATION_MODULES = cast(Any, DisableMigrations())
+# Use the real migration graph.
+MIGRATION_MODULES: dict[str, str | None] = {}
 
 # -----------------------------------------------------------------------------
 # 4. PATHS & ASSETS
 # -----------------------------------------------------------------------------
 
-# Use temp directories for Media/Static so we don't pollute the real user data dir
-MEDIA_ROOT = Path(tempfile.mkdtemp(prefix="lx_test_media_"))
-STATIC_ROOT = str(tempfile.mkdtemp(prefix="lx_test_static_"))
+# Base settings derive media, terminology and logs from the isolated runtime root.
 
 # Test Assets (Videos/JSONs) should live in the CODE repository, not the data dir.
 # BASE_DIR from settings_base now correctly points to the repo root.
@@ -142,6 +165,12 @@ CACHES = {
 }
 
 STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
+STORAGES["default"] = {
+    "BACKEND": "django.core.files.storage.FileSystemStorage",
+}
+STORAGES["staticfiles"] = {
+    "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+}
 
 # -----------------------------------------------------------------------------
 # 8. TEST FLAGS
@@ -151,6 +180,5 @@ RUN_VIDEO_TESTS = os.getenv("RUN_VIDEO_TESTS", "1") == "1"
 RUN_AI_TESTS = os.getenv("RUN_AI_TESTS", "0") == "1"
 RUN_INTEGRATION_TESTS = os.getenv("RUN_INTEGRATION_TESTS", "1") == "1"
 
-print("🧪 TEST MODE ACTIVE: In-memory DB, No Auth, Temp Media Root")
-print(f"📂 Test Assets: {TEST_ASSET_DIR}")
+print("TEST MODE ACTIVE: PostgreSQL, migrations enabled, no auth, temp media root")
 print(f"🎬 Video Tests: {'ENABLED' if RUN_VIDEO_TESTS else 'DISABLED'}")
