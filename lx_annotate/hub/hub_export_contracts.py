@@ -95,6 +95,12 @@ class HubExportRejectionReason(StrEnum):
     INTEGRITY_LOST = "integrity_lost"
 
 
+MISSING_PSEUDONYMOUS_IDENTITY_DETAIL = (
+    "SensitiveMeta must include pseudonymous patient and examination identities "
+    "for hub transfer."
+)
+
+
 class HubExportDuplicateReason(StrEnum):
     TRANSFER_ALREADY_REGISTERED = "transfer_already_registered"
 

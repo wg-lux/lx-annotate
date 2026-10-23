@@ -43,8 +43,7 @@ function payload(): TimelineLatestPayload {
       firstName: 'Test',
       lastName: 'Patient',
       dob: null,
-      isRealPerson: false,
-      patientHash: null
+      isRealPerson: false
     },
     latestReport: { ...report, anonymizedText: report.anonymizedText ?? null, streamOptions: [] },
     latestVideo: { ...video, streamOptions: video.streamOptions ?? [] },

@@ -50,6 +50,176 @@ def definition(dataset_ids=()):
     }
 
 
+def analysis_metadata():
+    rule = {"predicates": [{"classification": "result", "operator": "present"}]}
+    return {
+        "terminology_requirements": [{"module": "research", "version": "1.0.0"}],
+        "analysis_definitions": [
+            {
+                "name": "Observed outcomes",
+                "module": "research",
+                "version": "1.0.0",
+                "unit_finding": "lesion",
+                "groups": [{"name": "All", "rule": rule}],
+                "endpoints": [{"name": "Outcome", "positive": rule, "negative": rule}],
+                "unresolved_requirements": ["Confirm outcome coding"],
+            }
+        ],
+    }
+
+
+def test_statistics_requires_owned_explicit_dataset_and_rejects_browser_records(
+    setup_cohorts,
+):
+    client, _, _, _ = setup_cohorts
+    cohort_id = client.post(BASE, definition(), format="json").data["id"]
+    url = f"{BASE}{cohort_id}/statistics/"
+    assert client.post(url, {}, format="json").status_code == 400
+    assert client.post(url, {"records": []}, format="json").status_code == 400
+    other = User.objects.create_user(username="statistics-other", is_superuser=True)
+    client.force_authenticate(other)
+    assert client.post(url, {}, format="json").status_code == 404
+    client.force_authenticate(None)
+    assert client.post(url, {}, format="json").status_code in (401, 403)
+
+
+def test_statistics_reports_drafts_missing_records_and_ignores_preview_limit(
+    setup_cohorts,
+):
+    client, _, center, datasets = setup_cohorts
+    first, _ = add_video(center, datasets[0])
+    second, _ = add_video(center, datasets[1])
+    data = definition([row.pk for row in datasets])
+    data["filters"] = {"limit": 1}
+    cohort_id = client.post(BASE, data, format="json").data["id"]
+    StudyCohort.objects.filter(pk=cohort_id).update(study_metadata=analysis_metadata())
+    response = client.post(f"{BASE}{cohort_id}/statistics/", {}, format="json")
+    assert response.status_code == 200
+    assert response.data["dataset_examination_count"] == 2
+    assert response.data["missing_record_count"] == 2
+    assert response.data["evaluated_examination_count"] == 0
+    assert response.data["analyses"] == []
+    assert response.data["skipped_analyses"][0]["reason"] == "draft"
+    assert str(first.uuid) not in str(response.data)
+    assert str(second.uuid) not in str(response.data)
+    assert response["Cache-Control"] == "private, no-store"
+
+
+def test_statistics_revalidates_stored_identity_and_center_access(setup_cohorts):
+    client, _, center, datasets = setup_cohorts
+    examination, _ = add_video(center, datasets[0])
+    cohort_id = client.post(BASE, definition([datasets[0].pk]), format="json").data[
+        "id"
+    ]
+    StudyCohort.objects.filter(pk=cohort_id).update(study_metadata=analysis_metadata())
+    PatientExamination.objects.filter(pk=examination.pk).update(
+        dtypes_record={
+            "patient": "wrong-patient",
+            "examination": examination.examination.name,
+        }
+    )
+    url = f"{BASE}{cohort_id}/statistics/"
+    response = client.post(url, {}, format="json")
+    assert response.status_code == 400
+    assert "wrong-patient" not in str(response.data)
+    other_center = Center.objects.create(name="statistics-forbidden-center")
+    Patient.objects.filter(pk=examination.patient_id).update(center=other_center)
+    datasets[0].examinations.add(examination)
+    assert client.post(url, {}, format="json").status_code == 403
+
+
+def test_statistics_evaluates_every_lesion_with_exact_package_coverage(
+    setup_cohorts, monkeypatch
+):
+    from uuid import uuid4
+
+    from lx_dtypes.models.interface.KnowledgeBase import KnowledgeBase
+
+    client, _, center, datasets = setup_cohorts
+    kb = KnowledgeBase.model_validate(
+        {
+            "config": {"name": "research", "version": "1.0.0"},
+            "examination": {
+                "cohort-examination": {
+                    "name": "cohort-examination",
+                    "findings": ["lesion"],
+                }
+            },
+            "finding": {"lesion": {"name": "lesion", "classifications": ["result"]}},
+            "classification": {
+                "result": {"name": "result", "classification_choices": ["yes", "no"]}
+            },
+            "classification_choice": {name: {"name": name} for name in ("yes", "no")},
+        }
+    )
+    monkeypatch.setattr(
+        "lx_annotate.services.study_eligibility.load_registered_package",
+        lambda module, *, version: kb,
+    )
+    metadata = analysis_metadata()
+    analysis = metadata["analysis_definitions"][0]
+    analysis["status"] = "ready"
+    analysis["unresolved_requirements"] = []
+    for branch, choice in (("positive", "yes"), ("negative", "no")):
+        analysis["endpoints"][0][branch] = {
+            "predicates": [
+                {"classification": "result", "operator": "eq", "value": choice}
+            ]
+        }
+    for dataset, version in zip(datasets, ("1.0.0", "2.0.0"), strict=True):
+        examination, _ = add_video(center, dataset)
+        findings = []
+        for choice in ("yes", "no"):
+            finding_id, group_id = str(uuid4()), str(uuid4())
+            findings.append(
+                {
+                    "uuid": finding_id,
+                    "finding": "lesion",
+                    "patient_examination": "cohort-examination",
+                    "patient_finding_classifications": [
+                        {
+                            "uuid": group_id,
+                            "patient_finding": finding_id,
+                            "patient_finding_classification_choices": [
+                                {
+                                    "classification": "result",
+                                    "classification_choice": choice,
+                                    "patient_finding_classifications": group_id,
+                                }
+                            ],
+                        }
+                    ],
+                }
+            )
+        PatientExamination.objects.filter(pk=examination.pk).update(
+            knowledge_base_module="research",
+            knowledge_base_version=version,
+            dtypes_record={
+                "uuid": str(examination.uuid),
+                "patient": str(examination.patient_id),
+                "examination": "cohort-examination",
+                "knowledge_base_module": "research",
+                "knowledge_base_version": version,
+                "patient_findings": findings,
+            },
+        )
+    data = definition([row.pk for row in datasets])
+    data["filters"] = {"limit": 1}
+    data["study_metadata"] = metadata
+    saved = client.post(BASE, data, format="json")
+    assert saved.status_code == 201, saved.data
+    response = client.post(f"{BASE}{saved.data['id']}/statistics/", {}, format="json")
+    assert response.status_code == 200, response.data
+    result = response.data["analyses"][0]
+    assert response.data["dataset_examination_count"] == 2
+    assert response.data["evaluated_examination_count"] == 1
+    assert result["package_mismatch_record_count"] == 1
+    assert result["total_records"] == 1
+    assert result["total_units"] == 2
+    assert result["endpoints"][0]["numerator"] == 1
+    assert result["endpoints"][0]["denominator"] == 2
+
+
 def test_bidirectional_many_to_many_links_survive_reload_and_unlink(setup_cohorts):
     client, user, _, datasets = setup_cohorts
     first = client.post(BASE, definition([row.pk for row in datasets]), format="json")
@@ -360,7 +530,9 @@ def test_versioned_criteria_use_all_criteria_any_exact_reference_and_active_find
             get_finding=lambda name: {finding.name: finding}[name],
         )
 
-    monkeypatch.setattr("lx_annotate.services.study_eligibility.load_module_kb", load)
+    monkeypatch.setattr(
+        "lx_annotate.services.study_eligibility.load_registered_package", load
+    )
     expected = []
     for i, (version, active) in enumerate(
         [
@@ -438,8 +610,8 @@ def test_unavailable_terminology_fails_before_save_or_preview(setup_cohorts):
 def test_real_packaged_terminology_resolves_and_round_trips_in_download(
     setup_cohorts, tmp_path, monkeypatch
 ):
+    from lx_dtypes import packages
     from lx_dtypes.knowledge_bases import get_packaged_knowledge_base
-    from lx_dtypes.terminology import terminology_loader
     from lx_dtypes.terminology.terminology_loader import load_module_kb
     from lx_dtypes.terminology.terminology_service import TerminologyService
     from lx_dtypes.utils.study_setup_yaml import parse_study_setup_yaml
@@ -449,8 +621,8 @@ def test_real_packaged_terminology_resolves_and_round_trips_in_download(
     service.register_local(
         "coloreg", "0.1.0", input_dirs=[descriptor.installed_data_root()]
     )
-    monkeypatch.setattr(terminology_loader, "get_terminology_service", lambda: service)
-    package = load_module_kb("coloreg", version="0.1.0")
+    monkeypatch.setattr(packages, "get_terminology_service", lambda: service)
+    package = load_module_kb("coloreg", version="0.1.0", service=service)
     name = next(iter(package.examination))
     client, _, _, _ = setup_cohorts
     data = definition()
@@ -470,7 +642,8 @@ def test_real_packaged_terminology_resolves_and_round_trips_in_download(
             }
         ],
     }
-    response = client.post(BASE, data, format="json")
+    with pytest.warns(packages.PackageAuthoringWarning):
+        response = client.post(BASE, data, format="json")
     assert response.status_code == 201, response.data
     download = client.get(f"{BASE}{response.data['id']}/definition/")
     parsed = parse_study_setup_yaml(download.content.decode())

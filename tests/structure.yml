@@ -9,6 +9,9 @@ responsibilities:
 boundaries:
   - "Do not mutate production data or treat fixtures as deployment sources."
 entrypoints:
+  - name: "packaged watcher acceptance"
+    file: "ingestion/test_packaged_watcher_acceptance.py"
+    purpose: "Opt-in installed-wheel one-shot checks against disposable PostgreSQL"
   - name: "fixtures"
     file: "conftest.py"
     purpose: "Isolated runtime and database fixtures"
@@ -27,3 +30,6 @@ contracts:
 tests:
   directory: "."
   command: "python -m pytest tests/system/test_structure_manifests.py -q"
+
+files:
+  - system/test_identity_response_boundary.py

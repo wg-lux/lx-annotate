@@ -2,12 +2,12 @@
   <section
     id="annotation-comparisons"
     class="comparison-panel"
-    aria-label="Meine Annotationsvergleiche"
+    aria-label="Annotationsvergleiche"
   >
     <div class="comparison-heading">
       <div>
-        <p class="eyebrow">Fortschritt &amp; Reflexion</p>
-        <h3 class="h4 mb-0">Meine Annotationen im Vergleich</h3>
+        <p class="eyebrow">Aktivität &amp; Vergleich</p>
+        <h3 class="h4 mb-0">Annotationsübersicht</h3>
       </div>
       <button
         class="btn btn-outline-primary btn-sm"
@@ -18,7 +18,7 @@
       </button>
     </div>
     <details class="comparison-help">
-      <summary>Wie wird die Überlappung berechnet?</summary>
+      <summary>Metrikdefinitionen</summary>
       <p>
         Vergleich mit benannten Annotatoren auf denselben Videos und mit finalisierten Berichten
         derselben Untersuchung. Zeitüberlappung = gemeinsame positive Label-Zeit geteilt durch die
@@ -41,9 +41,16 @@
     <template v-else-if="data">
       <div class="progress-grid">
         <article class="progress-card contribution-card">
-          <p class="eyebrow">Ihr Beitrag · {{ data.practitioner }}</p>
+          <div class="contribution-heading">
+            <p class="eyebrow">Annotationskonto · {{ data.practitioner }}</p>
+            <span
+              class="level-badge"
+              data-test="annotation-level"
+              >Stufe {{ level }}</span
+            >
+          </div>
           <strong class="metric">{{ data.total.toLocaleString('de-DE') }}</strong>
-          <h4>Eigene Annotationen insgesamt</h4>
+          <h4>Annotationen insgesamt</h4>
           <p>
             {{ data.count }} Videos · Eindeutige Frame-Label-Paare, einschließlich Annotationen aus
             Segmentvalidierung.
@@ -62,7 +69,7 @@
           class="progress-card"
         >
           <p class="eyebrow">
-            {{ summary.kind === 'annotations' ? 'Gemeinsam reflektieren' : 'KI als Vergleich' }}
+            {{ summary.kind === 'annotations' ? 'Annotatoren' : 'KI-Vorhersagen' }}
           </p>
           <strong
             class="metric"
@@ -95,6 +102,44 @@
           </p>
         </article>
       </div>
+
+      <section
+        class="achievement-panel"
+        aria-label="Annotationsmeilensteine"
+      >
+        <div class="achievement-heading">
+          <div>
+            <p class="eyebrow">Meilensteine</p>
+            <h4>Annotationsvolumen</h4>
+          </div>
+          <span class="achievement-count"
+            >{{ level }} erreicht · Nächstes Ziel {{ milestone.toLocaleString('de-DE') }}</span
+          >
+        </div>
+        <ol class="achievement-track">
+          <li
+            v-for="target in visibleMilestones"
+            :key="target"
+            class="achievement"
+            :class="{ 'is-earned': data.total >= target, 'is-next': target === milestone }"
+            :aria-current="target === milestone ? 'step' : undefined"
+          >
+            <span
+              class="achievement-icon"
+              aria-hidden="true"
+              >{{ data.total >= target ? '✓' : '◇' }}</span
+            >
+            <strong>{{ target.toLocaleString('de-DE') }}</strong>
+            <span>{{
+              data.total >= target
+                ? 'Erreicht'
+                : target === milestone
+                  ? 'Nächstes Ziel'
+                  : 'Gesperrt'
+            }}</span>
+          </li>
+        </ol>
+      </section>
 
       <p v-if="!data.results.length">
         Noch keine zugeordneten menschlichen Annotationen auf zugänglichen Videos vorhanden.
@@ -173,7 +218,7 @@
                 <th>Quelle</th>
                 <th>Übereinstimmung</th>
                 <th>Gemeinsame Befunde</th>
-                <th>Nur meine</th>
+                <th>Nur Referenzkonto</th>
                 <th>Nur andere</th>
               </tr>
             </thead>
@@ -247,13 +292,27 @@ const data = ref<ComparisonPage | null>(null)
 const loading = ref(false)
 const error = ref('')
 const page = ref(1)
+const milestoneTargets = [10, 50, 100, 500, 1000]
 const milestone = computed(() => {
   const count = data.value?.total ?? 0
+  return milestoneTargets.find((target) => target > count) ?? (Math.floor(count / 1000) + 1) * 1000
+})
+const level = computed(() => {
+  const total = data.value?.total ?? 0
   return (
-    [10, 50, 100, 500, 1000].find((target) => target > count) ??
-    (Math.floor(count / 1000) + 1) * 1000
+    milestoneTargets.filter((target) => total >= target).length +
+    Math.max(0, Math.floor(total / 1000) - 1)
   )
 })
+const visibleMilestones = computed(() =>
+  milestone.value > 1000
+    ? [
+        ...milestoneTargets,
+        ...(milestone.value > 2000 ? [milestone.value - 1000] : []),
+        milestone.value
+      ]
+    : milestoneTargets
+)
 const comparisonKinds = ['annotations', 'predictions'] as const
 const summaries = computed(() =>
   comparisonKinds.map((kind) => {
@@ -370,7 +429,8 @@ onMounted(() => load(1))
 }
 .metric {
   display: block;
-  font-size: clamp(1.6rem, 3vw, 2.5rem);
+  font-size: clamp(1.8rem, 3vw, 2.75rem);
+  font-variant-numeric: tabular-nums;
   letter-spacing: -0.04em;
   color: #1b425d;
   margin: 0.5rem 0;
@@ -417,10 +477,94 @@ progress::-webkit-progress-value {
 progress::-moz-progress-bar {
   background: #247c76;
 }
-.reflection-note {
-  padding: 1rem 0;
-  font-size: 0.85rem;
+.contribution-heading,
+.achievement-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.contribution-heading .eyebrow {
+  margin: 0;
+}
+.level-badge {
+  padding: 0.35rem 0.65rem;
+  background: #173b56;
+  color: #fff;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.achievement-panel {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  border: 1px solid #dfe7ef;
+  border-radius: 14px;
+  background: #fbfcfe;
+}
+.achievement-heading h4 {
+  margin: 0;
+  color: #24354b;
+  font-size: 1rem;
+}
+.achievement-count {
   color: #52647a;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+.achievement-track {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 0.75rem;
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0;
+}
+.achievement {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 1rem 0.5rem;
+  border: 1px dashed #b9c7d6;
+  border-radius: 10px;
+  color: #52647a;
+  font-size: 0.75rem;
+  text-align: center;
+}
+.achievement strong {
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+.achievement-icon {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: #e8eef5;
+  font-size: 1.1rem;
+}
+.achievement.is-earned {
+  background: #edf7f3;
+  border: 1px solid #9fc8b8;
+  color: #215c47;
+}
+.is-earned .achievement-icon {
+  background: #21664f;
+  color: #fff;
+}
+.achievement.is-next {
+  border: 2px solid #466da4;
+  background: #eef4fc;
+  color: #284d80;
+}
+@media (max-width: 600px) {
+  .achievement-track {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 .video-comparison {
   padding-top: 1.5rem;

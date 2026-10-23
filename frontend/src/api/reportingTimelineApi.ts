@@ -12,7 +12,6 @@ export type TimelinePatient = {
   lastName: string | null
   dob: string | null
   isRealPerson: boolean
-  patientHash: string | null
 }
 
 export type TimelineLatestReport = {
@@ -110,8 +109,7 @@ function isTimelinePatient(value: unknown): value is TimelinePatient {
     isNullableString(value.firstName) &&
     isNullableString(value.lastName) &&
     isNullableString(value.dob) &&
-    typeof value.isRealPerson === 'boolean' &&
-    isNullableString(value.patientHash)
+    typeof value.isRealPerson === 'boolean'
   )
 }
 

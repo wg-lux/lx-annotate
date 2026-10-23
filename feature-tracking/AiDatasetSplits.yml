@@ -12,8 +12,11 @@ description: Saved annotation membership snapshots with a fixed patient test hol
   are GET/POST settings/application/ai_datasets/{dataset_id}/split_plans/ and GET settings/application/ai_datasets/{dataset_id}/split_plans/{plan_id}/
   under endoreg-api/. POST accepts name, k (2-20), test_percent (1-50), and seed (0-2147483647). A membership
   validation_fold of null is test; for fold i, validation_fold i is validation and other non-null folds
-  are training. Apply migration lx_annotate.0008_aidatasetsplitplan before using the page. No migration
-  has been applied to an application or production database by this task.
+  are training. Persistence is owned by endoreg-db (endoreg_db.models.aidataset.AIDatasetSplitPlan); lx_annotate.models.AIDatasetSplitPlan
+  is a compatibility import. Apply migrations through lx_annotate.0016_application_persistence (which
+  requires endoreg_db.0097_application_persistence and moves rows created by lx_annotate.0008_aidatasetsplitplan)
+  before using the page. No migration has been applied to an application or production database by this
+  task.
 owners:
 - lx-annotate maintainers
 production_critical: false
@@ -127,25 +130,27 @@ definition_of_done:
     evidence:
     - kind: test
       reference: '2026-10-01, assessor codex-failure-triage-20261001: tests/api/test_ai_dataset_settings_api.py'
-      note: 'endoreg-db 1.4.1 migration 0078_video_joined_dataset seeds a system-managed
-        dataset. Invalid-request tests now compare persisted rows before and after POST
-        instead of assuming an empty table. Video-default creation preserves existing
-        dropdown entries and adds the exact expected new entry. Validation status codes
-        and error messages remain asserted. Focused rerun of dataset API, storage balance
-        worker and storage recovery tests: 31 passed, 4 failed in 84.27s; all 12 dataset
-        API tests passed. The four remaining failures are endoreg-db PostgreSQL locking
-        defects. Ruff check and format --check passed for the changed test file. Final
-        cross-repository rerun with PYTHONPATH=/home/admin/endoreg-db: all 35 selected
-        tests passed in 75.41s, including all 12 dataset API tests.'
+      note: 'endoreg-db 1.4.1 migration 0078_video_joined_dataset seeds a system-managed dataset. Invalid-request
+        tests now compare persisted rows before and after POST instead of assuming an empty table. Video-default
+        creation preserves existing dropdown entries and adds the exact expected new entry. Validation
+        status codes and error messages remain asserted. Focused rerun of dataset API, storage balance
+        worker and storage recovery tests: 31 passed, 4 failed in 84.27s; all 12 dataset API tests passed.
+        The four remaining failures are endoreg-db PostgreSQL locking defects. Ruff check and format --check
+        passed for the changed test file. Final cross-repository rerun with PYTHONPATH=/home/admin/endoreg-db:
+        all 35 selected tests passed in 75.41s, including all 12 dataset API tests.'
     - kind: command
       reference: '.devenv/state/venv/bin/pytest tests/api/test_ai_dataset_splits.py tests/contracts/test_frontend_backend_api_contract.py
         -q: 22 passed'
     - kind: test
       reference: tests/api/test_ai_dataset_splits.py
-    note: 'Verified deterministic patient grouping, fixed test across k values, immutable membership,
-      invalid-input rejection, authenticated center scope and API persistence; frontend suite: 25 passed.'
-    assessed_by: codex-buckets-20260911-a
-    assessed_at: '2026-09-11T08:34:43.283227Z'
+    - kind: command
+      reference: '2026-10-23: .devenv/state/venv/bin/python -m pytest tests/api/test_ai_dataset_splits.py
+        tests/api/test_ai_dataset_settings_api.py tests/contracts/test_frontend_backend_api_contract.py
+        tests/migrations/test_application_persistence_move.py -q: 42 passed in 71.95s; frontend npx vitest
+        run (4 AiDataset files): 25 passed'
+    note: Re-verified 2026-10-23 against endoreg-db 1.6.1 ownership; earlier evidence retained.
+    assessed_by: claude-ai-dataset-splits-20261023
+    assessed_at: '2026-10-23T07:11:12.779282Z'
 - id: documentation
   category: documentation
   title: Scope and limitations documented
@@ -160,11 +165,15 @@ definition_of_done:
     status: verified
     evidence:
     - kind: document
-      reference: feature-tracking/AiDatasetSplits.yml
-    note: English scope documents patient ratios, membership snapshots, fixed holdout across k, absent
-      label stratification, API paths and migration prerequisite.
-    assessed_by: codex-buckets-20260911-a
-    assessed_at: '2026-09-11T08:34:35.658425Z'
+      reference: feature-tracking/AiDatasetSplits.yml description
+    - kind: code
+      reference: lx_annotate/api_urls.py:151-158 split_plans endpoints; lx_annotate/models/ai_dataset_split_plan.py
+        compatibility import of endoreg_db model
+    note: 'Re-assessed 2026-10-23: scope still documents patient ratios, membership snapshots, fixed holdout
+      across k, absent label stratification and API paths; migration prerequisite corrected from lx_annotate.0008
+      to the endoreg-db ownership move (lx_annotate.0016 / endoreg_db.0097).'
+    assessed_by: claude-ai-dataset-splits-20261023
+    assessed_at: '2026-10-23T07:11:10.480045Z'
 - id: migration
   category: operations
   title: Migration is reviewable and consistent with the model
@@ -179,12 +188,17 @@ definition_of_done:
     status: verified
     evidence:
     - kind: command
-      reference: 'Migrations enabled for isolated test settings: makemigrations lx_annotate --check --dry-run
-        found no changes; migration graph resolved; 0008 applied and reversed in isolated SQLite database.'
-    note: Application and production databases were not migrated. Apply migration 0008 before using the
-      feature.
-    assessed_by: codex-buckets-20260911-a
-    assessed_at: '2026-09-11T08:34:14.862436Z'
+      reference: 'DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_test .devenv/state/venv/bin/python
+        manage.py makemigrations lx_annotate endoreg_db --check --dry-run (migrations enabled, endoreg-db
+        1.6.1): No changes detected'
+    - kind: test
+      reference: 'tests/migrations/test_application_persistence_move.py: 2 passed (lx_annotate.0016 moves
+        AIDatasetSplitPlan to endoreg_db.0097)'
+    note: Re-assessed 2026-10-23 after persistence moved to endoreg-db. Installed endoreg_db model is
+      identical to /home/admin/endoreg-db at 1.6.1. Application and production databases were not migrated;
+      apply through lx_annotate.0016 before use.
+    assessed_by: claude-ai-dataset-splits-20261023
+    assessed_at: '2026-10-23T07:11:08.590595Z'
 - id: saved_patient_link_integrity
   category: data_integrity
   title: Saved split membership rejects changed patient associations
@@ -224,4 +238,4 @@ definition_of_done:
       training, annotation-content freezing, cross-site identity resolution or public-release approval.
       No schema or migration changes.
     assessed_by: codex-claims-20260928
-    assessed_at: '2026-09-28T09:40:00.707899+00:00'
+    assessed_at: '2026-09-28T09:40:00.707899Z'

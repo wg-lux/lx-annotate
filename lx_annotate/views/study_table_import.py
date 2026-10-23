@@ -11,9 +11,11 @@ from django.core.exceptions import ValidationError as ModelError
 from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
 from django.shortcuts import get_object_or_404
+from endoreg_db.models import PatientExamination
 from endoreg_db.models.administration.center.center import Center
 from endoreg_db.models.aidataset.aidataset import AIDataSet
 from endoreg_db.models.other.study_cohort import StudyCohort
+from endoreg_db.services.studies.exchange import capture_study_examinations
 from endoreg_db.services.studies.table_import import import_table
 from endoreg_db.services.studies.table_mappings import mapping_path
 from endoreg_db.services.studies.table_parser import MAX_TABLE_BYTES, load_table_mapping
@@ -33,6 +35,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from lx_annotate.services.dataset_lifecycle import attach_import_dataset
+from lx_annotate.services.study_definitions import persist_study_definition
 
 
 class _UploadOptions(BaseModel):
@@ -77,6 +80,7 @@ def study_table_import(request: Request, cohort_id: int) -> Response:
                 dir_mode=0o700,
             )
             dataset_id: int | None = None
+            captured = []
             with transaction.atomic():
                 Center.objects.select_for_update().get(pk=center.pk)
                 source_hash = get_file_hash(source_file)
@@ -93,20 +97,34 @@ def study_table_import(request: Request, cohort_id: int) -> Response:
                     source_file,
                     owner=cast(User, request.user),
                     center=center,
-                    dry_run=options.mode == "validate",
+                    dry_run=False,
                 )
-                if not result.dry_run:
-                    dataset = attach_import_dataset(
-                        cast(User, request.user),
-                        cohort,
-                        mapping_id=options.mapping_id,
-                        source_hash=source_hash,
-                        center_id=cast(int, center.pk),
-                        name=options.dataset_name
-                        or load_table_mapping(mapping_file).name,
-                        examination_ids=result.patient_examination_ids,
-                    )
-                    dataset_id = dataset.pk
+                dataset = attach_import_dataset(
+                    cast(User, request.user),
+                    cohort,
+                    mapping_id=options.mapping_id,
+                    source_hash=source_hash,
+                    center_id=cast(int, center.pk),
+                    name=options.dataset_name or load_table_mapping(mapping_file).name,
+                    examination_ids=result.patient_examination_ids,
+                    publish_definition=False,
+                )
+                dataset_id = dataset.pk
+                captured = capture_study_examinations(
+                    owner=cast(User, request.user),
+                    study=cohort.study,
+                    cohort=cohort,
+                    examination_scope=PatientExamination.objects.filter(
+                        pk__in=result.patient_examination_ids
+                    ),
+                    cohort_examination_scope=dataset.examinations.all(),
+                )
+                if options.mode == "validate":
+                    transaction.set_rollback(True)
+                    dataset_id = None
+                else:
+                    cohort.refresh_from_db()
+                    persist_study_definition(cohort)
     except PermissionError:
         return Response({"detail": "Center access denied."}, status=403)
     except TableExtractionError as error:
@@ -122,7 +140,7 @@ def study_table_import(request: Request, cohort_id: int) -> Response:
     except (ValueError, ModelError, ApiError):
         return Response(
             {
-                "detail": "Table validation failed. Check mapping, source format and existing clinical identities."
+                "detail": "Table validation or ledger capture failed. Check mapping and identities; install the exact validated full package snapshot before importing."
             },
             status=400,
         )
@@ -133,8 +151,11 @@ def study_table_import(request: Request, cohort_id: int) -> Response:
     return Response(
         {
             "dataset_id": dataset_id,
-            "dry_run": result.dry_run,
-            "patient_examination_ids": result.patient_examination_ids,
+            "captured_collections": len(captured),
+            "dry_run": options.mode == "validate",
+            "patient_examination_ids": []
+            if options.mode == "validate"
+            else result.patient_examination_ids,
             "rows": result.row_count,
             "created": result.created_count,
             "replayed": result.replayed_count,

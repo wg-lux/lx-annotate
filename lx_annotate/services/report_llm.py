@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import re
 import stat
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,7 +20,7 @@ from lx_dtypes.models.contracts.knowledge_base_graph import (
     build_examination_reporting_context,
     build_knowledge_base_graph_snapshot,
 )
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 PROMPT_VERSION = "clinical-graph-report-v2"
 MAX_INPUT_BYTES = 100_000
@@ -84,6 +85,41 @@ class GenerateReportRequest(BaseModel):
     graph: GraphReference
     documented_findings: list[JsonObject] = Field(max_length=200)
     section_notes: list[SectionNote] = Field(max_length=100)
+    llm_server: str | None = Field(default=None, max_length=32)
+    llm_model: str | None = Field(default=None, max_length=200)
+
+
+CHAT_MAX_MESSAGES = 40
+CHAT_SYSTEM_PROMPT = """You are a helpful assistant for clinical staff, running on a local model.
+Answer concisely in the user's language. You have no access to patient records or other
+systems. Give general information only; you are not a substitute for clinical judgement,
+and you must say so when a question needs a clinician's decision."""
+
+
+class ChatMessage(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=8000)
+
+
+class ChatRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    messages: list[ChatMessage] = Field(min_length=1, max_length=CHAT_MAX_MESSAGES)
+    llm_server: str | None = Field(default=None, max_length=32)
+    llm_model: str | None = Field(default=None, max_length=200)
+
+
+def build_chat_messages(data: ChatRequest) -> list[dict]:
+    if data.messages[-1].role != "user":
+        raise ReportLlmError("invalid_input", "Ungültige Chat-Anfrage.", 400)
+    messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT}] + [
+        {"role": message.role, "content": message.content} for message in data.messages
+    ]
+    if sum(len(m["content"].encode()) for m in messages) > MAX_INPUT_BYTES:
+        raise ReportLlmError(
+            "input_too_large", "Der Chatverlauf ist für die LLM-Anfrage zu groß.", 413
+        )
+    return messages
 
 
 @dataclass(frozen=True)
@@ -96,27 +132,83 @@ class LlmConfig:
     cert: tuple[str, str] | None
 
 
-def llm_config() -> LlmConfig:
-    raw = settings.REPORTING_LLM
-    enabled = str(raw["enabled"]).strip().lower()
-    if enabled not in {"true", "false", "1", "0"}:
+LOCAL_SERVER = "local"
+SERVER_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
+
+
+class ServerEntry(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    label: str = Field(default="", max_length=60)
+    base_url: str = Field(min_length=1)
+    ca_file: str = ""
+    client_cert_file: str = ""
+    client_key_file: str = ""
+
+
+def _servers(raw: dict) -> dict[str, ServerEntry]:
+    """Fixed server allowlist: the default endpoint plus REPORT_LLM_SERVERS.
+
+    Clients only ever name a server; they never supply a URL.
+    """
+    servers = {
+        LOCAL_SERVER: ServerEntry(
+            label="Lokal",
+            base_url=raw["base_url"] or "http://127.0.0.1:11434",
+            ca_file=raw["ca_file"],
+            client_cert_file=raw["client_cert_file"],
+            client_key_file=raw["client_key_file"],
+        )
+    }
+    extra = str(raw.get("servers", "")).strip()
+    if not extra:
+        return servers
+    try:
+        parsed = json.loads(extra)
+        if not isinstance(parsed, dict):
+            raise ValueError
+        for name, entry in parsed.items():
+            if not SERVER_ID.fullmatch(name) or name in servers:
+                raise ValueError
+            servers[name] = ServerEntry.model_validate(entry)
+    except (ValueError, ValidationError) as error:
+        raise ReportLlmError(
+            "configuration_error", "Ungültige LLM-Serverliste."
+        ) from error
+    return servers
+
+
+def _require_enabled(raw: dict) -> None:
+    flags = {
+        str(raw[key]).strip().lower() for key in ("drafting_enabled", "enabled")
+    }
+    if not flags <= {"true", "false", "1", "0"}:
         raise ReportLlmError("configuration_error", "Ungültige LLM-Konfiguration.")
-    if enabled in {"false", "0"}:
+    if flags & {"false", "0"}:
         raise ReportLlmError(
             "disabled", "Die LLM-Berichterstellung ist nicht aktiviert."
         )
-    provider, model, base_url = raw["provider"], raw["model"], raw["base_url"]
-    if not base_url:
-        # Same provider-derived loopback defaults as lx_anonymizer.config.Settings.
-        base_url = (
-            "http://127.0.0.1:11434"
-            if provider == "ollama"
-            else "http://127.0.0.1:8000"
+
+
+def llm_config(server: str | None = None, model: str | None = None) -> LlmConfig:
+    raw = settings.REPORTING_LLM
+    _require_enabled(raw)
+    entries = _servers(raw)
+    entry = entries.get(server or LOCAL_SERVER)
+    if entry is None:
+        raise ReportLlmError(
+            "unknown_server", "Der gewählte LLM-Server ist nicht konfiguriert.", 400
         )
+    provider, base_url = raw["provider"], entry.base_url
+    model = model or raw["model"]
     try:
         url = urlsplit(base_url)
         timeout = int(raw["timeout"])
-        if provider not in {"ollama", "vllm"} or not model or not 1 <= timeout <= 120:
+        if (
+            provider != "ollama"
+            or not model
+            or len(model) > 200
+            or not 1 <= timeout <= 120
+        ):
             raise ValueError
         if (
             not url.hostname
@@ -134,8 +226,8 @@ def llm_config() -> LlmConfig:
             url.scheme == "http" and not loopback
         ):
             raise ValueError
-        cert_file, key_file = raw["client_cert_file"], raw["client_key_file"]
-        if not loopback and not (cert_file and key_file and raw["ca_file"]):
+        cert_file, key_file = entry.client_cert_file, entry.client_key_file
+        if not loopback and not (cert_file and key_file and entry.ca_file):
             raise ValueError
         if bool(cert_file) != bool(key_file):
             raise ValueError
@@ -148,7 +240,7 @@ def llm_config() -> LlmConfig:
             model,
             base_url.rstrip("/"),
             timeout,
-            raw["ca_file"] or True,
+            entry.ca_file or True,
             (cert_file, key_file) if cert_file else None,
         )
     except (ValueError, OSError, TypeError) as error:
@@ -156,6 +248,44 @@ def llm_config() -> LlmConfig:
             "configuration_error",
             "LLM-Konfiguration ungültig: Modell und URL prüfen; entfernte Server benötigen mTLS.",
         ) from error
+
+
+def list_server_models() -> list[dict]:
+    """Installed Ollama models per allowlisted server; one failing server never hides the others."""
+    raw = settings.REPORTING_LLM
+    _require_enabled(raw)
+    result = []
+    for name, entry in _servers(raw).items():
+        item: dict = {
+            "id": name,
+            "label": entry.label or name,
+            "ready": False,
+            "models": [],
+            "code": None,
+        }
+        try:
+            config = llm_config(name)
+            tags = request_json(config, "/api/tags").get("models")
+            if not isinstance(tags, list):
+                raise ReportLlmError("invalid_response", "Ungültige Modellliste.", 502)
+            item["models"] = sorted(
+                {
+                    model["name"]
+                    for model in tags
+                    if isinstance(model, dict)
+                    and isinstance(model.get("name"), str)
+                    and not (
+                        model.get("remote_host")
+                        or model.get("remote_model")
+                        or model["name"].endswith(":cloud")
+                    )
+                }
+            )
+            item["ready"] = True
+        except ReportLlmError as error:
+            item["code"] = error.code
+        result.append(item)
+    return result
 
 
 def request_json(config: LlmConfig, path: str, payload: dict | None = None) -> dict:
@@ -204,10 +334,8 @@ def request_json(config: LlmConfig, path: str, payload: dict | None = None) -> d
 
 
 def check_model(config: LlmConfig) -> None:
-    result = request_json(
-        config, "/api/tags" if config.provider == "ollama" else "/v1/models"
-    )
-    models = result.get("models" if config.provider == "ollama" else "data")
+    result = request_json(config, "/api/tags")
+    models = result.get("models")
     if not isinstance(models, list):
         raise ReportLlmError(
             "invalid_response", "Ungültige Modellliste vom LLM-Server.", 502
@@ -215,9 +343,9 @@ def check_model(config: LlmConfig) -> None:
     for model in models:
         if not isinstance(model, dict):
             continue
-        name = model.get("name") if config.provider == "ollama" else model.get("id")
+        name = model.get("name")
         expected = config.model
-        if config.provider == "ollama" and ":" not in expected.rsplit("/", 1)[-1]:
+        if ":" not in expected.rsplit("/", 1)[-1]:
             expected += ":latest"
         if name not in {config.model, expected}:
             continue
@@ -237,10 +365,10 @@ def check_model(config: LlmConfig) -> None:
 
 
 def resolve_graph(reference: GraphReference) -> ExaminationReportingContext:
+    from lx_dtypes.packages import load_registered_package
     from lx_dtypes.terminology.lookup_tracker import register_runtime_lookup_tracker
-    from lx_dtypes.terminology.terminology_loader import load_module_kb
 
-    kb = load_module_kb(
+    kb = load_registered_package(
         reference.identity.knowledge_base_module,
         version=reference.identity.knowledge_base_version,
     )
@@ -310,36 +438,19 @@ def build_messages(
 
 
 def generate_report(config: LlmConfig, messages: list[dict]) -> str:
-    if config.provider == "ollama":
-        result = request_json(
-            config,
-            "/api/chat",
-            {
-                "model": config.model,
-                "messages": messages,
-                "stream": False,
-                "think": False,
-                "options": {"temperature": 0.1, "num_predict": 2048},
-            },
-        )
-        message = result.get("message")
-        complete = result.get("done") is True and result.get("done_reason") == "stop"
-    else:
-        result = request_json(
-            config,
-            "/v1/chat/completions",
-            {
-                "model": config.model,
-                "messages": messages,
-                "stream": False,
-                "temperature": 0.1,
-                "max_tokens": 2048,
-            },
-        )
-        choices = result.get("choices")
-        choice = choices[0] if isinstance(choices, list) and choices else None
-        message = choice.get("message") if isinstance(choice, dict) else None
-        complete = isinstance(choice, dict) and choice.get("finish_reason") == "stop"
+    result = request_json(
+        config,
+        "/api/chat",
+        {
+            "model": config.model,
+            "messages": messages,
+            "stream": False,
+            "think": False,
+            "options": {"temperature": 0.1, "num_predict": 2048},
+        },
+    )
+    message = result.get("message")
+    complete = result.get("done") is True and result.get("done_reason") == "stop"
     text = message.get("content") if isinstance(message, dict) else None
     if (
         not complete

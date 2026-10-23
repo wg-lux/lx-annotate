@@ -115,6 +115,23 @@ describe('AnnotationComparisons', () => {
     expect(wrapper.get('[data-test="peer-overlap"]').text()).toBe('Nicht auswertbar')
   })
 
+  it.each([
+    [0, 0, 10],
+    [10, 1, 50],
+    [1000, 5, 2000],
+    [2000, 6, 3000]
+  ])('derives levels and the active milestone from %i annotations', async (total, level, next) => {
+    get.mockResolvedValue({ data: { ...response(), total } })
+    const wrapper = mount(AnnotationComparisons)
+    await flushPromises()
+    expect(wrapper.get('[data-test="annotation-level"]').text()).toBe(`Stufe ${String(level)}`)
+    const track = wrapper.get('[aria-label="Annotationsmeilensteine"]')
+    expect(track.get('[aria-current="step"]').text()).toContain(next.toLocaleString('de-DE'))
+    expect(track.get('[aria-current="step"]').text()).toContain('Nächstes Ziel')
+    expect(track.findAll('.is-earned')).toHaveLength(level)
+    expect(wrapper.text()).not.toContain('Ihr Beitrag')
+  })
+
   it('displays measured zero overlap as zero', async () => {
     const data = response()
     data.results[0].annotations[0].intersection = 0

@@ -29,6 +29,8 @@ def configured(settings, monkeypatch):
         views.report_llm_generate.cls, "authentication_classes", [SessionAuthentication]
     )
     settings.REPORTING_LLM = {
+        "drafting_enabled": "true",
+        "servers": "",
         "enabled": "true",
         "provider": "ollama",
         "model": "clinical-test",
@@ -183,15 +185,8 @@ def test_generation_rejects_invalid_request_encoding(
     probe.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    "provider,model_list",
-    [
-        ("ollama", {"models": [{"name": "clinical-test:latest"}]}),
-        ("vllm", {"data": [{"id": "clinical-test"}]}),
-    ],
-)
-def test_status_accepts_installed_model(configured, monkeypatch, provider, model_list):
-    configured["provider"] = provider
+def test_status_accepts_installed_model(configured, monkeypatch):
+    model_list = {"models": [{"name": "clinical-test:latest"}]}
     monkeypatch.setattr(service, "request_json", lambda *_: model_list)
     response = views.report_llm_status(request("GET"))
     assert response.status_code == 200
@@ -227,11 +222,31 @@ def test_remote_transport_cannot_bypass_mtls(configured, url):
     assert error.value.code == "configuration_error"
 
 
-def test_provider_defaults_match_existing_contract(configured):
+def test_default_base_url_is_loopback_ollama(configured):
     configured["base_url"] = ""
     assert service.llm_config().base_url == "http://127.0.0.1:11434"
-    configured["provider"] = "vllm"
-    assert service.llm_config().base_url == "http://127.0.0.1:8000"
+
+
+@pytest.mark.parametrize("provider", ["vllm", "openai", "anthropic", ""])
+def test_only_ollama_is_supported(configured, provider):
+    configured["provider"] = provider
+    with pytest.raises(service.ReportLlmError) as error:
+        service.llm_config()
+    assert error.value.code == "configuration_error"
+
+
+@pytest.mark.parametrize("flag", ["drafting_enabled", "enabled"])
+def test_drafting_requires_explicit_opt_in(configured, flag):
+    configured[flag] = "false"
+    with pytest.raises(service.ReportLlmError) as error:
+        service.llm_config()
+    assert error.value.code == "disabled"
+
+
+def test_missing_drafting_flag_fails_closed(configured):
+    del configured["drafting_enabled"]
+    with pytest.raises(KeyError):
+        service.llm_config()
 
 
 def test_prompt_separates_patient_facts_from_terminology(graph):
@@ -399,3 +414,125 @@ def test_generation_returns_editable_text_and_graph_provenance(
     assert response.data["graph_context_id"] == graph.context_id
     assert response.data["prompt_version"] == service.PROMPT_VERSION
     assert "no-store" in response["Cache-Control"]
+
+
+GC02 = '{"gc-02": {"label": "gc-02", "base_url": "https://gc-02.intern:11434", "ca_file": "/ca", "client_cert_file": "/cert", "client_key_file": "/key"}}'
+
+
+def test_unknown_server_is_rejected_not_used_as_url(configured):
+    with pytest.raises(service.ReportLlmError) as error:
+        service.llm_config("http://evil.example")
+    assert error.value.code == "unknown_server"
+
+
+def test_named_remote_server_requires_mtls_handles(configured):
+    configured["servers"] = GC02.replace('"client_cert_file": "/cert", ', "")
+    with pytest.raises(service.ReportLlmError) as error:
+        service.llm_config("gc-02")
+    assert error.value.code == "configuration_error"
+
+
+@pytest.mark.parametrize(
+    "servers",
+    ["not json", "[]", '{"local": {"base_url": "http://127.0.0.1:1"}}', '{"Bad Name": {"base_url": "https://x"}}'],
+)
+def test_invalid_server_list_fails_closed(configured, servers):
+    configured["servers"] = servers
+    with pytest.raises(service.ReportLlmError) as error:
+        service.llm_config()
+    assert error.value.code == "configuration_error"
+
+
+def test_models_endpoint_lists_servers_and_hides_cloud_models(configured, monkeypatch):
+    configured["servers"] = GC02
+    monkeypatch.setattr(service.Path, "stat", lambda self: SimpleNamespace(st_mode=0o100600))
+
+    def fake(config, path, payload=None):
+        if config.base_url.startswith("https://gc-02"):
+            raise service.ReportLlmError("unavailable", "down")
+        return {"models": [{"name": "glm4:latest"}, {"name": "x:cloud"}, {"name": "b", "remote_host": "h"}]}
+
+    monkeypatch.setattr(service, "request_json", fake)
+    response = views.report_llm_models(request("GET"))
+    assert response.status_code == 200
+    servers = {server["id"]: server for server in response.data["servers"]}
+    assert servers["local"]["models"] == ["glm4:latest"]
+    assert servers["local"]["ready"] is True
+    assert servers["gc-02"]["ready"] is False and servers["gc-02"]["code"] == "unavailable"
+    assert response.data["default"] == {"server": "local", "model": "clinical-test"}
+
+
+def test_status_checks_the_selected_model(configured, monkeypatch):
+    monkeypatch.setattr(
+        service, "request_json", lambda *_: {"models": [{"name": "glm4:latest"}]}
+    )
+    incoming = APIRequestFactory().get("/", {"model": "glm4"})
+    force_authenticate(incoming, user=SimpleNamespace(is_authenticated=True, is_active=True))
+    response = views.report_llm_status(incoming)
+    assert response.status_code == 200
+    assert response.data == {"ready": True, "model": "glm4"}
+
+
+def chat_request(body):
+    incoming = APIRequestFactory().post("/", body, format="json")
+    force_authenticate(
+        incoming, user=SimpleNamespace(is_authenticated=True, is_active=True)
+    )
+    return incoming
+
+
+def test_chat_returns_text_and_uses_a_server_side_system_prompt(configured, monkeypatch):
+    sent = {}
+
+    def fake(config, path, payload=None):
+        if payload is None:
+            return {"models": [{"name": "clinical-test:latest"}]}
+        sent.update(payload)
+        return {"message": {"content": "Hallo."}, "done": True, "done_reason": "stop"}
+
+    monkeypatch.setattr(service, "request_json", fake)
+    response = views.report_llm_chat(
+        chat_request({"messages": [{"role": "user", "content": "Hi"}]})
+    )
+    assert response.status_code == 200
+    assert response.data == {"text": "Hallo.", "model": "clinical-test"}
+    assert "no-store" in response["Cache-Control"]
+    assert [m["role"] for m in sent["messages"]] == ["system", "user"]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"messages": []},
+        {"messages": [{"role": "system", "content": "x"}]},
+        {"messages": [{"role": "assistant", "content": "x"}]},
+        {"messages": [{"role": "user", "content": ""}]},
+        {"messages": [{"role": "user", "content": "x"}] * 41},
+        {"messages": [{"role": "user", "content": "x"}], "extra": 1},
+    ],
+)
+def test_chat_rejects_invalid_requests_before_contacting_the_model(
+    configured, monkeypatch, body
+):
+    probe = Mock()
+    monkeypatch.setattr(service, "request_json", probe)
+    response = views.report_llm_chat(chat_request(body))
+    assert response.status_code == 400
+    probe.assert_not_called()
+
+
+def test_chat_is_gated_by_the_drafting_opt_in(configured):
+    configured["drafting_enabled"] = "false"
+    response = views.report_llm_chat(
+        chat_request({"messages": [{"role": "user", "content": "Hi"}]})
+    )
+    assert response.status_code == 503 and response.data["code"] == "disabled"
+
+
+def test_chat_rejects_unknown_server(configured):
+    response = views.report_llm_chat(
+        chat_request(
+            {"messages": [{"role": "user", "content": "Hi"}], "llm_server": "http://x"}
+        )
+    )
+    assert response.status_code == 400 and response.data["code"] == "unknown_server"

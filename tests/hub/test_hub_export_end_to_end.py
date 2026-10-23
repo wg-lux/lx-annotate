@@ -25,16 +25,18 @@ from endoreg_db.models import (
     PortalUserInfo,
     RawPdfFile,
     RawPdfState,
+    SensitiveMeta,
     TransferJob,
     VideoFile,
     VideoState,
 )
 from endoreg_db.serializers.hub.transfer_job import TransferJobCreateSerializer
-from endoreg_db.utils.hashs import get_file_hash
+from endoreg_db.utils.hashs import get_file_hash, get_hub_record_pseudonym
 from lx_dtypes.models.contracts.hub_media_envelope import (
     HubMediaEnvelopeMetadata,
     HubMediaEnvelopeReceipt,
 )
+from lx_dtypes.models.contracts.hub_transfer import HubTransferSensitiveMetaPayload
 
 from lx_annotate.hub.hub_export_payloads import build_transfer_payload
 from lx_annotate.hub.hub_export_worker import (
@@ -137,7 +139,7 @@ class HubExportEndToEndTests(TestCase):
         self.assertEqual(validated_data["source_node"], self.site_node)
         self.assertEqual(validated_data["target_node"], self.hub_node)
         self.assertEqual(validated_data["source_center"], self.center)
-        self.assertEqual(validated_data["payload_schema_version"], "3.0")
+        self.assertEqual(validated_data["payload_schema_version"], "7.0")
 
     @staticmethod
     def _requests_response_from_django(
@@ -151,6 +153,45 @@ class HubExportEndToEndTests(TestCase):
         response.encoding = "utf-8"
         response.url = url
         return response
+
+    def _shared_database_receiver_identity(
+        self,
+        *,
+        existing: SensitiveMeta | None,
+        payload: dict[str, object],
+        center: Center,
+        source_node: NetworkNode | None = None,
+    ) -> SensitiveMeta:
+        """Emulate a separate receiver identity store in the shared test database.
+
+        Sender and receiver share one database here, so the receiver would find
+        the sender's own Patient under the transferred UUID and reject it as
+        foreign-owned. endoreg-db covers receiver UUID ownership; this boundary
+        only confirms that hub-scoped pseudonyms, not the persisted local UUIDs,
+        crossed the wire.
+        """
+        identity = HubTransferSensitiveMetaPayload.model_validate(payload)
+        self.assertIsNotNone(existing)
+        assert existing is not None
+        self.assertEqual(existing.center_id, center.pk)
+        self.assertIsNotNone(source_node)
+        hub_node_key = self.hub_node.node_key
+        self.assertNotEqual(identity.patient_uuid, existing.pseudo_patient.uuid)
+        self.assertEqual(
+            identity.patient_uuid,
+            get_hub_record_pseudonym(
+                existing.pseudo_patient.uuid, kind="patient", hub_node_key=hub_node_key
+            ),
+        )
+        self.assertEqual(
+            identity.examination_uuid,
+            get_hub_record_pseudonym(
+                existing.pseudo_examination.uuid,
+                kind="examination",
+                hub_node_key=hub_node_key,
+            ),
+        )
+        return existing
 
     def _forward_worker_post_to_receiver(
         self,
@@ -190,13 +231,17 @@ class HubExportEndToEndTests(TestCase):
             encoded_payload = json.dumps(json_payload, sort_keys=True).encode("utf-8")
             for forbidden in body_forbidden_values:
                 self.assertNotIn(forbidden, encoded_payload)
-            django_response = self.client.post(
-                path,
-                data=json_payload,
-                content_type="application/json",
-                secure=True,
-                headers=proxy_headers,
-            )
+            with patch(
+                "endoreg_db.services.hub.transfers._upsert_sensitive_meta",
+                side_effect=self._shared_database_receiver_identity,
+            ):
+                django_response = self.client.post(
+                    path,
+                    data=json_payload,
+                    content_type="application/json",
+                    secure=True,
+                    headers=proxy_headers,
+                )
         else:
             upload_stream = cast(CiphertextUploadStream, request_kwargs["data"])
             wire_body = b"".join(upload_stream)

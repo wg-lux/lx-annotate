@@ -258,6 +258,7 @@ def attach_import_dataset(
     center_id: int,
     name: str,
     examination_ids: list[int],
+    publish_definition: bool = True,
 ) -> AIDataSet:
     """Called inside the import's transaction, after its center serialization lock."""
     identity = uuid5(mapping_id, f"{user.pk}:{center_id}:{source_hash}")
@@ -287,7 +288,8 @@ def attach_import_dataset(
     )
     cohort = StudyCohort.objects.select_for_update().get(pk=cohort.pk, created_by=user)
     cohort.datasets.add(dataset)
-    persist_study_definition(cohort)
+    if publish_definition:
+        persist_study_definition(cohort)
     return dataset
 
 

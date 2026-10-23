@@ -157,12 +157,6 @@
             "readOnly": true,
             "type": "array"
           },
-          "hash": {
-            "description": "A hash value associated with the case when configured.",
-            "maxLength": 255,
-            "nullable": true,
-            "type": "string"
-          },
           "id": {
             "readOnly": true,
             "type": "integer"
@@ -4568,12 +4562,6 @@
             "readOnly": true,
             "type": "array"
           },
-          "hash": {
-            "description": "A hash value associated with the case when configured.",
-            "maxLength": 255,
-            "nullable": true,
-            "type": "string"
-          },
           "id": {
             "readOnly": true,
             "type": "integer"
@@ -4729,11 +4717,6 @@
             "maxLength": 100,
             "type": "string"
           },
-          "patient_hash": {
-            "maxLength": 255,
-            "nullable": true,
-            "type": "string"
-          },
           "phone": {
             "maxLength": 255,
             "nullable": true,
@@ -4762,10 +4745,6 @@
             "readOnly": true,
             "type": "string"
           },
-          "hash": {
-            "readOnly": true,
-            "type": "string"
-          },
           "id": {
             "readOnly": true,
             "type": "integer"
@@ -4779,8 +4758,9 @@
             "type": "string"
           },
           "patient": {
-            "description": "Patient Hash (z.B. 'patient_2')",
-            "type": "string",
+            "description": "Local patient ID",
+            "minimum": 1,
+            "type": "integer",
             "writeOnly": true
           },
           "patient_data": {
@@ -4953,11 +4933,6 @@
             "maxLength": 100,
             "type": "string"
           },
-          "patient_hash": {
-            "maxLength": 255,
-            "nullable": true,
-            "type": "string"
-          },
           "phone": {
             "maxLength": 255,
             "nullable": true,
@@ -5112,10 +5087,6 @@
             "readOnly": true,
             "type": "string"
           },
-          "hash": {
-            "readOnly": true,
-            "type": "string"
-          },
           "id": {
             "readOnly": true,
             "type": "integer"
@@ -5129,8 +5100,9 @@
             "type": "string"
           },
           "patient": {
-            "description": "Patient Hash (z.B. 'patient_2')",
-            "type": "string",
+            "description": "Local patient ID",
+            "minimum": 1,
+            "type": "integer",
             "writeOnly": true
           },
           "patient_data": {
@@ -5154,7 +5126,6 @@
         },
         "required": [
           "examination_name",
-          "hash",
           "id",
           "patient",
           "patient_data",
@@ -9814,6 +9785,30 @@
         ]
       }
     },
+    "/endoreg-api/media/pdfs/{id}/workflow/": {
+      "get": {
+        "description": "Workflow state and reducer-accepted next events of one media record.",
+        "operationId": "media_pdfs_workflow_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
     "/endoreg-api/media/quarantine/": {
       "get": {
         "description": "Base class that supplies the mandatory fallback schema metadata.",
@@ -11464,6 +11459,30 @@
         ]
       }
     },
+    "/endoreg-api/media/videos/{id}/workflow/": {
+      "get": {
+        "description": "Workflow state and reducer-accepted next events of one media record.",
+        "operationId": "media_videos_workflow_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
     "/endoreg-api/media/videos/{video_id}/frames/{frame_number}/decoded-stream/": {
       "get": {
         "description": "Decode and return a single frame directly from a video artifact.\n\nEndpoint:\n- GET /api/media/videos/<video_id>/frames/<frame_number>/decoded-stream/?file_type=raw|processed",
@@ -11518,6 +11537,20 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        },
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/endoreg-api/media/workflow/stages/": {
+      "get": {
+        "description": "Worklist counts per actionable stage over the caller's centers.",
+        "operationId": "media_workflow_stages_retrieve",
         "responses": {
           "200": {
             "description": "No response body"
@@ -12041,7 +12074,7 @@
     },
     "/endoreg-api/patient-examinations/create/": {
       "post": {
-        "description": "Create new PatientExamination instances.\nPOST /api/examinations/create/\n\nExpected payload:\n{\n    \"patient\": \"patient_hash_string\",  # or patient_id integer\n    \"examination\": \"examination_name\", # examination name string\n    \"date_start\": \"2024-01-15\",\n}",
+        "description": "Create new PatientExamination instances.\nPOST /api/examinations/create/\n\nExpected payload:\n{\n    \"patient\": 2,  # local patient ID\n    \"examination\": \"examination_name\", # examination name string\n    \"date_start\": \"2024-01-15\",\n}",
         "operationId": "patient_examinations_create_create",
         "requestBody": {
           "content": {

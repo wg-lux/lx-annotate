@@ -406,6 +406,8 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
         filename: 'needs-validation.mp4',
         mediaType: 'video',
         anonymizationStatus: 'done_processing_anonymization',
+        anonymizationPhase: 'awaiting_validation',
+        aiPredictionStatus: 'prediction_pending' as const,
         annotationStatus: 'not_started',
         createdAt: '2026-04-30T08:00:00Z'
       },
@@ -414,6 +416,8 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
         filename: 'ready-for-reporting.mp4',
         mediaType: 'video',
         anonymizationStatus: 'validated',
+        anonymizationPhase: 'validated',
+        aiPredictionStatus: 'prediction_pending' as const,
         annotationStatus: 'validated',
         createdAt: '2026-04-30T08:15:00Z'
       },
@@ -422,6 +426,8 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
         filename: 'already-segment-validated.mp4',
         mediaType: 'video',
         anonymizationStatus: 'validated',
+        anonymizationPhase: 'validated',
+        aiPredictionStatus: 'prediction_pending' as const,
         annotationStatus: 'validated',
         createdAt: '2026-04-30T08:30:00Z'
       },
@@ -430,6 +436,8 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
         filename: 'cleanup-running.mp4',
         mediaType: 'video',
         anonymizationStatus: 'validated',
+        anonymizationPhase: 'validated',
+        aiPredictionStatus: 'prediction_pending' as const,
         annotationStatus: 'validated',
         createdAt: '2026-04-30T08:35:00Z'
       },
@@ -438,6 +446,8 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
         filename: 'cleanup-failed.mp4',
         mediaType: 'video',
         anonymizationStatus: 'validated',
+        anonymizationPhase: 'validated',
+        aiPredictionStatus: 'prediction_pending' as const,
         annotationStatus: 'validated',
         createdAt: '2026-04-30T08:40:00Z'
       },
@@ -446,6 +456,8 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
         filename: 'still-processing.mp4',
         mediaType: 'video',
         anonymizationStatus: 'processing_anonymization',
+        anonymizationPhase: 'in_progress',
+        aiPredictionStatus: 'prediction_pending' as const,
         annotationStatus: 'not_started',
         createdAt: '2026-04-30T08:45:00Z'
       }

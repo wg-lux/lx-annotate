@@ -4,6 +4,7 @@ path: "devenv"
 parent: "../structure.yml"
 summary: "Nix development environment modules, services, processes, and task commands."
 responsibilities:
+  - "Pass non-secret center/generation pins; resolve identity bundles only at process launch outside Nix evaluation."
   - "Compose developer dependencies and local process definitions."
   - "Expose backend, frontend, and environment maintenance tasks."
 boundaries:

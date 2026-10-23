@@ -26,9 +26,14 @@ from endoreg_db.models import (
     VideoFile,
     VideoState,
 )
+from endoreg_db.schemas.video_storage import CanonicalTimelineHistoryEntry
 from endoreg_db.services.frames.materialize_training_frames import (
     materialize_frames_for_annotation_ids,
 )
+from endoreg_db.services.video_storage.canonical_timelines import (
+    capture_canonical_timeline,
+)
+from endoreg_db.services.video_storage.probes import probe_video_artifact
 from endoreg_db.utils.file_operations import safe_rmtree
 from endoreg_db.utils.storage.files import delete_field_file
 from PIL import Image
@@ -100,6 +105,25 @@ def retained_video(
         raw_file=ContentFile(media, name="hub-source.mp4"),
         processed_file=ContentFile(media, name="hub-processed.mp4"),
     )
+    # Persist decoded PTS for this processed generation before removing raw media.
+    # Both snapshots are identical because this fixture performs no transformation.
+    with video.ensure_local_processed_file() as processed_path:
+        timeline = capture_canonical_timeline(
+            processed_path, probe_video_artifact(processed_path)
+        )
+    assert timeline.content_hash == video.processed_video_hash
+    assert len(timeline.presentation_timestamps) == video.frame_count
+    history_entry = CanonicalTimelineHistoryEntry(
+        artifact_kind="processed",
+        before=timeline,
+        after=timeline,
+    )
+    video.meta = {
+        **(video.meta or {}),
+        "canonical_timeline_history": [history_entry.model_dump(mode="json")],
+    }
+    video.save(update_fields=["meta"])
+
     raw_name = video.raw_file.name
     assert raw_name is not None
     assert video.raw_file.storage.exists(raw_name)
@@ -113,7 +137,11 @@ def retained_video(
     frame = Frame.objects.create(
         video=video,
         frame_number=0,
-        timestamp=0.0,
+        timestamp=(
+            timeline.presentation_timestamps[0]
+            * timeline.time_base_num
+            / timeline.time_base_den
+        ),
         relative_path="frame_0000000.jpg",
     )
     label = Label.objects.create(name="hub-training-label")
@@ -366,7 +394,7 @@ def test_training_decoder_failure_closes_stream_without_plaintext_files(
         seekable_http: bool,
     ) -> EncodedFrameSample:
         assert frame_number == 0
-        assert timestamp == 0.0
+        assert timestamp == pytest.approx(frame.timestamp)
         assert seekable_http
         assert quality == 2
         with urlopen(source, timeout=2) as response:

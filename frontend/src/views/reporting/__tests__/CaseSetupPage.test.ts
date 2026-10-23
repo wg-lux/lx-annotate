@@ -13,7 +13,7 @@ function requireDefined<T>(value: T | undefined, description: string): T {
 type CreateCasePayload = {
   admissionDate: string
   patientExamination: {
-    patient: string
+    patient: number
     examination: string
     dateStart: string
   }
@@ -99,7 +99,6 @@ type PatientStoreStub = {
   patientsWithDisplayName: Array<{ id: number; displayName: string }>
   getPatientById: (id: number) => {
     id?: number
-    patientHash?: string | null
     dob: string
     gender: string
   } | null
@@ -187,7 +186,6 @@ describe('CaseSetupPage draft-first setup', () => {
         id === 7
           ? {
               id: 7,
-              patientHash: 'patient_7',
               dob: '1980-01-01',
               gender: 'f'
             }
@@ -277,7 +275,7 @@ describe('CaseSetupPage draft-first setup', () => {
     expect(createCall[0]).toBe('cases/create-with-examination/')
     expect(createCall[1].admissionDate).toEqual(expect.any(String))
     expect(createCall[1].patientExamination).toMatchObject({
-      patient: 'patient_7',
+      patient: 7,
       examination: 'gastroscopy',
       knowledgeBaseModule: 'coloreg',
       knowledgeBaseVersion: '0.3.0'
@@ -302,11 +300,10 @@ describe('CaseSetupPage draft-first setup', () => {
     })
   })
 
-  it('uses the selected patient id when the optional patient hash is absent', async () => {
+  it('uses the selected patient ID without a patient hash', async () => {
     hoisted.patientStoreRef.current.getPatientById = (id: number) =>
       id === 7
         ? {
-            patientHash: null,
             dob: '1980-01-01',
             gender: 'f'
           }
@@ -326,7 +323,7 @@ describe('CaseSetupPage draft-first setup', () => {
 
     const createCall = hoisted.axiosApi.post.mock.calls[0]
     expect(createCall[0]).toBe('cases/create-with-examination/')
-    expect(createCall[1].patientExamination.patient).toBe('patient_7')
+    expect(createCall[1].patientExamination.patient).toBe(7)
   })
 
   it('preserves validation return links and preselects the requested examination', async () => {

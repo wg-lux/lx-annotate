@@ -20,6 +20,7 @@ from endoreg_db.models import (
     VideoFile,
 )
 from endoreg_db.services.centers.access import resolve_allowed_center_ids
+from endoreg_db.services.privacy.response_boundary import reject_identity_hash_fields
 from endoreg_db.services.studies.cohort import (
     StudyCohortFilters,
     parse_study_cohort_filters,
@@ -66,10 +67,9 @@ class StudyExportSelection:
 
 @dataclass(slots=True)
 class _GroupedStudyRow:
-    patient_hash: str
+    patient_id: int
     center_key: str
     patient_examination_ids: list[int]
-    case_hashes: list[str]
     examination_dates: list[str]
     examination_names: list[str]
     indications: set[str]
@@ -147,7 +147,7 @@ def _query_values(query_params: Mapping[str, Any], key: str) -> tuple[str, ...]:
     if callable(getlist):
         raw_values = cast(Iterable[Any], getlist(key))
     elif isinstance(raw_value, (list, tuple)):
-        raw_values = raw_value
+        raw_values = cast(Iterable[Any], raw_value)
     else:
         raw_values = [raw_value]
     values: list[str] = []
@@ -405,10 +405,9 @@ def _group_cases(
         row = grouped.setdefault(
             (center_key, patient_hash),
             _GroupedStudyRow(
-                patient_hash=patient_hash,
+                patient_id=int(case.patient.pk),
                 center_key=center_key,
                 patient_examination_ids=[],
-                case_hashes=[],
                 examination_dates=[],
                 examination_names=[],
                 indications=set(),
@@ -419,7 +418,6 @@ def _group_cases(
             ),
         )
         row.patient_examination_ids.append(case.pk)
-        row.case_hashes.append(str(case.hash))
         row.examination_dates.append(
             case.date_start.isoformat() if case.date_start else ""
         )
@@ -480,10 +478,9 @@ def _selection_rows(selection: StudyExportSelection) -> list[tuple[str, str]]:
 
 
 def _examination_values(case: PatientExamination) -> list[str]:
-    center_key, patient_hash = _group_key(case)
+    center_key, _ = _group_key(case)
     return [
-        _safe_cell(case.hash),
-        _safe_cell(patient_hash),
+        str(case.patient_id),
         _safe_cell(center_key),
         str(case.pk),
         case.date_start.isoformat() if case.date_start else "",
@@ -509,14 +506,11 @@ def build_study_export_workbook(
     selection: StudyExportSelection,
     row_count: int,
 ) -> bytes:
-    workbook = Workbook(write_only=True)
-    cases_sheet = workbook.create_sheet("Cases")
     headers = (
         (
-            "Patient pseudonym",
+            "Patient ID",
             "Center",
             "Patient examination IDs",
-            "Case pseudonyms",
             "Examination dates",
             "Examinations",
             "Indications",
@@ -527,8 +521,7 @@ def build_study_export_workbook(
         )
         if selection.group_by == "patient"
         else (
-            "Case pseudonym",
-            "Patient pseudonym",
+            "Patient ID",
             "Center",
             "Patient examination ID",
             "Examination date",
@@ -540,6 +533,9 @@ def build_study_export_workbook(
             "Processed video IDs",
         )
     )
+    reject_identity_hash_fields(headers)
+    workbook = Workbook(write_only=True)
+    cases_sheet = workbook.create_sheet("Cases")
     cases_sheet.append([_styled_header_cell(cases_sheet, value) for value in headers])
     cases_sheet.freeze_panes = "A2"
 
@@ -552,10 +548,9 @@ def build_study_export_workbook(
         for row in grouped_rows:
             cases_sheet.append(
                 [
-                    _safe_cell(row.patient_hash),
+                    str(row.patient_id),
                     _safe_cell(row.center_key),
                     _safe_cell(_ordered_join(row.patient_examination_ids)),
-                    _safe_cell(_ordered_join(row.case_hashes)),
                     _safe_cell(_ordered_join(row.examination_dates)),
                     _safe_cell(_ordered_join(row.examination_names)),
                     _safe_cell(_joined(row.indications)),
@@ -600,7 +595,7 @@ def _selection_from_request(request: Request) -> StudyExportSelection:
         object,
         request.data if request.method == "POST" else request.query_params,
     )
-    mapping = (
+    mapping: Mapping[str, Any] = (
         cast(Mapping[str, Any], request_values)
         if isinstance(request_values, Mapping)
         else {}
@@ -643,11 +638,14 @@ def study_export_xlsx(request: Request) -> Response | HttpResponse:
         Iterable[PatientExamination],
         cases.iterator(chunk_size=500),
     )
-    workbook = build_study_export_workbook(
-        case_rows,
-        selection=selection,
-        row_count=row_count,
-    )
+    try:
+        workbook = build_study_export_workbook(
+            case_rows,
+            selection=selection,
+            row_count=row_count,
+        )
+    except ValueError as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_409_CONFLICT)
     export_label = "cohort" if selection.mode == "cohort" else "cases"
     filename = f"pseudonymous-study-{export_label}-{localdate().isoformat()}.xlsx"
     response = HttpResponse(

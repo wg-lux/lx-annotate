@@ -6,25 +6,39 @@ const hoisted = vi.hoisted(() => ({
   fetchStudyCohortPreview: vi.fn(),
   fetchStudyCohorts: vi.fn(),
   fetchStudyDefinition: vi.fn(),
+  fetchStudyStatistics: vi.fn(),
+  studyCaptureCoverage: vi.fn(),
   fetchAiDatasetOptions: vi.fn(),
   saveStudyCohort: vi.fn(),
+  deleteStudy: vi.fn(),
   routerPush: vi.fn()
 }))
 
-vi.mock('@/components/AiDataset/DatasetManager.vue', () => ({ default: { template: '<div />', methods: { reload: vi.fn() } } }))
+vi.mock('@/components/AiDataset/DatasetManager.vue', () => ({
+  default: { template: '<div />', methods: { reload: vi.fn() } }
+}))
 vi.mock('@/api/studyCohortApi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api/studyCohortApi')>()),
   previewStudyCohort: hoisted.fetchStudyCohortPreview,
   fetchStudyCohorts: hoisted.fetchStudyCohorts,
   fetchStudyDefinition: hoisted.fetchStudyDefinition,
+  fetchStudyStatistics: hoisted.fetchStudyStatistics,
+  studyCaptureCoverage: hoisted.studyCaptureCoverage,
   saveStudyCohort: hoisted.saveStudyCohort
 }))
-vi.mock('@/components/StudyTableImport.vue', () => ({ default: { template: '<div />', methods: { reload: vi.fn() } } }))
+vi.mock('@/components/StudyTableImport.vue', () => ({
+  default: { template: '<div />', methods: { reload: vi.fn() } }
+}))
+vi.mock('@/api/datasetLifecycleApi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api/datasetLifecycleApi')>()),
+  delete_study: hoisted.deleteStudy
+}))
 vi.mock('@/api/aiDatasetApi', () => ({ fetchAiDatasetOptions: hoisted.fetchAiDatasetOptions }))
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: hoisted.routerPush })
 }))
 
+import { AxiosError, AxiosHeaders } from 'axios'
 import StudyCohortPage from '@/views/studies/StudyCohortPage.vue'
 import { useStudyCohortExportStore } from '@/stores/studyCohortExportStore'
 
@@ -47,21 +61,18 @@ const response = {
     {
       patientExaminationId: 314,
       patientExaminationIds: [314, 315],
-      caseHash: 'case-abc',
-      caseHashes: ['case-abc', 'case-follow-up'],
-      patientHash: 'patient-xyz',
+      patientId: 7,
       examinationName: 'colonoscopy',
       examinationDate: '2026-04-01',
       examinations: [
         {
           patientExaminationId: 314,
-          caseHash: 'case-abc',
+          patientId: 7,
           examinationName: 'colonoscopy',
           examinationDate: '2026-04-01'
         },
         {
           patientExaminationId: 315,
-          caseHash: 'case-follow-up',
           examinationName: 'gastroscopy',
           examinationDate: '2026-05-01'
         }
@@ -102,6 +113,127 @@ describe('StudyCohortPage', () => {
     hoisted.fetchStudyCohortPreview.mockResolvedValue(response)
     hoisted.fetchStudyCohorts.mockResolvedValue([])
     hoisted.fetchAiDatasetOptions.mockResolvedValue([])
+  })
+
+  it('checks capture coverage and explicitly stores the saved cohort', async () => {
+    hoisted.fetchStudyCohorts.mockResolvedValue([{ id: 3, name: 'Study', hypothesis: 'Question', datasetIds: [], filters: {} }])
+    hoisted.studyCaptureCoverage.mockResolvedValue({ examinations: 2, coveredExaminations: 1, missingCollections: 1 })
+    const wrapper = mount(StudyCohortPage)
+    await flushPromises()
+    await wrapper.get('[data-test="saved-cohort"]').setValue('3')
+    await flushPromises()
+    await wrapper.get('[data-test="check-ledger-coverage"]').trigger('click')
+    await flushPromises()
+    expect(hoisted.studyCaptureCoverage).toHaveBeenCalledWith(3, false)
+    expect(wrapper.text()).toContain('1 ohne Sammlung')
+    await wrapper.get('[data-test="capture-study-ledger"]').trigger('click')
+    await flushPromises()
+    expect(hoisted.studyCaptureCoverage).toHaveBeenCalledWith(3, true)
+  })
+
+  it.each([
+    [true, [[3], [3, 2]]],
+    [false, [[3]]]
+  ])(
+    'asks again before deleting a study with ledger entries (confirmed=%s)',
+    async (confirmed, expectedCalls) => {
+      hoisted.fetchStudyCohorts.mockResolvedValue([
+        { id: 3, name: 'Study', hypothesis: 'Question', datasetIds: [], filters: {} }
+      ])
+      const conflict = new AxiosError('Conflict', '409', undefined, undefined, {
+        status: 409,
+        statusText: 'Conflict',
+        headers: {},
+        config: { headers: new AxiosHeaders() },
+        data: {
+          code: 'study_collection_ledger',
+          detail: 'Ledger entries exist',
+          collection_entry_count: 2
+        }
+      })
+      hoisted.deleteStudy.mockRejectedValueOnce(conflict).mockResolvedValue(undefined)
+      const confirm = vi
+        .spyOn(window, 'confirm')
+        .mockReturnValueOnce(true)
+        .mockReturnValueOnce(confirmed)
+      const wrapper = mount(StudyCohortPage)
+      await flushPromises()
+      await wrapper.get('[data-test="saved-cohort"]').setValue('3')
+      await flushPromises()
+      await wrapper.get('[data-test="delete-study"]').trigger('click')
+      await flushPromises()
+      expect(confirm).toHaveBeenCalledTimes(2)
+      expect(confirm.mock.calls[1][0]).toContain('2 gesicherte Ledger-Einträge')
+      expect(hoisted.deleteStudy.mock.calls).toEqual(expectedCalls)
+      confirm.mockRestore()
+    }
+  )
+
+  it('evaluates saved rules explicitly and clears results after edits', async () => {
+    hoisted.fetchStudyCohorts.mockResolvedValue([
+      { id: 3, name: 'Study', hypothesis: 'Question', datasetIds: [1], filters: {} }
+    ])
+    hoisted.fetchStudyStatistics.mockResolvedValue({
+      datasetVideoCount: 7,
+      missingExaminationVideoCount: 0,
+      conflictingPatientVideoCount: 0,
+      datasetExaminationCount: 7,
+      evaluatedExaminationCount: 5,
+      missingRecordCount: 2,
+      analyses: [
+        {
+          analysisName: 'Ready endpoint',
+          analysisDigest: 'digest',
+          module: 'test',
+          version: '1',
+          packageMismatchRecordCount: 1,
+          totalUnits: 0,
+          includedUnits: 0,
+          excludedUnits: 0,
+          inclusionUnknown: 0,
+          unassignedUnits: 0,
+          ambiguousUnits: 0,
+          endpoints: [
+            {
+              group: 'all',
+              endpoint: 'success',
+              numerator: 0,
+              denominator: 0,
+              negative: 0,
+              missing: 0,
+              ineligible: 0,
+              eligibilityUnknown: 0,
+              conflicting: 0,
+              rate: null
+            }
+          ]
+        }
+      ],
+      skippedAnalyses: [
+        {
+          analysisName: 'Draft endpoint',
+          reason: 'draft',
+          unresolvedRequirements: ['Define follow-up']
+        }
+      ]
+    })
+    const wrapper = mount(StudyCohortPage)
+    await flushPromises()
+    expect(hoisted.fetchStudyStatistics).not.toHaveBeenCalled()
+    await wrapper.get('[data-test="saved-cohort"]').setValue('3')
+    await wrapper.get('[data-test="evaluate-study"]').trigger('click')
+    await flushPromises()
+    expect(hoisted.fetchStudyStatistics).toHaveBeenCalledWith(3, expect.any(AbortSignal))
+    expect(wrapper.get('[data-test="study-statistics"]').text()).toContain(
+      'Entwurf, nicht ausgewertet'
+    )
+    expect(wrapper.get('[data-test="study-statistics"]').text()).toContain('Nicht bestimmbar')
+    expect(wrapper.get('[data-test="study-statistics"]').text()).toContain(
+      'Abweichende Paketversion: 1'
+    )
+    await wrapper.get('[data-test="study-hypothesis"]').setValue('Changed')
+    expect(wrapper.get('[data-test="study-statistics"]').text()).not.toContain('Draft endpoint')
+    expect(wrapper.get('[data-test="evaluate-study"]').attributes('disabled')).toBeDefined()
   })
 
   it('waits for an explicit preview and renders grouped report/video cases', async () => {
@@ -155,7 +287,7 @@ describe('StudyCohortPage', () => {
     )
     expect(wrapper.get('[data-test="summary-case-count"]').text()).toBe('2')
     expect(wrapper.get('[data-test="summary-report-count"]').text()).toBe('3')
-    expect(wrapper.get('[data-test="cohort-case"]').text()).toContain('case-abc')
+    expect(wrapper.get('[data-test="cohort-case"]').text()).toContain('Patient 7')
     expect(wrapper.get('[data-test="cohort-case"]').text()).toContain('polyp')
     expect(wrapper.get('[data-test="cohort-case"]').text()).toContain('#73')
     expect(wrapper.get('[data-test="cohort-case"]').text()).toContain('#81')
@@ -275,10 +407,16 @@ describe('StudyCohortPage', () => {
   })
 
   it('requires saving edits before previewing a persisted cohort', async () => {
-    hoisted.fetchStudyCohorts.mockResolvedValue([{
-      id: 12, name: 'Saved study', hypothesis: 'Hypothesis',
-      filters: { limit: 100 }, datasetIds: [], updatedAt: '2026-10-13'
-    }])
+    hoisted.fetchStudyCohorts.mockResolvedValue([
+      {
+        id: 12,
+        name: 'Saved study',
+        hypothesis: 'Hypothesis',
+        filters: { limit: 100 },
+        datasetIds: [],
+        updatedAt: '2026-10-13'
+      }
+    ])
     const wrapper = mount(StudyCohortPage)
     await flushPromises()
     await wrapper.get('[data-test="saved-cohort"]').setValue('12')

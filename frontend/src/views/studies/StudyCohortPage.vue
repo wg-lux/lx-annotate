@@ -414,12 +414,135 @@
       </section>
     </form>
 
-    <DatasetManager ref="dataset_manager" @changed="loadSavedOptions" />
-    <button v-if="selectedCohortId" class="btn btn-outline-danger mb-3" :disabled="saving" @click="delete_selected_study">Studie löschen</button>
+    <DatasetManager
+      ref="dataset_manager"
+      @changed="loadSavedOptions"
+    />
+    <button
+      v-if="selectedCohortId"
+      class="btn btn-outline-danger mb-3"
+      :disabled="saving"
+      data-test="delete-study"
+      @click="delete_selected_study"
+    >
+      Studie löschen
+    </button>
+    <section v-if="selectedCohortId" class="card card-body mb-3">
+      <h2 class="h5">Ledger für Export sichern</h2>
+      <p>Speichert den aktuellen validierten Datensatz und die Bewertung dauerhaft. Excel- und Hub-Exporte verwenden diese gespeicherten Einträge.</p>
+      <button class="btn btn-outline-secondary" :disabled="capturing || saving" data-test="check-ledger-coverage" @click="captureLedger(false)">Exportabdeckung prüfen</button>
+      <button class="btn btn-primary" :disabled="capturing || saving || formSignature() !== savedFormSignature" data-test="capture-study-ledger" @click="captureLedger(true)">Aktuelle Kohorte im Ledger speichern</button>
+      <p v-if="captureMessage" role="status">{{ captureMessage }}</p>
+      <button class="btn btn-link" @click="router.push('/export?mode=ledger')">Excel-Download und Hub-Transfer öffnen</button>
+    </section>
     <StudyTableImport
       :cohort="selectedCohortId ? Number(selectedCohortId) : null"
       @imported="import_completed"
     />
+    <section
+      class="card p-3 mt-4"
+      data-test="study-statistics"
+    >
+      <h2 class="h5">Deskriptive Studienauswertung</h2>
+      <p>
+        Wertet alle berechtigten Untersuchungen der gespeicherten, verknüpften Datensätze aus. Die
+        Fallgrenze der Vorschau gilt hier nicht. Änderungen zuerst speichern.
+      </p>
+      <button
+        type="button"
+        class="btn btn-outline-primary"
+        data-test="evaluate-study"
+        :disabled="
+          !selectedCohortId || saving || evaluating || formSignature() !== savedFormSignature
+        "
+        @click="evaluateStudy"
+      >
+        {{ evaluating ? 'Auswertung läuft …' : 'Gespeicherte Studienregeln auswerten' }}
+      </button>
+      <p
+        v-if="statisticsError"
+        role="alert"
+      >
+        {{ statisticsError }}
+      </p>
+      <template v-if="statistics">
+        <p>
+          Untersuchungen: {{ statistics.datasetExaminationCount }} · Ausgewertet:
+          {{ statistics.evaluatedExaminationCount }} · Ohne validierten Datensatz:
+          {{ statistics.missingRecordCount }}
+        </p>
+        <p>
+          Datensatzvideos: {{ statistics.datasetVideoCount }} · Ohne Untersuchung:
+          {{ statistics.missingExaminationVideoCount }} · Widersprüchliche Patientenzuordnung:
+          {{ statistics.conflictingPatientVideoCount }}
+        </p>
+        <p
+          v-for="draft in statistics.skippedAnalyses"
+          :key="draft.analysisName"
+        >
+          {{ draft.analysisName }}: Entwurf, nicht ausgewertet.
+          {{ draft.unresolvedRequirements.join('; ') }}
+        </p>
+        <article
+          v-for="analysis in statistics.analyses"
+          :key="analysis.analysisDigest"
+          class="mt-3"
+        >
+          <h3 class="h6">
+            {{ analysis.analysisName }} ({{ analysis.module }} {{ analysis.version }})
+          </h3>
+          <p class="small">
+            Abweichende Paketversion: {{ analysis.packageMismatchRecordCount }} · Einheiten:
+            {{ analysis.totalUnits }} · Eingeschlossen: {{ analysis.includedUnits }} ·
+            Ausgeschlossen: {{ analysis.excludedUnits }} · Einschluss unbekannt:
+            {{ analysis.inclusionUnknown }} · Ohne Gruppe: {{ analysis.unassignedUnits }} ·
+            Mehrdeutige Gruppe: {{ analysis.ambiguousUnits }}
+          </p>
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Gruppe</th>
+                  <th>Endpunkt</th>
+                  <th>Positiv / auswertbar</th>
+                  <th>Anteil</th>
+                  <th>Negativ</th>
+                  <th>Fehlend</th>
+                  <th>Nicht geeignet</th>
+                  <th>Eignung unbekannt</th>
+                  <th>Widersprüchlich</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="endpoint in analysis.endpoints"
+                  :key="`${endpoint.group}:${endpoint.endpoint}`"
+                >
+                  <td>{{ endpoint.group }}</td>
+                  <td>{{ endpoint.endpoint }}</td>
+                  <td>{{ endpoint.numerator }} / {{ endpoint.denominator }}</td>
+                  <td>
+                    {{
+                      endpoint.rate === null
+                        ? 'Nicht bestimmbar'
+                        : endpoint.rate.toLocaleString('de-DE', {
+                            style: 'percent',
+                            maximumFractionDigits: 1
+                          })
+                    }}
+                  </td>
+                  <td>{{ endpoint.negative }}</td>
+                  <td>{{ endpoint.missing }}</td>
+                  <td>{{ endpoint.ineligible }}</td>
+                  <td>{{ endpoint.eligibilityUnknown }}</td>
+                  <td>{{ endpoint.conflicting }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </template>
+    </section>
     <template v-if="preview">
       <div
         class="alert alert-info mt-3"
@@ -518,7 +641,7 @@
                     {{ cohortCase.examinationName || 'Unbekannte Untersuchung' }}
                   </div>
                   <div class="small text-muted">
-                    Fall {{ cohortCase.caseHash }} · Patient {{ cohortCase.patientHash }} · PE
+                    Patient {{ cohortCase.patientId }} · PE
                     {{ cohortCase.patientExaminationId }}
                   </div>
                 </div>
@@ -639,11 +762,14 @@ import { type StudyCohortPreviewFilters, type StudyCohortPreviewResponse } from 
 import { fetchAiDatasetOptions, type AiDatasetOption } from '@/api/aiDatasetApi'
 import StudyMetadataEditor from '@/components/StudyMetadataEditor.vue'
 import DatasetManager from '@/components/AiDataset/DatasetManager.vue'
-import { delete_study } from '@/api/datasetLifecycleApi'
+import { delete_study, study_ledger_deletion_conflict } from '@/api/datasetLifecycleApi'
 import StudyTableImport from '@/components/StudyTableImport.vue'
 import {
+  studyCaptureCoverage,
   fetchStudyCohorts,
   fetchStudyDefinition,
+  fetchStudyStatistics,
+  type StudyStatisticsResponse,
   emptyStudyMetadata,
   previewStudyCohort,
   saveStudyCohort,
@@ -661,10 +787,25 @@ const savedCohorts = ref<SavedStudyCohort[]>([])
 const dataset_manager = ref<InstanceType<typeof DatasetManager> | null>(null)
 const datasetOptions = ref<AiDatasetOption[]>([])
 const selectedCohortId = ref('')
+const capturing = ref(false)
+const captureMessage = ref('')
+async function captureLedger(capture: boolean) {
+  capturing.value = true
+  captureMessage.value = ''
+  try {
+    const result = await studyCaptureCoverage(Number(selectedCohortId.value), capture)
+    captureMessage.value = `${String(result.coveredExaminations)} von ${String(result.examinations)} Untersuchungen gespeichert; ${String(result.missingCollections)} ohne Sammlung. Erneutes Speichern erfasst Änderungen.`
+  } catch { captureMessage.value = 'Ledger nicht verfügbar. Validierte Datensätze und exakt passende installierte Datenmodelle prüfen.' }
+  finally { capturing.value = false }
+}
 const savedFormSignature = ref('')
 const selectedDatasetIds = ref<number[]>([])
 const saving = ref(false)
 const downloading = ref(false)
+const evaluating = ref(false)
+const statistics = ref<StudyStatisticsResponse | null>(null)
+const statisticsError = ref('')
+let statisticsController: AbortController | null = null
 const savedMessage = ref('')
 const hasReportFilter = ref<'' | 'true' | 'false'>('')
 const hasVideoFilter = ref<'' | 'true' | 'false'>('')
@@ -706,6 +847,7 @@ const summaryMetrics = computed(() => {
 
 watch(
   [
+    selectedCohortId,
     studyName,
     hypothesis,
     hasReportFilter,
@@ -715,6 +857,12 @@ watch(
     studyMetadata
   ],
   () => {
+    statisticsController?.abort()
+    statisticsController = null
+    evaluating.value = false
+    statistics.value = null
+    statisticsError.value = ''
+    captureMessage.value = ''
     activeController?.abort()
     activeController = null
     loading.value = false
@@ -835,16 +983,41 @@ async function import_completed(): Promise<void> {
 }
 
 async function delete_selected_study(): Promise<void> {
-  if (!selectedCohortId.value || !window.confirm('Studie und ihre Verknüpfungen löschen? Datensätze und klinische Daten bleiben erhalten.')) return
+  if (
+    !selectedCohortId.value ||
+    !window.confirm(
+      'Studie und ihre Verknüpfungen löschen? Datensätze und klinische Daten bleiben erhalten.'
+    )
+  )
+    return
   saving.value = true
   try {
-    await delete_study(Number(selectedCohortId.value))
+    const cohortId = Number(selectedCohortId.value)
+    try {
+      await delete_study(cohortId)
+    } catch (error) {
+      const conflict = study_ledger_deletion_conflict(error)
+      if (!conflict) throw error
+      const count = conflict.collectionEntryCount
+      if (
+        !window.confirm(
+          `Diese Studie enthält ${String(count)} gesicherte Ledger-Einträge. ` +
+            'Sichern Sie den Ledger bei Bedarf zuerst über den Ledger-Export. ' +
+            'Trotzdem löschen? Die Ledger-Einträge werden dauerhaft entfernt.'
+        )
+      )
+        return
+      await delete_study(cohortId, count)
+    }
     selectedCohortId.value = ''
     preview.value = null
     await loadSavedOptions()
     selectCohort()
-  } catch (error) { errorMessage.value = readableError(error) }
-  finally { saving.value = false }
+  } catch (error) {
+    errorMessage.value = readableError(error)
+  } finally {
+    saving.value = false
+  }
 }
 
 async function loadSavedOptions(): Promise<void> {
@@ -918,6 +1091,27 @@ async function saveCohort(): Promise<void> {
   }
 }
 
+async function evaluateStudy(): Promise<void> {
+  if (!selectedCohortId.value || evaluating.value || formSignature() !== savedFormSignature.value)
+    return
+  const controller = new AbortController()
+  statisticsController = controller
+  evaluating.value = true
+  statistics.value = null
+  statisticsError.value = ''
+  try {
+    const result = await fetchStudyStatistics(Number(selectedCohortId.value), controller.signal)
+    if (!controller.signal.aborted && statisticsController === controller) statistics.value = result
+  } catch (error) {
+    if (!controller.signal.aborted) statisticsError.value = readableError(error)
+  } finally {
+    if (statisticsController === controller) {
+      statisticsController = null
+      evaluating.value = false
+    }
+  }
+}
+
 async function downloadDefinition(): Promise<void> {
   if (!selectedCohortId.value || downloading.value) return
   downloading.value = true
@@ -980,6 +1174,7 @@ function availabilityClass(availability: string): string {
 }
 
 onBeforeUnmount(() => {
+  statisticsController?.abort()
   activeController?.abort()
   activeController = null
 })

@@ -34,6 +34,8 @@ describe('anonymizationStore quarantine overview', () => {
             filename: 'processed-video.mp4',
             mediaType: 'video',
             anonymizationStatus: 'validated',
+            anonymizationPhase: 'validated',
+            aiPredictionStatus: 'prediction_pending' as const,
             annotationStatus: 'validated',
             createdAt: '2026-05-15T07:00:00Z',
             metadataImported: true
@@ -75,6 +77,8 @@ describe('anonymizationStore quarantine overview', () => {
       filename: 'NINJAU_S001_S001_T016.MOV',
       mediaType: 'video',
       anonymizationStatus: 'failed',
+      anonymizationPhase: 'failed',
+      aiPredictionStatus: null,
       quarantineDirectoryLabel: 'lx-annotate quarantine',
       quarantineReviewStatus: 'pending_review',
       quarantineNextAction: 'review_required',
@@ -85,9 +89,13 @@ describe('anonymizationStore quarantine overview', () => {
     expect(quarantined?.uploadJob?.status).toBe('quarantined')
   })
 
-  it.each(['failed', 'done_processing_anonymization', 'validated'])(
+  it.each([
+    ['failed', 'failed'],
+    ['done_processing_anonymization', 'awaiting_validation'],
+    ['validated', 'validated']
+  ])(
     'preserves backend status %s when a duplicate import fails',
-    async (anonymizationStatus) => {
+    async (anonymizationStatus, anonymizationPhase) => {
       hoisted.get.mockImplementation((url: string) => {
         if (url === 'api/anonymization/items/overview/') {
           return resolvedData([
@@ -96,6 +104,8 @@ describe('anonymizationStore quarantine overview', () => {
               filename: 'previously-annotated.mp4',
               mediaType: 'video',
               anonymizationStatus,
+              anonymizationPhase,
+              aiPredictionStatus: 'annotation_ready',
               annotationStatus: 'not_started',
               createdAt: '2026-05-15T07:00:00Z',
               metadataImported: true,
@@ -127,6 +137,8 @@ describe('anonymizationStore quarantine overview', () => {
       expect(store.overview[0]).toMatchObject({
         filename: 'previously-annotated.mp4',
         anonymizationStatus,
+        anonymizationPhase,
+        aiPredictionStatus: 'annotation_ready',
         annotationStatus: 'not_started',
         uploadJob: {
           status: 'error'
@@ -134,4 +146,51 @@ describe('anonymizationStore quarantine overview', () => {
       })
     }
   )
+
+  it.each([
+    [{ anonymizationStatus: 'validated' }],
+    [{ anonymizationStatus: 'validated', anonymizationPhase: 'done' }],
+    [{ anonymizationStatus: 'predicting_segments', anonymizationPhase: 'in_progress' }],
+    [{ anonymizationStatus: 'validated', anonymizationPhase: 'validated' }],
+    [
+      {
+        anonymizationStatus: 'validated',
+        anonymizationPhase: 'validated',
+        aiPredictionStatus: 'predicting_segments'
+      }
+    ],
+    [
+      {
+        mediaType: 'pdf',
+        anonymizationStatus: 'validated',
+        anonymizationPhase: 'validated',
+        aiPredictionStatus: 'prediction_ready'
+      }
+    ]
+  ])('rejects rows the server did not classify: %o', async (classification) => {
+    const store = useAnonymizationStore()
+    const previous = {
+      id: 3,
+      filename: 'kept.mp4',
+      mediaType: 'video' as const,
+      anonymizationStatus: 'validated' as const,
+      anonymizationPhase: 'validated' as const,
+      aiPredictionStatus: 'prediction_pending' as const,
+      annotationStatus: 'validated' as const,
+      createdAt: '2026-05-15T07:00:00Z'
+    }
+    store.overview = [previous]
+    hoisted.get.mockImplementation((url: string) => {
+      if (url === 'api/anonymization/items/overview/') {
+        return resolvedData([
+          { id: 17, filename: 'x.mp4', mediaType: 'video', createdAt: '', ...classification }
+        ])
+      }
+      return resolvedData({ count: 0, totalSize: 0, files: [] })
+    })
+
+    await expect(store.fetchOverview()).resolves.toEqual([])
+    expect(store.error).toContain('nicht klassifizierten')
+    expect(store.overview).toEqual([previous])
+  })
 })

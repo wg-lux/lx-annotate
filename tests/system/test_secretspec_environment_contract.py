@@ -1,9 +1,16 @@
 from __future__ import annotations
 
 import ast
+import json
+import os
 import re
+import shutil
+import subprocess
+import sys
 import tomllib
 from pathlib import Path
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -46,9 +53,13 @@ REQUIRED_HOST_ENVIRONMENT_KEYS = frozenset(
         "LX_ANNOTATE_HUB_EXPORT_REQUEST_TIMEOUT_SECONDS",
         "LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS",
         "LX_ANNOTATE_HUB_SOURCE_NODE_SECRET_FILE",
+        "LX_ANNOTATE_REMOTE_MACHINES",
         "LX_ANNOTATE_MASTER_KEY_FILE",
         "LX_ANNOTATE_MASTER_KEYRING_FILE",
         "DJANGO_IDENTITY_SALT_KEYRING_FILE",
+        "DJANGO_IDENTITY_CENTER_ID",
+        "DJANGO_IDENTITY_SALT_GENERATION",
+        "DJANGO_IDENTITY_SALT_DELIVERY",
         "DJANGO_SIGNING_KEYRING_FILE",
         "OIDC_RP_CLIENT_ID",
         "TIME_ZONE",
@@ -127,6 +138,7 @@ FORBIDDEN_INLINE_SECRET_KEYS = frozenset(
         "DJANGO_DB_PASSWORD",
         "DJANGO_SECRET_KEY",
         "DJANGO_SALT",
+        "DJANGO_IDENTITY_SALT_BUNDLE",
         "LX_ANNOTATE_MASTER_KEY",
         "OIDC_RP_CLIENT_SECRET",
         "SECRET_KEY",

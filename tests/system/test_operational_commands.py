@@ -62,6 +62,82 @@ def test_recovery_state_reader_uses_last_matching_value(tmp_path: Path) -> None:
     assert state_value(state, "LAST_EFFECTIVE_DATA_DIR") == "/current"
 
 
+@pytest.mark.parametrize("compatible", [True, False])
+def test_recovery_checks_history_before_migrations_or_payload_changes(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    compatible: bool,
+) -> None:
+    from endoreg_db.utils.paths import EndoregPathsModel
+
+    from lx_annotate.services import runtime_recovery
+
+    target = tmp_path / "target"
+    source = tmp_path / "source"
+    source.mkdir()
+    state_file = tmp_path / "state.env"
+    events: list[str] = []
+
+    def command(name: str, **kwargs: object) -> None:
+        events.append(name)
+        if name == "check_migration_compatibility" and not compatible:
+            raise CommandError("incompatible migration history")
+        if name == "migrate":
+            assert kwargs == {"interactive": False}
+
+    service = runtime_recovery.RuntimeRecoveryService(lambda _: None)
+    monkeypatch.setattr(runtime_recovery, "call_command", command)
+    monkeypatch.setattr(
+        runtime_recovery,
+        "get_runtime_paths",
+        lambda: EndoregPathsModel.from_root(target),
+    )
+    monkeypatch.setattr(
+        service,
+        "_copy_missing_overlay",
+        lambda **_: events.append("copy_overlay"),
+    )
+
+    def mark_eligible() -> int:
+        events.append("mark_quarantined_eligible")
+        return 0
+
+    monkeypatch.setattr(
+        service, "_mark_quarantined_upload_jobs_eligible", mark_eligible
+    )
+    options = dict(
+        target=target,
+        state_file=state_file,
+        sources=[source],
+        force=False,
+        force_repair=False,
+        skip_repair=True,
+    )
+    if compatible:
+        service.run(**options)
+        assert events == [
+            "check_migration_compatibility",
+            "migrate",
+            "copy_overlay",
+            "migrate_media_storage",
+            "migration_mark_eligible",
+            "mark_quarantined_eligible",
+            "reap_upload_job_sources",
+        ]
+        assert runtime_recovery.state_value(
+            state_file, "LAST_EFFECTIVE_DATA_DIR"
+        ) == str(target)
+        assert runtime_recovery.state_value(
+            target / "logs/data_recovery_complete", "completed_at"
+        )
+    else:
+        with pytest.raises(CommandError, match="incompatible migration history"):
+            service.run(**options)
+        assert events == ["check_migration_compatibility"]
+        assert not state_file.exists()
+        assert not (target / "logs/data_recovery_complete").exists()
+
+
 def test_provision_command_emits_standard_event(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -75,7 +151,7 @@ def test_provision_command_emits_standard_event(
     monkeypatch.setattr(
         command_module,
         "provision_hub_nodes",
-        lambda specs: [
+        lambda specs, *, require_existing_centers: [
             {
                 "event": "hub.node_provisioned",
                 "status": "ok",
@@ -295,6 +371,10 @@ def test_runtime_recovery_skip_messages_are_structured(
         "lx_annotate.services.runtime_recovery.get_runtime_paths",
         lambda: EndoregPathsModel.from_root(target),
     )
+    monkeypatch.setattr(
+        "lx_annotate.services.runtime_recovery.call_command",
+        lambda *_, **__: None,
+    )
 
     RuntimeRecoveryService(emitted.append).run(
         target=target,
@@ -319,3 +399,145 @@ def test_runtime_recovery_skip_messages_are_structured(
             "target": str(target),
         },
     ]
+
+
+@pytest.mark.parametrize("force", [False, True])
+def test_recovery_reuses_resolved_markers_but_forced_recovery_repeats_repair(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    force: bool,
+) -> None:
+    from endoreg_db.utils.paths import EndoregPathsModel
+
+    from lx_annotate.services import runtime_recovery
+
+    target = tmp_path / "target"
+    logs = target / "logs"
+    logs.mkdir(parents=True)
+    state_file = tmp_path / "state.env"
+    state_file.write_text(f"LAST_EFFECTIVE_DATA_DIR={target}/../target\n")
+    (logs / "data_recovery_complete").write_text("completed_at=previous\n")
+    marker = logs / "managed_payload_repair_v2"
+    marker.write_text("repair_revision=v2\ncompleted_at=previous\n")
+    events: list[str] = []
+    monkeypatch.setattr(
+        runtime_recovery,
+        "get_runtime_paths",
+        lambda: EndoregPathsModel.from_root(target),
+    )
+    monkeypatch.setattr(
+        runtime_recovery, "call_command", lambda name, **_: events.append(name)
+    )
+    service = runtime_recovery.RuntimeRecoveryService(lambda _: None)
+    monkeypatch.setattr(
+        service, "_heavy_recovery", lambda **_: events.append("recover")
+    )
+    monkeypatch.setattr(
+        service, "_repair_payloads", lambda **_: events.append("repair")
+    )
+
+    service.run(
+        target=target,
+        state_file=state_file,
+        sources=[],
+        force=force,
+        force_repair=False,
+        skip_repair=False,
+    )
+
+    assert events == (
+        ["check_migration_compatibility", "migrate", "recover", "repair"]
+        if force
+        else []
+    )
+
+
+@pytest.mark.parametrize("failure", [None, "command", "missing_key"])
+def test_repair_invalidates_old_marker_and_only_publishes_success(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    failure: str | None,
+) -> None:
+    from lx_annotate.services import runtime_recovery
+
+    marker = tmp_path / "managed_payload_repair_v2"
+    marker.write_text("repair_revision=v2\ncompleted_at=previous\n")
+    monkeypatch.delenv("LX_ANNOTATE_MASTER_KEY", raising=False)
+    monkeypatch.delenv("LX_ANNOTATE_MASTER_KEY_FILE", raising=False)
+    if failure != "missing_key":
+        # Only the presence check is exercised; no key is read by the stub.
+        monkeypatch.setenv("LX_ANNOTATE_MASTER_KEY_FILE", str(tmp_path / "host-key"))
+    events: list[str] = []
+
+    def repair(name: str, **options: object) -> None:
+        assert name == "repair_managed_payloads"
+        assert not marker.exists()
+        assert options["stdout"] is options["stderr"]
+        if failure == "command":
+            raise CommandError("payload repair rejected")
+
+    monkeypatch.setattr(runtime_recovery, "call_command", repair)
+    service = runtime_recovery.RuntimeRecoveryService(events.append)
+    if failure == "command":
+        with pytest.raises(CommandError, match="payload repair rejected"):
+            service._repair_payloads(target=tmp_path, marker=marker)
+    else:
+        service._repair_payloads(target=tmp_path, marker=marker)
+
+    assert marker.exists() is (failure is None)
+    log = tmp_path / "data_migration_repair_latest.log"
+    assert log.is_file()
+    assert log.stat().st_mode & 0o777 == 0o640
+    assert (
+        json.loads(events[-1])["status"]
+        == {
+            None: "ok",
+            "command": "failed",
+            "missing_key": "skipped",
+        }[failure]
+    )
+    if failure == "command":
+        assert runtime_recovery.state_value(log, "failed_at")
+        assert "payload repair rejected" in log.read_text()
+    elif failure is None:
+        assert runtime_recovery.state_value(marker, "completed_at")
+
+
+def test_repair_only_run_also_rejects_incompatible_history(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from endoreg_db.utils.paths import EndoregPathsModel
+
+    from lx_annotate.services import runtime_recovery
+
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    marker = logs / "data_recovery_complete"
+    marker.write_text("completed_at=previous\n")
+    state_file = tmp_path / "state.env"
+    state_file.write_text(f"LAST_EFFECTIVE_DATA_DIR={tmp_path}\n")
+    monkeypatch.setattr(
+        runtime_recovery,
+        "get_runtime_paths",
+        lambda: EndoregPathsModel.from_root(tmp_path),
+    )
+    calls: list[str] = []
+
+    def reject(name: str, **_: object) -> None:
+        calls.append(name)
+        raise CommandError("incompatible migration history")
+
+    monkeypatch.setattr(runtime_recovery, "call_command", reject)
+    with pytest.raises(CommandError, match="incompatible migration history"):
+        runtime_recovery.RuntimeRecoveryService(lambda _: None).run(
+            target=tmp_path,
+            state_file=state_file,
+            sources=[],
+            force=False,
+            force_repair=False,
+            skip_repair=False,
+        )
+    assert calls == ["check_migration_compatibility"]
+    assert marker.read_text() == "completed_at=previous\n"
+    assert not (logs / "managed_payload_repair_v2").exists()

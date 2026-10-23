@@ -59,7 +59,7 @@ export type CreatePatientCasePayload = {
 export type CreateCaseWithExaminationPayload = {
   admissionDate: string
   patientExamination: {
-    patient: string
+    patient: number
     examination: string
     dateStart: string
     knowledgeBaseModule: string

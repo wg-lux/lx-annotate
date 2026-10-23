@@ -7,16 +7,16 @@ import shlex
 from pathlib import Path
 from typing import Annotated
 
-from endoreg_db.config.secret_keyring import load_keyring
+from endoreg_db.config.secret_keyring import load_keyring, read_private_file
 from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 def _read_secret_file(path: Path, label: str) -> str:
     try:
-        value = path.read_text().strip()
-    except OSError as exc:
-        raise ValueError(f"Unable to read {label} from {path}: {exc}") from exc
+        value = read_private_file(path).decode("utf-8").strip()
+    except (ValueError, UnicodeError):
+        raise ValueError(f"Unable to read private {label} credential") from None
     if not value:
         raise ValueError(f"Secret file {path} for {label} is empty")
     return value
@@ -243,10 +243,11 @@ class AppConfig(BaseSettings):
         case_sensitive=False,
         extra="ignore",
         populate_by_name=True,
+        hide_input_in_errors=True,
     )
 
     # Core
-    secret_key: str = ""
+    secret_key: str = Field(default="", exclude=True, repr=False)
     secret_key_file: Path | None = None
     signing_keyring_file: Path | None = None
     secret_key_fallbacks: list[str] = Field(
@@ -269,7 +270,7 @@ class AppConfig(BaseSettings):
     db_engine: str = "django.db.backends.postgresql"
     db_name: str = os.getenv("DJANGO_DB_NAME", "lx_annotate")
     db_user: str = os.getenv("DJANGO_DB_USER", "lx_annotate")
-    db_password: str = ""
+    db_password: str = Field(default="", exclude=True, repr=False)
     db_password_file: Path | None = None
     db_host: str = os.getenv("DJANGO_DB_HOST", "localhost")
     db_port: str = os.getenv("DJANGO_DB_PORT", "5432")
@@ -286,6 +287,8 @@ class AppConfig(BaseSettings):
     )
     keycloak_client_secret: str = Field(
         default_factory=lambda: os.getenv("OIDC_RP_CLIENT_SECRET", ""),
+        exclude=True,
+        repr=False,
         validation_alias=AliasChoices(
             "keycloak_client_secret",
             "DJANGO_KEYCLOAK_CLIENT_SECRET",
@@ -314,13 +317,6 @@ class AppConfig(BaseSettings):
             return None
         if isinstance(value, str) and not value.strip():
             return None
-        return value
-
-    @field_validator("secret_key")
-    @classmethod
-    def validate_configured_secret_key(cls, value: str) -> str:
-        if value and len(value) < 32:
-            raise ValueError("DJANGO_SECRET_KEY must contain at least 32 characters")
         return value
 
     @field_validator(
@@ -395,14 +391,15 @@ class AppConfig(BaseSettings):
     @model_validator(mode="after")
     def apply_secret_files(self) -> "AppConfig":
         # One backend parser owns private-file validation and generation order.
-        # Only an explicit manifest enables overlap; never inherit inline fallbacks.
+        # Historical identity and decryption readers never authorize old signatures.
         self.secret_key_fallbacks = []
         if self.signing_keyring_file is not None:
             ring = load_keyring(self.signing_keyring_file, kind="signing")
             self.secret_key = ring.active.decode("utf-8")
-            self.secret_key_fallbacks = [key.decode("utf-8") for key in ring.retiring]
         else:
             self._apply_secret_file("secret_key", self.secret_key_file)
+        if self.secret_key and len(self.secret_key) < 32:
+            raise ValueError("DJANGO_SECRET_KEY must contain at least 32 characters")
         self._apply_secret_file("db_password", self.db_password_file)
         self._apply_secret_file(
             "keycloak_client_secret", self.keycloak_client_secret_file
@@ -411,13 +408,6 @@ class AppConfig(BaseSettings):
 
     def _apply_secret_file(self, field_name: str, file_path: Path | None) -> None:
         if not file_path:
-            return
-        current_value = getattr(self, field_name)
-        value_set = field_name in self.__pydantic_fields_set__
-        generated_placeholder = field_name == "keycloak_client_secret" and str(
-            current_value
-        ).startswith("changeme_")
-        if value_set and current_value and not generated_placeholder:
             return
         if field_name == "keycloak_client_secret":
             secret_value = _read_keycloak_secret_file(file_path)

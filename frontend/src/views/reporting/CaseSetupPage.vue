@@ -357,7 +357,7 @@ async function createPatientExaminationContext() {
     const result = await createCaseWithExamination({
       admissionDate: new Date().toISOString(),
       patientExamination: {
-        patient: selectedPatient.patientHash || `patient_${String(flow.selectedPatientId)}`,
+        patient: flow.selectedPatientId,
         examination: selectedExam.name,
         dateStart: formattedDate,
         ...examinationCreationIdentity(terminology.activeBundle)

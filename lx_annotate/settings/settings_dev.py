@@ -4,54 +4,62 @@ Development settings.
 
 from __future__ import annotations
 
+import atexit
 import os
+import tempfile
 from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
 
+from endoreg_db.utils.paths import EndoregPathsModel
+
 from lx_annotate.settings.oidc import oidc_scopes_with_center_groups
 
-from .settings_base import (
-    BASE_DIR,
-    DATABASES,
-    INSTALLED_APPS,
-    LOGGING,
-    LX_DTYPES_HOST_MODELS_MODULE,
-    MEDIA_ROOT,
-    MEDIA_URL,
-    MIDDLEWARE,
-    REST_FRAMEWORK,
-    ROOT_URLCONF,
-    SECRET_KEY,
-    STATIC_ROOT,
-    STATIC_URL,
-    STATICFILES_DIRS,
-    STATICFILES_STORAGE,
-    STORAGES,
-    TEMPLATES,
+# The base settings fail closed when no deployment secret is configured.
+# Tests supply their explicitly isolated, non-production key before importing base.
+os.environ.setdefault("DJANGO_SECRET_KEY", "test-insecure-key-do-not-use-00000000")
+
+_TEST_SECRET_KEY = "lx-annotate-test-only-signing-key-0000000000000000"
+
+_dev_runtime_root = Path(__file__).resolve().parent.parent.parent
+os.environ["LX_RUNTIME_ROOT"] = str(_dev_runtime_root)
+
+EndoregPathsModel.from_root(_dev_runtime_root)
+_descriptor, _credential_path = tempfile.mkstemp(
+    prefix="django-secret-",
+    suffix=".key",
+    dir=_dev_runtime_root,
 )
-from .settings_base import (
-    CELERY_BROKER_URL as CELERY_BROKER_URL,
-)
-from .settings_base import (
-    DJANGO_SALT as DJANGO_SALT,
-)
-from .settings_base import (
-    PROTECTED_MEDIA_ROOT as PROTECTED_MEDIA_ROOT,
-)
-from .settings_base import (
-    PROTECTED_MEDIA_URL as PROTECTED_MEDIA_URL,
-)
-from .settings_base import REPORTING_LLM as REPORTING_LLM
-from .settings_base import (
-    STREAMABLE_PROCESSED_VIDEO_ROOT as STREAMABLE_PROCESSED_VIDEO_ROOT,
-)
-from .settings_base import (
-    STREAMABLE_RAW_VIDEO_ROOT as STREAMABLE_RAW_VIDEO_ROOT,
-)
-from .settings_base import (
-    STREAMABLE_VIDEO_ROOT as STREAMABLE_VIDEO_ROOT,
-)
+
+with os.fdopen(_descriptor, "w", encoding="utf-8") as _credential:
+    os.fchmod(_credential.fileno(), 0o600)
+    _credential.write(_TEST_SECRET_KEY + "\n")
+
+# Explicitly select the test credential source.
+os.environ["DJANGO_SECRET_KEY"] = ""
+os.environ["DJANGO_SECRET_KEY_FILE"] = _credential_path
+os.environ["DJANGO_SIGNING_KEYRING_FILE"] = ""
+os.environ["DJANGO_DB_PASSWORD"] = ""
+os.environ["DJANGO_DB_PASSWORD_FILE"] = ""
+# Import everything from base
+
+
+def _cleanup_test_credentials() -> None:
+    try:
+        Path(_credential_path).unlink(missing_ok=True)
+    except OSError:
+        pass
+    os.environ.pop("DJANGO_SECRET_KEY_FILE", None)
+
+
+atexit.register(_cleanup_test_credentials)
+import secrets
+
+from . import settings_base as base
+from .settings_base import *  # noqa: F403
+
+DJANGO_SALT = str(secrets.token_hex(32).encode("ascii"))
+
 
 base_settings = import_module("lx_annotate.settings.settings_base")
 

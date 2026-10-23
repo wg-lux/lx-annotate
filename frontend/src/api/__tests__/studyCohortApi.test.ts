@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   fetchStudyCohorts,
   fetchStudyDefinition,
+  fetchStudyStatistics,
   linkDatasetStudyCohort,
   previewStudyCohort,
   saveStudyCohort
@@ -44,6 +45,16 @@ describe('saved cohort API', () => {
     expect(axios.post).toHaveBeenCalledWith(
       '/endoreg-api/media/studies/cohorts/preview/',
       payload,
+      { signal: controller.signal }
+    )
+  })
+
+  it('requests statistics for a saved cohort without accepting client results', async () => {
+    const controller = new AbortController()
+    await fetchStudyStatistics(3, controller.signal)
+    expect(axios.post).toHaveBeenCalledWith(
+      '/endoreg-api/media/studies/cohorts/3/statistics/',
+      {},
       { signal: controller.signal }
     )
   })

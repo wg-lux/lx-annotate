@@ -151,3 +151,55 @@ def test_packaged_dgvs_bundle_resolves_through_canonical_host_api(
     )
     assert str(registry_path) not in public_payload
     assert "site-packages" not in public_payload
+
+
+@pytest.mark.parametrize("consumer", ["report", "study"])
+def test_report_and_study_reject_invalid_registered_package(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, consumer: str
+) -> None:
+    from lx_dtypes import packages
+    from lx_dtypes.models.contracts.study_metadata import StudyMetadata
+    from lx_dtypes.packages import PackageValidationError, create_package
+    from lx_dtypes.terminology.terminology_service import TerminologyService
+
+    from lx_annotate.services.study_eligibility import validate_study_terminology
+
+    manifest = create_package(tmp_path / "custom", name="custom", version="1.0.0")
+    service = TerminologyService(tmp_path / "registry.json")
+    service.register_local("custom", "1.0.0", input_dirs=[tmp_path])
+    monkeypatch.setattr(packages, "get_terminology_service", lambda: service)
+    # A stale cached KB must not mask an invalid deployment-owned authoring file.
+    (manifest.parent / "records.yml").write_text(
+        "- model: examination\n  name: colonoscopy\n  findings: [missing_finding]\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError) as rejected:
+        if consumer == "report":
+            resolve_graph(
+                GraphReference.model_validate(
+                    {
+                        "identity": {
+                            "knowledge_base_module": "custom",
+                            "knowledge_base_version": "1.0.0",
+                        },
+                        "context_id": "sha256:" + "0" * 64,
+                        "examination_name": "colonoscopy",
+                    }
+                )
+            )
+        else:
+            validate_study_terminology(
+                StudyMetadata.model_validate(
+                    {
+                        "terminology_requirements": [
+                            {"module": "custom", "version": "1.0.0"}
+                        ]
+                    }
+                )
+            )
+
+    if consumer == "study":
+        assert isinstance(rejected.value.__cause__, PackageValidationError)
+        assert str(tmp_path) not in str(rejected.value)
+    else:
+        assert isinstance(rejected.value, PackageValidationError)

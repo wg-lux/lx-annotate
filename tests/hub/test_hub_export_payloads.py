@@ -4,11 +4,12 @@ from __future__ import annotations
 import base64
 import hashlib
 import os
+import secrets
 from datetime import timedelta
 from unittest.mock import patch
 
 from django.core.files.base import ContentFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from endoreg_db.exceptions import MediaOperationDeferred
 from endoreg_db.models import (
@@ -26,8 +27,10 @@ from endoreg_db.models import (
     VideoState,
 )
 from endoreg_db.models.media.operation_lease import MediaOperationLease
+from endoreg_db.utils.hashs import get_hub_record_pseudonym
 
 from lx_annotate.hub.hub_export_payloads import (
+    build_hub_identity_payload,
     build_transfer_payload,
     validate_transfer_payload,
 )
@@ -44,6 +47,7 @@ TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
 os.environ.setdefault("LX_ANNOTATE_MASTER_KEY", TEST_MASTER_KEY)
 
 
+@override_settings(DJANGO_SALT=secrets.token_hex(32))
 class HubExportPayloadTests(TestCase):
     def setUp(self) -> None:
         self.center = Center.objects.create(
@@ -66,6 +70,34 @@ class HubExportPayloadTests(TestCase):
     def _assert_transfer_payload_persists(self, payload):
         validated = validate_transfer_payload(payload)
         return validated
+
+    def test_identity_retries_preserve_persisted_uuids(self):
+        meta = create_hub_sensitive_meta(center=self.center)
+        first = build_hub_identity_payload(meta, hub_node_key=self.hub_node.node_key)
+        meta.refresh_from_db()
+        assert (
+            build_hub_identity_payload(meta, hub_node_key=self.hub_node.node_key)
+            == first
+        )
+        assert first == {
+            "patient_uuid": str(
+                get_hub_record_pseudonym(
+                    meta.pseudo_patient.uuid,
+                    kind="patient",
+                    hub_node_key=self.hub_node.node_key,
+                )
+            ),
+            "examination_uuid": str(
+                get_hub_record_pseudonym(
+                    meta.pseudo_examination.uuid,
+                    kind="examination",
+                    hub_node_key=self.hub_node.node_key,
+                )
+            ),
+        }
+        # Local persisted UUIDs stay on the site.
+        assert str(meta.pseudo_patient.uuid) not in first.values()
+        assert str(meta.pseudo_examination.uuid) not in first.values()
 
     def test_builds_and_validates_video_transfer_payload(self):
         source_hash, processed_bytes = hub_video_artifact()
@@ -121,12 +153,12 @@ class HubExportPayloadTests(TestCase):
         rows = payload["resource_rows"]
         self.assertEqual(
             set(rows["sensitive_meta"]),
-            {"patient_hash", "examination_hash"},
+            {"patient_uuid", "examination_uuid"},
         )
         self.assertNotIn("original_file_name", rows["video_file"])
         self.assertNotIn("meta", rows["video_file"])
         self.assertTrue(rows["video_state"]["anonymization_validated"])
-        self.assertEqual(payload["payload_schema_version"], "3.0")
+        self.assertEqual(payload["payload_schema_version"], "7.0")
 
         validated = self._assert_transfer_payload_persists(payload)
         self.assertEqual(validated["source_node"].node_key, "site-node")
@@ -405,7 +437,7 @@ class HubExportPayloadTests(TestCase):
         rows = payload["resource_rows"]
         self.assertEqual(
             set(rows["sensitive_meta"]),
-            {"patient_hash", "examination_hash"},
+            {"patient_uuid", "examination_uuid"},
         )
         self.assertNotIn("text", rows["raw_pdf_file"])
         self.assertEqual(
@@ -585,8 +617,24 @@ class HubExportPayloadTests(TestCase):
                 },
             ],
         )
+        coordinates = rows["video_segments"][0]["timeline_coordinates"]
         self.assertEqual(
-            rows["video_segments"],
+            (
+                coordinates["generation"]["content_hash"],
+                coordinates["generation"]["first_frame_number"],
+                coordinates["generation"]["last_frame_number"],
+            ),
+            (processed_hash, 5, 9),
+        )
+        self.assertEqual(
+            (coordinates["recording_mapping_status"], coordinates["recording"] is None),
+            ("verified", False),
+        )
+        self.assertEqual(
+            [
+                {k: v for k, v in row.items() if k != "timeline_coordinates"}
+                for row in rows["video_segments"]
+            ],
             [
                 {
                     "source_node_key": "site-node",

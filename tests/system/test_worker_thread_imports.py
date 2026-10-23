@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import subprocess
 import sys
 import textwrap
@@ -188,7 +189,7 @@ def _build_worker_import_env(tmp_path: Path) -> dict[str, str]:
     data_root = runtime_root / "data"
     salt_file = atomic_write_file(
         destination=tmp_path / "identity-salt",
-        content=(b"worker-import-test-identity-salt",),
+        content=(secrets.token_hex(32).encode("ascii"),),
         file_mode=0o600,
     )
 

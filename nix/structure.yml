@@ -4,8 +4,9 @@ path: "nix"
 parent: "../structure.yml"
 summary: "Nix service module and host runtime environment contracts."
 responsibilities:
-  - "Define service integration and host-managed environment rendering."
+  - "Define service integration and host-managed environment rendering, including identity center and generation pins."
   - "Verify package and service module contracts."
+  - "Prioritize the web service over aggregate background work using sibling resource slices."
 boundaries:
   - "Shared LuxNix deployment is fleet-impacting and governed by deployment_source_hygiene."
   - "This context manifest does not authorize deployment or certify readiness."
@@ -16,6 +17,9 @@ entrypoints:
   - name: "environment"
     file: "runtime-environment.nix"
     purpose: "Runtime environment rendering"
+  - name: "resource priority contract"
+    file: "tests/resource_priority_test.nix"
+    purpose: "Evaluate foreground priority, background membership and host overrides"
 dependencies:
   internal: ["lx_annotate","lx_annotate_assets"]
   external: ["NixOS","systemd","LuxNix"]

@@ -90,6 +90,35 @@ The wheel includes:
 
 ## Runtime Strategy
 
+### Foreground resource priority
+
+The NixOS module puts the web service in `lx-annotate-foreground.slice` and
+Celery workers, file watching, SAP import, frame export and idle transcoding in
+`lx-annotate-background.slice`. These are sibling slices with CPU and I/O weights
+of 1000 and 100 respectively. Background workers share their allocation in
+aggregate, so adding workers does not multiply their share relative to the web
+service. Background work can use spare capacity when foreground work is idle.
+Startup migrations and terminology provisioning remain outside these slices.
+
+LuxNix's existing request-admission controller further restricts the background
+slice during API requests and its trailing activity window. Keep external import
+or transcode services, including `move-my-files.service`, in that same background
+slice. The Django middleware holds its reservation through response delivery and
+returns a retryable 503 if a configured controller cannot acknowledge admission.
+
+Weights do not override a hard CPU quota, memory limit, GPU contention or database
+locks. Size the web service's `CPUQuota` and `MemoryHigh` for interactive load;
+50% allows only half of one CPU core even on a multi-core host. Check the web
+cgroup's `cpu.stat`, `memory.events` and pressure counters while seeking, stepping
+frames and saving annotations with background jobs running. Verify actual browser
+responsiveness, not only an unauthenticated health response. I/O weights depend
+on the underlying device and scheduler supporting proportional I/O control.
+
+Host scheduling overrides remain supported and must preserve foreground
+priority deliberately. Applying slice membership changes requires a reviewed
+service rollout; let active background jobs finish before restarting them.
+Installing a Python wheel alone does not apply these NixOS service definitions.
+
 The wheel is only a Python artifact. It does not bundle host binaries such as:
 
 - `ffmpeg`

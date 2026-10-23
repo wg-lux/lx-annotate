@@ -24,6 +24,12 @@ class Command(BaseCommand):
             help="JSON file containing the complete validated hub-node specification.",
         )
 
+        parser.add_argument(
+            "--require-existing-centers",
+            action="store_true",
+            help="Reject unknown center keys instead of creating remote centers.",
+        )
+
     def handle(self, *args: object, **options: object) -> None:
         _ = args
         try:
@@ -31,7 +37,10 @@ class Command(BaseCommand):
             specs = TypeAdapter(list[HubNodeSpec]).validate_json(
                 config_path.read_text(encoding="utf-8")
             )
-            for event in provision_hub_nodes(specs):
+            for event in provision_hub_nodes(
+                specs,
+                require_existing_centers=bool(options["require_existing_centers"]),
+            ):
                 self.stdout.write(
                     render_operational_event(
                         event["event"],

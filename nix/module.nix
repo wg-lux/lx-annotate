@@ -347,6 +347,7 @@ let
       before ? [ ],
       wantedBy ? [ "multi-user.target" ],
       environment ? { },
+      background ? false,
       unitConfig ? { },
       serviceConfig ? { },
       restartTriggers ? [ cfg.package ],
@@ -359,7 +360,12 @@ let
       inherit before wantedBy;
       unitConfig = unitDependencyConfig // unitConfig;
       environment = commonEnvironment // environment;
-      serviceConfig = baseServiceConfig // serviceConfig;
+      serviceConfig =
+        baseServiceConfig
+        // lib.optionalAttrs background {
+          Slice = lib.mkDefault "lx-annotate-background.slice";
+        }
+        // serviceConfig;
     };
 
   mkTimer = unitName: timerCfg: {
@@ -405,6 +411,7 @@ let
     lib.nameValuePair workerCfg.unitName (
       lib.mkIf workerCfg.enable (mkBaseService {
         description = "LX-Annotate Celery worker ${name}";
+        background = true;
         wantedBy = lib.optionals (workerCfg.mode == "always") [ "multi-user.target" ];
         after =
           [ "lx-dtypes-kb-bootstrap.service" ]
@@ -450,7 +457,13 @@ let
       };
     };
   };
-  effectiveWorkers = defaultFfmpegMediaWorkers // cfg.workers;
+  # Apply the same worker schema to automatic and explicitly configured pools.
+  effectiveWorkers = (lib.evalModules {
+    modules = [ {
+      options.workers = lib.mkOption { type = lib.types.attrsOf workerType; };
+      config.workers = defaultFfmpegMediaWorkers // cfg.workers;
+    } ];
+  }).config.workers;
   workerServices = lib.listToAttrs (lib.mapAttrsToList mkWorkerService effectiveWorkers);
   workerTimers = lib.listToAttrs (
     lib.mapAttrsToList (
@@ -896,6 +909,23 @@ in
       "d ${exportFramesOutputDir} 0770 ${cfg.user} ${cfg.group} - -"
     ];
 
+    # Sibling slices make priority apply to all background work in aggregate,
+    # rather than giving each additional worker another share of host resources.
+    systemd.slices =
+      lib.mapAttrs
+        (_: weight: {
+          sliceConfig = {
+            CPUAccounting = true;
+            IOAccounting = true;
+            CPUWeight = lib.mkDefault weight;
+            IOWeight = lib.mkDefault weight;
+          };
+        })
+        {
+          lx-annotate-foreground = 1000;
+          lx-annotate-background = 100;
+        };
+
     systemd.services = {
       lx-dtypes-kb-bootstrap = mkBaseService {
         description = "Strictly provision packaged lx-dtypes knowledge bases";
@@ -927,6 +957,7 @@ in
           ++ lib.optionals (cfg.migrate.enable && !cfg.loadBaseData.enable) [ "lx-annotate-migrate.service" ];
         serviceConfig = {
           ExecStart = "${cfg.package}/bin/lx-annotate-web";
+          Slice = lib.mkDefault "lx-annotate-foreground.slice";
           Restart = "on-failure";
           RestartSec = 5;
         };
@@ -971,6 +1002,7 @@ in
 
       "${cfg.fileWatcher.unitName}" = lib.mkIf cfg.fileWatcher.enable (mkBaseService {
         description = "Run LX-Annotate file watcher";
+        background = true;
         wantedBy = lib.optionals (cfg.fileWatcher.mode == "service") [ "multi-user.target" ];
         after =
           lib.optionals cfg.loadBaseData.enable [ "lx-annotate-load-base-data.service" ]
@@ -989,6 +1021,7 @@ in
 
       "${cfg.sapImport.unitName}" = lib.mkIf cfg.sapImport.enable (mkBaseService {
         description = "Import LX-Annotate SAP IS-H ZIP drops";
+        background = true;
         wantedBy = [ ];
         serviceConfig = {
           Type = "oneshot";
@@ -999,6 +1032,7 @@ in
 
       "${cfg.exportFrames.unitName}" = lib.mkIf cfg.exportFrames.enable (mkBaseService {
         description = "Export LX-Annotate frames";
+        background = true;
         wantedBy = [ ];
         environment = {
           LX_ANNOTATE_EXPORT_FRAMES_OUTPUT_DIR = exportFramesOutputDir;
@@ -1014,6 +1048,7 @@ in
 
       lx-annotate-idle-video-transcode = lib.mkIf idleTranscodeCfg.enable (mkBaseService {
         description = "Idle storage-aware LX-Annotate video transcoding";
+        background = true;
         after = [ "lx-annotate.service" ];
         wants = [ "lx-annotate.service" ];
         serviceConfig = {

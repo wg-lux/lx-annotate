@@ -98,7 +98,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import NavbarComponent from './components/Menus/NavbarComponent.vue'
 import SidebarComponent from './components/Menus/SidebarComponent.vue'
@@ -110,17 +110,17 @@ axios.defaults.baseURL = '/'
 
 // Reactive state
 const isMenuOpen = ref(false)
-const menuOpener = ref(null)
+const menuOpener = ref<Element | null>(null)
 
 // Template DOM Refs
-const sidebarOpener = ref(null)
-const sidebarCloser = ref(null)
-const pageContent = ref(null)
+const sidebarOpener = ref<HTMLButtonElement | null>(null)
+const sidebarCloser = ref<HTMLButtonElement | null>(null)
+const pageContent = ref<HTMLDivElement | null>(null)
 
 // Handlers & Accessibility focus management
 function closeMenu() {
   isMenuOpen.value = false
-  nextTick(() => {
+  void nextTick(() => {
     const opener = menuOpener.value
     if (opener instanceof HTMLElement && opener.isConnected && opener !== document.body) {
       opener.focus()
@@ -138,13 +138,13 @@ function toggleMenu() {
   }
   menuOpener.value = document.activeElement
   isMenuOpen.value = true
-  nextTick(() => sidebarCloser.value?.focus())
+  void nextTick(() => sidebarCloser.value?.focus())
 }
 
 function focusContent() {
   isMenuOpen.value = false
   menuOpener.value = null
-  nextTick(() => pageContent.value?.focus())
+  void nextTick(() => pageContent.value?.focus())
 }
 </script>
 

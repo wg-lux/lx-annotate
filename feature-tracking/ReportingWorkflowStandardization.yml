@@ -23,6 +23,27 @@ source_documents:
     switches through both entry points: 55 passed. Application vue-tsc --noEmit -p tsconfig.app.json and
     scoped ESLint with --max-warnings 0 passed.'
 definition_of_done:
+- id: reporting_clinical_export_import
+  category: functionality
+  title: Reporting medication and laboratory imports preserve clinical meaning
+  acceptance:
+  - CaseMedicationPage provides upload, server-validated preview and explicit commit for versioned MEONA tabular, FHIR R4 JSON and BMP adapters.
+  - Preview identifies the selected patient and case, source profile, record kinds, unresolved mappings and new, unchanged, corrected or conflicting records before persistence.
+  - Multi-patient exports never attach all rows to the selected patient; server-side source identity matching and center authorization determine eligible records.
+  - Patient-level medication without source case identity requires explicit reviewed case association; the selected case is not evidence of the source encounter.
+  - Medication statements, orders and administrations remain distinguishable; BMP plan membership and original dosage instructions remain visible.
+  - Laboratory display preserves quantity comparators, qualitative results, units, reference intervals, specimen and effective versus issued time.
+  - Raw FHIR field names and terminology system URIs survive axios case conversion unchanged through an opaque file upload boundary.
+  - Changing patient, case, file or adapter invalidates the preview; closed cases, stale previews and duplicate submissions cannot write unintended records.
+  - Frontend regressions and backend integration tests verify persisted endoreg_db rows and case relations, including retries, corrections and rejected imports.
+  required: true
+  verification:
+    kind: manual
+    instructions: Verify against endoreg-db feature medical_ledger_integration criterion reporting_clinical_import_adapters and docs/medical_ledger_contract.md; run focused reporting/API tests and application type checking.
+    timeout_seconds: 1200
+  assessment:
+    status: not_assessed
+    evidence: []
 - id: intervention_occurrence_objects
   category: requirements
   title: Interventions use typed occurrence objects with canonical concept references

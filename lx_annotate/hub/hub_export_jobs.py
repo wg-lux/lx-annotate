@@ -15,6 +15,7 @@ from ..models import OutboundHubTransferJob
 from .hub_export_audit import emit_hub_export_audit_event
 from .hub_export_cleanup import configured_local_cleanup_policy
 from .hub_export_contracts import (
+    MISSING_PSEUDONYMOUS_IDENTITY_DETAIL,
     HubCenterSyncState,
     HubEligibleVideoOffloadResult,
     HubExportDuplicateReason,
@@ -392,6 +393,10 @@ def _payload_repair_hint(error: str) -> str:
         "SensitiveMeta must include patient_hash and examination_hash for hub transfer.": (
             "Patient and examination identity hashes are missing. Complete metadata "
             "review before retrying this transfer."
+        ),
+        MISSING_PSEUDONYMOUS_IDENTITY_DETAIL: (
+            "Pseudonymous patient and examination identities are missing. Complete "
+            "metadata review before retrying this transfer."
         ),
         "Actual frame provenance is unavailable for this recording": (
             "Verified frame provenance is missing. An administrator must restore "

@@ -15,14 +15,78 @@ source_documents:
   disposition: reference
   note: LX-Annotate view of the active LuxNix deployment contract and remaining gaps.
 definition_of_done:
+- id: managed_secret_consumer_acceptance
+  category: security
+  title: Application consumers accept only authenticated center-bound secret generations
+  acceptance:
+  - Runtime-only secretspec.identity.toml injects the complete center-bound salt bundle without as_path,
+    local secret defaults or Nix evaluation. All consumers use backend validation; legacy salt files and
+    conflicting inline values are rejected in secretspec mode. Center and generation pins remain public
+    configuration.
+  - LuxNix secrets-management.yml owns cross-repository coordination. Provisioning and host encryption
+    requirements are owned only by wg-lux/luxnix feature-tracking/luxnix_secret_lifecycle_readiness.yml
+    criteria authenticated_center_secret_delivery and encrypted_local_secret_persistence. This criterion
+    owns application settings, installed service consumers and acceptance; it adds no second Vault client.
+  - Web, Celery workers, watcher and maintenance processes consume the same authorized center salt generation
+    from managed credential handles. Verify actual loaded generation and center binding, not just environment-variable
+    presence; two same-center clients must agree without printing values.
+  - Reject missing, invalid, wrong-center, revoked or stale-generation delivery at the application startup
+    boundary. Reconcile existing inline/file precedence so stale environment values cannot override an
+    authoritative managed credential; no random/default secret or plaintext compatibility fallback.
+  - Keep secret values out of persistent application configuration, debug dumps, task payloads, exception
+    output and rendered environment copies. Consume host-decrypted credentials through bounded protected
+    handles and the canonical endoreg-db validators; application code must not implement another keyring
+    parser.
+  - Reconcile secret_key_fallbacks population in lx_annotate/settings/config.py with LuxNix criterion
+    legacy_decryption_only_compatibility. Historical identity salts remain available only at the source
+    for returning-patient matching, alongside authenticated old encrypted-file reads; obsolete signing
+    or client-authentication credentials must not remain trusted under that exception.
+  - Coordinate startup/restart and worker draining during rotation so mixed generations cannot silently
+    create duplicate identities. Delegate identity migration to endoreg-db and honor incomplete/rollback
+    results; installed-runtime acceptance must not treat a source checkout test as fleet readiness.
+  required: true
+  verification:
+    kind: manual
+    instructions: Extend tests/system/test_secretspec_environment_contract.py and test_production_celery_routing.py
+      with managed-generation, stale-inline, missing-file and signing-revocation cases. Rehearse installed
+      web/worker/watcher/maintenance consumers with two same-center clients and a rejected wrong-center
+      generation.
+    timeout_seconds: 1800
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: lx_annotate/settings/config.py
+    - kind: test
+      reference: tests/system/test_production_celery_routing.py
+    - kind: document
+      reference: docs/guides/secret-rotation.md
+    - kind: command
+      reference: 'PYTHONPATH=/home/admin/endoreg-db:/home/admin/lx-data-models .devenv/state/venv/bin/pytest
+        tests/system/test_config_unit.py tests/system/test_secretspec_environment_contract.py tests/system/test_production_celery_routing.py
+        tests/system/test_focused_coverage.py -q --tb=short: 107 passed in 37.03s; unrelated stale pytest
+        garbage cleanup warning'
+    - kind: command
+      reference: '/home/admin/endoreg-db/.devenv/state/venv/bin/pyright --project pyrightconfig.json:
+        0 errors, 0 warnings'
+    - kind: command
+      reference: scripts/lint_structure.py and tracker validate passed; tracker check luxnix_pressing_issues
+        remains not production ready (1/11)
+    - kind: command
+      reference: '2026-10-19: Pyright 0 errors; SecretSpec runtime injection and configuration tests:
+        59 passed. Real CLI verified valid delivery and rejection of missing bundle, wrong center/generation
+        and legacy file configuration; synthetic values absent from captured output and test directories.
+        Host rollout and encrypted restore acceptance remain outstanding.'
+    assessed_by: codex-secret-rotation-01a15374
+    assessed_at: '2026-10-19T10:46:11.096112Z'
 - id: rewritten_dependency_environment_upgrade
   category: operations
   title: Rewritten endoreg-db and lx-dtypes can be installed without identity or runtime-root drift
   acceptance:
   - The LuxNix secrets-management.yml catalog owns cross-repository rotation order. The host environment
     declares all three application keyring handles; signing manifests use the endoreg-db validator and
-    export active and retiring keys to SECRET_KEY and SECRET_KEY_FALLBACKS. Tests reject unsafe manifests
-    and prove signature overlap and retirement without production credentials.
+    export only the active key to SECRET_KEY with empty SECRET_KEY_FALLBACKS. Tests reject unsafe manifests
+    and prove retired signatures are rejected without production credentials.
   - Service wrappers, maintenance commands, and both systemd environment files export the same absolute
     LX_RUNTIME_ROOT derived from runtime.encryptedDataDir.
   - DJANGO_SALT_FILE references a provisioned private regular file readable by the service user. Existing

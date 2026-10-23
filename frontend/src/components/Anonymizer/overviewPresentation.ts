@@ -1,14 +1,26 @@
-import type { FileItem, UploadJobOverview } from '@/stores/anonymizationStore'
+import type {
+  AiPredictionStatus,
+  AnonymizationPhase,
+  FileItem,
+  UploadJobOverview
+} from '@/stores/anonymizationStore'
 
 export type OriginalFileDeletionState = 'deleted' | 'present' | 'quarantined' | 'unknown'
 
 export const isAnonymizationProcessing = (file: FileItem): boolean =>
-  ['processing_anonymization', 'extracting_frames', 'predicting_segments'].includes(
-    file.anonymizationStatus
-  )
+  file.anonymizationPhase === 'in_progress'
 
 export const isImportInterrupted = (file: FileItem): boolean =>
   file.uploadJob?.status === 'cancelled' && isAnonymizationProcessing(file)
+
+export type OverviewSummaryBucket = AnonymizationPhase | 'interrupted' | 'quarantined'
+
+// Every row lands in exactly one bucket, so the summary always adds up to the table.
+export const getOverviewSummaryBucket = (file: FileItem): OverviewSummaryBucket => {
+  if (file.quarantined) return 'quarantined'
+  if (isImportInterrupted(file)) return 'interrupted'
+  return file.anonymizationPhase
+}
 
 const documentTypeLabels: Record<string, string> = {
   report: 'Befund',
@@ -35,9 +47,6 @@ const getDocumentTypeLabel = (documentType?: string | null) => {
 const getPdfPatientLabel = (file: FileItem) => {
   if (typeof file.pseudoPatientId === 'number') {
     return `Pseudo-Patient ${String(file.pseudoPatientId)}`
-  }
-  if (file.patientHashDisplay) {
-    return `Patient ${file.patientHashDisplay}`
   }
   return ''
 }
@@ -73,7 +82,8 @@ export const getStatusBadgeClass = (status: string) => {
     not_started: 'bg-secondary',
     processing_anonymization: 'bg-warning',
     extracting_frames: 'bg-info',
-    predicting_segments: 'bg-info',
+    started: 'bg-warning',
+    anonymized: 'bg-info',
     done_processing_anonymization: 'bg-success',
     validated: 'bg-success',
     failed: 'bg-danger'
@@ -86,13 +96,109 @@ export const getStatusText = (status: string) => {
     not_started: 'Nicht gestartet',
     processing_anonymization: 'Anonymisierung läuft',
     extracting_frames: 'Einzelbilder werden extrahiert',
-    predicting_segments: 'Segmentvorhersage läuft',
+    started: 'Anonymisierung gestartet',
+    anonymized: 'Anonymisiert, Metadaten ausstehend',
     done_processing_anonymization: 'Fertig',
     validated: 'Validiert',
     failed: 'Fehlgeschlagen'
   }
   return texts[status] || `Unbekannter Status (${status})`
 }
+
+export type ClinicalStatusTone = 'neutral' | 'progress' | 'action' | 'done' | 'problem'
+
+export interface ClinicalStatus {
+  label: string
+  tone: ClinicalStatusTone
+  hint: string
+}
+
+const ESCALATE_HINT = 'Bitte die Technik informieren.'
+
+const clinicalPhaseStatus = (phase: AnonymizationPhase): ClinicalStatus => {
+  switch (phase) {
+    case 'not_started':
+      return { label: 'Bereit zum Start', tone: 'action', hint: 'Mit „Starten“ beginnen.' }
+    case 'in_progress':
+      return { label: 'Wird verarbeitet', tone: 'progress', hint: 'Bitte abwarten.' }
+    case 'awaiting_validation':
+      return {
+        label: 'Bitte validieren',
+        tone: 'action',
+        hint: 'Anonymisierung prüfen und freigeben.'
+      }
+    case 'validated':
+      return { label: 'Validiert', tone: 'done', hint: '' }
+    case 'failed':
+      return {
+        label: 'Verarbeitung fehlgeschlagen',
+        tone: 'problem',
+        hint: `Erneut versuchen. ${ESCALATE_HINT}`
+      }
+    default: {
+      const unhandled: never = phase
+      throw new Error(`Unbehandelte Anonymisierungsphase: ${String(unhandled)}`)
+    }
+  }
+}
+
+// Plain-language status for clinical staff; raw tokens stay in the technical view.
+export const getClinicalStatus = (file: FileItem): ClinicalStatus => {
+  if (file.quarantined) {
+    return { label: 'Import angehalten', tone: 'problem', hint: ESCALATE_HINT }
+  }
+  if (file.importOnly && file.uploadJob) {
+    const status = file.uploadJob.status
+    if (status === 'error' || status === 'lost') {
+      return { label: 'Import fehlgeschlagen', tone: 'problem', hint: ESCALATE_HINT }
+    }
+    if (status === 'cancelled') return { label: 'Import abgebrochen', tone: 'neutral', hint: '' }
+    if (status === 'cancel_requested') {
+      return { label: 'Abbruch läuft', tone: 'progress', hint: 'Bitte abwarten.' }
+    }
+    return { label: 'Wird importiert', tone: 'progress', hint: 'Bitte abwarten.' }
+  }
+  if (isImportInterrupted(file)) {
+    return { label: 'Verarbeitung unterbrochen', tone: 'neutral', hint: 'Import wurde abgebrochen.' }
+  }
+  return clinicalPhaseStatus(file.anonymizationPhase)
+}
+
+const clinicalToneBadgeClasses: Record<ClinicalStatusTone, string> = {
+  neutral: 'bg-secondary',
+  progress: 'bg-info text-dark',
+  action: 'bg-primary',
+  done: 'bg-success',
+  problem: 'bg-danger'
+}
+
+export const getClinicalStatusBadgeClass = (status: ClinicalStatus): string =>
+  clinicalToneBadgeClasses[status.tone]
+
+// Errors that are only explained in the technical view; clinicians just see a marker.
+export const hasHiddenTechnicalIssue = (file: FileItem): boolean => {
+  const uploadJob = file.uploadJob
+  const importFailed =
+    !file.importOnly &&
+    !!uploadJob &&
+    (uploadJob.status === 'error' || uploadJob.status === 'lost') &&
+    uploadJob.errorCode !== 'duplicate_content'
+  const streamFailed = visibleHlsMaterializations(file).some(
+    (materialization) => materialization.status === 'failed'
+  )
+  return importFailed || streamFailed
+}
+
+const aiPredictionLabels: Record<AiPredictionStatus, { text: string; badgeClass: string }> = {
+  not_started: { text: 'KI: nicht gestartet', badgeClass: 'bg-secondary' },
+  frames_unavailable: { text: 'KI: Einzelbilder fehlen', badgeClass: 'bg-secondary' },
+  prediction_pending: { text: 'KI-Vorhersage ausstehend', badgeClass: 'bg-warning text-dark' },
+  prediction_ready: { text: 'KI-Vorhersage bereit', badgeClass: 'bg-info text-dark' },
+  annotation_ready: { text: 'KI-Segmente erstellt', badgeClass: 'bg-success' },
+  annotation_complete: { text: 'KI-Annotationen erstellt', badgeClass: 'bg-success' }
+}
+
+export const getAiPredictionLabel = (status: AiPredictionStatus) => aiPredictionLabels[status]
 
 export const getUploadJobStatusBadgeClass = (status: string) => {
   const classes: { [key: string]: string } = {

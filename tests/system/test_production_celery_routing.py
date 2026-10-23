@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import os
+import secrets
 import subprocess
 import sys
 import textwrap
@@ -14,6 +16,28 @@ from endoreg_db.utils.file_operations import atomic_write_file
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+def _isolated_probe_environment() -> dict[str, str]:
+    """Keep host tooling while removing inherited settings and secret selectors."""
+    env = os.environ.copy()
+    for name in (
+        "DJANGO_SETTINGS_MODULE",
+        "DJANGO_SALT",
+        "DJANGO_SALT_FILE",
+        "DJANGO_IDENTITY_SALT_KEYRING_FILE",
+        "DJANGO_IDENTITY_CENTER_ID",
+        "DJANGO_IDENTITY_SALT_GENERATION",
+        "DJANGO_SECRET_KEY",
+        "DJANGO_SECRET_KEY_FILE",
+        "DJANGO_SIGNING_KEYRING_FILE",
+    ):
+        env.pop(name, None)
+    # Celery can read process-level overrides even with settings.configure().
+    for name in tuple(env):
+        if name.startswith("CELERY_"):
+            env.pop(name)
+    return env
+
+
 def _production_settings_environment(tmp_path: Path) -> dict[str, str]:
     data_root = tmp_path / "runtime-data"
     storage_root = data_root / "storage"
@@ -23,9 +47,13 @@ def _production_settings_environment(tmp_path: Path) -> dict[str, str]:
     static_root.mkdir(parents=True)
     secret_root = tmp_path / "hub-secrets"
     secret_root.mkdir(parents=True)
-    salt_file = atomic_write_file(
-        destination=secret_root / "identity-salt",
-        content=(b"production-routing-test-identity-salt",),
+    production_routing_test_identity_salt = secrets.token_hex(32).encode("ascii")
+
+    salt_file = secret_root / "identity-salt"
+
+    atomic_write_file(
+        destination=salt_file,
+        content=(production_routing_test_identity_salt + b"\n",),
         file_mode=0o600,
     )
     client_cert_file = secret_root / "hub-client-cert.pem"
@@ -48,7 +76,7 @@ def _production_settings_environment(tmp_path: Path) -> dict[str, str]:
     # isolated production-settings probe.
     (data_root / ".env.systemd").write_text("", encoding="utf-8")
 
-    env = os.environ.copy()
+    env = _isolated_probe_environment()
     env.update(
         {
             "CELERY_BROKER_URL": "redis://localhost:6379/1",
@@ -107,14 +135,21 @@ def test_production_settings_reject_unusable_identity_salt(
 ) -> None:
     env = _production_settings_environment(tmp_path)
     salt_file = Path(env["DJANGO_SALT_FILE"])
+    active_salt = salt_file.read_bytes().removesuffix(b"\n").decode("ascii")
+    sensitive_values = [active_salt]
     if salt_mode == "missing":
         env.pop("DJANGO_SALT_FILE")
-        env["DJANGO_SALT"] = "inline-test-salt-must-not-enable-production"
+        # A valid inline key must not bypass production's file/keyring requirement.
+        env["DJANGO_SALT"] = secrets.token_hex(32)
+        sensitive_values.append(env["DJANGO_SALT"])
+    elif salt_mode == "public":
+        # Keep the valid contents so rejection specifically exercises permissions.
+        salt_file.chmod(0o644)
     else:
         atomic_write_file(
             destination=salt_file,
-            content=(b"" if salt_mode == "blank" else b"test-identity-salt",),
-            file_mode=0o644 if salt_mode == "public" else 0o600,
+            content=(b"",),
+            file_mode=0o600,
         )
     result = subprocess.run(
         [sys.executable, "-c", "import lx_annotate.settings.settings_prod"],
@@ -124,13 +159,16 @@ def test_production_settings_reject_unusable_identity_salt(
         capture_output=True,
         timeout=60,
     )
-    assert result.returncode != 0
-    assert "ImproperlyConfigured" in result.stderr
-    assert "salt" in result.stderr.lower()
-    assert "inline-test-salt-must-not-enable-production" not in result.stderr
+    diagnostics = result.stdout + result.stderr
+    assert not any(value in diagnostics for value in sensitive_values), (
+        "Identity key material appeared in subprocess output"
+    )
+    assert result.returncode != 0, "Production settings accepted an unusable salt"
+    assert "ImproperlyConfigured" in result.stderr, result.stderr
+    assert "salt" in result.stderr.lower(), result.stderr
 
 
-def test_production_settings_export_signing_generations(tmp_path: Path) -> None:
+def test_production_settings_revoke_retired_signing_generations(tmp_path: Path) -> None:
     import yaml
 
     env = _production_settings_environment(tmp_path)
@@ -159,11 +197,16 @@ def test_production_settings_export_signing_generations(tmp_path: Path) -> None:
             "-c",
             textwrap.dedent("""
             from django.conf import settings
-            from django.core.signing import Signer
+            from django.core.signing import BadSignature, Signer
             assert settings.SECRET_KEY == "active-production-signing-test-" * 3
-            assert settings.SECRET_KEY_FALLBACKS == ["retiring-production-signing-test-" * 3]
-            old = Signer(key=settings.SECRET_KEY_FALLBACKS[0], fallback_keys=[]).sign("probe")
-            assert Signer().unsign(old) == "probe"
+            assert settings.SECRET_KEY_FALLBACKS == []
+            old = Signer(key="retiring-production-signing-test-" * 3, fallback_keys=[]).sign("probe")
+            try:
+                Signer().unsign(old)
+            except BadSignature:
+                pass
+            else:
+                raise AssertionError("Retired signing generation remained trusted")
         """),
         ],
         cwd=REPO_ROOT,
@@ -408,9 +451,7 @@ def test_celery_reduced_settings_keep_complete_visibility_contract() -> None:
         }
         """,
     )
-    env = os.environ.copy()
-    env.pop("DJANGO_SETTINGS_MODULE", None)
-    env.pop("CELERY_VISIBILITY_TIMEOUT_SECONDS", None)
+    env = _isolated_probe_environment()
 
     completed = subprocess.run(
         [sys.executable, "-c", probe],
@@ -458,8 +499,7 @@ def test_celery_rejects_incomplete_or_conflicting_transport_visibility(
         import lx_annotate.celery
         """,
     )
-    env = os.environ.copy()
-    env.pop("DJANGO_SETTINGS_MODULE", None)
+    env = _isolated_probe_environment()
 
     completed = subprocess.run(
         [sys.executable, "-c", probe],
@@ -471,14 +511,20 @@ def test_celery_rejects_incomplete_or_conflicting_transport_visibility(
         check=False,
     )
 
-    assert completed.returncode != 0
+    assert completed.returncode != 0, (
+        "Celery accepted incomplete or conflicting transport visibility.\n\n"
+        f"broker_options={broker_options!r}\n"
+        f"result_options={result_options!r}\n\n"
+        f"stdout:\n{completed.stdout}\n\n"
+        f"stderr:\n{completed.stderr}"
+    )
     assert any(
         message in completed.stderr
         for message in (
             "visibility_timeout must equal CELERY_VISIBILITY_TIMEOUT",
             "must be a mapping",
         )
-    )
+    ), completed.stderr
 
 
 @pytest.mark.parametrize("value", ["not-an-integer", "0", "-1", "86400"])
@@ -544,3 +590,103 @@ def test_production_visibility_exceeds_registered_late_ack_tasks(
         f"stdout:\n{completed.stdout}\n\n"
         f"stderr:\n{completed.stderr}"
     )
+
+
+@pytest.mark.parametrize(
+    "failure", [None, "wrong_center", "stale_generation", "missing_manifest"]
+)
+def test_production_identity_delivery_binding(
+    tmp_path: Path, failure: str | None
+) -> None:
+    import yaml
+
+    env = _production_settings_environment(tmp_path)
+    active = Path(env["DJANGO_SALT_FILE"])
+    active_salt = active.read_bytes().removesuffix(b"\n")
+    historical_salt = secrets.token_hex(32).encode("ascii")
+    historical = tmp_path / "identity-retiring"
+
+    atomic_write_file(
+        destination=historical,
+        content=(historical_salt + b"\n",),
+        file_mode=0o600,
+    )
+    manifest = tmp_path / "identity.yml"
+    if failure != "missing_manifest":
+        manifest_bytes = yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "active": str(active),
+                "retiring": [str(historical)],
+                "center_id": (
+                    "other-center" if failure == "wrong_center" else "test-center"
+                ),
+                "generation": 1 if failure == "stale_generation" else 2,
+            }
+        ).encode("utf-8")
+        atomic_write_file(
+            destination=manifest,
+            content=(manifest_bytes,),
+            file_mode=0o600,
+        )
+    stale_inline_must_never_win = secrets.token_hex(32)
+    env.update(
+        {
+            "DJANGO_IDENTITY_SALT_KEYRING_FILE": str(manifest),
+            "DJANGO_IDENTITY_CENTER_ID": "test-center",
+            "DJANGO_IDENTITY_SALT_GENERATION": "2",
+            "DJANGO_SALT": stale_inline_must_never_win,
+            # Only expectations derived from disposable test keys go to the probe.
+            "TEST_EXPECTED_ACTIVE_SHA256": hashlib.sha256(active_salt).hexdigest(),
+            "TEST_EXPECTED_RETIRING_SHA256": hashlib.sha256(
+                historical_salt
+            ).hexdigest(),
+        }
+    )
+    probe = textwrap.dedent(
+        """
+        import hashlib
+        import os
+
+        from django.conf import settings
+        from endoreg_db.config.secret_keyring import configured_identity_keyring
+
+        # Load production settings before checking the successful binding.
+        active_setting = settings.DJANGO_SALT
+        ring = configured_identity_keyring()
+        assert ring is not None
+        assert active_setting == ring.active.decode("utf-8")
+        assert ring.center_id == "test-center"
+        assert ring.generation == 2
+        assert hashlib.sha256(ring.active).hexdigest() == (
+            os.environ["TEST_EXPECTED_ACTIVE_SHA256"]
+        )
+        assert len(ring.retiring) == 1
+        assert hashlib.sha256(ring.retiring[0]).hexdigest() == (
+            os.environ["TEST_EXPECTED_RETIRING_SHA256"]
+        )
+        """
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=60,
+    )
+    diagnostics = result.stdout + result.stderr
+    assert not any(
+        value in diagnostics
+        for value in (
+            active_salt.decode("ascii"),
+            historical_salt.decode("ascii"),
+            stale_inline_must_never_win,
+        )
+    ), "Identity key material appeared in subprocess output"
+    if failure is None:
+        assert result.returncode == 0, result.stderr
+    else:
+        assert result.returncode != 0, "Production settings accepted invalid binding"
+        # A failed assertion in the success probe must not count as rejection.
+        assert "ImproperlyConfigured" in result.stderr, result.stderr

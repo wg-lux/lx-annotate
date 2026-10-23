@@ -57,7 +57,9 @@ class HubNodeSpec(BaseModel):
         return value
 
 
-def provision_hub_nodes(specs: list[HubNodeSpec]) -> list[HubNodeProvisionEvent]:
+def provision_hub_nodes(
+    specs: list[HubNodeSpec], *, require_existing_centers: bool = False
+) -> list[HubNodeProvisionEvent]:
     """Apply validated node specifications through the domain model API."""
 
     from endoreg_db.models import Center, NetworkNode
@@ -74,7 +76,13 @@ def provision_hub_nodes(specs: list[HubNodeSpec]) -> list[HubNodeProvisionEvent]
             if spec.center_name and not spec.center_key:
                 raise ValueError("center_name requires a stable center_key")
             center = None
-            if spec.center_key:
+            if spec.center_key and require_existing_centers:
+                center = Center.objects.filter(center_key=spec.center_key).first()
+                if center is None:
+                    raise ValueError(
+                        f"Required Center.center_key is missing: {spec.center_key}"
+                    )
+            elif spec.center_key:
                 # This is trusted operator provisioning, not a transfer payload.
                 # Remote source centers must not depend on study/fixture loading
                 # and must never be substituted with the receiver's local center.

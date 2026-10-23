@@ -37,7 +37,8 @@ def test_lx_terminology_editor_export_is_accepted(
         )
         archive.writestr(
             f"{zip_root}lx_findings/data/custom.yaml",
-            "- model: finding\n  name: custom_finding\n",
+            "- model: finding\n  name: custom_finding\n"
+            "  name_de: Eigener Befund\n  name_en: Custom finding\n",
         )
 
     # The constructor receives the registry FILE, not the root directory.

@@ -33,33 +33,52 @@ from lx_annotate.views.dataset_lifecycle import (
 )
 from lx_annotate.views.frame_annotation import BoundedDecodedFrameStreamView
 from lx_annotate.views.hub_export import (
-    hub_export_mark,
-    hub_export_preflight,
     hub_export_inspect_recovery,
-    hub_export_restart_cleanup,
+    hub_export_mark,
     hub_export_offload_eligible_videos,
     hub_export_overview,
+    hub_export_preflight,
+    hub_export_restart_cleanup,
     hub_export_retry,
     hub_export_unmark,
 )
 from lx_annotate.views.monitoring import monitoring_snapshot
 from lx_annotate.views.quarantine import quarantine_overview
-from lx_annotate.views.report_llm import report_llm_generate, report_llm_status
+from lx_annotate.views.remote_machines import remote_machines
+from lx_annotate.views.report_llm import (
+    report_llm_chat,
+    report_llm_generate,
+    report_llm_models,
+    report_llm_status,
+)
 from lx_annotate.views.storage_monitor import storage_monitor
 from lx_annotate.views.study_cohorts import (
     dataset_study_cohorts,
     study_cohort_definition,
     study_cohort_detail,
     study_cohort_preview,
+    study_cohort_statistics,
     study_cohorts,
 )
 from lx_annotate.views.study_export import study_export_options, study_export_xlsx
+from lx_annotate.views.study_ledger_exchange import (
+    study_cohort_capture,
+    study_ledger_import,
+    study_ledger_options,
+    study_ledger_xlsx,
+)
 from lx_annotate.views.study_setup_import import study_setup_import
 from lx_annotate.views.study_table_import import study_table_import
+from lx_annotate.views.study_transfer import study_hub_accept, study_hub_transfer
 from lx_annotate.views.video_state_repair import VideoStateRepairView
 from lx_annotate.views.video_transcode_jobs import VideoTranscodeJobsView
 
 urlpatterns = [
+    path(
+        "media/studies/cohorts/<int:cohort_id>/capture/",
+        study_cohort_capture,
+        name="study-cohort-capture",
+    ),
     path("media/studies/setup-import/", study_setup_import, name="study-setup-import"),
     path("media/studies/datasets/", datasets, name="study-datasets"),
     path(
@@ -84,6 +103,11 @@ urlpatterns = [
     ),
     path("media/storage-monitor/", storage_monitor, name="storage-monitor"),
     path("media/studies/cohorts/", study_cohorts, name="study-cohorts"),
+    path(
+        "media/studies/cohorts/<int:cohort_id>/statistics/",
+        study_cohort_statistics,
+        name="study-cohort-statistics",
+    ),
     path(
         "media/studies/cohorts/<int:cohort_id>/table-import/",
         study_table_import,
@@ -145,6 +169,8 @@ urlpatterns = [
         name="administration-monitoring",
     ),
     path("reporting/llm/status/", report_llm_status, name="report-llm-status"),
+    path("reporting/llm/chat/", report_llm_chat, name="report-llm-chat"),
+    path("reporting/llm/models/", report_llm_models, name="report-llm-models"),
     path("reporting/llm/generate/", report_llm_generate, name="report-llm-generate"),
     path(
         "anonymization/upload-jobs/<uuid:job_id>/dismiss/",
@@ -170,6 +196,29 @@ urlpatterns = [
         "runtime/videos/<int:pk>/repair/",
         VideoStateRepairView.as_view(),
         name="runtime-video-state-repair",
+    ),
+    path(
+        "media/studies/hub-transfers/<uuid:transfer_id>/accept/",
+        study_hub_accept,
+        name="study-hub-accept",
+    ),
+    path(
+        "media/studies/<uuid:study_id>/hub-transfer/",
+        study_hub_transfer,
+        name="study-hub-transfer",
+    ),
+    path(
+        "media/studies/ledger/options/",
+        study_ledger_options,
+        name="study-ledger-options",
+    ),
+    path(
+        "media/studies/ledger/import/", study_ledger_import, name="study-ledger-import"
+    ),
+    path(
+        "media/studies/<uuid:study_uuid>/ledger.xlsx",
+        study_ledger_xlsx,
+        name="study-ledger-xlsx",
     ),
     path(
         "media/studies/case-export/options/",
@@ -264,5 +313,6 @@ urlpatterns = [
         quarantine_overview,
         name="runtime-quarantine-overview",
     ),
+    path("runtime/remote-machines/", remote_machines, name="runtime-remote-machines"),
     path("", include(("endoreg_db.urls", "endoreg_db"), namespace="api")),
 ]

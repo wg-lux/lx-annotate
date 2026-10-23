@@ -139,8 +139,36 @@
         </template>
       </div>
     </td>
+    <!-- Clinical Status -->
+    <td data-test="clinical-status">
+      <span
+        class="badge"
+        :class="getClinicalStatusBadgeClass(clinicalStatus)"
+      >
+        {{ clinicalStatus.label }}
+      </span>
+      <div
+        v-if="clinicalStatus.hint"
+        class="small text-muted mt-1 clinical-status-hint"
+      >
+        {{ clinicalStatus.hint }}
+      </div>
+      <span
+        v-if="!technicalDetails && hasHiddenTechnicalIssue(file)"
+        class="badge bg-light text-dark border d-inline-block mt-1"
+        data-test="technical-issue-marker"
+        title="Details unter „Technische Details“"
+      >
+        <i
+          class="ni ni-settings-gear-65 me-1"
+          aria-hidden="true"
+        ></i>
+        Technischer Hinweis
+      </span>
+    </td>
+
     <!-- Upload Job Status -->
-    <td>
+    <td v-if="technicalDetails">
       <div
         v-if="file.uploadJob"
         class="upload-job-summary"
@@ -194,7 +222,7 @@
     </td>
 
     <!-- HTTP Live Streaming Materialization -->
-    <td>
+    <td v-if="technicalDetails">
       <div
         v-if="visibleHlsMaterializations(file).length"
         class="hls-materialization-summary"
@@ -235,7 +263,7 @@
     </td>
 
     <!-- Anonymization Status -->
-    <td>
+    <td v-if="technicalDetails">
       <span
         v-if="file.importOnly"
         class="text-muted"
@@ -266,17 +294,26 @@
         class="text-muted"
         >-</span
       >
-      <span
-        v-else
-        :class="getStatusBadgeClass(file.annotationStatus)"
-        class="badge"
-      >
-        {{ getStatusText(file.annotationStatus) }}
-      </span>
+      <template v-else>
+        <span
+          :class="getStatusBadgeClass(file.annotationStatus)"
+          class="badge"
+        >
+          {{ getStatusText(file.annotationStatus) }}
+        </span>
+        <span
+          v-if="file.aiPredictionStatus"
+          :class="getAiPredictionLabel(file.aiPredictionStatus).badgeClass"
+          class="badge d-block mt-1"
+          data-test="ai-prediction-status"
+        >
+          {{ getAiPredictionLabel(file.aiPredictionStatus).text }}
+        </span>
+      </template>
     </td>
 
     <!-- Original File Cleanup -->
-    <td>
+    <td v-if="technicalDetails">
       <span :class="getOriginalFileDeletionClass(file)">
         <i
           :class="getOriginalFileDeletionIcon(file)"
@@ -319,6 +356,10 @@ import {
   getOriginalFileDeletionIcon,
   getOriginalFileDeletionText,
   getQuarantineReviewLabel,
+  getAiPredictionLabel,
+  getClinicalStatus,
+  getClinicalStatusBadgeClass,
+  hasHiddenTechnicalIssue,
   getStatusBadgeClass,
   getStatusText,
   getUploadJobCleanupLabel,
@@ -337,11 +378,18 @@ const props = defineProps<{
   readyForValidation: boolean
   iconClass: string
   mediaTypeBadgeClass: string
+  technicalDetails: boolean
 }>()
 
 // script setup
 const emit = defineEmits<(event: OverviewActionIntent | 'validate' | 'annotate' | 'correct', file: FileItem) => void>()
-const actions = computed(() => getOverviewActions(props.file))
+// State repair is an operator tool; clinical staff only see workflow actions.
+const actions = computed(() =>
+  getOverviewActions(props.file).filter(
+    (action) => props.technicalDetails || action.intent !== 'repair-video'
+  )
+)
+const clinicalStatus = computed(() => getClinicalStatus(props.file))
 </script>
 
 <style scoped>
@@ -356,6 +404,11 @@ const actions = computed(() => getOverviewActions(props.file))
 .overview-resource-row:hover .validation-action-column {
   background-color: #f8f9fa;
 }
+.clinical-status-hint {
+  max-width: 14rem;
+  white-space: normal;
+}
+
 .filename-cell-content,
 .filename-details {
   min-width: 0;

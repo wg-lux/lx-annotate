@@ -243,6 +243,12 @@ export function createAppRouter(history: RouterHistory = createWebHistory('/')) 
         }
       },
       {
+        path: '/chat',
+        name: 'KI-Chat',
+        component: () => import('@/views/ModelChatPage.vue'),
+        meta: { description: 'Allgemeiner Chat mit lokalen Ollama-Modellen ohne Speicherung.' }
+      },
+      {
         path: '/speicher',
         name: 'Speicherüberwachungszentrum',
         component: () => import('@/views/StorageMonitor.vue'),

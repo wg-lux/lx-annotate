@@ -24,10 +24,14 @@ dependencies:
   external: ["Sphinx","MyST"]
 submodules: []
 contracts:
+  - name: "watcher scan and measurement contract"
+    doc: "guides/watcher-scans.md"
   - name: "clinical boundaries"
     doc: "guides/core-concept-contract.md"
   - name: "deployment boundaries"
     doc: "guides/deployment-strategy.md"
+  - name: "hub remote access"
+    doc: "guides/hub-remote-access.md"
 tests:
   directory: "../tests/system"
   command: "python scripts/lint_structure.py"

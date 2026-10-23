@@ -8,9 +8,9 @@ from uuid import UUID
 from django.http import HttpRequest, HttpResponse
 from endoreg_db.models import RawPdfFile, UploadJob, VideoFile
 from endoreg_db.serializers.misc.file_overview import (
+    overview_upload_job_media_type,
     overview_upload_job_retry_summary,
     safe_upload_job_original_filename,
-    overview_upload_job_media_type,
 )
 from endoreg_db.services.hub.import_monitoring import (
     can_dismiss_upload_job,
@@ -136,8 +136,6 @@ class LifecycleAnonymizationOverviewView(AnonymizationOverviewView):
                     "upload_job": overview_upload_job_retry_summary(upload_job),
                     "hls_materializations": [],
                     "document_type": None,
-                    "patient_hash_display": None,
-                    "examination_hash_display": None,
                     "pseudo_patient_id": None,
                     "pseudo_examination_id": None,
                     "import_only": True,

@@ -1,7 +1,18 @@
 # LX-Annotate
 
-LX-Annotate is a Django + Vue application for annotating AI-generated outputs,
-with a media ingestion pipeline for videos and PDFs. This project was created by a team at Universitätsklinikum Würzburg, Bavaria.  
+LX-Annotate helps clinical teams review and annotate videos, PDFs, and AI outputs.
+It uses Django and Vue. The project began at Universitätsklinikum Würzburg, Bavaria.
+
+## Start Here
+
+Explore the project through the [documentation guide](docs/guides/general-documentation.md).
+It links to clinical workflows, technical guidance, and a
+[contribution roadmap](docs/guides/general-documentation.md#roadmap).
+Contributions can include clearer guides, workflow feedback, tests, and code.
+
+For a local setup, follow the development quick start below.
+Feature requirements and verification evidence live in
+[feature-tracking](feature-tracking/README.md).
 
 ## Highlights
 
@@ -39,9 +50,8 @@ Open `http://127.0.0.1:8000/`.
 
 ## Backend Test Execution
 
-If native Python dependencies such as NumPy fail to import because the shell is
-missing Nix runtime libraries, run backend tests through the repo wrapper so
-`devenv` exports the expected environment first:
+If NumPy or another native dependency fails to import, the shell may lack Nix
+runtime libraries. Run the backend wrapper to load the `devenv` environment:
 
 ```bash
 ./scripts/run-backend-checks.sh

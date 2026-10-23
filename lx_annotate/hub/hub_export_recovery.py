@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from cryptography.exceptions import InvalidTag
 from django.contrib.auth.base_user import AbstractBaseUser
-from django.db import transaction
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from django.utils import timezone
 from endoreg_db.models import VideoFile
 from endoreg_db.services.annotations.segment_validation_workflow import (
@@ -18,17 +18,19 @@ from endoreg_db.services.media.operation_gate import (
 from rest_framework.exceptions import PermissionDenied
 
 from .hub_export_contracts import (
-    HubPayloadRejected,
     HubCleanupPreviewIdentity,
     HubCleanupRestartRequest,
-    HubRecoveryAction as Action,
+    HubPayloadRejected,
     HubRecoveryAssessment,
     HubRecoveryBlocker,
     HubRecoveryBlockerCode,
 )
+from .hub_export_contracts import (
+    HubRecoveryAction as Action,
+)
 from .hub_export_payloads import (
-    build_hub_identity_payload,
     build_transfer_payload,
+    require_local_identity_records,
     validate_transfer_payload,
 )
 from .hub_export_state import VideoHubExportReadiness, resolve_video_hub_export_state
@@ -54,7 +56,7 @@ def video_recovery_assessment(
 ) -> HubRecoveryAssessment:
     blockers: list[HubRecoveryBlocker] = []
     try:
-        build_hub_identity_payload(video.sensitive_meta)
+        require_local_identity_records(video.sensitive_meta)
     except HubPayloadRejected as exc:
         blockers.append(exc.blocker)
     if video.center is None:
@@ -224,9 +226,9 @@ def preflight_video(
                     )
                     payload_verified = True
                     from .hub_export_worker import (
+                        hub_transfer_url,
                         resolve_hub_transport_config,
                         resolve_outbound_node_secret,
-                        hub_transfer_url,
                     )
 
                     try:
@@ -336,15 +338,14 @@ def preflight_video(
 def inspect_cleanup(video: VideoFile) -> dict[str, object]:
     """Inspection is advisory: worker replies never prove broker queue absence."""
     from celery import current_app
-    from kombu.exceptions import OperationalError
     from endoreg_db.config.env import get_celery_ffmpeg_media_queue
-    from endoreg_db.services.jobs.video_post_validation_jobs import (
-        STALE_REBUILD_TIMEOUT,
-        STALE_REBUILD_RUNNING_TIMEOUT,
-    )
-
     from endoreg_db.models.media.operation_lease import MediaOperationLease
     from endoreg_db.models.media.video.video_processing import VideoProcessingHistory
+    from endoreg_db.services.jobs.video_post_validation_jobs import (
+        STALE_REBUILD_RUNNING_TIMEOUT,
+        STALE_REBUILD_TIMEOUT,
+    )
+    from kombu.exceptions import OperationalError
 
     history = latest_post_validation_rebuild(video)
     active_histories = VideoProcessingHistory.objects.filter(
@@ -473,6 +474,7 @@ def restart_cleanup(
         dispatch_video_post_validation_rebuild,
     )
     from endoreg_db.services.media.operation_gate import defer_if_video_media_busy
+
     from .hub_export_audit import emit_hub_export_audit_event
 
     scoped_video(video_id, allowed_center_ids)

@@ -214,13 +214,22 @@
     >
       Kriterium hinzufügen
     </button>
+    <StudyAnalysisEditor v-model="analyses" />
   </fieldset>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import StudyAnalysisEditor from '@/components/StudyAnalysisEditor.vue'
 import type { StudyMetadata } from '@/api/studyCohortApi'
 
 const model = defineModel<StudyMetadata>({ required: true })
+const analyses = computed({
+  get: () => model.value.analysisDefinitions ?? [],
+  set: (value) => {
+    model.value.analysisDefinitions = value
+  }
+})
 
 function setMaximumAge(index: number, event: Event): void {
   const group = model.value.ageGroups[index]

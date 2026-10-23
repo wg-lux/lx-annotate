@@ -2,7 +2,6 @@
 import { defineStore } from 'pinia'
 import axiosInstance, { r, silentRequestConfig } from '@/api/axiosInstance'
 import axios, { type AxiosError } from 'axios'
-import { ref } from 'vue'
 import { endpoints } from '@/types/api/endpoints'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
 import type { TranscodeOption, VideoTranscodeJob } from '@/api/anonymizationOperations'
@@ -81,25 +80,53 @@ export interface HlsMaterializationOverview {
   updatedAt: string
 }
 
+// Wire tokens of endoreg_db AnonymizationState (resolved by the Rust state engine).
+const ANONYMIZATION_STATUSES = [
+  'not_started',
+  'extracting_frames',
+  'processing_anonymization',
+  'done_processing_anonymization',
+  'validated',
+  'failed',
+  'started',
+  'anonymized'
+] as const
+export type AnonymizationStatus = (typeof ANONYMIZATION_STATUSES)[number]
+
+// Lifecycle phase classified by the Rust state engine; never re-derive it from statuses here.
+const ANONYMIZATION_PHASES = [
+  'not_started',
+  'in_progress',
+  'awaiting_validation',
+  'validated',
+  'failed'
+] as const
+export type AnonymizationPhase = (typeof ANONYMIZATION_PHASES)[number]
+
+// AI prediction and frame annotation lifecycle (endoreg_db FrameAnnotationStatus,
+// derived by the Rust state engine). Videos only; null for reports and import rows.
+const AI_PREDICTION_STATUSES = [
+  'not_started',
+  'frames_unavailable',
+  'prediction_pending',
+  'prediction_ready',
+  'annotation_ready',
+  'annotation_complete'
+] as const
+export type AiPredictionStatus = (typeof AI_PREDICTION_STATUSES)[number]
+
 export interface FileItem {
   id: number
   filename: string
   mediaType: 'pdf' | 'video' | 'unknown'
-  anonymizationStatus:
-    | 'not_started'
-    | 'processing_anonymization'
-    | 'done_processing_anonymization'
-    | 'failed'
-    | 'validated'
-    | 'predicting_segments'
-    | 'extracting_frames'
+  anonymizationStatus: AnonymizationStatus
+  anonymizationPhase: AnonymizationPhase
+  aiPredictionStatus: AiPredictionStatus | null
 
   annotationStatus: 'not_started' | 'validated' | ''
   createdAt: string // ISO
   sensitiveMetaId?: number // Add this for video file lookup
   documentType?: string | null
-  patientHashDisplay?: string | null
-  examinationHashDisplay?: string | null
   pseudoPatientId?: number | null
   pseudoExaminationId?: number | null
   metadataImported?: boolean // New field to track if metadata was properly imported
@@ -119,8 +146,8 @@ export interface FileItem {
   canDismissImport?: boolean
 }
 
-function isOverviewPollingTerminal(file: FileItem, stopStatuses: ReadonlySet<string>): boolean {
-  return stopStatuses.has(file.anonymizationStatus) || file.uploadJob?.status === 'cancelled'
+function isOverviewPollingTerminal(file: FileItem): boolean {
+  return file.anonymizationPhase !== 'in_progress' || file.uploadJob?.status === 'cancelled'
 }
 
 export interface QuarantineFileItem {
@@ -176,19 +203,13 @@ export interface VideoStateRepairResponse {
 }
 
 export interface AnonymizationState {
-  anonymizationStatus: string
   loading: boolean
   error: string | null
-  pending: [boolean]
   current: SensitiveMeta | null
   // New state for overview functionality
   overview: FileItem[]
   pollingHandles: Partial<Record<string, ReturnType<typeof setTimeout>>>
   isPolling: boolean
-  hasAvailableFiles: boolean
-  availableFiles: FileItem[]
-  // NEW: IDs der Dateien, die validiert werden müssen (anonymizationStatus === 'done_processing_anonymization' && annotationStatus !== 'done_processing_anonymization')
-  needsValidationIds: number[]
   reimportQueuedIds: number[]
 }
 
@@ -220,8 +241,6 @@ export interface SensitiveMeta {
   tags?: string[]
   validationComment?: string | null
   validation_comment?: string | null
-  patientHashDisplay?: string | null
-  examinationHashDisplay?: string | null
   pseudoPatientId?: number | null
   pseudoExaminationId?: number | null
   patientExaminationId?: number | null
@@ -251,6 +270,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 interface AnonymizationStatusResponse {
   anonymizationStatus?: unknown
+  anonymizationPhase?: unknown
 }
 
 interface PdfReimportResponse {
@@ -258,19 +278,37 @@ interface PdfReimportResponse {
   sensitive_meta_created?: boolean
 }
 
-function isFileAnonymizationStatus(value: unknown): value is FileItem['anonymizationStatus'] {
-  return (
-    typeof value === 'string' &&
-    [
-      'not_started',
-      'processing_anonymization',
-      'done_processing_anonymization',
-      'failed',
-      'validated',
-      'predicting_segments',
-      'extracting_frames'
-    ].includes(value)
-  )
+function isAnonymizationStatus(value: unknown): value is AnonymizationStatus {
+  return typeof value === 'string' && (ANONYMIZATION_STATUSES as readonly string[]).includes(value)
+}
+
+function isAnonymizationPhase(value: unknown): value is AnonymizationPhase {
+  return typeof value === 'string' && (ANONYMIZATION_PHASES as readonly string[]).includes(value)
+}
+
+function isAiPredictionStatus(value: unknown): value is AiPredictionStatus {
+  return typeof value === 'string' && (AI_PREDICTION_STATUSES as readonly string[]).includes(value)
+}
+
+// Persisted videos always carry a server-derived prediction state; nothing else may.
+function hasValidAiPredictionStatus(row: Partial<Record<keyof FileItem, unknown>>): boolean {
+  if (row.mediaType === 'video' && row.importOnly !== true) {
+    return isAiPredictionStatus(row.aiPredictionStatus)
+  }
+  return row.aiPredictionStatus === null
+}
+
+// Reject overview rows without a server-classified state instead of guessing one.
+function assertOverviewRowsClassified(rows: FileItem[]): void {
+  for (const row of rows as Array<Partial<Record<keyof FileItem, unknown>>>) {
+    if (
+      !isAnonymizationStatus(row.anonymizationStatus) ||
+      !isAnonymizationPhase(row.anonymizationPhase) ||
+      !hasValidAiPredictionStatus(row)
+    ) {
+      throw new Error('Übersicht enthält einen nicht klassifizierten Anonymisierungsstatus.')
+    }
+  }
 }
 
 function syntheticQuarantineId(quarantineId: string, usedIds: Set<number>): number {
@@ -302,6 +340,8 @@ function buildQuarantineOverviewRows(
       filename: file.filename,
       mediaType,
       anonymizationStatus: 'failed',
+      anonymizationPhase: 'failed',
+      aiPredictionStatus: null,
       annotationStatus: '',
       createdAt: quarantineTimestamp,
       metadataImported: false,
@@ -342,8 +382,8 @@ const STATUS_POLL_INTERVAL_MS = 15000
 const STATUS_POLL_BACKOFF_MS = 30000
 const STATUS_POLL_JITTER_MS = 5000
 const STATUS_POLL_STORAGE_PREFIX = 'lx-annotate:anonymization-status:next-check'
-const FINAL_ANONYMIZATION_STATUSES = new Set([
-  'done_processing_anonymization',
+const FINAL_ANONYMIZATION_PHASES: ReadonlySet<AnonymizationPhase> = new Set([
+  'awaiting_validation',
   'validated',
   'failed'
 ])
@@ -409,41 +449,24 @@ function deferStatusPollSlot(fileId: number, kind: string, delayMs: number): voi
 /* Store                                                               */
 /* ------------------------------------------------------------------ */
 
-export const availableFiles = ref<FileItem[]>([])
 export const useAnonymizationStore = defineStore('anonymization', {
   state: (): AnonymizationState => ({
-    anonymizationStatus: 'idle',
     loading: false,
     error: null,
     current: null,
     overview: [],
     pollingHandles: {},
     isPolling: false,
-    hasAvailableFiles: false,
-    availableFiles: availableFiles.value,
-    needsValidationIds: [],
-    reimportQueuedIds: [],
-    pending: [false] // TODO: Implement reactive getter here
+    reimportQueuedIds: []
   }),
 
   getters: {
     getCurrentItem: (state) => state.current,
     isAnyFileProcessing: (state) =>
-      state.overview.some(
-        (f) =>
-          f.anonymizationStatus === 'processing_anonymization' ||
-          f.anonymizationStatus === 'extracting_frames' ||
-          f.anonymizationStatus === 'predicting_segments'
-      ),
+      state.overview.some((f) => f.anonymizationPhase === 'in_progress'),
     processingFiles: (state) =>
-      state.overview.filter(
-        (f) =>
-          f.anonymizationStatus === 'processing_anonymization' ||
-          f.anonymizationStatus === 'extracting_frames' ||
-          f.anonymizationStatus === 'predicting_segments'
-      ),
-    isVideoReimportQueued: (state) => (fileId: number) => state.reimportQueuedIds.includes(fileId),
-    getState: (state) => state
+      state.overview.filter((f) => f.anonymizationPhase === 'in_progress'),
+    isVideoReimportQueued: (state) => (fileId: number) => state.reimportQueuedIds.includes(fileId)
   },
 
   actions: {
@@ -520,10 +543,6 @@ export const useAnonymizationStore = defineStore('anonymization', {
       // Use Modern Media Framework endpoint
       return axiosInstance.patch(r(endpoints.media.videoSensitiveMetadata(id)), updateData)
     },
-    fetchPendingAnonymizations() {
-      return this.pending
-    },
-
     /**
      * Fetch overview of all uploaded files with their statuses
      */
@@ -537,6 +556,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
           r(endpoints.anonymization.itemsOverview)
         )
         runtimeLogger.debug('overview-fetch-completed', { count: data.length })
+        assertOverviewRowsClassified(data)
         let quarantineRows: FileItem[] = []
         try {
           const quarantineResponse = await axiosInstance.get<QuarantineOverviewResponse>(
@@ -556,26 +576,9 @@ export const useAnonymizationStore = defineStore('anonymization', {
         // Update overview and available files
         this.overview = overviewData
 
-        // Clear and update availableFiles to prevent duplicates
-        this.availableFiles.length = 0 // Clear the array
-        this.availableFiles.push(...overviewData) // Add all files from the fresh data
-
-        availableFiles.value = [...overviewData]
-
-        const needsValidation = overviewData
-          .filter((f) => f.anonymizationStatus === 'done_processing_anonymization')
-          .map((f) => f.id)
-        this.needsValidationIds = needsValidation
-
-        const stopStatuses = new Set([
-          'done_processing_anonymization',
-          'validated',
-          'failed',
-          'not_started'
-        ])
         this.reimportQueuedIds = this.reimportQueuedIds.filter((id) => {
           const queuedFile = overviewData.find((f) => f.id === id && f.mediaType === 'video')
-          return !!queuedFile && !stopStatuses.has(queuedFile.anonymizationStatus)
+          return !!queuedFile && queuedFile.anonymizationPhase === 'in_progress'
         })
 
         // NEW: Polling sofort stoppen für
@@ -591,15 +594,13 @@ export const useAnonymizationStore = defineStore('anonymization', {
         // 2) Dateien mit finalem Status oder die nicht gepollt werden sollen
         for (const fileOverview of overviewData) {
           if (
-            isOverviewPollingTerminal(fileOverview, stopStatuses) &&
+            isOverviewPollingTerminal(fileOverview) &&
             (fileOverview.mediaType === 'pdf' || fileOverview.mediaType === 'video')
           ) {
             this.stopPolling(fileOverview.id, fileOverview.mediaType)
           }
         }
         this.isPolling = Object.keys(this.pollingHandles).length > 0
-
-        this.hasAvailableFiles = overviewData.length > 0
         return overviewData
       } catch (err: unknown) {
         runtimeLogger.error('overview-fetch-failed', err)
@@ -657,12 +658,8 @@ export const useAnonymizationStore = defineStore('anonymization', {
         return false
       }
 
-      const previousStatus = file.anonymizationStatus
       try {
         runtimeLogger.debug('anonymization-start-requested', { fileType: file.mediaType })
-
-        // Optimistic UI update
-        file.anonymizationStatus = 'processing_anonymization'
 
         // Trigger anonymization
         await axiosInstance.post(r(endpoints.anonymization.start(id)), { media_type: mediaType })
@@ -674,9 +671,6 @@ export const useAnonymizationStore = defineStore('anonymization', {
         return true
       } catch (err: unknown) {
         runtimeLogger.error('anonymization-start-failed', err, { fileType: file.mediaType })
-
-        // Revert optimistic update
-        file.anonymizationStatus = previousStatus
 
         if (axios.isAxiosError<unknown>(err)) {
           this.error = `Fehler beim Starten der Anonymisierung (${axiosStatus(err)}): ${err.message}`
@@ -718,11 +712,17 @@ export const useAnonymizationStore = defineStore('anonymization', {
         const currentFile = this.overview.find(
           (candidate) => candidate.id === id && candidate.mediaType === mediaType
         )
-        if (!currentFile || !isFileAnonymizationStatus(data.anonymizationStatus)) return false
-        const statusFromBackend = data.anonymizationStatus
+        if (
+          !currentFile ||
+          !isAnonymizationStatus(data.anonymizationStatus) ||
+          !isAnonymizationPhase(data.anonymizationPhase)
+        ) {
+          return false
+        }
         runtimeLogger.debug('status-poll-update-applied', { fileType: currentFile.mediaType })
-        currentFile.anonymizationStatus = statusFromBackend
-        if (!FINAL_ANONYMIZATION_STATUSES.has(statusFromBackend)) return false
+        currentFile.anonymizationStatus = data.anonymizationStatus
+        currentFile.anonymizationPhase = data.anonymizationPhase
+        if (!FINAL_ANONYMIZATION_PHASES.has(data.anonymizationPhase)) return false
         runtimeLogger.info('status-poll-final-state-reached', { fileType: currentFile.mediaType })
         this.stopPolling(id, mediaType)
         return true
@@ -895,7 +895,10 @@ export const useAnonymizationStore = defineStore('anonymization', {
       }
     },
 
-    async resetVideoForBackfill(fileId: number, dryRun: boolean): Promise<VideoStateRepairResponse> {
+    async resetVideoForBackfill(
+      fileId: number,
+      dryRun: boolean
+    ): Promise<VideoStateRepairResponse> {
       const { data } = await axiosInstance.post<VideoStateRepairResponse>(
         r(endpoints.runtime.videoStateRepairOne(fileId)),
         { dry_run: dryRun, reset_to: 'import' }
@@ -992,10 +995,6 @@ export const useAnonymizationStore = defineStore('anonymization', {
       try {
         runtimeLogger.debug('media-reimport-started', { fileType: 'pdf' })
 
-        // Optimistic UI update - set to processing to show user feedback
-        file.anonymizationStatus = 'processing_anonymization'
-        file.metadataImported = false
-
         // Trigger re-import via backend using media framework endpoint
         const response = await axiosInstance.post<PdfReimportResponse>(
           r(endpoints.media.pdfReimport(fileId))
@@ -1015,10 +1014,6 @@ export const useAnonymizationStore = defineStore('anonymization', {
         return true
       } catch (err: unknown) {
         runtimeLogger.error('media-reimport-failed', err, { fileType: 'pdf' })
-
-        // Revert optimistic update
-        file.anonymizationStatus = 'failed'
-        file.metadataImported = false
 
         if (axios.isAxiosError<unknown>(err)) {
           const errorMessage = axiosErrorField(err, 'error') || err.message

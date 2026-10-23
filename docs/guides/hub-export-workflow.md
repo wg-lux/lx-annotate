@@ -1,5 +1,23 @@
 # Hub Export Workflow
 
+Hub contract 5.0 sends persisted `patient_uuid` and `examination_uuid` values
+from linked local records. The receiver preserves UUIDs and enforces source
+ownership without source demographic hashes or central salts. Upgrade
+`lx-dtypes`, sender and receiver together; versions 3.0 and 4.0 remain invalid.
+File-integrity checksums remain allowed. Read the UUID rollout section below.
+Readiness remains in endoreg-db's `feature-tracking/HubTransfer.yml`.
+
+The same prohibition applies to browser APIs, FHIR and study spreadsheets.
+The shared HTTP guard returns 409 `identity_hash_response_blocked` for identity
+fields, abbreviated displays and renamed hash pseudonyms. Browser routes now use
+local numeric patient/examination IDs and case UUIDs. FHIR version 2.0 and selected
+case export contract 2.0 use local IDs; study workbook columns omit hashes.
+Local cohort matching still uses hashes internally. Response rejection does
+not roll back a completed local mutation; clients must not automatically retry
+writes. See `FrontendBackendApiContracts.yml`, criterion
+`identity_hash_response_boundary`.
+
+
 This page defines the sender-side workflow for `lx-annotate` when a site node
 exports anonymized resources to a hub deployment.
 
@@ -640,3 +658,61 @@ artifact needs fresh verification and a receipt for that exact generation.
 
 Follow the canonical [endoreg-db recovery procedure](https://github.com/wg-lux/endoreg-db/blob/main/docs/video_storage_normalization.md#recover-usable-media-with-unresolved-frame-mapping).
 Deploy the shared contract, backend and frontend together on sender and receiver.
+
+## Persistent UUID linkage (contract 5.0)
+
+Hub transfers use `patient_uuid` and `examination_uuid` from the linked source
+records, following lx-data-models. Retries preserve these UUIDs; local integer
+patient IDs are never sent. Source and processed content hashes remain artifact
+identifiers and integrity checks. They do not replace patient UUIDs.
+
+Deploy matching lx-dtypes, endoreg-db and lx-annotate packages and apply
+`0103_patient_examination_uuid` before enabling transfers. The hub preserves
+UUIDs and rejects ownership or patient-link conflicts. Older jobs require
+explicit reconciliation; no automatic version 4 fallback or identity merge is
+performed. See endoreg-db's `docs/hub_transfer_typed_contract.md` and authoritative
+`feature-tracking/HubTransfer.yml` for the contract and readiness evidence.
+
+## Stored study collections
+
+The study exchange panel uses the same `StudyExchangeBundle` as ledger Excel
+exports (`mode=ledger`). The bundle contains stored observations, their original
+assessments, immutable terminology snapshots, study and cohort rules, and
+persistent patient/examination UUID links. Local database IDs and source identity
+hashes are excluded. Definitions and historical assessment provenance remain
+separate; the receiver validates both through lx-dtypes.
+
+Before exporting an existing cohort, use **Exportabdeckung prüfen** and
+**Aktuelle Kohorte im Ledger speichern** on the cohort page. The exact complete
+package snapshot must already have been projected with
+`import_clinical_reference_data`. Hub export and Excel export share the same
+coverage check: uncaptured current cohort examinations produce HTTP 409 until
+capture succeeds. Mapped spreadsheet import captures its records automatically;
+validation runs capture in a transaction that is rolled back.
+
+An authenticated study owner can select an active source site node and an optional
+hub target in the panel. The explicit send action calls
+`POST /api/media/studies/<study_uuid>/hub-transfer/` with `source_node_key` and,
+optionally, `target_node_key`. All stored observations must be accessible and
+belong to the selected source center; partial exports fail. The existing hub mTLS
+configuration and node authentication apply. This metadata-only transfer needs no
+attached video or report and never triggers media cleanup or processing.
+
+The hub archives validated evidence under a deterministic source-and-content
+transfer key. A retry of unchanged evidence reuses that identity. The sender
+reports success only after verifying the hub's `applied` receipt against the exact
+source, target, center, bundle digest and policies. Operator and transfer identity
+are recorded in structured audit events; clinical payloads are not logged.
+
+On the receiving site, a researcher explicitly accepts the returned transfer UUID
+in the study exchange panel, calling
+`POST /api/media/studies/hub-transfers/<transfer_uuid>/accept/` with an empty body.
+Acceptance checks the researcher's current center scope and existing persistent
+patient/examination UUID links before importing into that researcher's workspace.
+It does not infer patient matches, assign the sender's owner, or activate imported
+dataset selections. An archived definition-only bundle has no patient scope and
+must use the separate authoring workflow instead of collection acceptance.
+
+Deploy matching lx-dtypes, endoreg-db and lx-annotate versions and apply the
+endoreg-db study transfer kind migration before enabling this workflow. Local
+verification does not establish connectivity or authorization on a deployed hub.

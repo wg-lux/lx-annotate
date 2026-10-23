@@ -17,6 +17,69 @@ source_documents:
   disposition: reference
   note: Cross-repository runtime and LuxNix deployment contract.
 definition_of_done:
+- id: empty_watcher_scan_cost_and_recovery
+  category: operations
+  title: Empty watcher scans avoid expensive initialization without losing intake or recovery
+  acceptance:
+  - The one-shot watcher detects genuinely empty supported intake before expensive processing-stack and
+    OCR/model initialization, avoiding Django initialization where the existing path/configuration contract
+    safely permits it; expensive dependencies initialize on the main thread only when needed.
+  - Reuse canonical runtime paths and supported-format discovery, including nested video, report and preanonymized
+    intake. Missing, unreadable or inconsistent configured directories fail explicitly rather than being
+    classified as empty.
+  - Retain file-arrival triggers and bounded periodic retry for pending, unstable or temporarily unclaimable
+    files. An arrival during scanning or after an empty decision is processed by a subsequent trigger
+    or periodic pass without deletion, loss or duplicate publication.
+  - Keep handoff, deduplication, leases, fencing and durable import state in endoreg-db with Rust-authoritative
+    transitions; submitted counts and watcher process exit never imply completed imports.
+  - Tests cover empty intake without processing-stack initialization, nested supported files, unsupported-only
+    intake, arrivals during scanning, unstable files, overlapping triggers, recovery after transient failure
+    and shutdown. Measure cold and warm CPU time, wall time and memory against the same baseline without
+    hiding startup failures or weakening security gates.
+  - Sanitized diagnostics distinguish empty scan, discovery, submission and failure; no filenames, document
+    text or secret values are added. Any required LuxNix trigger changes are tracked separately under
+    its deployment ownership.
+  required: true
+  verification:
+    kind: manual
+    instructions: Run focused watcher discovery, one-shot, concurrency and handoff regressions; inspect
+      the installed entrypoint for eager imports and benchmark equivalent packaged empty scans. Confirm
+      path and timer recovery behavior before deployment approval.
+    timeout_seconds: 900
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: code
+      reference: lx_annotate/file_watcher.py
+    - kind: test
+      reference: tests/ingestion/test_file_watcher_integration.py
+    - kind: document
+      reference: docs/guides/watcher-scans.md
+    - kind: test
+      reference: tests/ingestion/test_packaged_watcher_acceptance.py
+    - kind: test
+      reference: /home/admin/luxnix/tests/lx-annotate/test_file_mover_filewatcher_contract.py
+    note: '2026-10-16 local candidate acceptance: gc-06 observational baseline219 submitted=0 runs/2627
+      CPU-seconds across220 runs is not an empty-only benchmark. Shared canonical discovery now precedes
+      one-shot main-thread OCR preload; real Django/database/schema/native/environment readiness is retained.
+      Source watcher suite80 passed; final directory-rule selection31 passed; version/CLI/config/environment
+      suite58 passed. Installed production-settings CLI acceptance1 passed228.91s using app1.5.8/endoreg1.5.8.dev1/anonymizer1.0.9.dev1/dtypes0.5.4.dev1,
+      actual disposable PostgreSQL, secret-file fixtures, auth enabled, candidate module/native RECORD
+      attestation and no replaced runtime functions. Three interleaved fresh interpreter medians baseline/candidate:
+      CPU10.6936/9.9570s, wall8.1608/7.7466s, peakRSS880800/714576KiB; all candidate empties OCR=false,
+      baseline=true. Shared-host variance is substantial. These actual CLI results supersede the larger
+      isolated import-harness CPU improvement. Inconsistent root refuses startup; nested zero-byte source
+      is deferred twice, retained and publishes no UploadJob. Initial test missing NGINX_PROTECTED_MEDIA_URL
+      failed correctly; canonical URL fixed fixture only. Nix-evaluating LuxNix watcher/mover suite19
+      passed; root read-only gc-06 observed active three-root path/five-minute timer, not candidate recovery.
+      Reproduction and exact quartet/baseline wheel hashes in docs/guides/watcher-scans.md. Wheels include
+      pre-existing dirty application/assets scope; unrelated staged frontend changes were not rebuilt/accepted.
+      Ruff/Pyright/structure/diff pass. uv lock --check --offline fails because unpublished endoreg-db1.5.8.dev1
+      is unavailable; user lockfile preserved. Keep in_progress: successful nonempty processing and bounded
+      recovery under deployed candidate path/timer remain unverified; no deployment, release approval
+      or durable-state changes.'
+    assessed_by: codex-watcher-20261016
+    assessed_at: '2026-10-16T07:57:00.406053Z'
 - id: continuous_format_folder_ingestion
   category: functionality
   title: Watcher consumes supported formats from nested intake folders

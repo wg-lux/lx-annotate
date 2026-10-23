@@ -19,11 +19,14 @@ from rest_framework.response import Response
 
 from lx_annotate.services.report_llm import (
     PROMPT_VERSION,
+    ChatRequest,
     GenerateReportRequest,
     ReportLlmError,
+    build_chat_messages,
     build_messages,
     check_model,
     generate_report,
+    list_server_models,
     llm_config,
     resolve_graph,
 )
@@ -66,12 +69,28 @@ def error_response(error: ReportLlmError) -> Response:
 @permission_classes([IsAuthenticated])
 def report_llm_status(request: Request) -> Response:
     try:
-        config = llm_config()
+        config = llm_config(
+            request.query_params.get("server"), request.query_params.get("model")
+        )
         check_model(config)
     except ReportLlmError as error:
         return error_response(error)
     return Response(
         {"ready": True, "model": config.model}, headers={"Cache-Control": "no-store"}
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def report_llm_models(request: Request) -> Response:
+    try:
+        servers = list_server_models()
+        default = llm_config()
+    except ReportLlmError as error:
+        return error_response(error)
+    return Response(
+        {"servers": servers, "default": {"server": "local", "model": default.model}},
+        headers={"Cache-Control": "no-store"},
     )
 
 
@@ -107,7 +126,7 @@ def report_llm_generate(request: Request) -> Response:
             )
         )
     try:
-        config = llm_config()
+        config = llm_config(data.llm_server, data.llm_model)
         # Recheck on POST as well: availability can change after the frontend preflight.
         check_model(config)
         graph = resolve_graph(data.graph)
@@ -129,5 +148,30 @@ def report_llm_generate(request: Request) -> Response:
             "prompt_version": PROMPT_VERSION,
             "graph_context_id": graph.context_id,
         },
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@never_cache
+@api_view(["POST"])
+@parser_classes([ReportJSONParser])
+@permission_classes([IsAuthenticated])
+def report_llm_chat(request: Request) -> Response:
+    """Stateless chat turn: history comes from the client, nothing is stored or logged."""
+    try:
+        data = ChatRequest.model_validate(request.data)
+    except ValidationError:
+        return error_response(
+            ReportLlmError("invalid_input", "Ungültige Chat-Anfrage.", 400)
+        )
+    try:
+        messages = build_chat_messages(data)
+        config = llm_config(data.llm_server, data.llm_model)
+        check_model(config)
+        text = generate_report(config, messages)
+    except ReportLlmError as error:
+        return error_response(error)
+    return Response(
+        {"text": text, "model": config.model},
         headers={"Cache-Control": "no-store"},
     )

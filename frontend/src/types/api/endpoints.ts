@@ -150,6 +150,11 @@ export const endpoints = {
     resetStatus: (fileId: Id) => `media-management/reset-status/${pathId(fileId)}/`
   },
 
+  mediaWorkflow: {
+    video: (id: Id) => `media/videos/${pathId(id)}/workflow/`,
+    report: (id: Id) => `media/pdfs/${pathId(id)}/workflow/`
+  },
+
   media: {
     patientTimeline: (patientId: Id) => `media/patients/${pathId(patientId)}/timeline/`,
     sensitiveMediaId: (pk: Id, mediaType: string) =>

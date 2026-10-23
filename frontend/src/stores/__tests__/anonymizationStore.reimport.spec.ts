@@ -51,6 +51,8 @@ function buildVideoFile(overrides: Partial<FileItem> = {}): FileItem {
     filename: 'stale-import.mp4',
     mediaType: 'video',
     anonymizationStatus: 'extracting_frames',
+    anonymizationPhase: 'in_progress',
+    aiPredictionStatus: 'prediction_pending' as const,
     annotationStatus: 'not_started',
     createdAt: '2026-05-28T08:00:00Z',
     metadataImported: false,

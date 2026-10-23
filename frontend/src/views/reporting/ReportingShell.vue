@@ -468,6 +468,39 @@
     </section>
 
     <div class="reporting-workspace-toolbar">
+      <div
+        v-if="llmReport.servers.value.length"
+        class="d-flex align-items-center gap-2"
+      >
+        <label
+          class="form-label mb-0"
+          for="llm-model-select"
+        >
+          KI-Modell
+        </label>
+        <select
+          id="llm-model-select"
+          class="form-select form-select-sm"
+          data-testid="llm-model-select"
+          :value="llmSelectionValue"
+          :disabled="llmReport.busy.value"
+          @change="onLlmModelChange"
+        >
+          <optgroup
+            v-for="server in llmReport.servers.value"
+            :key="server.id"
+            :label="server.ready ? server.label : `${server.label} (nicht erreichbar)`"
+          >
+            <option
+              v-for="model in server.models"
+              :key="`${server.id}::${model}`"
+              :value="`${server.id}::${model}`"
+            >
+              {{ model }}
+            </option>
+          </optgroup>
+        </select>
+      </div>
       <button
         class="btn btn-primary btn-sm"
         type="button"
@@ -1221,7 +1254,12 @@ import {
 } from '@/api/knowledgeBaseGraphApi'
 import { fetchPatientExaminationDraft } from '@/api/reportDraftApi'
 import type { ReportDraftBlob } from '@/api/reportDraftApi'
-import { createCaseWithExamination, examinationCreationIdentity, fetchPatientCases, type PatientCase } from '@/api/casesApi'
+import {
+  createCaseWithExamination,
+  examinationCreationIdentity,
+  fetchPatientCases,
+  type PatientCase
+} from '@/api/casesApi'
 import {
   fetchReportingLanguages,
   type ReportLanguageCode,
@@ -1336,6 +1374,9 @@ const examinationStore = useExaminationStore()
 const patientExaminationStore = usePatientExaminationStore()
 const reportingVideoElement = ref<HTMLVideoElement | null>(null)
 const selectedVideoArtifactKind = ref<StreamableVideoFileType>('processed')
+// The context video streams on demand so opening a report does not start HLS
+// preparation and segment loading for a video nobody watches.
+const reportingVideoStreamRequested = ref(false)
 const framePreview = useAuthenticatedFramePreview()
 const selectedFrameStreamUrl = framePreview.imageUrl
 let frameSelectionGeneration = 0
@@ -1624,7 +1665,10 @@ const { playbackError: reportingVideoPlaybackError } = useAuthenticatedVideoStre
   videoId: reportingVideoId,
   artifactKind: selectedVideoArtifactKind,
   enabled: computed(
-    () => reportingVideoId.value !== null && preferredVideoArtifactKind.value !== null
+    () =>
+      reportingVideoStreamRequested.value &&
+      reportingVideoId.value !== null &&
+      preferredVideoArtifactKind.value !== null
   )
 })
 watch(
@@ -1632,6 +1676,7 @@ watch(
   () => {
     frameSelectionGeneration += 1
     framePreview.clear()
+    reportingVideoStreamRequested.value = false
     selectedVideoArtifactKind.value = preferredVideoArtifactKind.value ?? 'processed'
   },
   { flush: 'sync' }
@@ -1921,6 +1966,19 @@ const llmReport = useLlmReportGeneration({
     window.confirm('Vorhandenen Berichtstext durch einen neuen KI-Entwurf ersetzen?')
 })
 
+const llmSelectionValue = computed(() => {
+  const chosen = llmReport.selection.value
+  return chosen ? `${chosen.server}::${chosen.model}` : ''
+})
+
+function onLlmModelChange(event: Event) {
+  const value = (event.target as HTMLSelectElement).value
+  const separator = value.indexOf('::')
+  if (separator > 0) {
+    llmReport.select(value.slice(0, separator), value.slice(separator + 2))
+  }
+}
+
 const caseIdLabel = computed(() => flow.caseId || 'Noch nicht gewählt')
 
 const selectedPatientCase = computed(
@@ -1936,7 +1994,7 @@ function timelinePatientLabel(): string | null {
   if (timelineName) {
     return timelineName
   }
-  return timelinePatient?.patientHash || null
+  return timelinePatient ? `Patient ${String(timelinePatient.id)}` : null
 }
 
 function detailPatientLabel(): string | null {
@@ -1951,7 +2009,7 @@ function detailPatientLabel(): string | null {
   if (detailName) {
     return detailName
   }
-  return readString(detailPatient, 'patientHash', 'patient_hash', 'hash', 'pseudonym') || null
+  return null
 }
 
 const patientHeaderLabel = computed(() => {
@@ -2263,6 +2321,7 @@ function selectVideoStream(artifactKind: string | null) {
     return
   }
   selectedVideoArtifactKind.value = artifactKind
+  reportingVideoStreamRequested.value = true
 }
 
 const frameFilterLabel = ref('')
@@ -2973,12 +3032,6 @@ function toPositiveInteger(value: unknown): number | null {
 
 function resolvePatientKey(raw: Record<string, unknown>, patientExaminationId: number): string {
   const patient = readRecord(raw.patient)
-  const patientHash =
-    firstTrimmedString(patient, ['patient_hash', 'patientHash']) ||
-    firstTrimmedString(raw, ['patient_hash', 'patientHash'])
-  if (patientHash) {
-    return patientHash
-  }
   const patientId = toPositiveInteger(patient.id ?? raw.patient_id ?? raw.patientId)
   return patientId
     ? `patient_${String(patientId)}`
@@ -3510,7 +3563,7 @@ async function createPatientExaminationContext(): Promise<void> {
     const result = await createCaseWithExamination({
       admissionDate: now.toISOString(),
       patientExamination: {
-        patient: selectedPatient.patientHash || `patient_${String(flow.selectedPatientId)}`,
+        patient: flow.selectedPatientId,
         examination: selectedExamination.name,
         dateStart: now.toISOString().split('T')[0],
         ...examinationCreationIdentity(terminology.activeBundle)
@@ -4684,6 +4737,7 @@ watch(
 )
 
 onMounted(() => {
+  void llmReport.loadModels()
   void ensureTerminologyBundlesLoaded()
   void loadReportingLanguages()
   void Promise.all([patientStore.fetchPatients(), examinationStore.fetchExaminations()])

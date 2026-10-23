@@ -15,13 +15,19 @@ ui:
   concurrency: Duplicate clicks are blocked; changes to the draft context or text cancel or discard pending results.
   persistence: Generated text enters the normal draft/autosave flow as editable text. No automatic finalization or signature.
 api:
-  status: GET /endoreg-api/reporting/llm/status/
+  models: GET /endoreg-api/reporting/llm/models/ lists installed non-cloud models per allowlisted server; an unreachable server is reported per server and does not hide the others.
+  chat: >-
+    POST /endoreg-api/reporting/llm/chat/ serves the KI-Chat page (/chat). It is stateless: the client sends the
+    bounded history (at most 40 messages, 8000 characters each), the backend adds a fixed system prompt and
+    nothing is stored or logged. It uses the same opt-in, server allowlist, model inventory check and cloud-alias
+    refusal as report drafting. The page warns against entering patient data; free text is not filtered.
+  status: GET /endoreg-api/reporting/llm/status/ (optional server and model query parameters)
   generate: POST /endoreg-api/reporting/llm/generate/
   authentication: Both endpoints require an authenticated application user.
   authorization: Generation resolves the examination through the user's existing center scope.
   cache_control: no-store
   graph_identity: Backend reuses the lx-dtypes graph builder and refuses a changed graph or examination/knowledge-base mismatch.
-  model_check: Ollama installed-model inventory or the vLLM/OpenAI-compatible model inventory; no implicit fallback or download.
+  model_check: Ollama installed-model inventory (/api/tags); cloud aliases are refused; no implicit fallback or download.
   readiness_limit: Model inventory proves provider availability and model registration, not successful GPU allocation; generation errors remain visible.
   failures: Disabled configuration, unavailable model, authentication failure, timeout, invalid graph, oversized input, empty or truncated output.
   output: Plain report text, model name, graph context ID and prompt version.
@@ -61,18 +67,23 @@ prompt:
 configuration:
   source: Existing LLM_* report-import provider contract, exported as Django REPORTING_LLM settings.
   variables:
-    LLM_ENABLED: Existing default true; false disables drafting.
-    LLM_PROVIDER: ollama or vllm. The vllm protocol also supports a compatible llama.cpp GLM server.
-    LLM_MODEL: Exact installed model or served alias; existing default lx-gemma4-e2b-json.
-    LLM_BASE_URL: Server root URL without a trailing /v1; empty retains the provider's loopback default.
+    REPORT_LLM_DRAFTING_ENABLED: Explicit opt-in for the reporting-shell button; default false. Drafting requires this and LLM_ENABLED to be true.
+    REPORT_LLM_SERVERS: >-
+      Optional JSON object of extra named Ollama servers shown in the model dropdown, e.g.
+      {"gc-02": {"label": "gc-02", "base_url": "https://gc-02.intern:11434", "ca_file": "...", "client_cert_file": "...", "client_key_file": "..."}}.
+      Names are lowercase [a-z0-9-], "local" is reserved for the LLM_BASE_URL endpoint. Clients send only the server name, never a URL. Remote entries require HTTPS and mTLS handles.
+    LLM_ENABLED: Shared with report import; existing default true; false disables drafting too.
+    LLM_PROVIDER: Only ollama is supported. Any other value fails closed with configuration_error.
+    LLM_MODEL: Exact installed Ollama model tag; existing default lx-gemma4-e2b-json. No automatic download or fallback.
+    LLM_BASE_URL: Ollama server root URL; empty retains the loopback default http://127.0.0.1:11434.
     LLM_TIMEOUT: Generation read timeout in seconds, 1 through 120; default 120.
     LLM_CA_FILE: Required CA certificate handle for a remote HTTPS endpoint.
     LLM_CLIENT_CERT_FILE: Required client certificate handle for remote mTLS.
     LLM_CLIENT_KEY_FILE: Required private client key handle for remote mTLS; no group or other permissions.
-  glm_on_same_host:
-    LLM_PROVIDER: vllm
-    LLM_BASE_URL: http://127.0.0.1:8088
-    LLM_MODEL: glm-5.2
+  glm_via_ollama:
+    note: GLM is enabled by pulling a GLM model into the local Ollama server and setting LLM_MODEL to that exact tag. Untested; the generation request sends think=false, which some Ollama versions reject for non-thinking models.
+    REPORT_LLM_DRAFTING_ENABLED: 'true'
+    LLM_PROVIDER: ollama
   boundaries:
     - The provider settings are shared with report import; changing them affects both consumers.
     - No browser request contacts a GPU-server URL directly or carries backend credentials.
@@ -98,3 +109,4 @@ verification:
 deployment:
   state: Source implementation only; no production activation or clinical payload sent during implementation.
   known_blocker: The previously inspected gs-02 GLM service fails GPU allocation. The button will report unavailable until the configured model is usable.
+  gdpr: No external model provider is supported. Only Ollama on loopback, or a remote Ollama behind HTTPS/mTLS, may receive clinical data. Cloud-hosted Ollama aliases are rejected.

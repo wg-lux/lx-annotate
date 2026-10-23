@@ -11,7 +11,6 @@ export function createPatientForm(): PatientFormData {
     gender: null,
     center: null,
     centerKey: null,
-    patientHash: '',
     comments: '',
     isRealPerson: true
   }

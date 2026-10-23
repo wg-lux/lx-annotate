@@ -61,8 +61,9 @@ class RuntimeRecoveryService:
     ) -> None:
         from endoreg_db.utils.file_operations import ensure_directory
 
+        target = target.expanduser().resolve()
         paths = get_runtime_paths()
-        if target.resolve() != paths.runtime_root:
+        if target != paths.runtime_root:
             raise ValueError("Recovery target must match LX_RUNTIME_ROOT")
         ensure_directory(paths.runtime_root, dir_mode=0o750)
         log_dir = ensure_directory(paths.logs, dir_mode=0o750)
@@ -71,7 +72,8 @@ class RuntimeRecoveryService:
         repair_marker = log_dir / f"managed_payload_repair_{REPAIR_REVISION}"
         previous_target = state_value(state_file, "LAST_EFFECTIVE_DATA_DIR")
         recovery_current = (
-            previous_target == str(target)
+            bool(previous_target)
+            and Path(previous_target).expanduser().resolve() == target
             and recovery_marker.is_file()
             and bool(state_value(recovery_marker, "completed_at"))
         )
@@ -79,7 +81,15 @@ class RuntimeRecoveryService:
             repair_marker, "repair_revision"
         ) == REPAIR_REVISION and bool(state_value(repair_marker, "completed_at"))
 
-        if force or not recovery_current:
+        run_recovery = force or not recovery_current
+        run_repair = not skip_repair and (
+            run_recovery or force_repair or not repair_current
+        )
+        if run_recovery or run_repair:
+            call_command("check_migration_compatibility")
+            call_command("migrate", interactive=False)
+
+        if run_recovery:
             self._heavy_recovery(
                 target=target,
                 sources=[Path(previous_target), *sources]
@@ -110,7 +120,7 @@ class RuntimeRecoveryService:
                     reason="repair_explicitly_skipped",
                 )
             )
-        elif force_repair or not repair_current:
+        elif run_repair:
             self._repair_payloads(target=target, marker=repair_marker)
         else:
             self.emit(
@@ -123,7 +133,6 @@ class RuntimeRecoveryService:
             )
 
     def _heavy_recovery(self, *, target: Path, sources: list[Path]) -> None:
-        call_command("migrate", interactive=False)
         migrated_sources: list[str] = []
         for source in dict.fromkeys(sources):
             resolved = source.expanduser().resolve()
@@ -193,10 +202,17 @@ class RuntimeRecoveryService:
         return updated
 
     def _repair_payloads(self, *, target: Path, marker: Path) -> None:
+        from endoreg_db.utils.file_operations import safe_unlink_file
+
+        safe_unlink_file(marker)
+        log_file = marker.parent / "data_migration_repair_latest.log"
         if not (
             os.environ.get("LX_ANNOTATE_MASTER_KEY")
             or os.environ.get("LX_ANNOTATE_MASTER_KEY_FILE")
         ):
+            _write_text(
+                log_file, "Skipped managed payload repair: no master key configured.\n"
+            )
             self.emit(
                 render_operational_event(
                     "lx_annotate.managed_payload_repair",
@@ -207,15 +223,34 @@ class RuntimeRecoveryService:
             )
             return
         output = StringIO()
-        call_command("repair_managed_payloads", stdout=output)
+        try:
+            call_command("repair_managed_payloads", stdout=output, stderr=output)
+        except Exception as exc:
+            # Keep detailed command diagnostics in the protected log, not the
+            # structured event sent to the caller.
+            _write_text(
+                log_file,
+                f"repair_revision={REPAIR_REVISION}\nfailed_at={_timestamp()}\n"
+                f"target_dir={target}\n{output.getvalue()}{exc}\n",
+            )
+            self.emit(
+                render_operational_event(
+                    "lx_annotate.managed_payload_repair",
+                    status="failed",
+                    target=str(target),
+                    repair_revision=REPAIR_REVISION,
+                )
+            )
+            raise
+        completion = (
+            f"repair_revision={REPAIR_REVISION}\n"
+            f"completed_at={_timestamp()}\n"
+            f"target_dir={target}\n"
+        )
+        _write_text(log_file, f"{completion}{output.getvalue()}")
         _write_text(
             marker,
-            (
-                f"repair_revision={REPAIR_REVISION}\n"
-                f"completed_at={_timestamp()}\n"
-                f"target_dir={target}\n"
-                f"{output.getvalue()}"
-            ),
+            completion,
         )
         self.emit(
             render_operational_event(

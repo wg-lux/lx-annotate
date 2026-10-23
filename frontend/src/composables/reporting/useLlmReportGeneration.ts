@@ -1,5 +1,5 @@
 import { computed, onScopeDispose, ref, watch } from 'vue'
-import { checkReportLlmStatus, generateLlmReport } from '@/api/reportLlmApi'
+import { checkReportLlmStatus, generateLlmReport, type LlmSelection } from '@/api/reportLlmApi'
 import { fetchExaminationReportingContext } from '@/api/knowledgeBaseGraphApi'
 import type { ReportLanguageCode } from '@/api/reportingLanguagesApi'
 import type {
@@ -7,6 +7,7 @@ import type {
   ReportVerbosity,
   ReportTemplateRuntimePatientFindingInput
 } from '@/types/reportTemplate'
+import { useLlmModelSelection } from '@/composables/reporting/useLlmModelSelection'
 import { reportingApiErrorMessage } from '@/views/reporting/reportingError'
 
 export type LlmReportContext = {
@@ -23,6 +24,10 @@ export type LlmReportContext = {
   existingText: string
 }
 
+function selectionPayload(chosen: LlmSelection | null) {
+  return chosen ? { llmServer: chosen.server, llmModel: chosen.model } : {}
+}
+
 export function useLlmReportGeneration(options: {
   getContext: () => LlmReportContext | null
   applyText: (text: string, patientExaminationId: number) => void
@@ -33,6 +38,7 @@ export function useLlmReportGeneration(options: {
   const notice = ref<string | null>(null)
   const busy = computed(() => phase.value !== 'idle')
   const available = computed(() => options.getContext() !== null)
+  const { servers, selection, modelsError, loadModels, select } = useLlmModelSelection(busy)
   let generation = 0
   let controller: AbortController | null = null
 
@@ -116,7 +122,8 @@ export function useLlmReportGeneration(options: {
     notice.value = null
     phase.value = 'checking'
     try {
-      await checkReportLlmStatus(signal)
+      const chosen = selection.value
+      await checkReportLlmStatus(signal, chosen)
       if (!isCurrent()) {
         return
       }
@@ -137,6 +144,7 @@ export function useLlmReportGeneration(options: {
       const text = await generateLlmReport(
         {
           ...generationPayload(context),
+          ...selectionPayload(chosen),
           graph
         },
         signal
@@ -164,5 +172,17 @@ export function useLlmReportGeneration(options: {
     }
   }
 
-  return { phase, busy, available, error, notice, generate }
+  return {
+    phase,
+    busy,
+    available,
+    error,
+    notice,
+    generate,
+    servers,
+    selection,
+    modelsError,
+    loadModels,
+    select
+  }
 }

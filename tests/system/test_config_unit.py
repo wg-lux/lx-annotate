@@ -8,7 +8,9 @@ from lx_annotate.settings import config
 
 
 @pytest.mark.parametrize("retiring", [True, False])
-def test_signing_manifest_overlap_and_retirement(tmp_path, monkeypatch, retiring):
+def test_signing_manifest_never_trusts_retired_signatures(
+    tmp_path, monkeypatch, retiring
+):
     import yaml
     from django.core.signing import BadSignature, Signer
 
@@ -43,11 +45,9 @@ def test_signing_manifest_overlap_and_retirement(tmp_path, monkeypatch, retiring
     )
     old_signature = Signer(key=previous.read_text(), fallback_keys=[]).sign("payload")
     assert signer.unsign(signer.sign("payload")) == "payload"
-    if retiring:
-        assert signer.unsign(old_signature) == "payload"
-    else:
-        with pytest.raises(BadSignature):
-            signer.unsign(old_signature)
+    assert resolved.secret_key_fallbacks == []
+    with pytest.raises(BadSignature):
+        signer.unsign(old_signature)
 
 
 @pytest.mark.parametrize(
@@ -266,7 +266,10 @@ def test_env_file_parser_ignores_noise_and_handles_shell_values(monkeypatch) -> 
     }
 
 
-def test_app_config_rejects_short_inline_secret() -> None:
+def test_app_config_rejects_short_inline_secret(monkeypatch) -> None:
+    # Managed secret files take precedence over inline values.
+    for name in ("DJANGO_SIGNING_KEYRING_FILE", "DJANGO_SECRET_KEY_FILE"):
+        monkeypatch.delenv(name, raising=False)
     with pytest.raises(ValueError, match="at least 32 characters"):
         config.AppConfig(secret_key="too-short")
 
@@ -335,3 +338,42 @@ def test_default_static_root_follows_runtime_path_precedence(
         assert config._default_static_root() == expected
     finally:
         clear_runtime_paths_cache()
+
+
+@pytest.mark.parametrize(
+    "field", ["secret_key", "db_password", "keycloak_client_secret"]
+)
+@pytest.mark.parametrize("missing", [False, True])
+def test_managed_secret_files_override_inline(tmp_path, monkeypatch, field, missing):
+    for name in ("DJANGO_SIGNING_KEYRING_FILE", "DJANGO_SECRET_KEY_FILE"):
+        monkeypatch.delenv(name, raising=False)
+    credential = tmp_path / "credential"
+    managed = "managed-credential-test-only-" * 3
+    if not missing:
+        credential.write_text(managed)
+        credential.chmod(0o600)
+    values = {field: "stale", f"{field}_file": credential}
+    if missing:
+        with pytest.raises(ValueError, match="private"):
+            config.AppConfig.model_validate(values)
+    else:
+        resolved = config.AppConfig.model_validate(values)
+        assert getattr(resolved, field) == managed
+        assert managed not in repr(resolved)
+        assert field not in resolved.model_dump()
+
+
+@pytest.mark.parametrize("unsafe", ["public", "symlink"])
+def test_managed_credentials_reject_unsafe_files(tmp_path, monkeypatch, unsafe):
+    monkeypatch.delenv("DJANGO_SIGNING_KEYRING_FILE", raising=False)
+    key = tmp_path / "key"
+    key.write_text("managed-test-signing-secret-" * 3)
+    key.chmod(0o644 if unsafe == "public" else 0o600)
+    handle = key
+    if unsafe == "symlink":
+        handle = tmp_path / "link"
+        handle.symlink_to(key)
+    with pytest.raises(ValueError) as error:
+        config.AppConfig(secret_key="stale-inline-secret-" * 3, secret_key_file=handle)
+    assert "stale-inline-secret-" not in str(error.value)
+    assert "managed-test-signing-secret-" not in str(error.value)

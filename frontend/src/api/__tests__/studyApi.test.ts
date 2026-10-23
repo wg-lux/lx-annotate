@@ -54,8 +54,7 @@ describe('studyApi', () => {
       cases: [
         {
           patientExaminationId: 314,
-          caseHash: 'case-abc',
-          patientHash: 'patient-xyz',
+          patientId: 7,
           examinationName: 'colonoscopy',
           examinationDate: '2026-04-01',
           centerKeys: ['center-a'],

@@ -2,6 +2,8 @@ import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { reactive } from 'vue'
 
+import { withServerPhase } from '@/test-fixtures/anonymizationPhase'
+import type { AnonymizationStatus } from '@/stores/anonymizationStore'
 import AnonymizationOverviewComponent from '../AnonymizationOverviewComponent.vue'
 import OverviewTranscodePanel from '../OverviewTranscodePanel.vue'
 
@@ -155,8 +157,12 @@ function normalizeFileOverrides(overrides: Record<string, unknown>) {
   }
 }
 
+function withPhase<T extends { anonymizationStatus: string }>(row: T) {
+  return withServerPhase({ ...row, anonymizationStatus: row.anonymizationStatus as AnonymizationStatus })
+}
+
 function buildVideoFile(overrides: Record<string, unknown> = {}) {
-  return {
+  return withPhase({
     id: VIDEO_FILE_ID,
     filename: 'study-video.mp4',
     mediaType: 'video',
@@ -166,11 +172,11 @@ function buildVideoFile(overrides: Record<string, unknown> = {}) {
     metadataImported: true,
     rawFile: 'raw/study-video.mp4',
     ...normalizeFileOverrides(overrides)
-  }
+  })
 }
 
 function buildPdfFile(overrides: Record<string, unknown> = {}) {
-  return {
+  return withPhase({
     id: PDF_FILE_ID,
     filename: 'study-report.pdf',
     mediaType: 'pdf',
@@ -180,7 +186,7 @@ function buildPdfFile(overrides: Record<string, unknown> = {}) {
     metadataImported: true,
     rawFile: 'raw/study-report.pdf',
     ...normalizeFileOverrides(overrides)
-  }
+  })
 }
 
 function buildQuarantinedVideoFile(overrides: Record<string, unknown> = {}) {
@@ -215,6 +221,8 @@ function buildQuarantinedVideoFile(overrides: Record<string, unknown> = {}) {
   }
 }
 
+const TECHNICAL_DETAILS_KEY = 'lx-annotate:anonymization-overview:technical-details'
+
 describe('AnonymizationOverviewComponent', () => {
   it('selects the repair panel by video ID and preserves a safe return link', async () => {
     hoisted.route.query = { video: String(VIDEO_FILE_ID), returnTo: '/hub-export?needsAction=1' }
@@ -227,6 +235,8 @@ describe('AnonymizationOverviewComponent', () => {
   beforeEach(() => {
     hoisted.route.query = {}
     vi.clearAllMocks()
+    // Existing contracts cover operator tooling; clinical-view tests clear this.
+    window.localStorage.setItem(TECHNICAL_DETAILS_KEY, 'true')
 
     hoisted.anonymizationStoreRef.current = reactive({
       error: null,
@@ -519,6 +529,84 @@ describe('AnonymizationOverviewComponent', () => {
       ).not.toHaveBeenCalled()
     }
   )
+
+  it('defaults to the clinical view and reveals technical detail on request', async () => {
+    window.localStorage.removeItem(TECHNICAL_DETAILS_KEY)
+    const store = hoisted.anonymizationStoreRef.current
+    store.error = 'Fehler beim Laden der Übersicht (500): Request failed with status code 500'
+    store.overview = [buildVideoFile()]
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+
+    const headers = () => wrapper.findAll('thead th').map((th) => th.text())
+    expect(headers()).toEqual([
+      'Dateiname',
+      'Typ',
+      'Aktionen',
+      'Validierung',
+      'Status',
+      'Annotation',
+      'Erstellt'
+    ])
+    expect(wrapper.text()).not.toContain('Request failed')
+    expect(wrapper.find('[data-test="repair-all-video-states"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="anonymization-storage-state-filter"]').exists()).toBe(false)
+    expect(wrapper.findComponent(OverviewTranscodePanel).exists()).toBe(false)
+
+    await wrapper.get('[data-test="toggle-technical-details"]').trigger('click')
+    expect(headers()).toContain('HLS-Materialisierung')
+    expect(wrapper.get('[data-test="overview-technical-error"]').text()).toContain(
+      'Request failed'
+    )
+    expect(wrapper.find('[data-test="repair-all-video-states"]').exists()).toBe(true)
+    expect(window.localStorage.getItem(TECHNICAL_DETAILS_KEY)).toBe('true')
+  })
+
+  it('clears a technical-only storage filter when technical details are hidden', async () => {
+    hoisted.anonymizationStoreRef.current.overview = [buildVideoFile()]
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    await wrapper.get('[data-test="anonymization-storage-state-filter"]').setValue('deleted')
+    expect(wrapper.find('[data-test="anonymization-filter-empty"]').exists()).toBe(true)
+
+    await wrapper.get('[data-test="toggle-technical-details"]').trigger('click')
+    expect(wrapper.find('[data-test="anonymization-filter-empty"]').exists()).toBe(false)
+    expect(wrapper.findAll('tbody tr')).toHaveLength(1)
+  })
+
+  it('summarizes every row in exactly one server-classified bucket', async () => {
+    hoisted.anonymizationStoreRef.current.overview = [
+      buildVideoFile({ id: 1, anonymizationStatus: 'started' }),
+      buildVideoFile({ id: 2, anonymizationStatus: 'anonymized' }),
+      buildVideoFile({ id: 3, anonymizationStatus: 'extracting_frames' }),
+      buildVideoFile({ id: 4, anonymizationStatus: 'done_processing_anonymization' }),
+      buildVideoFile({ id: 5, anonymizationStatus: 'validated' }),
+      buildPdfFile({ id: 6, anonymizationStatus: 'failed' }),
+      buildPdfFile({ id: 7, anonymizationStatus: 'not_started' }),
+      buildVideoFile({
+        id: 8,
+        anonymizationStatus: 'processing_anonymization',
+        uploadJob: { status: 'cancelled' }
+      }),
+      buildVideoFile({ id: 9, anonymizationStatus: 'failed', quarantined: true })
+    ]
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+    const count = (bucket: string) =>
+      Number(wrapper.get(`[data-test="overview-status-${bucket}"] .badge`).text())
+    expect(count('in_progress')).toBe(3)
+    expect(count('awaiting_validation')).toBe(1)
+    expect(count('validated')).toBe(1)
+    expect(count('failed')).toBe(1)
+    expect(count('not_started')).toBe(1)
+    expect(count('interrupted')).toBe(1)
+    expect(count('quarantined')).toBe(1)
+    const buckets = wrapper.findAll('[data-test^="overview-status-"] .badge')
+    const total = buckets.reduce((sum, badge) => sum + Number(badge.text()), 0)
+    expect(total).toBe(9)
+    expect(wrapper.text()).toContain('Anonymisiert, Metadaten ausstehend')
+    expect(wrapper.text()).not.toContain('Unbekannter Status')
+  })
 
   it('starts the exact PDF when a video shares its numeric id', async () => {
     hoisted.anonymizationStoreRef.current.overview = [

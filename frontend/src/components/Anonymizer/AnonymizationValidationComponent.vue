@@ -933,28 +933,6 @@
                       </div>
                     </div>
                   </div>
-                  <div
-                    v-if="isDebug"
-                    class="col-md-3"
-                  >
-                    <div class="linkage-meta-box">
-                      <div class="linkage-meta-label">Patient Hash</div>
-                      <div class="linkage-meta-value">
-                        <code>{{ patientHashDisplay || 'Nicht verfuegbar' }}</code>
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    v-if="isDebug"
-                    class="col-md-3"
-                  >
-                    <div class="linkage-meta-box">
-                      <div class="linkage-meta-label">Untersuchungs Hash</div>
-                      <div class="linkage-meta-value">
-                        <code>{{ examinationHashLabel }}</code>
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
                 <div
@@ -1002,7 +980,6 @@ import { DateConverter, DateValidator } from '@/utils/dateHelpers'
 import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideoStream'
 import { buildPdfStreamUrl, buildVideoHlsPlaylistUrl } from '@/utils/mediaUrls'
 import { useRoute } from 'vue-router'
-import { useDebug } from '@/composables/useDebug'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
 
 import axiosInstance, { r } from '@/api/axiosInstance'
@@ -1032,7 +1009,6 @@ import {
 
 const toast = useToastStore()
 const router = useRouter()
-const { isDebug } = useDebug()
 const logger = createRuntimeLogger('anonymization-validation')
 const ANONYMIZER_INFORMATION_SOURCE = 'lx_anonymizer_evaluation'
 const PHI_REGION_LABEL_NAME = 'sensitive_region'
@@ -1165,7 +1141,6 @@ type CaseResolutionMatch = {
   examinationName?: string | null
   dateStart?: string | null
   dateEnd?: string | null
-  hash?: string | null
 }
 
 type CaseResolutionPayload = {
@@ -1174,8 +1149,6 @@ type CaseResolutionPayload = {
   sensitiveMetaId: number
   linkedPatientExaminationId?: number | null
   isAutoResolved?: boolean | null
-  patientHashDisplay?: string | null
-  examinationHashDisplay?: string | null
   pseudoPatient?: {
     id?: number | null
     matchCount?: number | null
@@ -1557,15 +1530,6 @@ const currentFileIdLabel = computed(() =>
   formatValidationFileId(resolveFileIdFromContext(), sourceMediaScope.value)
 )
 
-const patientHashDisplay = computed(
-  () => caseResolution.value?.patientHashDisplay ?? currentItem.value?.patientHashDisplay ?? null
-)
-const examinationHashDisplay = computed(
-  () =>
-    caseResolution.value?.examinationHashDisplay ??
-    currentItem.value?.examinationHashDisplay ??
-    null
-)
 const pseudoPatientId = computed(() => {
   const value =
     caseResolution.value?.pseudoPatient?.id ??
@@ -1599,9 +1563,7 @@ const linkageStatus = computed(() =>
     matchStatus: caseResolution.value?.matchStatus,
     linkedPatientExaminationId: caseResolution.value?.pseudoExamination?.linkedPatientExaminationId,
     currentPatientExaminationId: currentItem.value?.patientExaminationId,
-    hasLinkageHints: Boolean(
-      patientHashDisplay.value || examinationHashDisplay.value || pseudoPatientId.value !== null
-    )
+    hasLinkageHints: pseudoPatientId.value !== null
   })
 )
 const linkageStatusLabel = computed(() => caseLinkageStatusLabel(linkageStatus.value))
@@ -1750,17 +1712,9 @@ const anonymizedPdfDownloadSrc = computed(() =>
 const rawVideoElement = ref<HTMLVideoElement | null>(null)
 const anonymizedVideoElement = ref<HTMLVideoElement | null>(null)
 const validationVideoId = computed(() => (isVideo.value ? sourceFileId.value : null))
-
-const {
-  playbackMode: rawVideoPlaybackMode,
-  playbackError: rawVideoPlaybackError,
-  playbackSourceUrl: rawVideoPlaybackSourceUrl
-} = useAuthenticatedVideoStream({
-  videoElement: rawVideoElement,
-  videoId: validationVideoId,
-  artifactKind: 'raw',
-  enabled: computed(() => isVideo.value && canViewRawVideo.value)
-})
+// Video whose processed player has buffered enough to play; the raw player
+// waits for it so both streams do not compete for the same video on load.
+const processedPlayableVideoId = ref<number | null>(null)
 
 const {
   playbackMode: anonymizedVideoPlaybackMode,
@@ -1771,6 +1725,24 @@ const {
   videoId: validationVideoId,
   artifactKind: 'processed',
   enabled: isVideo
+})
+
+const rawVideoStreamReleased = computed(
+  () =>
+    anonymizedVideoPlaybackMode.value === 'error' ||
+    (validationVideoId.value !== null &&
+      processedPlayableVideoId.value === validationVideoId.value)
+)
+
+const {
+  playbackMode: rawVideoPlaybackMode,
+  playbackError: rawVideoPlaybackError,
+  playbackSourceUrl: rawVideoPlaybackSourceUrl
+} = useAuthenticatedVideoStream({
+  videoElement: rawVideoElement,
+  videoId: validationVideoId,
+  artifactKind: 'raw',
+  enabled: computed(() => isVideo.value && canViewRawVideo.value && rawVideoStreamReleased.value)
 })
 
 // ✅ NEW: Video event handlers for raw video
@@ -1799,6 +1771,7 @@ const onAnonymizedVideoLoadStart = () => {
 
 const onAnonymizedVideoCanPlay = () => {
   logger.debug('anonymized-video-ready')
+  processedPlayableVideoId.value = validationVideoId.value
 }
 
 // ✅ NEW: Video synchronization functions
@@ -2562,7 +2535,13 @@ const navigateAfterApproval = async (
   validateResponseData?: unknown
 ) => {
   if (mediaKind === 'video') {
-    await router.push({ name: 'Video-Untersuchung', query: { video: String(approvedFileId), ...(route.query.returnTo ? { returnTo: route.query.returnTo } : {}) } })
+    await router.push({
+      name: 'Video-Untersuchung',
+      query: {
+        video: String(approvedFileId),
+        ...(route.query.returnTo ? { returnTo: route.query.returnTo } : {})
+      }
+    })
     return
   }
 
@@ -2910,7 +2889,6 @@ const correctionTitle = computed(() => (isVideo.value ? 'Video-Korrektur' : 'PDF
 
 const approvalButtonLabel = computed(() => (isApproving.value ? 'Wird bestätigt...' : 'Bestätigen'))
 
-const examinationHashLabel = computed(() => examinationHashDisplay.value || 'Nicht verfuegbar')
 const processingFileCount = computed(() => anonymizationStore.processingFiles.length)
 </script>
 

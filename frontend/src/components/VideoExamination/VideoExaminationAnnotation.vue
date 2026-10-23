@@ -1478,12 +1478,11 @@ async function loadSelectedVideo(videoId: number | null = selectedVideoId.value)
   clearSuccessMessage()
 
   try {
-    await loadSegmentValidationSummary(videoId)
-    if (!isCurrentSelectedVideoLoad(videoId, loadSerial)) {
-      return
-    }
-
-    const fpsReadiness = await ensureSegmentationFpsReady(videoId)
+    // Independent requests; loadSegmentValidationSummary handles its own errors.
+    const [, fpsReadiness] = await Promise.all([
+      loadSegmentValidationSummary(videoId),
+      ensureSegmentationFpsReady(videoId)
+    ])
     if (!fpsReadiness.ready) {
       return
     }
@@ -3787,7 +3786,6 @@ const getStatusBadgeClass = (status: string): string => {
     not_started: 'bg-secondary',
     processing_anonymization: 'bg-warning',
     extracting_frames: 'bg-info',
-    predicting_segments: 'bg-info',
     started: 'bg-info',
     anonymized: 'bg-warning',
     done_processing_anonymization: 'bg-success',
@@ -3803,7 +3801,6 @@ const getStatusText = (status: string): string => {
     not_started: 'Nicht gestartet',
     processing_anonymization: 'Anonymisierung läuft',
     extracting_frames: 'Frames extrahieren',
-    predicting_segments: 'Segmente vorhersagen',
     started: 'Gestartet',
     anonymized: 'Anonymisiert',
     done_processing_anonymization: 'Fertig',

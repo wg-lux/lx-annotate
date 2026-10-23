@@ -5,10 +5,12 @@ Production settings.
 from __future__ import annotations
 
 import os
+import secrets
 from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
 
+from django.core.exceptions import ImproperlyConfigured
 from endoreg_db.config.identity_hashing import load_identity_salt
 from endoreg_db.utils.paths import get_runtime_paths
 
@@ -42,6 +44,7 @@ base_settings = import_module("lx_annotate.settings.settings_base")
 for _base_setting_name in dir(base_settings):
     if _base_setting_name.isupper():
         globals()[_base_setting_name] = getattr(base_settings, _base_setting_name)
+
 
 DJANGO_SALT = load_identity_salt(required=True, allow_inline=False)
 

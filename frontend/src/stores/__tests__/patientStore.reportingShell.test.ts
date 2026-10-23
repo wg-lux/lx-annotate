@@ -34,8 +34,7 @@ describe('patientStore ReportingShell boundary', () => {
             id: 9,
             firstName: 'Ada',
             lastName: 'Lovelace',
-            dob: '1815-12-10',
-            patientHash: 'patient_9'
+            dob: '1815-12-10'
           }
         ]
       }
@@ -52,7 +51,7 @@ describe('patientStore ReportingShell boundary', () => {
     expect(store.patientsWithDisplayName).toEqual([
       expect.objectContaining({ id: 9, displayName: 'Ada Lovelace (ID: 9)' })
     ])
-    expect(store.getPatientById(9)?.patientHash).toBe('patient_9')
+    expect(store.getPatientById(9)?.id).toBe(9)
   })
 
   it('fails closed and exposes an error when a patient row is malformed', async () => {

@@ -4,7 +4,6 @@ import pytest
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from endoreg_db.models.administration.center.center import Center
-from endoreg_db.models.medical.examination.examination import Examination
 from endoreg_db.models.other.gender import Gender
 from endoreg_db.models.other.study_table_import import StudyTableImport
 from endoreg_db.services.studies.table_parser import parse_table_mapping
@@ -35,17 +34,25 @@ COHORTS = "/endoreg-api/media/studies/cohorts/"
 
 
 @pytest.fixture
-def table_context(packaged_registry, master_key):
+def table_context(packaged_registry, master_key, settings):
+    from hashlib import sha256
+
+    settings.DJANGO_SALT = sha256(b"deterministic study capture fixture").hexdigest()
     user = User.objects.create_user(username="table-import-owner", is_superuser=True)
     center = Center.objects.create(name="Table center")
     Gender.objects.get_or_create(name="female")
-    Examination.objects.get_or_create(name="colonoscopy")
     cohort = StudyCohort.objects.create(
         created_by=user,
         name="Imported table",
         hypothesis="Test membership",
         filters={"limit": 100},
     )
+    from endoreg_db.services.reference_data.clinical_projection import (
+        import_clinical_package,
+    )
+    from lx_dtypes.packages import load_registered_package
+
+    import_clinical_package(load_registered_package("dgvs_reporting", version="0.1.0"))
     client = APIClient()
     client.force_authenticate(user)
     response = client.post(MAPPINGS, {"yaml": SPEC}, format="json")
@@ -71,12 +78,27 @@ def test_validate_import_replay_and_saved_cohort_preview(table_context):
     validation = upload(client, cohort, center, mapping_id, "validate")
     assert validation.status_code == 200, validation.data
     assert not StudyTableImport.objects.exists()
+    from endoreg_db.models.other.study_collection_entry import StudyCollectionEntry
+
+    assert not StudyCollectionEntry.objects.exists()
+    assert validation.data["patient_examination_ids"] == []
+    assert validation.data["dataset_id"] is None
+    assert not cohort.datasets.exists()
     assert cohort.imported_examinations.count() == 0
     first = upload(client, cohort, center, mapping_id)
     assert first.status_code == 200, first.data
+    assert first.data["captured_collections"] == 1
+    cohort.refresh_from_db()
+    from endoreg_db.models.other.study_collection_entry import StudyCollectionEntry
+
+    assert StudyCollectionEntry.objects.filter(cohort=cohort).count() == 1
+    workbook = client.get(f"/endoreg-api/media/studies/{cohort.study.uuid}/ledger.xlsx")
+    assert workbook.status_code == 200
+    assert workbook["X-Export-Row-Count"] == "1"
     second = upload(client, cohort, center, mapping_id)
     assert second.status_code == 200, second.data
     assert second.data["replayed"] == 1
+    assert StudyCollectionEntry.objects.filter(cohort=cohort).count() == 1
     assert cohort.imported_examinations.count() == 0
     assert cohort.datasets.get().examinations.count() == 1
     assert first.data["dataset_id"] == second.data["dataset_id"]
@@ -168,3 +190,52 @@ def test_corrupt_upload_returns_validation_response(table_context, suffix):
     )
     assert response.status_code == 400
     assert not StudyTableImport.objects.exists()
+
+
+def test_existing_cohort_capture_replays_and_reports_coverage(table_context):
+    from endoreg_db.models.other.study_collection_entry import StudyCollectionEntry
+
+    client, _, center, cohort, mapping_id = table_context
+    response = upload(client, cohort, center, mapping_id)
+    assert response.status_code == 200, response.data
+    cohort.refresh_from_db()
+    StudyCollectionEntry.objects.filter(cohort=cohort).delete()
+    endpoint = f"{COHORTS}{cohort.pk}/capture/"
+    coverage = client.get(endpoint)
+    assert coverage.status_code == 200, coverage.data
+    assert coverage.data == {
+        "examinations": 1,
+        "covered_examinations": 0,
+        "missing_collections": 1,
+    }
+    blocked = client.get(f"/endoreg-api/media/studies/{cohort.study.uuid}/ledger.xlsx")
+    assert blocked.status_code == 409
+    replay = client.post(endpoint, {}, format="json")
+    assert replay.status_code == 200, replay.data
+    assert replay.data["covered_examinations"] == 1
+    assert (
+        client.get(
+            f"/endoreg-api/media/studies/{cohort.study.uuid}/ledger.xlsx"
+        ).status_code
+        == 200
+    )
+
+
+def test_validate_and_import_reject_missing_snapshot_atomically(table_context):
+    from endoreg_db.models.aidataset.aidataset import AIDataSet
+    from endoreg_db.models.other.clinical_reference_import import (
+        ClinicalReferenceImport,
+    )
+    from endoreg_db.models.other.study_collection_entry import StudyCollectionEntry
+
+    client, _, center, cohort, mapping_id = table_context
+    ClinicalReferenceImport.objects.all().delete()
+    existing_datasets = set(AIDataSet.objects.values_list("pk", flat=True))
+    for mode in ("validate", "import"):
+        response = upload(client, cohort, center, mapping_id, mode)
+        assert response.status_code == 400, response.data
+        assert "full package snapshot" in response.data["detail"]
+        assert not StudyTableImport.objects.exists()
+        assert not StudyCollectionEntry.objects.exists()
+        assert set(AIDataSet.objects.values_list("pk", flat=True)) == existing_datasets
+        assert not cohort.datasets.exists()

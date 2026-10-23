@@ -263,17 +263,8 @@
                   <span class="patient-detail-value">{{ getCenterDisplay(patient.center) }}</span>
                 </div>
                 <div class="info-item">
-                  <label class="patient-detail-label">Patient Hash:</label>
+                  <label class="patient-detail-label">Lokale Patientenzuordnung:</label>
                   <div class="d-flex align-items-center gap-2">
-                    <span class="font-mono patient-detail-value">
-                      {{
-                        patient.patientHash
-                          ? patient.patientHash.length >= 8
-                            ? patient.patientHash.substring(0, 8) + '...'
-                            : patient.patientHash
-                          : 'Nicht generiert'
-                      }}
-                    </span>
                     <button
                       class="btn btn-sm btn-outline-primary"
                       :disabled="generatingPseudonym"
@@ -288,13 +279,7 @@
                         v-else
                         class="ni ni-check-bold me-1"
                       ></i>
-                      {{
-                        generatingPseudonym
-                          ? 'Generiere...'
-                          : patient.patientHash
-                            ? 'Aktualisieren'
-                            : 'Generieren'
-                      }}
+                      {{ generatingPseudonym ? 'Generiere...' : 'Aktualisieren' }}
                     </button>
                   </div>
                 </div>
@@ -640,11 +625,6 @@ const getCenterDisplay = (centerValue?: string | null) => {
   return center?.nameDe || center?.name || centerValue
 }
 
-const applyPatientHashUpdate = (hash: string) => {
-  const updated = { ...props.patient, patientHash: hash }
-  emit('patient-updated', updated)
-}
-
 // Pseudonym generation with robust patient ID resolution
 const generatePseudonym = async (): Promise<void> => {
   try {
@@ -652,18 +632,8 @@ const generatePseudonym = async (): Promise<void> => {
     error.value = ''
 
     const id = resolveRequiredPatientId(props.patient.id)
-    const data = await generatePatientPseudonym(id)
-
-    // Map snake_case → camelCase locally
-    applyPatientHashUpdate(data.patientHash)
-
-    // Safe UI text (guard substring)
-    const short =
-      data.patientHash && data.patientHash.length >= 8
-        ? data.patientHash.substring(0, 8) + '...'
-        : data.patientHash || '—'
-
-    successMessage.value = `Pseudonym-Hash erfolgreich generiert: ${short}`
+    await generatePatientPseudonym(id)
+    successMessage.value = 'Lokale Patientenzuordnung aktualisiert'
 
     setTimeout(() => {
       successMessage.value = ''

@@ -1,5 +1,15 @@
 import axios, { type AxiosResponse } from 'axios'
-import Hls from 'hls.js'
+import type Hls from 'hls.js'
+import type {
+  HlsConfig,
+  Loader,
+  LoaderCallbacks,
+  LoaderConfiguration,
+  LoaderContext,
+  LoaderStats,
+  PlaylistLoaderConstructor,
+  PlaylistLoaderContext
+} from 'hls.js'
 import {
   computed,
   isRef,
@@ -212,7 +222,7 @@ async function validateHlsPlaylist(
   url: string,
   signal: AbortSignal,
   onPreparing: () => void
-): Promise<void> {
+): Promise<string | null> {
   const deadline = Date.now() + 120_000
   try {
     while (!signal.aborted) {
@@ -230,13 +240,86 @@ async function validateHlsPlaylist(
       )
       if (await handlePreparingPlaylist({ response, deadline, url, signal, onPreparing })) continue
       assertValidHlsPlaylist(response, url)
-      return
+      return response.data
     }
+    return null
   } catch (error) {
     if (error instanceof AuthenticatedVideoStreamError) {
       throw error
     }
     throw buildPlaylistError(error, url)
+  }
+}
+
+type HlsModule = typeof import('hls.js')
+
+interface ValidatedPlaylist {
+  url: string
+  text: string
+}
+
+/**
+ * Serves the playlist that was already fetched and validated to hls.js once,
+ * so the manifest is not requested a second time. Every other playlist load
+ * (including retries) goes through the configured default loader.
+ */
+function createValidatedPlaylistLoader(
+  playlist: ValidatedPlaylist,
+  LoadStats: HlsModule['LoadStats']
+): PlaylistLoaderConstructor {
+  let pending: ValidatedPlaylist | null = playlist
+
+  return class ValidatedPlaylistLoader implements Loader<PlaylistLoaderContext> {
+    private readonly delegate: Loader<LoaderContext>
+    private servedContext: PlaylistLoaderContext | null = null
+    private servedStats: LoaderStats | null = null
+    private aborted = false
+
+    constructor(config: HlsConfig) {
+      this.delegate = new config.loader(config)
+    }
+
+    get context(): PlaylistLoaderContext | null {
+      return this.servedContext ?? (this.delegate.context as PlaylistLoaderContext | null)
+    }
+
+    get stats(): LoaderStats {
+      return this.servedStats ?? this.delegate.stats
+    }
+
+    load(
+      context: PlaylistLoaderContext,
+      config: LoaderConfiguration,
+      callbacks: LoaderCallbacks<PlaylistLoaderContext>
+    ): void {
+      const validated = pending
+      if (!validated || context.url !== validated.url) {
+        this.delegate.load(context, config, callbacks as LoaderCallbacks<LoaderContext>)
+        return
+      }
+      pending = null
+      const stats = new LoadStats()
+      const now = performance.now()
+      stats.loading = { start: now, first: now, end: now }
+      stats.loaded = validated.text.length
+      stats.total = validated.text.length
+      this.servedContext = context
+      this.servedStats = stats
+      queueMicrotask(() => {
+        if (this.aborted) return
+        callbacks.onSuccess({ url: validated.url, data: validated.text }, stats, context, null)
+      })
+    }
+
+    abort(): void {
+      this.aborted = true
+      this.delegate.abort()
+    }
+
+    destroy(): void {
+      this.aborted = true
+      this.delegate.destroy()
+    }
   }
 }
 
@@ -297,7 +380,9 @@ export function useAuthenticatedVideoStream(options: UseAuthenticatedVideoStream
     playbackError.value = null
   }
 
-  function useHlsJs(video: HTMLVideoElement, url: string): void {
+  function useHlsJs(video: HTMLVideoElement, playlist: ValidatedPlaylist, hlsModule: HlsModule): void {
+    const { default: Hls, LoadStats } = hlsModule
+    const { url } = playlist
     destroyHls()
     mediaRecoveryAttempted = false
     video.crossOrigin = 'use-credentials'
@@ -307,7 +392,8 @@ export function useAuthenticatedVideoStream(options: UseAuthenticatedVideoStream
       capLevelToPlayerSize: true,
       maxBufferLength: 30,
       maxMaxBufferLength: 120,
-      startFragPrefetch: false,
+      startFragPrefetch: true,
+      pLoader: createValidatedPlaylistLoader(playlist, LoadStats),
       xhrSetup: (xhr: XMLHttpRequest, requestUrl: string) => {
         try {
           validateSameOriginMediaUrl(requestUrl)
@@ -356,7 +442,8 @@ export function useAuthenticatedVideoStream(options: UseAuthenticatedVideoStream
   }
 
   function supportedPlaybackModes(
-    video: HTMLVideoElement
+    video: HTMLVideoElement,
+    Hls: typeof import('hls.js').default
   ): { useHlsJs: boolean; useNativeHls: boolean } | null {
     const useHlsJs = Hls.isSupported()
     const useNativeHls = canPlayNativeHls(video)
@@ -372,20 +459,50 @@ export function useAuthenticatedVideoStream(options: UseAuthenticatedVideoStream
     return null
   }
 
-  async function prepareHlsPlaylist(url: string, serial: number): Promise<boolean> {
+  async function prepareHlsPlaylist(url: string, serial: number): Promise<ValidatedPlaylist | null> {
     const abortController = new AbortController()
     playlistAbortController = abortController
     try {
-      await validateHlsPlaylist(url, abortController.signal, () => {
+      const text = await validateHlsPlaylist(url, abortController.signal, () => {
         if (serial === loadSerial) playbackMode.value = 'preparing'
       })
-      return serial === loadSerial
+      return text !== null && serial === loadSerial ? { url, text } : null
     } catch (error) {
       if (serial === loadSerial) setError(normalizeStreamError(error))
-      return false
+      return null
     } finally {
       if (playlistAbortController === abortController) {
         playlistAbortController = null
+      }
+    }
+  }
+
+  async function loadPlayer(
+    video: HTMLVideoElement,
+    playlist: ValidatedPlaylist,
+    serial: number
+  ): Promise<void> {
+    const { url } = playlist
+    try {
+      const hlsModule = await import('hls.js')
+      if (serial !== loadSerial) return
+      const playbackModes = supportedPlaybackModes(video, hlsModule.default)
+      if (!playbackModes) return
+      if (playbackModes.useHlsJs) {
+        useHlsJs(video, playlist, hlsModule)
+      } else {
+        useNativeHls(video, url)
+      }
+    } catch (error) {
+      if (serial === loadSerial) {
+        clearVideoElement(video)
+        setError(
+          new AuthenticatedVideoStreamError(
+            'hls_playback_failed',
+            'The HLS player could not be loaded or configured.',
+            { url, cause: error }
+          )
+        )
       }
     }
   }
@@ -400,22 +517,12 @@ export function useAuthenticatedVideoStream(options: UseAuthenticatedVideoStream
     playbackMode.value = 'idle'
     playbackError.value = null
 
-    if (!video || !videoId || !enabled) {
-      return
-    }
-
-    const hlsPlaylistUrl = resolveHlsPlaylistUrl(videoId)
-    if (!hlsPlaylistUrl) return
-
-    const playbackModes = supportedPlaybackModes(video)
-    if (!playbackModes || !(await prepareHlsPlaylist(hlsPlaylistUrl, serial))) return
-
-    if (playbackModes.useHlsJs) {
-      useHlsJs(video, hlsPlaylistUrl)
-      return
-    }
-
-    useNativeHls(video, hlsPlaylistUrl)
+    if (!video || !videoId || !enabled) return
+    const url = resolveHlsPlaylistUrl(videoId)
+    if (!url) return
+    const playlist = await prepareHlsPlaylist(url, serial)
+    if (!playlist) return
+    await loadPlayer(video, playlist, serial)
   }
 
   watch(

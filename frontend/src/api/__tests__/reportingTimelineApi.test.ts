@@ -26,8 +26,7 @@ const timelinePatient = {
   firstName: 'Ada',
   lastName: 'Lovelace',
   dob: '1815-12-10',
-  isRealPerson: true,
-  patientHash: null
+  isRealPerson: true
 }
 
 describe('reportingTimelineApi', () => {

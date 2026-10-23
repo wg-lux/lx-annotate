@@ -88,3 +88,89 @@ def test_invalid_node_secret_rolls_back_center_provisioning(tmp_path: Path) -> N
         )
     assert not Center.objects.exists()
     assert not NetworkNode.objects.exists()
+
+
+def test_strict_provisioning_rolls_back_entire_topology() -> None:
+    center = Center.objects.create(center_key="known", name="Known")
+    specs = [
+        HubNodeSpec(
+            node_key=key,
+            display_name=key,
+            role="site_node",
+            center_key=key,
+        )
+        for key in (center.center_key, "missing")
+    ]
+    with pytest.raises(
+        ValueError, match="Required Center.center_key is missing: missing"
+    ):
+        provision_hub_nodes(specs, require_existing_centers=True)
+    assert not NetworkNode.objects.exists()
+    assert list(Center.objects.values_list("center_key", flat=True)) == ["known"]
+
+
+def test_strict_command_accepts_deployment_aliases_and_rotates_secret(
+    tmp_path: Path,
+) -> None:
+    import json
+    from io import StringIO
+    from secrets import token_urlsafe
+
+    from django.core.management import call_command
+    from django.core.management.base import CommandError
+
+    center = Center.objects.create(center_key="known", name="Known")
+    secret_file = tmp_path / "node-secret"
+    secret = token_urlsafe(32)
+    secret_file.write_text(secret)
+    config = tmp_path / "nodes.json"
+    config.write_text(
+        json.dumps(
+            [
+                {
+                    "nodeKey": "site-a",
+                    "displayName": "Site A",
+                    "role": "site_node",
+                    "baseUrl": "https://site-a.example",
+                    "centerKey": center.center_key,
+                    "sharedSecretFile": str(secret_file),
+                }
+            ]
+        )
+    )
+
+    def invoke() -> dict:
+        stdout = StringIO()
+        call_command(
+            "provision_hub_nodes",
+            "--config",
+            str(config),
+            "--require-existing-centers",
+            stdout=stdout,
+        )
+        return json.loads(stdout.getvalue())
+
+    assert invoke()["secret_changed"] is True
+    node = NetworkNode.objects.get(node_key="site-a")
+    assert node.owning_center == center
+    assert node.check_shared_secret(secret)
+    first_hash = node.shared_secret_hash
+    assert invoke()["secret_changed"] is False
+    node.refresh_from_db()
+    assert node.shared_secret_hash == first_hash
+    rotated = token_urlsafe(32)
+    secret_file.write_text(rotated)
+    assert invoke()["secret_changed"] is True
+    node.refresh_from_db()
+    assert node.check_shared_secret(rotated)
+    assert not node.check_shared_secret(secret)
+
+    for content in ("", None):
+        if content is None:
+            secret_file.unlink()
+        else:
+            secret_file.write_text(content)
+        with pytest.raises(CommandError, match="secret file is (empty|missing)"):
+            invoke()
+        node.refresh_from_db()
+        assert node.check_shared_secret(rotated)

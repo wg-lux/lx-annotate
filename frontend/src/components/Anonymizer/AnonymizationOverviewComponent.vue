@@ -6,6 +6,17 @@
         <h4 class="mb-0">Anonymisierungs-Übersicht</h4>
         <div class="d-flex gap-2">
           <button
+            type="button"
+            class="btn btn-outline-secondary btn-sm"
+            data-test="toggle-technical-details"
+            aria-controls="anonymization-overview-table"
+            :aria-pressed="technicalDetails"
+            @click="technicalDetails = !technicalDetails"
+          >
+            {{ technicalDetails ? 'Technische Details ausblenden' : 'Technische Details' }}
+          </button>
+          <button
+            v-if="technicalDetails"
             class="btn btn-outline-warning btn-sm"
             data-test="repair-all-video-states"
             :disabled="isRefreshing || isRepairingVideoStates"
@@ -34,7 +45,15 @@
           class="alert alert-danger"
           role="alert"
         >
-          <strong>Fehler:</strong> {{ anonymizationStore.error }}
+          Die Übersicht konnte nicht vollständig geladen oder aktualisiert werden. Bitte
+          „Aktualisieren“ wählen; bleibt das Problem bestehen, die Technik informieren.
+          <div
+            v-if="technicalDetails"
+            class="small mt-1"
+            data-test="overview-technical-error"
+          >
+            {{ anonymizationStore.error }}
+          </div>
         </div>
         <!-- Loading State -->
         <div
@@ -90,7 +109,10 @@
               <option value="unknown">Unbekannt</option>
             </select>
           </div>
-          <div class="overview-filter-field">
+          <div
+            v-if="technicalDetails"
+            class="overview-filter-field"
+          >
             <label
               for="anonymization-storage-state-filter"
               class="form-label mb-1"
@@ -163,6 +185,7 @@
           @scroll="syncStickyScrollbar"
         >
           <table
+            id="anonymization-overview-table"
             ref="overviewTableElement"
             class="table table-hover overview-files-table"
           >
@@ -172,11 +195,14 @@
                 <th>Typ</th>
                 <th>Aktionen</th>
                 <th class="validation-action-column">Validierung</th>
-                <th>Import</th>
-                <th>HLS-Materialisierung</th>
-                <th>Anonymisierung</th>
+                <th>Status</th>
+                <template v-if="technicalDetails">
+                  <th>Import</th>
+                  <th>HLS-Materialisierung</th>
+                  <th>Anonymisierung</th>
+                </template>
                 <th>Annotation</th>
-                <th>Originaldatei gelöscht?</th>
+                <th v-if="technicalDetails">Originaldatei gelöscht?</th>
                 <th>Erstellt</th>
               </tr>
             </thead>
@@ -187,9 +213,10 @@
                 :file="file"
                 :processing="isProcessing(file)"
                 :retry-processing="processingFiles.has(getFileKey(file))"
-                :ready-for-validation="file.anonymizationStatus === 'done_processing_anonymization'"
+                :ready-for-validation="file.anonymizationPhase === 'awaiting_validation'"
                 :icon-class="mediaStore.getMediaTypeIcon(file.mediaType)"
                 :media-type-badge-class="mediaStore.getMediaTypeBadgeClass(file.mediaType)"
+                :technical-details="technicalDetails"
                 @retry-import="retryUploadJob"
                 @cancel-import="cancelImport"
                 @repair-video="repairVideoTarget = $event"
@@ -229,54 +256,33 @@
             <div class="card bg-light">
               <div class="card-body">
                 <h6 class="card-title">Status-Übersicht</h6>
-                <div class="row text-center">
-                  <div class="col-md-3">
+                <div
+                  class="row text-center"
+                  data-test="overview-status-summary"
+                >
+                  <div
+                    v-for="bucket in summaryBuckets"
+                    :key="bucket.key"
+                    class="col-6 col-md"
+                    :data-test="`overview-status-${bucket.key}`"
+                  >
                     <div class="mb-2">
-                      <span class="badge bg-secondary fs-6">
-                        {{ getTotalByStatus('not_started') }}
+                      <span
+                        class="badge fs-6"
+                        :class="bucket.badgeClass"
+                      >
+                        {{ statusSummary[bucket.key] }}
                       </span>
                     </div>
-                    <small class="text-muted">Nicht gestartet</small>
-                  </div>
-                  <div class="col-md-3">
-                    <div class="mb-2">
-                      <span class="badge bg-warning fs-6">
-                        {{ getTotalByStatus('processing') }}
-                      </span>
-                    </div>
-
-                    <small class="text-muted">In Bearbeitung</small>
-                  </div>
-                  <div class="col-md-3">
-                    <div class="mb-2">
-                      <span class="badge bg-warning fs-6">
-                        {{ getTotalByStatus('started') }}
-                      </span>
-                    </div>
-                    <small class="text-muted">Anonymisierung gestartet</small>
-                  </div>
-                  <div class="col-md-3">
-                    <div class="mb-2">
-                      <span class="badge bg-success fs-6">
-                        {{ pendingValidationCount }}
-                      </span>
-                    </div>
-                    <small class="text-muted">Fertig</small>
-                  </div>
-                  <div class="col-md-3">
-                    <div class="mb-2">
-                      <span class="badge bg-danger fs-6">
-                        {{ getTotalByStatus('failed') }}
-                      </span>
-                    </div>
-                    <small class="text-muted">Fehlgeschlagen</small>
+                    <small class="text-muted">{{ bucket.label }}</small>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          <OverviewStorageSummary />
+          <OverviewStorageSummary v-if="technicalDetails" />
           <OverviewTranscodePanel
+            v-if="technicalDetails"
             :repairing="isRepairingVideoStates"
             :refresh-token="transcodeRefreshToken"
             @repair="repairAllVideoStates"
@@ -289,7 +295,7 @@
             {{ cancellationError }}
           </p>
           <div
-            v-if="videoStateRepairMessage"
+            v-if="technicalDetails && videoStateRepairMessage"
             class="alert alert-info"
             role="status"
           >
@@ -323,10 +329,11 @@ import OverviewTranscodePanel from './OverviewTranscodePanel.vue'
 import {
   canCancelImport,
   isAnonymizationProcessing,
-  isImportInterrupted,
   getFileDisplayName,
   getOriginalFileDeletionState,
-  type OriginalFileDeletionState
+  getOverviewSummaryBucket,
+  type OriginalFileDeletionState,
+  type OverviewSummaryBucket
 } from './overviewPresentation'
 
 const runtimeLogger = createRuntimeLogger('anonymization-overview')
@@ -403,6 +410,26 @@ const availableFiles = computed(() =>
 const hasActiveTableFilters = computed(
   () => resourceTypeFilter.value !== 'all' || physicalStorageStateFilter.value !== 'all'
 )
+
+// Per-viewer convenience only; storage may be unavailable (private mode, previews).
+const TECHNICAL_DETAILS_STORAGE_KEY = 'lx-annotate:anonymization-overview:technical-details'
+const readTechnicalDetailsPreference = (): boolean => {
+  try {
+    return window.localStorage.getItem(TECHNICAL_DETAILS_STORAGE_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+const technicalDetails = ref(readTechnicalDetailsPreference())
+watch(technicalDetails, (enabled) => {
+  // A hidden technical filter must never silently drop rows from the clinical view.
+  if (!enabled) physicalStorageStateFilter.value = 'all'
+  try {
+    window.localStorage.setItem(TECHNICAL_DETAILS_STORAGE_KEY, String(enabled))
+  } catch {
+    runtimeLogger.debug('technical-details-preference-not-persisted')
+  }
+})
 
 const resetTableFilters = () => {
   resourceTypeFilter.value = 'all'
@@ -811,19 +838,33 @@ watch(hasActiveMonitoringState, (active) => {
   }
 })
 
-const getTotalByStatus = (status: string) => {
-  const statusMap: Partial<Record<string, string[]>> = {
-    not_started: ['not_started'],
-    processing: ['processing_anonymization', 'extracting_frames', 'predicting_segments'],
-    done_processing_anonymization: ['done_processing_anonymization', 'validated'],
-    failed: ['failed']
-  }
+const summaryBuckets: ReadonlyArray<{
+  key: OverviewSummaryBucket
+  label: string
+  badgeClass: string
+}> = [
+  { key: 'not_started', label: 'Nicht gestartet', badgeClass: 'bg-secondary' },
+  { key: 'in_progress', label: 'In Bearbeitung', badgeClass: 'bg-warning' },
+  { key: 'awaiting_validation', label: 'Validierung ausstehend', badgeClass: 'bg-success' },
+  { key: 'validated', label: 'Validiert', badgeClass: 'bg-primary' },
+  { key: 'failed', label: 'Fehlgeschlagen', badgeClass: 'bg-danger' },
+  { key: 'interrupted', label: 'Abgebrochen', badgeClass: 'bg-secondary' },
+  { key: 'quarantined', label: 'In Quarantäne', badgeClass: 'bg-warning text-dark' }
+]
 
-  const relevantStatuses = statusMap[status] || [status]
-  return availableFiles.value.filter(
-    (file) => !isImportInterrupted(file) && relevantStatuses.includes(file.anonymizationStatus)
-  ).length
-}
+const statusSummary = computed(() => {
+  const counts: Record<OverviewSummaryBucket, number> = {
+    not_started: 0,
+    in_progress: 0,
+    awaiting_validation: 0,
+    validated: 0,
+    failed: 0,
+    interrupted: 0,
+    quarantined: 0
+  }
+  for (const file of availableFiles.value) counts[getOverviewSummaryBucket(file)] += 1
+  return counts
+})
 
 // Lifecycle
 onMounted(async () => {
@@ -869,8 +910,6 @@ onUnmounted(() => {
 const repairButtonLabel = computed(() =>
   isRepairingVideoStates.value ? 'Reparatur läuft…' : 'Videozustände reparieren'
 )
-
-const pendingValidationCount = computed(() => getTotalByStatus('done_processing_anonymization'))
 </script>
 
 <style scoped>

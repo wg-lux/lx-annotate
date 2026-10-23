@@ -1207,6 +1207,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/endoreg-api/media/pdfs/{id}/workflow/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Workflow state and reducer-accepted next events of one media record. */
+        get: operations["media_pdfs_workflow_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/endoreg-api/media/quarantine/": {
         parameters: {
             query?: never;
@@ -2570,6 +2587,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/endoreg-api/media/videos/{id}/workflow/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Workflow state and reducer-accepted next events of one media record. */
+        get: operations["media_videos_workflow_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/endoreg-api/media/videos/{video_id}/frames/{frame_number}/decoded-stream/": {
         parameters: {
             query?: never;
@@ -2601,6 +2635,23 @@ export type paths = {
         };
         /** @description Legacy frame URL using the same in-memory processed-video decoder. */
         get: operations["media_videos_frames_stream_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/endoreg-api/media/workflow/stages/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Worklist counts per actionable stage over the caller's centers. */
+        get: operations["media_workflow_stages_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2764,7 +2815,7 @@ export type paths = {
          *
          *     Expected payload:
          *     {
-         *         "patient": "patient_hash_string",  # or patient_id integer
+         *         "patient": 2,  # local patient ID
          *         "examination": "examination_name", # examination name string
          *         "date_start": "2024-01-15",
          *     }
@@ -3647,8 +3698,6 @@ export type components = {
             readonly documents: {
                 [key: string]: (string | number) | null;
             }[];
-            /** @description A hash value associated with the case when configured. */
-            hash?: string | null;
             readonly id: number;
             /** @description Flag indicating if the case is currently active. */
             is_active?: boolean;
@@ -5081,8 +5130,6 @@ export type components = {
             readonly documents?: {
                 [key: string]: (string | number) | null;
             }[];
-            /** @description A hash value associated with the case when configured. */
-            hash?: string | null;
             readonly id?: number;
             /** @description Flag indicating if the case is currently active. */
             is_active?: boolean;
@@ -5124,7 +5171,6 @@ export type components = {
             readonly id?: number;
             is_real_person?: boolean;
             last_name?: string;
-            patient_hash?: string | null;
             phone?: string | null;
         };
         PatchedPatientExamination: {
@@ -5134,12 +5180,11 @@ export type components = {
             date_start?: string | null;
             examination?: string | null;
             readonly examination_name?: string;
-            readonly hash?: string;
             readonly id?: number;
             knowledge_base_module?: string;
             knowledge_base_version?: string;
-            /** @description Patient Hash (z.B. 'patient_2') */
-            patient?: string;
+            /** @description Local patient ID */
+            patient?: number;
             readonly patient_data?: {
                 [key: string]: string | number;
             };
@@ -5199,7 +5244,6 @@ export type components = {
             readonly id: number;
             is_real_person?: boolean;
             last_name: string;
-            patient_hash?: string | null;
             phone?: string | null;
         };
         /** PatientDiseaseCreate */
@@ -5255,12 +5299,11 @@ export type components = {
             date_start?: string | null;
             examination?: string | null;
             readonly examination_name: string;
-            readonly hash: string;
             readonly id: number;
             knowledge_base_module?: string;
             knowledge_base_version?: string;
-            /** @description Patient Hash (z.B. 'patient_2') */
-            patient: string;
+            /** @description Local patient ID */
+            patient: number;
             readonly patient_data: {
                 [key: string]: string | number;
             };
@@ -7686,6 +7729,26 @@ export interface operations {
             };
         };
     };
+    media_pdfs_workflow_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     media_quarantine_retrieve: {
         parameters: {
             query?: never;
@@ -9129,6 +9192,26 @@ export interface operations {
             };
         };
     };
+    media_videos_workflow_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     media_videos_frames_decoded_stream_retrieve: {
         parameters: {
             query?: never;
@@ -9158,6 +9241,24 @@ export interface operations {
                 frame_number: number;
                 video_id: number;
             };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    media_workflow_stages_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;

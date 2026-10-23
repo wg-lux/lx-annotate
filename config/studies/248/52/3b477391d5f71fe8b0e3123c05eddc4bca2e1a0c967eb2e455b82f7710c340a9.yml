@@ -1,0 +1,33 @@
+schema_version: '1.0'
+definition_id: study_a2145f459dcf4bd69b82f14ac2770b57
+definition_version: 1.0.0
+datasets:
+- name: Colorectal research images
+  description: Image annotation collection for the research protocol.
+  dataset_type: image
+  ai_model_type: image_multilabel_classification
+  is_active: true
+  definition_id: dataset_125
+cohorts:
+- name: Image review
+  hypothesis: Image annotations support an independent review population.
+  filters:
+    date_from: null
+    date_to: null
+    center_key: null
+    examination_name: null
+    document_type: null
+    finding: null
+    annotation_label: null
+    has_report: null
+    has_video: null
+    limit: 100
+  study_metadata:
+    participating_centers: []
+    age_groups: []
+    terminology_requirements: []
+    inclusion_criteria: []
+    analysis_definitions: []
+  definition_id: cohort_52
+  dataset_refs:
+  - dataset_125

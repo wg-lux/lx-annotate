@@ -10,6 +10,7 @@ These settings prioritize speed and isolation:
 from __future__ import annotations
 
 import os
+import secrets
 import tempfile
 from copy import deepcopy
 from pathlib import Path
@@ -19,6 +20,14 @@ from uuid import uuid4
 # The base settings fail closed when no deployment secret is configured.
 # Tests supply their explicitly isolated, non-production key before importing base.
 os.environ.setdefault("DJANGO_SECRET_KEY", "test-insecure-key-do-not-use-00000000")
+# Managed secret files take precedence over inline values; a developer shell's
+# secretspec file handles must not replace the isolated test credentials.
+for _credential_handle in (
+    "DJANGO_SECRET_KEY_FILE",
+    "DJANGO_SIGNING_KEYRING_FILE",
+    "DJANGO_DB_PASSWORD_FILE",
+):
+    os.environ.pop(_credential_handle, None)
 os.environ["LX_RUNTIME_ROOT"] = str(
     Path(tempfile.gettempdir()) / f"lx_test_runtime_{uuid4().hex}"
 )
@@ -27,7 +36,8 @@ os.environ["LX_RUNTIME_ROOT"] = str(
 from . import settings_base as base
 from .settings_base import *  # noqa: F403
 
-DJANGO_SALT = "test-identity-salt-not-for-production"
+# Disposable per-run identity salt that satisfies the CSPRNG salt policy.
+DJANGO_SALT = secrets.token_hex(32)
 
 # -----------------------------------------------------------------------------
 # 1. SETUP MUTABLE COPIES
@@ -65,11 +75,6 @@ REQUIRED_TEST_APPS = [
 for app in REQUIRED_TEST_APPS:
     if app not in INSTALLED_APPS:
         INSTALLED_APPS.append(app)
-
-
-# -----------------------------------------------------------------------------
-# 3. DATABASE (PostgreSQL Test Instance)
-# -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 # 3. DATABASE — pytest-managed PostgreSQL

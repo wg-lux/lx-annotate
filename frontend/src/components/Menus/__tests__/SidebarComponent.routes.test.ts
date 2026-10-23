@@ -130,6 +130,7 @@ describe('Sidebar linked routes', () => {
       '/anonymisierung/evaluation',
       '/video-untersuchung',
       '/frame-annotation',
+      '/chat',
       '/model-training',
       '/ai-dataset-buckets',
       '/ai-dataset-settings',

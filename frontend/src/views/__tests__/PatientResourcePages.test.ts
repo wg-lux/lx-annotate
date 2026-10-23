@@ -56,8 +56,7 @@ describe('patient resource pages', () => {
         firstName: 'Ada',
         lastName: 'Lovelace',
         dob: null,
-        isRealPerson: true,
-        patientHash: null
+        isRealPerson: true
       },
       count: 4,
       results: [
@@ -151,8 +150,7 @@ describe('patient resource pages', () => {
         firstName: 'Ada',
         lastName: 'Lovelace',
         dob: null,
-        isRealPerson: true,
-        patientHash: null
+        isRealPerson: true
       },
       count: 1,
       results: [

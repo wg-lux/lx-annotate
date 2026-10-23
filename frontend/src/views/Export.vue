@@ -38,27 +38,42 @@
       >
         Videos und Annotationen
       </button>
+      <button
+        type="button"
+        class="btn"
+        :class="activeExport === 'ledger' ? 'btn-primary' : 'btn-outline-primary'"
+        role="tab"
+        :aria-selected="activeExport === 'ledger'"
+        data-test="ledger-export-tab"
+        @click="activeExport = 'ledger'"
+      >
+        Studienledger
+      </button>
     </div>
 
-    <CaseStudyExcelExport v-if="activeExport === 'cases'" />
+    <StudyLedgerExchange v-if="activeExport === 'ledger'" />
+    <CaseStudyExcelExport v-else-if="activeExport === 'cases'" />
     <StudyCohortExcelExport v-else-if="activeExport === 'cohort'" />
     <ExportAnnotations v-else />
   </main>
 </template>
 
 <script setup lang="ts">
+import StudyLedgerExchange from '@/components/Export/StudyLedgerExchange.vue'
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import CaseStudyExcelExport from '@/components/Export/CaseStudyExcelExport.vue'
 import StudyCohortExcelExport from '@/components/Export/StudyCohortExcelExport.vue'
 import ExportAnnotations from '@/components/VideoExamination/ExportAnnotations.vue'
 
-type ExportMode = 'cases' | 'cohort' | 'segments'
+type ExportMode = 'cases' | 'cohort' | 'segments' | 'ledger'
 
 const route = useRoute()
 const requestedMode = route.query.mode
 const activeExport = ref<ExportMode>(
-  requestedMode === 'cohort' || requestedMode === 'segments' ? requestedMode : 'cases'
+  requestedMode === 'ledger' || requestedMode === 'cohort' || requestedMode === 'segments'
+    ? requestedMode
+    : 'cases'
 )
 </script>
 

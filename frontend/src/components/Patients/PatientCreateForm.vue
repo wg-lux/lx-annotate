@@ -309,7 +309,6 @@ const form = ref<PatientFormData>({
   gender: null,
   center: null,
   centerKey: null,
-  patientHash: '',
   comments: '',
   isRealPerson: true
 })
@@ -419,7 +418,6 @@ const handleSubmit = async () => {
       gender: null,
       center: null,
       centerKey: null,
-      patientHash: '',
       comments: '',
       isRealPerson: true
     }

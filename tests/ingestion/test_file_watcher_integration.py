@@ -542,3 +542,151 @@ def test_process_watcher_file_reuses_completed_job_for_same_video_content(
     assert first_job.pk == second_job.pk
     assert UploadJob.objects.count() == 1
     assert second_path.exists() is False
+
+
+@pytest.fixture
+def one_shot_service(monkeypatch, tmp_path):
+    for name in ("INTAKE_VIDEO_DIR", "INTAKE_REPORT_DIR", "INTAKE_PREANONYMIZED_DIR"):
+        directory = tmp_path / name
+        directory.mkdir()
+        monkeypatch.setattr(file_watcher, name, directory)
+    service = file_watcher.FileWatcherService()
+    monkeypatch.setattr(service, "_validate_django_setup", lambda: None)
+    return service
+
+
+@pytest.mark.parametrize("unsupported", [False, True])
+def test_empty_one_shot_skips_ocr_and_shuts_down(
+    one_shot_service, monkeypatch, unsupported
+):
+    service = one_shot_service
+    if unsupported:
+        (service.report_dir / "ignored.csv").write_text("input")
+        (service.report_dir / "pending.pdf.part").write_text("input")
+    monkeypatch.setattr(
+        file_watcher,
+        "_preload_processing_stack",
+        lambda: pytest.fail("empty scan loaded OCR"),
+    )
+    assert service.process_existing_once() == 0
+    assert service.handler.executor._shutdown
+
+
+def test_one_shot_preserves_readiness_failure(one_shot_service, monkeypatch):
+    def fail_readiness():
+        raise RuntimeError("readiness unavailable")
+
+    monkeypatch.setattr(one_shot_service, "_validate_django_setup", fail_readiness)
+    with pytest.raises(RuntimeError, match="readiness unavailable"):
+        one_shot_service.process_existing_once()
+    assert one_shot_service.handler.executor._shutdown
+
+
+def test_one_shot_rescans_after_preload_on_main_thread(one_shot_service, monkeypatch):
+    import threading
+
+    service = one_shot_service
+    report = service.report_dir / "nested.lock" / "document.TXT"
+    report.parent.mkdir()
+    report.write_text("input")
+    arrival = service.video_dir / "arrival.mp4"
+    events = []
+
+    def preload():
+        assert threading.current_thread() is threading.main_thread()
+        events.append("preload")
+        arrival.write_bytes(b"input")
+
+    monkeypatch.setattr(file_watcher, "_preload_processing_stack", preload)
+    monkeypatch.setattr(
+        service.handler, "_submit_file", lambda path: events.append(Path(path))
+    )
+    assert service.process_existing_once() == 2
+    assert events == ["preload", report, arrival]
+
+
+def test_arrival_after_empty_decision_is_found_next_pass(one_shot_service, monkeypatch):
+    service = one_shot_service
+    real_scan = service._iter_unprocessed_files
+    arrival = service.video_dir / "late.mp4"
+
+    def scan(directory, extensions):
+        yield from real_scan(directory, extensions)
+        if directory == service.video_dir:
+            arrival.write_bytes(b"input")
+
+    monkeypatch.setattr(service, "_iter_unprocessed_files", scan)
+    assert service.process_existing_once() == 0
+    assert arrival.exists()
+    # A periodic/new arrival trigger constructs a fresh one-shot service.
+    retry = file_watcher.FileWatcherService()
+    monkeypatch.setattr(retry, "_validate_django_setup", lambda: None)
+    monkeypatch.setattr(file_watcher, "_preload_processing_stack", lambda: None)
+    calls = []
+    monkeypatch.setattr(retry.handler, "_submit_file", calls.append)
+    assert retry.process_existing_once() == 1
+    assert calls == [str(arrival)]
+
+
+def test_nested_discovery_failure_is_not_empty(one_shot_service, monkeypatch):
+    def unreadable_walk(directory, *, onerror):
+        onerror(PermissionError("unreadable subtree"))
+        yield
+
+    monkeypatch.setattr(file_watcher.os, "walk", unreadable_walk)
+    with pytest.raises(OSError, match="Watcher intake discovery failed"):
+        one_shot_service.process_existing_once()
+    assert one_shot_service.handler.executor._shutdown
+
+
+def test_transient_processing_failure_is_retried_next_scan(
+    one_shot_service, monkeypatch
+):
+    service = one_shot_service
+    report = service.report_dir / "retry.txt"
+    report.write_text("input")
+    calls = []
+
+    def process(path):
+        calls.append(path)
+        if len(calls) == 1:
+            raise RuntimeError("temporary backend outage")
+
+    monkeypatch.setattr(service.handler, "_process_report", process)
+    monkeypatch.setattr(file_watcher, "_preload_processing_stack", lambda: None)
+    assert service.process_existing_once() == 1
+    assert report.exists()
+    assert service.handler.in_flight_files == set()
+    retry = file_watcher.FileWatcherService()
+    monkeypatch.setattr(retry, "_validate_django_setup", lambda: None)
+    monkeypatch.setattr(retry.handler, "_process_report", process)
+    assert retry.process_existing_once() == 1
+    assert calls == [report, report]
+
+
+def test_overlapping_triggers_share_in_flight_slot(one_shot_service, monkeypatch):
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    handler = one_shot_service.handler
+    report = one_shot_service.report_dir / "overlap.txt"
+    report.write_text("input")
+    entered, release = threading.Event(), threading.Event()
+    calls = []
+
+    def process(path):
+        calls.append(path)
+        entered.set()
+        assert release.wait(timeout=5)
+
+    monkeypatch.setattr(handler, "_process_report", process)
+    try:
+        handler._submit_file(str(report))
+        assert entered.wait(timeout=5)
+        with ThreadPoolExecutor(max_workers=4) as triggers:
+            list(triggers.map(lambda _: handler._submit_file(str(report)), range(12)))
+        assert calls == [report]
+    finally:
+        release.set()
+        handler.shutdown()
+    assert handler.in_flight_files == set()

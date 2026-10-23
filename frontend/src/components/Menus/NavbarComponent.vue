@@ -40,6 +40,12 @@
           </nav>
         </div>
         <ul class="navbar-nav app-topbar-actions">
+          <li
+            v-if="isAuthenticated"
+            class="nav-item d-flex align-items-center"
+          >
+            <RemoteMachineSelector />
+          </li>
           <li class="nav-item d-flex align-items-center">
             <router-link
               to="/annotationen"
@@ -145,11 +151,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, ref } from 'vue'
+import { usePolling } from '@/composables/usePolling'
 import { useRoute } from 'vue-router'
 import { useAuthKcStore } from '@/stores/auth_kc'
 import { useAnnotationStatsStore } from '@/stores/annotationStats'
 import { createRuntimeLogger } from '@/utils/runtimeLogger'
+import RemoteMachineSelector from './RemoteMachineSelector.vue'
 
 const logger = createRuntimeLogger('navbar')
 const { isSidebarOpen } = defineProps<{
@@ -163,9 +171,6 @@ const route = useRoute()
 const authStore = useAuthKcStore()
 const annotationStatsStore = useAnnotationStatsStore()
 const logoutForm = ref<HTMLFormElement | null>(null)
-
-let annotationStatsRefreshTimer: ReturnType<typeof setInterval> | null = null
-let isUnmounted = false
 
 // Helper to extract Django CSRF token from cookies
 const csrfToken = computed(() => {
@@ -227,32 +232,12 @@ const toggleSidebar = () => {
   emit('toggleSidebar')
 }
 
-// Load annotation stats on mount and refresh periodically
-onMounted(async () => {
-  await annotationStatsStore.fetchAnnotationStats()
-
-  if (isUnmounted) {
-    return
-  }
-
-  // Auto-refresh every 5 minutes
-  annotationStatsRefreshTimer = setInterval(
-    () => {
-      if (annotationStatsStore.needsRefresh) {
-        annotationStatsStore.refreshIfNeeded().catch((error: unknown) => {
-          logger.error('annotation-stats-refresh-failed', error)
-        })
-      }
-    },
-    5 * 60 * 1000
-  )
-})
-
-onUnmounted(() => {
-  isUnmounted = true
-  if (annotationStatsRefreshTimer !== null) {
-    clearInterval(annotationStatsRefreshTimer)
-    annotationStatsRefreshTimer = null
+usePolling({
+  intervalMs: 5 * 60 * 1000,
+  initialTask: () => annotationStatsStore.fetchAnnotationStats(),
+  task: () => annotationStatsStore.refreshIfNeeded(),
+  onError: (error) => {
+    logger.error('annotation-stats-refresh-failed', error)
   }
 })
 </script>
@@ -441,14 +426,14 @@ onUnmounted(() => {
   display: block;
   width: 22px;
   height: 2px;
-  background-color: #2d3047;
+  background-color: var(--lx-ink);
   border-radius: 1px;
   margin: 4px 0;
   transition: all 0.2s;
 }
 
 .navbar-toggler:hover .navbar-toggler-bar {
-  background-color: #596cff;
+  background-color: var(--lx-teal);
 }
 
 @media (min-width: 1200px) {

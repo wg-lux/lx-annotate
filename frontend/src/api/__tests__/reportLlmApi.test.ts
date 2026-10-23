@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { checkReportLlmStatus, generateLlmReport, type LlmReportRequest } from '../reportLlmApi'
+import {
+  checkReportLlmStatus,
+  generateLlmReport,
+  parseLlmModelOptions,
+  type LlmReportRequest
+} from '../reportLlmApi'
 
 const transport = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }))
 vi.mock('@/api/axiosInstance', () => ({
@@ -93,5 +98,33 @@ describe('report LLM API boundary', () => {
       signal,
       timeout: 135_000
     })
+  })
+})
+
+describe('LLM model options', () => {
+  it('parses servers and the backend default', () => {
+    const options = parseLlmModelOptions({
+      servers: [
+        { id: 'local', label: 'Lokal', ready: true, models: ['glm4:latest'], code: null },
+        { id: 'gc-02', label: 'gc-02', ready: false, models: [], code: 'unavailable' }
+      ],
+      default: { server: 'local', model: 'glm4:latest' }
+    })
+    expect(options.servers).toHaveLength(2)
+    expect(options.default.server).toBe('local')
+  })
+
+  it('rejects malformed lists', () => {
+    expect(() => parseLlmModelOptions({ servers: [{ id: 1 }], default: {} })).toThrow()
+    expect(() => parseLlmModelOptions(null)).toThrow()
+  })
+
+  it('sends the selection as status query parameters', async () => {
+    transport.get.mockResolvedValue({ data: { ready: true, model: 'glm4' } })
+    await checkReportLlmStatus(new AbortController().signal, { server: 'gc-02', model: 'glm4' })
+    expect(transport.get).toHaveBeenLastCalledWith(
+      '/endoreg-api/reporting/llm/status/',
+      expect.objectContaining({ params: { server: 'gc-02', model: 'glm4' } })
+    )
   })
 })

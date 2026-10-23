@@ -46,6 +46,45 @@ source_documents:
   disposition: reference
   note: Documents API and cross-package contract test ownership.
 definition_of_done:
+- id: identity_hash_response_boundary
+  category: security
+  title: Identity hashes never leave through browser or export responses
+  acceptance:
+  - Patient, examination, timeline and cohort UI flows operate without transmitted hashes; examination
+    creation sends a local patient ID and hash displays are absent.
+  - Both applications reject JSON and browser responses carrying patient, examination or case hashes,
+    shortened displays or identity fingerprints; error responses contain no rejected values.
+  - FHIR and research spreadsheet exports reject their hash-bearing contracts before publication; renamed
+    patient pseudonyms do not bypass the restriction.
+  - File-integrity checksums and approved binary media streaming remain available; blocked responses never
+    consume a deferred metadata stream.
+  required: true
+  verification:
+    kind: manual
+    instructions: Verify HTTP middleware, actual serializer payloads, FHIR and spreadsheet entrypoints,
+      and unchanged media streaming.
+    timeout_seconds: 300
+  assessment:
+    status: in_progress
+    evidence:
+    - kind: command
+      reference: '3 host tests passed: installed middleware denies browser identity output; both spreadsheet
+        grouping contracts reject before Workbook construction. Cross-source focused Pyright and Ruff
+        passed.'
+    - kind: test
+      reference: frontend/src/views/reporting/__tests__/CaseSetupPage.test.ts
+    - kind: test
+      reference: tests/api/test_study_excel_export.py
+    note: 'Browser routes and consumers use local patient/examination IDs and omit identity hashes; local
+      cohort hash grouping remains. FHIR export 2.0 and selected-case export 2.0 use local IDs; study
+      workbooks contain no hash columns. Validated annotation/timestamp CSV remains streamable; arbitrary
+      metadata streams still require an explicit validated contract. Verification: selected frontend suites
+      119 tests pass across corrected runs; source/component-test type checks pass; host workbook/guard
+      16 tests pass across corrected runs; source-overlay Pyright passes; API generation and freshness
+      pass with inherited production credential handles unset for existing test settings. No deployment
+      or production readiness claim.'
+    assessed_by: codex-patient-hash-01a1543d
+    assessed_at: '2026-10-19T13:56:14.939929Z'
 - id: practitioner_annotation_comparisons
   category: functionality
   title: Dashboard displays named annotation and finalized report comparisons
@@ -76,11 +115,15 @@ definition_of_done:
     - kind: command
       reference: '2026-10-15: 13 dashboard/API-prefix tests passed; vue-tsc build, scoped ESLint, OpenAPI
         freshness with source-aligned PYTHONPATH, structure lint and diff checks passed.'
-    note: Implemented guidance, distinct frame-label totals, participation milestones and separate page-scoped
-      human/AI overlap with run details. Requires matching endoreg-db changes in /home/admin/endoreg-db.
-      Live browser review and production-scale load validation not performed; no deployment.
+    - kind: command
+      reference: '2026-10-15 neutral dashboard refinement: 16 component tests passed including zero/exact/extended
+        milestone boundaries; scoped ESLint, vue-tsc build, structure lint and git diff checks passed.'
+    note: Neutral professional dashboard copy, dark header, volume-based level badge and reached/next/locked
+      milestone track. Existing totals, overlap math and API contracts preserved. No personal greetings
+      or motivational messages. Live browser review and production-scale validation remain unverified;
+      no deployment.
     assessed_by: codex-dashboard-20261015
-    assessed_at: '2026-10-15T07:55:05.922718Z'
+    assessed_at: '2026-10-15T10:18:41.828009Z'
 - id: route_paths
   category: requirements
   title: Frontend paths resolve against the intended backend mount

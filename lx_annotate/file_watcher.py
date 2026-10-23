@@ -8,6 +8,7 @@ import glob
 import logging
 import os
 import shutil
+import stat
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -316,12 +317,12 @@ def unload_ollama_model(model_name: str = "llama3.2:1b") -> None:
         )
 
 
-def should_ignore_file(file_path: str | Path) -> bool:
+def should_ignore_file(file_path: str | Path, *, directory: bool = False) -> bool:
     """Skip internal/temporary files and quarantine paths."""
     p = Path(file_path)
     if any(is_in_progress_handoff_path(part) for part in p.parts):
         return True
-    if p.suffix == ".lock":
+    if not directory and p.suffix == ".lock":
         return True
     if any(part == "_processing" for part in p.parts):
         return True
@@ -744,6 +745,17 @@ class FileWatcherService:
         """
         try:
             self._validate_django_setup()
+            if not any(
+                next(self._iter_unprocessed_files(directory, extensions), None)
+                is not None
+                for directory, extensions, _ in self._intake_groups()
+            ):
+                logger.info("File watcher intake scan empty: submitted=0")
+                return 0
+            # OCR installs signal handlers: initialize here, never in the executor.
+            _preload_processing_stack()
+            # Rescan after initialization; arrivals after this pass remain in intake
+            # for the existing periodic retry, including unstable/unclaimed sources.
             return self._process_existing_files()
         except Exception as exc:
             logger.error(
@@ -774,22 +786,41 @@ class FileWatcherService:
         directory: Path,
         extensions: Set[str],
     ) -> Iterator[Path]:
-        for candidate in directory.rglob("*"):
-            if (
-                candidate.is_file()
-                and not candidate.is_symlink()
-                and candidate.suffix.lower() in extensions
-                and not should_ignore_file(candidate)
-            ):
+        _require_intake_directory(directory, label="Watcher")
+
+        def discovery_error(error: OSError) -> None:
+            raise OSError(error.errno, "Watcher intake discovery failed") from None
+
+        # Unlike Path.rglob, walk with onerror cannot silently classify an
+        # unreadable subtree as empty. Never traverse unpublished or linked trees.
+        for root, directories, filenames in os.walk(directory, onerror=discovery_error):
+            directories[:] = [
+                name
+                for name in directories
+                if not should_ignore_file(Path(root) / name, directory=True)
+                and not (Path(root) / name).is_symlink()
+            ]
+            for name in filenames:
+                candidate = Path(root) / name
+                if candidate.suffix.lower() not in extensions or should_ignore_file(
+                    candidate
+                ):
+                    continue
+                try:
+                    mode = candidate.lstat().st_mode
+                except FileNotFoundError:
+                    # Another trigger may have claimed this source atomically.
+                    continue
+                if not stat.S_ISREG(mode):
+                    continue
                 path_str = str(candidate)
                 with self.handler.files_lock:
                     if path_str in self.handler.in_flight_files:
                         continue
                 yield candidate
 
-    def _process_existing_files(self) -> int:
-        submitted_count = 0
-        intake_groups = (
+    def _intake_groups(self) -> tuple[tuple[Path, Set[str], str], ...]:
+        return (
             (self.report_dir, self.handler.report_extensions, "report"),
             (
                 self.pseudonymized_dir,
@@ -799,7 +830,9 @@ class FileWatcherService:
             (self.video_dir, self.handler.video_extensions, "video"),
         )
 
-        for directory, extensions, file_kind in intake_groups:
+    def _process_existing_files(self) -> int:
+        submitted_count = 0
+        for directory, extensions, file_kind in self._intake_groups():
             for candidate in self._iter_unprocessed_files(directory, extensions):
                 if submitted_count == 0:
                     logger.info("Processing existing files...")
@@ -847,7 +880,8 @@ class FileWatcherService:
 def run_file_watcher(*, process_existing_once: bool = False) -> None:
     logger.info("Starting File Watcher Service")
     logger.info("Django settings: %s", os.environ.get("DJANGO_SETTINGS_MODULE"))
-    _preload_processing_stack()
+    if not process_existing_once:
+        _preload_processing_stack()
     service = FileWatcherService()
     if process_existing_once:
         submitted_count = service.process_existing_once()

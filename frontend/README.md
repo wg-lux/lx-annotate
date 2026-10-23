@@ -12,6 +12,16 @@ Vue 3 + TypeScript frontend for annotation workflows in LX-Annotate.
 
 ## Project Structure
 
+Use `<script setup lang="ts">` for components, with typed props, emits and DOM
+refs. Keep presentation in components, reusable lifecycle logic in composables,
+shared workflow state in Pinia, and API conversion in `src/api/axiosInstance.ts`.
+
+Navigation refreshes use `src/composables/usePolling.ts`: it runs on mount,
+skips ticks while work is pending, and clears its timer on scope disposal.
+Provide an `onError` handler; use `initialTask` only when loading and refreshing
+have different semantics. In-flight requests are not cancelled by the helper;
+callers that write component state after awaiting must guard against disposal.
+
 ```text
 frontend/
 ├── src/                    # Main Vue source
@@ -68,7 +78,17 @@ npm run build
 
 This writes compiled assets to Django static output as configured in `vite.config.ts`.
 
+The full HLS player is imported on demand after playlist authentication and
+validation. Its vendor chunk exceeds Vite's default 500 kB warning threshold;
+the warning is retained because the full build preserves alternate audio,
+subtitles, DRM and codec support. Opening a view alone does not load that chunk.
+Import failures surface as playback errors, and stale imports cannot attach a
+player after changing videos or unmounting.
+
 ## Available Commands
+
+`type-check:component-tests` uses the existing `tsconfig.vitest.json` to check
+Vue components and tests in both `src/` and `tests/`.
 
 ```bash
 npm run dev

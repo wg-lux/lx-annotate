@@ -179,7 +179,7 @@ def test_production_hls_real_redis_worker_loss_and_visibility(tmp_path: Path) ->
             task_failure.connect(record_failure, weak=False)
             try:
                 with start_worker(app, pool="prefork", concurrency=1,
-                                  queues=[queue], perform_ping_check=False,
+                                  max_tasks_per_child=1, queues=[queue], perform_ping_check=False,
                                   shutdown_timeout=20, loglevel="ERROR"):
                     implicit = task.apply_async(args=(1,))
                     explicit = task.apply_async(args=(1,), queue=queue, routing_key=queue)
@@ -198,7 +198,7 @@ def test_production_hls_real_redis_worker_loss_and_visibility(tmp_path: Path) ->
                     assert client.llen("attempts:" + explicit.id) == 1
                 # A fresh worker must not repeat terminally failed/ACKed work.
                 with start_worker(app, pool="prefork", concurrency=1,
-                                  queues=[queue], perform_ping_check=False,
+                                  max_tasks_per_child=1, queues=[queue], perform_ping_check=False,
                                   shutdown_timeout=20, loglevel="ERROR"):
                     time.sleep(2)
                 assert client.llen("attempts:" + implicit.id) == 2

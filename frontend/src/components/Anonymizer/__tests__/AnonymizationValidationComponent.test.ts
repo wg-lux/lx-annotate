@@ -805,4 +805,28 @@ describe('AnonymizationValidationComponent', () => {
     wrapper.unmount()
     expect(requireAnonymizationStore().fetchNext).not.toHaveBeenCalled()
   })
+
+  it('starts the raw stream only after the processed stream can play', async () => {
+    requireMediaStore().isPdf = false
+    requireMediaStore().isVideo = true
+    useAuthKcStore().user = { username: 'validator', roles: [] }
+
+    const wrapper = mountComponent({ fileId: 5, mediaType: 'video' })
+    await flushPromises()
+
+    const streamOptions = (artifactKind: 'raw' | 'processed') => {
+      const call = hoisted.useAuthenticatedVideoStream.mock.calls.find(
+        ([options]) => (options as { artifactKind?: unknown }).artifactKind === artifactKind
+      )
+      return requireDefined(call?.[0] as { enabled?: { value: boolean } } | undefined, artifactKind)
+    }
+    expect(streamOptions('processed').enabled?.value).toBe(true)
+    expect(streamOptions('raw').enabled?.value).toBe(false)
+
+    await wrapper.find('.anonymized-video video').trigger('canplay')
+    await flushPromises()
+
+    expect(streamOptions('raw').enabled?.value).toBe(true)
+    wrapper.unmount()
+  })
 })

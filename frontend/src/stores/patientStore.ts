@@ -44,7 +44,6 @@ const patientFieldValidators: Array<{
   { key: 'centerKey', accepts: isOptionalNullableString },
   { key: 'email', accepts: isOptionalNullableString },
   { key: 'phone', accepts: isOptionalNullableString },
-  { key: 'patientHash', accepts: isOptionalNullableString },
   { key: 'comments', accepts: isOptionalString },
   { key: 'isRealPerson', accepts: (value) => value === undefined || typeof value === 'boolean' },
   { key: 'pseudonymFirstName', accepts: isOptionalNullableString },
@@ -326,7 +325,6 @@ export const usePatientStore = defineStore('patient', () => {
       centerKey: formData.centerKey || null,
       email: formData.email.trim() || '',
       phone: formData.phone.trim() || '',
-      patientHash: formData.patientHash.trim() || '',
       comments: formData.comments.trim() || '',
       isRealPerson: formData.isRealPerson ?? true
     }

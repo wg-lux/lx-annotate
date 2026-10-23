@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any, cast
 from unittest.mock import patch
 
 import pytest
@@ -54,7 +55,19 @@ def test_video_sender_includes_the_validated_frame_provenance_bundle() -> None:
         ]
     )
     with (
-        patch("lx_annotate.hub.hub_export_payloads._build_video_rows", return_value={}),
+        patch(
+            "lx_annotate.hub.hub_export_payloads._build_video_rows",
+            return_value={
+                "video_file": {"processed_video_hash": "b" * 64},
+                "video_segments": [
+                    {
+                        "source_segment_id": 3,
+                        "start_frame_number": 1,
+                        "end_frame_number_exclusive": 2,
+                    }
+                ],
+            },
+        ),
         patch(
             "endoreg_db.services.hub.video_provenance.export_video_provenance",
             return_value=bundle,
@@ -65,6 +78,21 @@ def test_video_sender_includes_the_validated_frame_provenance_bundle() -> None:
     assert "provenance" in payload
     assert payload["provenance"]["video_frame_provenance"] == bundle.model_dump(
         mode="json"
+    )
+    # Processed frame 1 descends from recording frame 2 (frame 1 was dropped).
+    [segment] = cast(dict[str, Any], payload)["resource_rows"]["video_segments"]
+    assert segment["timeline_coordinates"]["recording"] == {
+        "recording_content_hash": "a" * 64,
+        "time_base_num": 1,
+        "time_base_den": 1000,
+        "first_frame_index": 2,
+        "last_frame_index": 2,
+        "first_presentation_timestamp": 170,
+        "last_presentation_timestamp": 170,
+    }
+    assert (
+        segment["timeline_coordinates"]["generation"]["first_presentation_timestamp"]
+        == 40
     )
 
 

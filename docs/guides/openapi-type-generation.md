@@ -1,5 +1,16 @@
 # OpenAPI type generation
 
+Patient and examination browser contracts use local numeric patient IDs. Case
+creation sends `patient_examination.patient` as a positive integer; hashes and
+`patient_<id>` strings are not route identifiers. Patient, timeline, examination
+and cohort responses omit identity hashes. Cohort previews expose `patient_id`
+and examination IDs while matching related records by hash only on the server.
+Pseudonym generation returns its persistence status without the generated hash.
+Consumers and the shared `lx_dtypes` contracts must be upgraded together.
+Displayed media names use resource IDs rather than source filenames. The
+response guard still rejects identity-hash fields. FHIR export version 2.0 and
+selected-case export contract 2.0 use local IDs; study workbook columns are hash-free.
+
 LX-Annotate exposes two independently owned Django Ninja APIs:
 
 - `/endoreg-api/` contains every documented route mounted by

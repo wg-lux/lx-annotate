@@ -1,4 +1,5 @@
-import axios, { r } from '@/api/axiosInstance'
+import { isAxiosError } from 'axios'
+import axios, { r, silentRequestConfig } from '@/api/axiosInstance'
 
 export interface Dataset {
   id: number
@@ -69,6 +70,41 @@ export async function delete_dataset(
     })
   ).data
 }
-export async function delete_study(id: number): Promise<void> {
-  await axios.delete(r(`media/studies/cohorts/${String(id)}/`))
+export interface StudyLedgerDeletionConflict {
+  detail: string
+  collectionEntryCount: number
+}
+// A study with captured ledger entries is deleted only with the reviewed entry count.
+export async function delete_study(
+  id: number,
+  confirmedCollectionEntryCount?: number
+): Promise<void> {
+  await axios.delete(
+    r(`media/studies/cohorts/${String(id)}/`),
+    silentRequestConfig(
+      confirmedCollectionEntryCount === undefined
+        ? {}
+        : {
+            data: {
+              delete_collection_entries: true,
+              collection_entry_count: confirmedCollectionEntryCount
+            }
+          }
+    )
+  )
+}
+export function study_ledger_deletion_conflict(
+  error: unknown
+): StudyLedgerDeletionConflict | null {
+  if (!isAxiosError(error) || error.response?.status !== 409) return null
+  // Error bodies bypass the camelCase response interceptor.
+  const data = (error.response.data ?? {}) as {
+    code?: unknown
+    detail?: unknown
+    collection_entry_count?: unknown
+  }
+  if (data.code !== 'study_collection_ledger') return null
+  const count = data.collection_entry_count
+  if (typeof count !== 'number' || !Number.isInteger(count) || count < 1) return null
+  return { detail: typeof data.detail === 'string' ? data.detail : '', collectionEntryCount: count }
 }

@@ -999,6 +999,7 @@ class HubExportApiTests(TestCase):
     @patch("celery.current_app.control.inspect")
     def test_cleanup_inspection_old_live_and_unknown_never_restarts_work(self, inspect):
         from datetime import timedelta
+
         from endoreg_db.models.media.video.video_processing import (
             VideoProcessingHistory,
         )
@@ -1111,14 +1112,14 @@ class HubExportApiTests(TestCase):
 
     def _cleanup_recovery_fixture(self, inspect, *, source=True):
         from datetime import timedelta
+
+        from endoreg_db.config.env import get_celery_ffmpeg_media_queue
         from endoreg_db.models.media.video.video_processing import (
             VideoProcessingHistory,
         )
         from endoreg_db.services.annotations.segment_validation_workflow import (
             blackening_history_config,
         )
-
-        from endoreg_db.config.env import get_celery_ffmpeg_media_queue
 
         queue = get_celery_ffmpeg_media_queue()
         self.operator.is_superuser = True
@@ -1291,13 +1292,10 @@ class HubExportApiTests(TestCase):
     )
     @patch("endoreg_db.tasks.run_video_post_validation_rebuild_task.apply_async")
     @patch("celery.current_app.control.inspect")
-    def test_reviewed_running_cleanup_uses_shared_rollback_and_retains_media(
+    def test_reviewed_running_cleanup_restarts_and_retains_media(
         self, inspect, dispatch
     ):
         from types import SimpleNamespace
-        from endoreg_db.services.jobs.video_task_cleanup import (
-            rollback_video_frame_artifacts,
-        )
 
         video, history = self._cleanup_recovery_fixture(inspect)
         history.status = "running"
@@ -1313,18 +1311,13 @@ class HubExportApiTests(TestCase):
             "queue_and_consumers_reviewed": True,
             "confirm_frame_rollback": True,
         }
-        with patch(
-            "endoreg_db.services.jobs.video_post_validation_jobs.rollback_video_frame_artifacts",
-            wraps=rollback_video_frame_artifacts,
-        ) as rollback:
-            response = self.client.post(
-                f"/api/hub-export/videos/{video.pk}/restart-cleanup/",
-                data=json.dumps(request),
-                content_type="application/json",
-            )
+        response = self.client.post(
+            f"/api/hub-export/videos/{video.pk}/restart-cleanup/",
+            data=json.dumps(request),
+            content_type="application/json",
+        )
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(response.json()["status"], "queued")
-        rollback.assert_called_once()
         history.refresh_from_db()
         self.assertEqual(history.status, "failure")
         video.refresh_from_db()

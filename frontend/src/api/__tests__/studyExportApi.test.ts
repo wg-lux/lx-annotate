@@ -17,7 +17,10 @@ import {
   buildStudyExportQuery,
   fetchStudyCohortExportWorkbook,
   fetchStudyExportOptions,
-  fetchStudyExportWorkbook
+  fetchStudyExportWorkbook,
+  fetchStudyLedgerWorkbook,
+  importStudyLedgerWorkbook,
+  sendStudyLedgerToHub
 } from '@/api/studyExportApi'
 
 describe('studyExportApi', () => {
@@ -164,5 +167,38 @@ describe('studyExportApi', () => {
       filename: 'pseudonymous-study-cohort.xlsx',
       rowCount: 2
     })
+  })
+})
+
+describe('stored study exchange', () => {
+  beforeEach(() => vi.clearAllMocks())
+  it('downloads canonical ledger with binary response and JSON errors', async () => {
+    const blob = new Blob(['workbook'])
+    hoisted.axios.get.mockResolvedValue({ data: blob, headers: { 'x-export-row-count': '3' } })
+    const result = await fetchStudyLedgerWorkbook('study-uuid')
+    expect(hoisted.axios.get).toHaveBeenCalledWith(
+      '/endoreg/media/studies/study-uuid/ledger.xlsx',
+      {
+        responseType: 'blob',
+        headers: { Accept: 'application/json' }
+      }
+    )
+    expect(result.rowCount).toBe(3)
+  })
+  it('imports workbook with multipart file preserving the source bytes', async () => {
+    hoisted.axios.post.mockResolvedValue({ data: { collections: 2 } })
+    const file = new File(['workbook'], 'study.xlsx')
+    expect(await importStudyLedgerWorkbook(file)).toBe(2)
+    const [url, form] = hoisted.axios.post.mock.calls[0] as [string, FormData]
+    expect(url).toBe('/endoreg/media/studies/ledger/import/')
+    expect(form.get('file')).toBe(file)
+  })
+  it('sends explicit source scope and optional target to hub', async () => {
+    hoisted.axios.post.mockResolvedValue({ data: {} })
+    await sendStudyLedgerToHub('study-uuid', 'source', '')
+    expect(hoisted.axios.post).toHaveBeenCalledWith(
+      '/endoreg/media/studies/study-uuid/hub-transfer/',
+      { source_node_key: 'source' }
+    )
   })
 })

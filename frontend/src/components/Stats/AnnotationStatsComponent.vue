@@ -746,7 +746,7 @@ watch(
 
 .player-title {
   font-weight: 700;
-  color: #2d3047;
+  color: var(--lx-ink);
 }
 
 .achievement-pill {
@@ -912,7 +912,7 @@ watch(
 }
 
 .overall-status-item .overall-status-value {
-  color: #2d3047;
+  color: var(--lx-ink);
   font-size: 1.15rem;
   line-height: 1;
 }

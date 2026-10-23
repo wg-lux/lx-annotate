@@ -102,6 +102,10 @@ let
       VITE_ENABLE_DEBUG = secret "VITE_ENABLE_DEBUG" "false";
       TIME_ZONE = secret "TIME_ZONE" "Europe/Berlin";
       CENTER_NAME = secret "CENTER_NAME" "Default Center";
+      LX_ANNOTATE_DEFAULT_CENTER = secret "LX_ANNOTATE_DEFAULT_CENTER" "";
+      DJANGO_IDENTITY_CENTER_ID = secret "DJANGO_IDENTITY_CENTER_ID" "";
+      DJANGO_IDENTITY_SALT_GENERATION = secret "DJANGO_IDENTITY_SALT_GENERATION" "";
+      DJANGO_IDENTITY_SALT_DELIVERY = secret "DJANGO_IDENTITY_SALT_DELIVERY" "files";
 
       # --- Authentication ---
       OIDC_RP_CLIENT_ID = secret "OIDC_RP_CLIENT_ID" "endoregdb-api";
@@ -212,6 +216,7 @@ let
       myTesseract
       secretspec
       postgresql
+      quicktype
     ]
     ++ lib.optionals enableOllama [ ollama.out ];
 
@@ -312,14 +317,6 @@ in
 
     echo "Exporting environment variables from .env.systemd file..."
     echo "Note: In dev mode you can set defaults in secretspec.toml or source them from local env by enabling the env source in your config.yaml for secretspec."
-    if [ -f ".env.systemd" ]; then
-      set -a
-      source .env.systemd
-      set +a
-      echo ".env.systemd file loaded successfully."
-    else
-      echo "Note: .env.systemd not found. Defaults apply."
-    fi
 
   '';
 }

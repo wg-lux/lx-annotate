@@ -1,8 +1,10 @@
 # lx-annotate Documentation
 
-Welcome to the developer and maintainer documentation for `lx-annotate`. These pages
-cover data modeling conventions, implementation details, and automation workflows
-used throughout the project.
+LX-Annotate supports clinical media review, annotation, and reporting.
+These guides cover clinical workflows, development, and operations.
+
+Start with the [documentation guide](guides/general-documentation.md).
+Choose a reading path or explore the [contribution roadmap](guides/general-documentation.md#roadmap).
 
 ## Contents
 
@@ -10,8 +12,8 @@ used throughout the project.
 :maxdepth: 2
 :caption: Guides
 
-agent_context
 guides/general-documentation
+agent_context
 guides/deployment-strategy
 guides/runtime-environment-contract-test
 guides/encrypted-storage-process
@@ -21,6 +23,7 @@ guides/hub-export-workflow
 guides/hub-storage-load-balancing
 guides/asset-deployment
 guides/wheel-deployment
+guides/watcher-scans
 guides/pypi
 guides/ai-training-data-export
 guides/segment-annotation-workflow
@@ -42,6 +45,7 @@ api/index
 ```
 
 ## Quick Links
+
 - Project repository: https://github.com/wg-lux/lx-annotate
 - Issue tracker: https://github.com/wg-lux/lx-annotate/issues
 - Shared type guidance: https://github.com/wg-lux/lx-data-models/tree/main/docs/guides

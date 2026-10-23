@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useAnonymizationStore, type FileItem } from '../anonymizationStore'
+import { withServerPhase } from '@/test-fixtures/anonymizationPhase'
 
 const { get, post } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }))
 vi.mock('@/api/axiosInstance', () => ({
@@ -16,6 +17,8 @@ function row(mediaType: 'video' | 'pdf'): FileItem {
     filename: `source.${mediaType}`,
     createdAt: '',
     anonymizationStatus: 'processing_anonymization',
+    anonymizationPhase: 'in_progress',
+    aiPredictionStatus: mediaType === 'video' ? 'prediction_pending' : null,
     annotationStatus: 'not_started'
   }
 }
@@ -36,10 +39,10 @@ describe('typed anonymization polling and retry', () => {
     store.overview = [row('video'), row('pdf')]
     get.mockImplementation((_url: string, config: { params: { kind: string } }) =>
       Promise.resolve({
-        data: {
+        data: withServerPhase({
           anonymizationStatus:
             config.params.kind === 'report' ? 'validated' : 'processing_anonymization'
-        }
+        } as const)
       })
     )
     store.startPolling(15, 'pdf')
@@ -81,8 +84,8 @@ describe('typed anonymization polling and retry', () => {
           data: url.includes('quarantine')
             ? { files: [] }
             : [
-                { ...row('pdf'), anonymizationStatus: pdfStatus },
-                { ...row('video'), anonymizationStatus: videoStatus }
+                withServerPhase({ ...row('pdf'), anonymizationStatus: pdfStatus }),
+                withServerPhase({ ...row('video'), anonymizationStatus: videoStatus })
               ]
         })
       )

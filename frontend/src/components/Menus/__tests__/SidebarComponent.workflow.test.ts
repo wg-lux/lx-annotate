@@ -36,14 +36,14 @@ describe('Sidebar workflow', () => {
   it('counts only the existing pending and processing statuses from overview responses', async () => {
     get.mockResolvedValue({
       data: [
-        { anonymizationStatus: 'done_processing_anonymization' },
-        { anonymizationStatus: 'done_processing_anonymization', annotationStatus: 'pending' },
-        { anonymizationStatus: 'done_processing_anonymization', annotationStatus: 'validated' },
-        { anonymizationStatus: 'processing_anonymization' },
-        { anonymizationStatus: 'extracting_frames' },
-        { anonymizationStatus: 'predicting_segments' },
-        { anonymizationStatus: 'validated' },
-        { anonymizationStatus: 1 },
+        { anonymizationPhase: 'awaiting_validation' },
+        { anonymizationPhase: 'awaiting_validation', annotationStatus: 'pending' },
+        { anonymizationPhase: 'awaiting_validation', annotationStatus: 'validated' },
+        { anonymizationStatus: 'processing_anonymization', anonymizationPhase: 'in_progress' },
+        { anonymizationStatus: 'started', anonymizationPhase: 'in_progress' },
+        { anonymizationStatus: 'anonymized', anonymizationPhase: 'in_progress' },
+        { anonymizationPhase: 'validated' },
+        { anonymizationPhase: 1 },
         null,
         'invalid',
         {}
@@ -58,7 +58,7 @@ describe('Sidebar workflow', () => {
   })
 
   it('refreshes every 30 seconds, preserves counts on failure and resets for non-array responses', async () => {
-    get.mockResolvedValueOnce({ data: [{ anonymizationStatus: 'extracting_frames' }] })
+    get.mockResolvedValueOnce({ data: [{ anonymizationStatus: 'extracting_frames', anonymizationPhase: 'in_progress' }] })
     const { wrapper } = mountSidebar()
     await flushPromises()
     const failure = new Error('Unavailable')
@@ -85,11 +85,31 @@ describe('Sidebar workflow', () => {
     )
     const { wrapper } = mountSidebar()
     wrapper.unmount()
-    resolveResponse?.({ data: [{ anonymizationStatus: 'extracting_frames' }] })
+    resolveResponse?.({ data: [{ anonymizationStatus: 'extracting_frames', anonymizationPhase: 'in_progress' }] })
     await flushPromises()
     await vi.advanceTimersByTimeAsync(60000)
     expect(get).toHaveBeenCalledTimes(1)
     expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('does not overlap slow overview refreshes', async () => {
+    const { wrapper } = mountSidebar()
+    await flushPromises()
+    let finish: ((value: { data: unknown }) => void) | undefined
+    get.mockImplementationOnce(
+      () =>
+        new Promise<{ data: unknown }>((resolve) => {
+          finish = resolve
+        })
+    )
+    await vi.advanceTimersByTimeAsync(90000)
+    expect(get).toHaveBeenCalledTimes(2)
+    finish?.({ data: [{ anonymizationStatus: 'extracting_frames', anonymizationPhase: 'in_progress' }] })
+    await flushPromises()
+    expect(wrapper.get('.workflow-badge-processing').text()).toBe('1')
+    await vi.advanceTimersByTimeAsync(30000)
+    expect(get).toHaveBeenCalledTimes(3)
+    wrapper.unmount()
   })
 
   it('updates active route groups after navigation', async () => {

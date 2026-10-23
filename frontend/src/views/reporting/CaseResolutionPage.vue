@@ -54,22 +54,6 @@
             <div>{{ linkageStatusDescription }}</div>
           </div>
         </div>
-        <div
-          v-if="patientHashDisplay || examinationHashDisplay"
-          class="col-md-6"
-        >
-          <div class="border rounded p-3 h-100 bg-light">
-            <div class="small text-uppercase text-muted fw-semibold mb-1">Hashes</div>
-            <div class="small">
-              <div>
-                <code>{{ patientHashDisplay || 'n/a' }}</code>
-              </div>
-              <div>
-                <code>{{ examinationHashDisplay || 'n/a' }}</code>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div class="row g-3 align-items-end">
@@ -265,8 +249,6 @@ type CaseResolutionMatch = {
 }
 
 type CaseResolutionPayload = {
-  patientHashDisplay?: string | null
-  examinationHashDisplay?: string | null
   pseudoPatient?: {
     id?: number | null
     matchCount?: number | null
@@ -350,15 +332,6 @@ const casePatientExaminationDropdownOptions = computed<PatientExaminationOption[
   return [...byId.values()].sort((left, right) => right.id - left.id)
 })
 
-const patientHashDisplay = computed(
-  () => caseResolution.value?.patientHashDisplay ?? currentItem.value?.patientHashDisplay ?? null
-)
-const examinationHashDisplay = computed(
-  () =>
-    caseResolution.value?.examinationHashDisplay ??
-    currentItem.value?.examinationHashDisplay ??
-    null
-)
 const pseudoPatientId = computed(() => {
   const value =
     caseResolution.value?.pseudoPatient?.id ??
@@ -391,7 +364,7 @@ const linkageStatus = computed<'not_linked' | 'suggested' | 'linked' | 'deferred
   if (linkedPatientExaminationId.value !== null) {
     return 'linked'
   }
-  if (patientHashDisplay.value || examinationHashDisplay.value || pseudoPatientId.value !== null) {
+  if (pseudoPatientId.value !== null) {
     return 'suggested'
   }
   return 'not_linked'
@@ -761,7 +734,6 @@ function resolvePatientCreateData(): PatientCreateResolution {
       centerKey: resolvedCenterKey,
       email: '',
       phone: '',
-      patientHash: '',
       comments: '',
       isRealPerson: true
     }
@@ -837,7 +809,7 @@ function patientExaminationCreatePayload(patient: Patient, examination: Examinat
     formatDateOnly(new Date().toISOString()) ||
     ''
   return {
-    patient: patient.patientHash || `patient_${String(patient.id)}`,
+    patient: patient.id,
     examination: examination.name,
     dateStart: examinationDate,
     patientBirthDate: formatDateOnly(patient.dob),

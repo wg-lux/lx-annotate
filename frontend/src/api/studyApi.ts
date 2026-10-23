@@ -36,7 +36,6 @@ export interface StudyCohortVideo {
 
 export interface StudyCohortExamination {
   patientExaminationId: number
-  caseHash: string
   examinationName: string
   examinationDate: string | null
 }
@@ -44,9 +43,7 @@ export interface StudyCohortExamination {
 export interface StudyCohortCase {
   patientExaminationId: number
   patientExaminationIds: number[]
-  caseHash: string
-  caseHashes: string[]
-  patientHash: string
+  patientId: number
   examinationName: string | null
   examinationDate: string | null
   examinations: StudyCohortExamination[]

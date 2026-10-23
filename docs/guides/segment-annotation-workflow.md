@@ -170,3 +170,10 @@ AI comparisons use existing prediction segment ranges and remain separated by ru
 the detail tables. Missing predictions are unavailable, not zero agreement. Deploy the
 updated endoreg-db contract alongside the frontend; older contracts produce a visible
 load error rather than an invented total.
+
+The dashboard uses neutral operational labels without personal greetings or motivational
+messages. A level badge counts reached volume milestones, and the milestone track
+marks reached, next and locked thresholds using both text and color. Above 1,000,
+the track retains the initial thresholds and shows the latest thousand-step milestone
+and next target. Levels measure annotation volume only; peer and AI overlap do not
+award levels. No additional requests or persisted achievement state are introduced.

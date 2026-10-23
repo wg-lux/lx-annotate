@@ -21,13 +21,21 @@ from endoreg_db.utils.paths import get_runtime_paths
 from kombu import Exchange, Queue
 
 from lx_annotate.middleware.request_throttle import parse_request_throttle_directory
+from lx_annotate.services.remote_machines import parse_remote_machines
 from lx_annotate.settings.config import load_config, load_runtime_environment
 
 logger = getLogger(__name__)
+
+
 DJANGO_SALT = load_identity_salt()
 
 # Share the deployed report-import provider contract and its existing defaults.
+# Report drafting is a separate, explicit opt-in: patient-derived clinical data is
+# sent to the model, and only a local/mTLS-protected Ollama server is supported.
 REPORTING_LLM = {
+    "drafting_enabled": os.getenv("REPORT_LLM_DRAFTING_ENABLED", "false").strip(),
+    # JSON object of additional named Ollama servers, e.g. gc-02 behind mTLS.
+    "servers": os.getenv("REPORT_LLM_SERVERS", "").strip(),
     "enabled": os.getenv("LLM_ENABLED", "true").strip(),
     "provider": os.getenv("LLM_PROVIDER", "ollama").strip().lower(),
     "model": os.getenv("LLM_MODEL", "lx-gemma4-e2b-json").strip(),
@@ -37,6 +45,15 @@ REPORTING_LLM = {
     "client_cert_file": os.getenv("LLM_CLIENT_CERT_FILE", "").strip(),
     "client_key_file": os.getenv("LLM_CLIENT_KEY_FILE", "").strip(),
 }
+
+# Remote mode: LuxNix-rendered JSON list of VPN machines the browser may switch
+# to. Selecting one navigates to that machine's own HTTPS origin and login.
+try:
+    LX_ANNOTATE_REMOTE_MACHINES = parse_remote_machines(
+        os.getenv("LX_ANNOTATE_REMOTE_MACHINES", ""),
+    )
+except ValueError as _remote_machines_error:
+    raise RuntimeError(str(_remote_machines_error)) from _remote_machines_error
 
 LX_ANNOTATE_FRAME_DECODE_MAX_CONCURRENCY = max(
     1,
@@ -695,6 +712,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "lx_annotate.middleware.lookup_tracker.KnowledgeBaseLookupTrackerLoggingMiddleware",
     "lx_annotate.middleware.PdfStreamFrameOptionsMiddleware",
+    "endoreg_db.services.privacy.response_boundary.IdentityHashResponseMiddleware",
 ]
 
 ROOT_URLCONF = "lx_annotate.urls"

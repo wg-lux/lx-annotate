@@ -1,0 +1,35 @@
+schema_version: '1.0'
+definition_id: study_fd62998d4d4244c9a2f2f5a5c6782907
+definition_version: 1.0.0
+datasets: []
+cohorts:
+- name: Follow-up study
+  hypothesis: Explicit study hypothesis
+  filters:
+    date_from: null
+    date_to: null
+    center_key: null
+    examination_name: null
+    document_type: null
+    finding: null
+    annotation_label: null
+    has_report: null
+    has_video: null
+    limit: 100
+  study_metadata:
+    participating_centers: []
+    age_groups: []
+    terminology_requirements:
+    - module: coloreg
+      version: 0.1.0
+    inclusion_criteria:
+    - name: Required examination
+      description: ''
+      concepts:
+      - module: coloreg
+        version: 0.1.0
+        kind: examination
+        name: ercp
+    analysis_definitions: []
+  definition_id: cohort_26
+  dataset_refs: []

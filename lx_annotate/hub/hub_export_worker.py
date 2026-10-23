@@ -555,7 +555,7 @@ def _validate_remote_transfer_status(
         ),
         "processed_media_hash": _expected_processed_media_hash(outbound_job),
         "transfer_mode": str(outbound_job.transfer_mode),
-        "payload_schema_version": "3.0",
+        "payload_schema_version": "7.0",
     }
     mismatches = [
         field_name

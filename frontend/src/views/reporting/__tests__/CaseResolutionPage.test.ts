@@ -90,7 +90,6 @@ type PatientStoreStub = {
     lastName: string
     dob: string
     gender: string
-    patientHash: string
   } | null
   fetchPatients: ReturnType<typeof vi.fn>
   fetchCenters: ReturnType<typeof vi.fn>
@@ -177,8 +176,7 @@ describe('CaseResolutionPage workflow linking', () => {
               firstName: 'Jane',
               lastName: 'Doe',
               dob: '1980-01-01',
-              gender: 'female',
-              patientHash: 'patient_7'
+              gender: 'female'
             }
           : null,
       fetchPatients: vi.fn().mockResolvedValue(undefined),
@@ -306,7 +304,6 @@ describe('CaseResolutionPage workflow linking', () => {
       centerKey: 'center-a',
       email: '',
       phone: '',
-      patientHash: '',
       comments: '',
       isRealPerson: true
     })

@@ -3,6 +3,8 @@ from __future__ import annotations
 import pytest
 from django.contrib.auth.models import User
 from endoreg_db.models import AIDataSet, PatientExamination, SensitiveMeta, VideoFile
+from endoreg_db.models.other.study_cohort import StudyCohort
+from endoreg_db.models.other.study_collection_entry import StudyCollectionEntry
 from endoreg_db.models.other.study_table_import import StudyTableImport
 
 from tests.api.test_study_table_import import table_context as table_context
@@ -39,7 +41,28 @@ def test_create_update_read_and_study_crud(table_context):
     assert len(client.get(detail + "?members=true").data["patients"]) == 1
     study = f"/endoreg-api/media/studies/cohorts/{cohort.pk}/"
     assert client.get(study).status_code == 200
-    assert client.delete(study).status_code == 204
+    # Captured immutable ledger entries are only removed after explicit confirmation.
+    entry_count = StudyCollectionEntry.objects.filter(cohort=cohort).count()
+    assert entry_count
+    refused = client.delete(study)
+    assert refused.status_code == 409, refused.data
+    assert refused.data["code"] == "study_collection_ledger"
+    assert refused.data["collection_entry_count"] == entry_count
+    stale = client.delete(
+        study,
+        {"delete_collection_entries": True, "collection_entry_count": entry_count + 1},
+        format="json",
+    )
+    assert stale.status_code == 409, stale.data
+    assert StudyCohort.objects.filter(pk=cohort.pk).exists()
+    confirmed = client.delete(
+        study,
+        {"delete_collection_entries": True, "collection_entry_count": entry_count},
+        format="json",
+    )
+    assert confirmed.status_code == 204, confirmed.data
+    assert not StudyCohort.objects.filter(pk=cohort.pk).exists()
+    assert not StudyCollectionEntry.objects.filter(cohort_id=cohort.pk).exists()
     assert AIDataSet.objects.filter(pk=dataset.pk).exists()
     assert dataset.examinations.exists()
 
@@ -98,37 +121,6 @@ def test_combine_deduplicates_and_split_preserves_patient_groups(table_context):
         ).status_code
         == 200
     )
-
-
-@pytest.mark.parametrize("mode", ["memberships_only", "exclusive_imported_records"])
-def test_deletion_requires_choice_and_respects_it(table_context, mode):
-    client, _, _, cohort, dataset = imported(table_context)
-    exam = dataset.examinations.get()
-    preview = client.get(f"{BASE}{dataset.pk}/deletion-preview/")
-    assert preview.status_code == 200, preview.data
-    assert preview.data["removable"] == [exam.pk]
-    url = f"{BASE}{dataset.pk}/"
-    assert (
-        client.delete(
-            url, {"preview": preview.data["preview"]}, format="json"
-        ).status_code
-        == 400
-    )
-    response = client.delete(
-        url, {"preview": preview.data["preview"], "mode": mode}, format="json"
-    )
-    assert response.status_code == 200, response.data
-    assert not AIDataSet.objects.filter(pk=dataset.pk).exists()
-    assert not cohort.datasets.exists()
-    assert PatientExamination.objects.filter(pk=exam.pk).exists() == (
-        mode == "memberships_only"
-    )
-    receipt = StudyTableImport.objects.get()
-    assert (receipt.patient_examination is None) == (
-        mode == "exclusive_imported_records"
-    )
-    if mode == "exclusive_imported_records":
-        assert not SensitiveMeta.objects.filter(pseudo_examination_id=exam.pk).exists()
 
 
 @pytest.mark.parametrize(

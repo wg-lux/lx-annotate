@@ -2,14 +2,19 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 from typing import cast
+from uuid import UUID
 
 import pytest
 from endoreg_db.models.state.anonymization import AnonymizationState
+from endoreg_db.utils.hashs import get_hub_record_pseudonym
 
 from lx_annotate.hub import hub_export_payloads
+from lx_annotate.hub.hub_export_contracts import (
+    MISSING_PSEUDONYMOUS_IDENTITY_DETAIL,
+    HubPayloadRejected,
+)
 from lx_annotate.hub.hub_export_payloads import (
     TransferPayload,
-    build_hub_identity_payload,
     _require_eligible_anonymization_status,
     _require_processed_file,
     _require_value,
@@ -23,14 +28,22 @@ from lx_annotate.hub.hub_export_payloads import (
     _validated_report_fields,
     _validated_report_processed_hash,
     _validated_video_hashes,
+    build_hub_identity_payload,
 )
+
+# Site-local persisted UUIDs; they must never appear on the wire.
+LOCAL_PATIENT_UUID = UUID("821d81f1-fb20-4e38-b777-01c67fe03001")
+LOCAL_EXAMINATION_UUID = UUID("821d81f1-fb20-4e38-b777-01c67fe03002")
+# Contract 7.0 wire values are hub-scoped UUIDv8 pseudonyms.
+PATIENT_UUID = UUID("821d81f1-fb20-8e38-b777-01c67fe03001")
+EXAMINATION_UUID = UUID("821d81f1-fb20-8e38-b777-01c67fe03002")
 
 
 def test_transfer_contract_rejects_non_processed_media_mode() -> None:
     payload = cast(
         TransferPayload,
         {
-            "payload_schema_version": "3.0",
+            "payload_schema_version": "7.0",
             "transfer_mode": "raw_media",
         },
     )
@@ -45,18 +58,40 @@ def test_transfer_contract_rejects_non_processed_media_mode() -> None:
         (None, "must be a JSON object"),
         (
             {
-                "patient_hash": "a" * 64,
-                "examination_hash": "b" * 64,
+                "patient_uuid": str(PATIENT_UUID),
+                "examination_uuid": str(EXAMINATION_UUID),
                 "patient_name": "prohibited",
             },
-            "contains prohibited fields: patient_name",
+            "Extra inputs are not permitted",
         ),
         (
             {
-                "patient_hash": "not-a-hash",
-                "examination_hash": "b" * 64,
+                "patient_uuid": str(PATIENT_UUID),
+                "examination_uuid": str(EXAMINATION_UUID),
+                "patient_hash": "a" * 64,
             },
-            "patient_hash must be a SHA-256 hex digest",
+            "Extra inputs are not permitted",
+        ),
+        (
+            {
+                "patient_uuid": "not-a-uuid",
+                "examination_uuid": str(EXAMINATION_UUID),
+            },
+            "patient_uuid",
+        ),
+        (
+            {
+                "patient_uuid": str(LOCAL_PATIENT_UUID),
+                "examination_uuid": str(EXAMINATION_UUID),
+            },
+            "UUIDv8 pseudonyms",
+        ),
+        (
+            {
+                "patient_uuid": str(PATIENT_UUID),
+                "examination_uuid": str(LOCAL_EXAMINATION_UUID),
+            },
+            "UUIDv8 pseudonyms",
         ),
     ],
 )
@@ -113,7 +148,28 @@ def _valid_segment() -> dict[str, object]:
         "validation_state": "validated",
         "export_segment": True,
         "anonymous_provenance": {"information_source_name": "prediction"},
+        "timeline_coordinates": {
+            "schema_version": "1",
+            "generation": {
+                "content_hash": "b" * 64,
+                "time_base_num": 1,
+                "time_base_den": 1000,
+                "first_frame_number": 2,
+                "last_frame_number": 4,
+                "first_presentation_timestamp": 80,
+                "last_presentation_timestamp": 160,
+            },
+            "recording_mapping_status": "unresolved",
+        },
     }
+
+
+def test_video_segments_require_timeline_coordinates() -> None:
+    segment = _valid_segment()
+    del segment["timeline_coordinates"]
+
+    with pytest.raises(ValueError, match="timeline_coordinates"):
+        _validate_video_segment(segment, raw_video_hash="video-hash", frame_count=10)
 
 
 @pytest.mark.parametrize(
@@ -177,8 +233,8 @@ def test_nested_payload_collections_require_json_objects(
 def test_unknown_resource_kind_is_rejected() -> None:
     resource_rows = {
         "sensitive_meta": {
-            "patient_hash": "a" * 64,
-            "examination_hash": "b" * 64,
+            "patient_uuid": str(PATIENT_UUID),
+            "examination_uuid": str(EXAMINATION_UUID),
         }
     }
 
@@ -214,11 +270,44 @@ def test_non_anonymized_status_is_rejected() -> None:
 
 @pytest.mark.parametrize(
     "sensitive_meta",
-    [None, SimpleNamespace(patient_hash="", examination_hash="hash")],
+    [
+        None,
+        SimpleNamespace(
+            pseudo_patient=None,
+            pseudo_examination=SimpleNamespace(uuid=LOCAL_EXAMINATION_UUID),
+        ),
+    ],
 )
-def test_sensitive_meta_requires_both_pseudonymous_hashes(sensitive_meta) -> None:
-    with pytest.raises(ValueError, match="patient_hash and examination_hash"):
-        build_hub_identity_payload(sensitive_meta)
+def test_sensitive_meta_requires_both_pseudonymous_identities(sensitive_meta) -> None:
+    with pytest.raises(HubPayloadRejected) as rejected:
+        build_hub_identity_payload(sensitive_meta, hub_node_key="hub-node")
+
+    assert rejected.value.blocker.code == "identity_evidence"
+    assert str(rejected.value) == MISSING_PSEUDONYMOUS_IDENTITY_DETAIL
+
+
+@pytest.mark.parametrize("hub_node_key", ["hub-node", "other-hub"])
+def test_sensitive_meta_identity_payload_uses_hub_pseudonyms(hub_node_key: str) -> None:
+    sensitive_meta = SimpleNamespace(
+        pseudo_patient=SimpleNamespace(uuid=LOCAL_PATIENT_UUID),
+        pseudo_examination=SimpleNamespace(uuid=LOCAL_EXAMINATION_UUID),
+    )
+
+    payload = build_hub_identity_payload(sensitive_meta, hub_node_key=hub_node_key)
+    assert payload == {
+        "patient_uuid": str(
+            get_hub_record_pseudonym(
+                LOCAL_PATIENT_UUID, kind="patient", hub_node_key=hub_node_key
+            )
+        ),
+        "examination_uuid": str(
+            get_hub_record_pseudonym(
+                LOCAL_EXAMINATION_UUID, kind="examination", hub_node_key=hub_node_key
+            )
+        ),
+    }
+    assert str(LOCAL_PATIENT_UUID) not in payload.values()
+    assert str(LOCAL_EXAMINATION_UUID) not in payload.values()
 
 
 @pytest.mark.parametrize("value", [None, ""])

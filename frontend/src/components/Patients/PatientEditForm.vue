@@ -383,7 +383,6 @@ interface PatientUpdateErrorPayload {
   center?: string | string[]
   email?: string | string[]
   phone?: string | string[]
-  patientHash?: string | string[]
 }
 
 function parseDeletionInfo(value: unknown): PatientDeletionInfo | null {
@@ -446,7 +445,6 @@ const form = reactive<PatientFormData>({
   centerKey: props.patient.centerKey || props.patient.center || null,
   email: props.patient.email || '',
   phone: props.patient.phone || '',
-  patientHash: props.patient.patientHash || '',
   comments: '', // Not used in this form
   isRealPerson: props.patient.isRealPerson ?? true
 })
@@ -459,8 +457,7 @@ const errors = reactive({
   gender: '',
   center: '',
   email: '',
-  phone: '',
-  patientHash: ''
+  phone: ''
 })
 
 // Computed

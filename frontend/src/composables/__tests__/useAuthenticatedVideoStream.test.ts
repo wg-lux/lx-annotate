@@ -1,4 +1,4 @@
-import { flushPromises, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises as flushVuePromises, mount } from '@vue/test-utils'
 import { defineComponent, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -6,6 +6,14 @@ import { useAuthenticatedVideoStream } from '@/composables/useAuthenticatedVideo
 import { buildVideoPlaybackUrls } from '@/utils/mediaUrls'
 
 const VIDEO_ID = 42
+
+enableAutoUnmount(afterEach)
+
+async function flushPromises() {
+  await flushVuePromises()
+  await vi.dynamicImportSettled()
+  await flushVuePromises()
+}
 
 const hlsMock = vi.hoisted(() => {
   type ErrorHandler = (
@@ -24,6 +32,7 @@ const hlsMock = vi.hoisted(() => {
       maxBufferLength?: number
       maxMaxBufferLength?: number
       startFragPrefetch?: boolean
+      pLoader?: new (config: { loader: new (config: unknown) => DelegateLoader }) => TestLoader
       xhrSetup?: (xhr: XMLHttpRequest, url: string) => void
     }
     handlers = new Map<string, ErrorHandler>()
@@ -42,18 +51,57 @@ const hlsMock = vi.hoisted(() => {
     }
   }
 
+  class MockLoadStats {
+    aborted = false
+    loaded = 0
+    retry = 0
+    total = 0
+    chunkCount = 0
+    bwEstimate = 0
+    loading = { start: 0, first: 0, end: 0 }
+    parsing = { start: 0, end: 0 }
+    buffering = { start: 0, first: 0, end: 0 }
+  }
+
   return {
     MockHls,
+    MockLoadStats,
     instances: [] as MockHls[]
   }
 })
+
+interface TestLoaderCallbacks {
+  onSuccess: (
+    response: { url: string; data?: unknown },
+    stats: { loaded: number },
+    context: unknown,
+    networkDetails: unknown
+  ) => void
+  onError: () => void
+  onTimeout: () => void
+}
+
+interface DelegateLoader {
+  load: (context: unknown, config: unknown, callbacks: TestLoaderCallbacks) => void
+  abort: () => void
+  destroy: () => void
+  context: unknown
+  stats: unknown
+}
+
+interface TestLoader {
+  load: (context: { url: string }, config: unknown, callbacks: TestLoaderCallbacks) => void
+  abort: () => void
+  destroy: () => void
+}
 
 const axiosMock = vi.hoisted(() => ({
   get: vi.fn()
 }))
 
 vi.mock('hls.js', () => ({
-  default: hlsMock.MockHls
+  default: hlsMock.MockHls,
+  LoadStats: hlsMock.MockLoadStats
 }))
 
 vi.mock('@/api/axiosInstance', () => ({
@@ -143,6 +191,7 @@ describe('useAuthenticatedVideoStream', () => {
   afterEach(() => vi.useRealTimers())
 
   beforeEach(() => {
+    vi.doMock('hls.js', () => ({ default: hlsMock.MockHls, LoadStats: hlsMock.MockLoadStats }))
     hlsMock.instances.length = 0
     hlsMock.MockHls.isSupported.mockReturnValue(true)
     axiosMock.get.mockResolvedValue({
@@ -151,6 +200,72 @@ describe('useAuthenticatedVideoStream', () => {
     })
     vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined)
     vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined)
+  })
+
+  it('does not import the player before a playlist has been validated', async () => {
+    const loadPlayer = vi.fn(() => ({ default: hlsMock.MockHls }))
+    vi.doMock('hls.js', loadPlayer)
+    axiosMock.get.mockRejectedValue(axiosError(403))
+    const wrapper = mountHost()
+    await flushPromises()
+    expect(loadPlayer).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it.each(['unmount', 'switch'] as const)(
+    'ignores a stale player import after %s',
+    async (action) => {
+      let finish: ((module: { default: typeof hlsMock.MockHls; LoadStats: typeof hlsMock.MockLoadStats }) => void) | undefined
+      const loadPlayer = vi.fn(
+        () =>
+          new Promise<{ default: typeof hlsMock.MockHls; LoadStats: typeof hlsMock.MockLoadStats }>((resolve) => {
+            finish = resolve
+          })
+      )
+      vi.doMock('hls.js', loadPlayer)
+      const fatalError = vi.fn()
+      const wrapper = mountHost(fatalError)
+      await vi.waitFor(() => {
+        expect(loadPlayer).toHaveBeenCalledTimes(1)
+      })
+      if (action === 'unmount') {
+        wrapper.unmount()
+      } else {
+        requireHostVm(wrapper).videoId = null
+        await flushVuePromises()
+      }
+      finish?.({ default: hlsMock.MockHls, LoadStats: hlsMock.MockLoadStats })
+      await vi.dynamicImportSettled()
+      await flushPromises()
+      expect(hlsMock.instances).toHaveLength(0)
+      if (action === 'switch') {
+        requireHostVm(wrapper).videoId = 43
+        await flushPromises()
+        expect(hlsMock.instances).toHaveLength(1)
+        expect(hlsMock.instances[0].loadSource).toHaveBeenCalledWith(
+          buildVideoPlaybackUrls(43).hlsPlaylistUrl
+        )
+        wrapper.unmount()
+      }
+      expect(fatalError).not.toHaveBeenCalled()
+    }
+  )
+
+  it('reports player import failures without attaching media', async () => {
+    const failure = new Error('Player chunk unavailable')
+    vi.doMock('hls.js', () => {
+      throw failure
+    })
+    const fatalError = vi.fn()
+    const wrapper = mountHost(fatalError)
+    await vi.dynamicImportSettled()
+    await flushPromises()
+    expect(requireHostVm(wrapper).playbackMode).toBe('error')
+    expect(hlsMock.instances).toHaveLength(0)
+    expect(fatalError).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: 'hls_playback_failed' })
+    )
+    wrapper.unmount()
   })
 
   it('waits for HTTP 202 Retry-After before configuring playback', async () => {
@@ -232,7 +347,7 @@ describe('useAuthenticatedVideoStream', () => {
       capLevelToPlayerSize: true,
       maxBufferLength: 30,
       maxMaxBufferLength: 120,
-      startFragPrefetch: false
+      startFragPrefetch: true
     })
 
     const crossOriginXhr = new XMLHttpRequest()
@@ -426,5 +541,69 @@ describe('useAuthenticatedVideoStream', () => {
 
     expect(firstConfig.signal?.aborted).toBe(true)
     wrapper.unmount()
+  })
+
+  it('serves the validated playlist to hls.js once instead of requesting it again', async () => {
+    const playlistText = '#EXTM3U\n#EXT-X-ENDLIST\n'
+    axiosMock.get.mockResolvedValue({
+      data: playlistText,
+      headers: { 'content-type': 'application/vnd.apple.mpegurl' }
+    })
+    mountHost()
+    await flushPromises()
+
+    const url = buildVideoPlaybackUrls(VIDEO_ID).hlsPlaylistUrl
+    const PlaylistLoader = hlsMock.instances[0].config.pLoader
+    if (!PlaylistLoader) throw new Error('Expected a playlist loader in the hls.js config.')
+    const delegate: DelegateLoader = {
+      load: vi.fn(),
+      abort: vi.fn(),
+      destroy: vi.fn(),
+      context: null,
+      stats: {}
+    }
+    const config = { loader: vi.fn(() => delegate) }
+
+    const callbacks = { onSuccess: vi.fn(), onError: vi.fn(), onTimeout: vi.fn() }
+    new PlaylistLoader(config).load({ url }, {}, callbacks)
+    await Promise.resolve()
+    expect(callbacks.onSuccess).toHaveBeenCalledWith(
+      { url, data: playlistText },
+      expect.objectContaining({ loaded: playlistText.length }),
+      { url },
+      null
+    )
+    expect(delegate.load).not.toHaveBeenCalled()
+    expect(axiosMock.get).toHaveBeenCalledTimes(1)
+
+    const retryCallbacks = { onSuccess: vi.fn(), onError: vi.fn(), onTimeout: vi.fn() }
+    new PlaylistLoader(config).load({ url }, {}, retryCallbacks)
+    await Promise.resolve()
+    expect(retryCallbacks.onSuccess).not.toHaveBeenCalled()
+    expect(delegate.load).toHaveBeenCalledWith({ url }, {}, retryCallbacks)
+  })
+
+  it('does not deliver the validated playlist after the loader is aborted', async () => {
+    mountHost()
+    await flushPromises()
+
+    const url = buildVideoPlaybackUrls(VIDEO_ID).hlsPlaylistUrl
+    const PlaylistLoader = hlsMock.instances[0].config.pLoader
+    if (!PlaylistLoader) throw new Error('Expected a playlist loader in the hls.js config.')
+    const delegate: DelegateLoader = {
+      load: vi.fn(),
+      abort: vi.fn(),
+      destroy: vi.fn(),
+      context: null,
+      stats: {}
+    }
+    const loader = new PlaylistLoader({ loader: vi.fn(() => delegate) })
+    const callbacks = { onSuccess: vi.fn(), onError: vi.fn(), onTimeout: vi.fn() }
+    loader.load({ url }, {}, callbacks)
+    loader.abort()
+    await Promise.resolve()
+
+    expect(callbacks.onSuccess).not.toHaveBeenCalled()
+    expect(delegate.abort).toHaveBeenCalledOnce()
   })
 })

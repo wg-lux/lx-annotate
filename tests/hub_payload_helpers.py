@@ -72,7 +72,7 @@ def hub_transfer_status_payload(
         "transfer_mode": str(job.transfer_mode),
         "transfer_status": transfer_status,
         "processing_decision": processing_decision,
-        "payload_schema_version": "3.0",
+        "payload_schema_version": "7.0",
         "status_detail": "",
     }
 
@@ -85,10 +85,8 @@ def valid_report_resource_rows(*, pdf_hash: str = "hash-1") -> dict[str, Any]:
             "anonymized_text": "Anonymized report text",
         },
         "sensitive_meta": {
-            "patient_hash": hashlib.sha256(b"test-patient").hexdigest(),
-            "examination_hash": hashlib.sha256(
-                b"test-examination:2024-01-02"
-            ).hexdigest(),
+            "patient_uuid": "821d81f1-fb20-8e38-b777-01c67fe03001",
+            "examination_uuid": "821d81f1-fb20-8e38-b777-01c67fe03002",
         },
         "raw_pdf_state": {
             "processing_started": True,

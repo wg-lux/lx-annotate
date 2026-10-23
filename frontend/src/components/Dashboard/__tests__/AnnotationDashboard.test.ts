@@ -127,7 +127,7 @@ describe('AnnotationDashboard operational state', () => {
     expect(wrapper.get('[data-test="hub-state"]').text()).toContain('Betriebsbereit')
     expect(wrapper.get('[data-test="hub-state"]').text()).toContain('source-wue')
     expect(wrapper.get('[data-test="hub-state"]').text()).toContain('Central Hub · HTTPS')
-    expect(wrapper.get('[aria-label="Meine Annotationsvergleiche"]').text()).toContain('alice')
+    expect(wrapper.get('[aria-label="Annotationsvergleiche"]').text()).toContain('alice')
 
     const links = wrapper.findAllComponents(RouterLinkStub)
     expect(links.map((link) => link.props('to'))).toEqual(

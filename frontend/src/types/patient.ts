@@ -26,7 +26,6 @@ export interface Patient {
   centerKey?: string | null
   email?: string | null
   phone?: string | null
-  patientHash?: string | null
   comments?: string
   isRealPerson?: boolean
   pseudonymFirstName?: string | null
@@ -47,7 +46,6 @@ export interface PatientFormData {
   centerKey?: string | null
   email: string
   phone: string
-  patientHash: string
   comments: string
   isRealPerson?: boolean
 }
@@ -61,7 +59,6 @@ export interface PatientCreateData {
   centerKey?: string | null
   email?: string
   phone?: string
-  patientHash?: string | null
   isRealPerson?: boolean
 }
 

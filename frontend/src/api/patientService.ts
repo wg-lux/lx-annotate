@@ -20,7 +20,6 @@ const logger = createRuntimeLogger('patient-service')
 // Shape returned by backend (snake_case); we'll map in the component
 export type GeneratePseudonymResponse = {
   patientId: number
-  patientHash: string
   persisted: boolean
   source: 'server'
   message?: string
@@ -98,11 +97,6 @@ const patientFieldRules: PatientFieldRule[] = [
   {
     key: 'phone',
     invalidMessage: 'phone must be a string|null',
-    accepts: isOptionalNullableString
-  },
-  {
-    key: 'patientHash',
-    invalidMessage: 'patientHash must be string|null',
     accepts: isOptionalNullableString
   },
   { key: 'comments', invalidMessage: 'comments must be a string', accepts: isOptionalString },
@@ -188,9 +182,7 @@ function isValidPseudonymResponse(data: unknown): data is GeneratePseudonymRespo
     return false
   }
   const requiredFieldsAreValid =
-    typeof data.patientId === 'number' &&
-    typeof data.patientHash === 'string' &&
-    typeof data.persisted === 'boolean'
+    typeof data.patientId === 'number' && typeof data.persisted === 'boolean'
   return requiredFieldsAreValid && data.source === 'server'
 }
 
@@ -213,7 +205,6 @@ function isString(value: unknown): value is string {
 function buildPseudonymResponse(data: GeneratePseudonymResponse): GeneratePseudonymResponse {
   return {
     patientId: data.patientId,
-    patientHash: data.patientHash,
     persisted: data.persisted,
     source: 'server',
     ...(data.message === undefined ? {} : { message: data.message }),
@@ -231,13 +222,12 @@ function buildPatientCreateData(patientForm: PatientFormData): PatientCreateData
     centerKey: patientForm.centerKey || null,
     email: patientForm.email,
     phone: patientForm.phone,
-    patientHash: patientForm.patientHash || null,
     isRealPerson: patientForm.isRealPerson ?? true
   }
 }
 
 function pruneEmptyPatientFields(formattedData: PatientCreateData): PatientCreateData {
-  const optionalKeys = new Set<string>(['gender', 'patientHash', 'center', 'centerKey'])
+  const optionalKeys = new Set<string>(['gender', 'center', 'centerKey'])
   const pruned = Object.fromEntries(
     Object.entries(formattedData).filter(([key, value]) => !optionalKeys.has(key) || value !== '')
   ) as PatientCreateData

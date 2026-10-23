@@ -5,6 +5,7 @@ import base64
 import hashlib
 import json
 import os
+import secrets
 import tempfile
 from collections.abc import Iterable
 from pathlib import Path
@@ -46,7 +47,9 @@ TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
 os.environ.setdefault("LX_ANNOTATE_MASTER_KEY", TEST_MASTER_KEY)
 
 
-@override_settings(LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS=False)
+@override_settings(
+    LX_ANNOTATE_HUB_EXPORT_REQUIRE_MTLS=False, DJANGO_SALT=secrets.token_hex(32)
+)
 class HubExportWorkerTests(TestCase):
     def setUp(self) -> None:
         from endoreg_db.utils.paths import get_runtime_paths
@@ -115,6 +118,33 @@ class HubExportWorkerTests(TestCase):
             target_node=self.hub_node,
             transfer_key="site-node__report__report-hash-1__processed_v1",
         )
+
+    @patch("lx_annotate.hub.hub_export_worker.requests.get")
+    @patch("lx_annotate.hub.hub_export_worker.requests.post")
+    def test_legacy_identity_hashes_block_before_network(
+        self, post_mock: MagicMock, get_mock: MagicMock
+    ) -> None:
+        meta = self.report.sensitive_meta
+        assert meta is not None
+        identity = (meta.patient_hash, meta.examination_hash)
+        with patch(
+            "lx_annotate.hub.hub_export_worker.build_transfer_payload",
+            return_value={
+                "resource_rows": {"sensitive_meta": {"patient_hash": meta.patient_hash}}
+            },
+        ):
+            run_outbound_transfer_job(
+                outbound_job_id=str(self.job.pk),
+                source_node_key=self.site_node.node_key,
+                source_secret="test-node-secret",
+            )
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.failure_class, "configuration_rejection")
+        self.assertIn("must remain on the source", self.job.last_error)
+        post_mock.assert_not_called()
+        get_mock.assert_not_called()
+        meta.refresh_from_db()
+        self.assertEqual(identity, (meta.patient_hash, meta.examination_hash))
 
     def test_ciphertext_upload_stream_rejects_oversized_envelope_header(self) -> None:
         ciphertext_path = Path(self.envelope_tempdir.name) / "ciphertext.bin"

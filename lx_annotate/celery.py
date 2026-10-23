@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping
 from typing import cast
 
 from celery import Celery
@@ -9,50 +10,78 @@ from django.core.exceptions import ImproperlyConfigured
 
 os.environ.setdefault(
     "DJANGO_SETTINGS_MODULE",
-    os.environ.get("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod"),
+    "lx_annotate.settings.settings_prod",
 )
 
-app = Celery("lx_annotate")
-app.config_from_object("django.conf:settings", namespace="CELERY")
-# Celery does not register visibility_timeout as a namespaced Django setting,
-# so preserve the documented top-level value explicitly on the real app.
-visibility_timeout = int(getattr(settings, "CELERY_VISIBILITY_TIMEOUT", 60 * 60 * 25))
-if visibility_timeout < 60 * 60 * 25:
-    raise ImproperlyConfigured(
-        "CELERY_VISIBILITY_TIMEOUT must be at least 90000 seconds.",
+# Project policy: the current longest late-ack task has a 24-hour hard limit.
+_MIN_VISIBILITY_TIMEOUT = 25 * 60 * 60
+_MISSING = object()
+
+
+def _visibility_timeout() -> int:
+    """Validate the typed Django setting; environment parsing belongs in settings."""
+    configured: object = getattr(
+        settings, "CELERY_VISIBILITY_TIMEOUT", _MIN_VISIBILITY_TIMEOUT
     )
-missing_transport_options = object()
+    if not isinstance(configured, int) or isinstance(configured, bool):
+        raise ImproperlyConfigured(
+            "CELERY_VISIBILITY_TIMEOUT must be an integer number of seconds."
+        )
+    if configured < _MIN_VISIBILITY_TIMEOUT:
+        raise ImproperlyConfigured(
+            "CELERY_VISIBILITY_TIMEOUT must be at least 90000 seconds."
+        )
+    return configured
 
 
-def _visibility_transport_options(setting_name: str) -> dict[str, object]:
-    configured: object = getattr(settings, setting_name, missing_transport_options)
-    if configured is missing_transport_options:
-        options: dict[str, object] = {}
-    elif isinstance(configured, dict):
-        options = cast(dict[str, object], configured.copy())
-    else:
+def _visibility_transport_options(
+    setting_name: str, visibility_timeout: int
+) -> dict[str, object]:
+    """Default an absent mapping; reject explicitly incomplete or conflicting ones."""
+    configured: object = getattr(settings, setting_name, _MISSING)
+    if configured is _MISSING:
+        return {"visibility_timeout": visibility_timeout}
+    if not isinstance(configured, Mapping):
         raise ImproperlyConfigured(f"{setting_name} must be a mapping.")
 
+    options: dict[str, object] = {}
+    for key, value in cast(Mapping[object, object], configured).items():
+        if not isinstance(key, str):
+            raise ImproperlyConfigured(
+                f"{setting_name} must be a mapping with string keys."
+            )
+        options[key] = value
+
+    configured_timeout = options.get("visibility_timeout")
     if (
-        configured is not missing_transport_options
-        and options.get("visibility_timeout") != visibility_timeout
+        not isinstance(configured_timeout, int)
+        or isinstance(configured_timeout, bool)
+        or configured_timeout != visibility_timeout
     ):
         raise ImproperlyConfigured(
-            f"{setting_name} visibility_timeout must equal CELERY_VISIBILITY_TIMEOUT.",
+            f"{setting_name} visibility_timeout must equal CELERY_VISIBILITY_TIMEOUT "
+            "and be an integer number of seconds."
         )
-    options["visibility_timeout"] = visibility_timeout
     return options
 
 
+app = Celery("lx_annotate")
+app.config_from_object("django.conf:settings", namespace="CELERY", force=True)
+
+# Validate eagerly, including entry points using settings.configure().
+visibility_timeout = _visibility_timeout()
 broker_transport_options = _visibility_transport_options(
-    "CELERY_BROKER_TRANSPORT_OPTIONS",
+    "CELERY_BROKER_TRANSPORT_OPTIONS", visibility_timeout
 )
 result_backend_transport_options = _visibility_transport_options(
-    "CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS",
+    "CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS", visibility_timeout
 )
+
+# Namespaced keys take precedence over the original Django settings and keep
+# the validated mapping copies effective on the application.
 app.conf.update(
-    visibility_timeout=visibility_timeout,
-    broker_transport_options=broker_transport_options,
-    result_backend_transport_options=result_backend_transport_options,
+    CELERY_VISIBILITY_TIMEOUT=visibility_timeout,
+    CELERY_BROKER_TRANSPORT_OPTIONS=broker_transport_options,
+    CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS=result_backend_transport_options,
 )
 app.autodiscover_tasks()

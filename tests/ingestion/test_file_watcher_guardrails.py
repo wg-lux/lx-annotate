@@ -209,7 +209,8 @@ def test_acceptance_watcher_can_process_existing_files_once(monkeypatch):
     assert calls == [True]
 
 
-def test_run_file_watcher_preloads_processing_stack_before_processing(monkeypatch):
+@pytest.mark.parametrize("once", [False, True])
+def test_run_file_watcher_defers_one_shot_preload_to_discovery(monkeypatch, once):
     import lx_annotate.file_watcher as watcher
 
     events = []
@@ -232,9 +233,11 @@ def test_run_file_watcher_preloads_processing_stack_before_processing(monkeypatc
     )
     monkeypatch.setattr(watcher, "FileWatcherService", FakeFileWatcherService)
 
-    watcher.run_file_watcher(process_existing_once=True)
+    watcher.run_file_watcher(process_existing_once=once)
 
-    assert events == ["preload", "service", "process-existing"]
+    assert events == (
+        ["service", "process-existing"] if once else ["preload", "service", "start"]
+    )
 
 
 def test_file_watcher_service_accepts_preprovisioned_intake(monkeypatch, tmp_path):

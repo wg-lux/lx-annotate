@@ -543,7 +543,6 @@ describe('ReportingShell media preload', () => {
               id: 42,
               firstName: 'Pat',
               lastName: 'Ient',
-              patientHash: 'patient_42'
             }
           ]
         })
@@ -755,7 +754,6 @@ describe('ReportingShell media preload', () => {
           lastName: 'Patient',
           dob: null,
           isRealPerson: false,
-          patientHash: null
         },
         latestReport: null,
         latestVideo: null,
@@ -2123,6 +2121,7 @@ describe('ReportingShell media preload', () => {
     }
     expect(streamOptions.videoId.value).toBe(999)
     expect(streamOptions.artifactKind.value).toBe('processed')
+    expect(streamOptions.enabled?.value).toBe(false)
 
     const rawButton = requireDefined(
       wrapper.findAll('button').find((button) => button.text().trim() === 'raw'),
@@ -2133,6 +2132,7 @@ describe('ReportingShell media preload', () => {
     await flushPromises()
 
     expect(streamOptions.artifactKind.value).toBe('raw')
+    expect(streamOptions.enabled?.value).toBe(true)
   })
 
   it('updates video and frame preview URLs after media refresh', async () => {
@@ -2358,7 +2358,7 @@ describe('ReportingShell media preload', () => {
     const createPayload = hoisted.axiosApi.post.mock.calls.at(-1)?.[1]
     expect(createPayload).toMatchObject({
       patientExamination: {
-        patient: 'patient_42',
+        patient: 42,
         examination: 'colonoscopy',
         knowledgeBaseModule: 'report_template_examples',
         knowledgeBaseVersion: '1.0.0'

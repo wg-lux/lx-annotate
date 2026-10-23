@@ -12,6 +12,8 @@ const video: FileItem = {
   filename: 'study-video.mp4',
   mediaType: 'video',
   anonymizationStatus: 'done_processing_anonymization',
+  anonymizationPhase: 'awaiting_validation',
+  aiPredictionStatus: 'prediction_pending' as const,
   annotationStatus: 'not_started',
   createdAt: '2026-04-30T08:00:00Z',
   sensitiveMetaId: 42,
@@ -51,7 +53,8 @@ const hlsMaterialization: HlsMaterializationOverview = {
   updatedAt: video.createdAt
 }
 
-function renderRow(file: FileItem = video) {
+// Existing row contracts cover the technical view; clinical tests pass false.
+function renderRow(file: FileItem = video, technicalDetails = true) {
   return mount(AnonymizationOverviewRow, {
     props: {
       file,
@@ -59,12 +62,62 @@ function renderRow(file: FileItem = video) {
       retryProcessing: false,
       readyForValidation: true,
       iconClass: 'ni ni-video',
-      mediaTypeBadgeClass: 'bg-primary'
+      mediaTypeBadgeClass: 'bg-primary',
+      technicalDetails
     }
   })
 }
 
 describe('AnonymizationOverviewRow', () => {
+  it.each([
+    ['prediction_pending', 'KI-Vorhersage ausstehend'],
+    ['prediction_ready', 'KI-Vorhersage bereit'],
+    ['annotation_ready', 'KI-Segmente erstellt'],
+    ['frames_unavailable', 'KI: Einzelbilder fehlen']
+  ] as const)('shows the server AI prediction state %s', (aiPredictionStatus, label) => {
+    const wrapper = renderRow({ ...video, aiPredictionStatus })
+    expect(wrapper.get('[data-test="ai-prediction-status"]').text()).toBe(label)
+  })
+
+  it('shows clinical staff one plain status column without technical cells', () => {
+    const wrapper = renderRow(video, false)
+    expect(wrapper.findAll('td')).toHaveLength(7)
+    expect(wrapper.get('[data-test="clinical-status"]').text()).toContain('Bitte validieren')
+    expect(wrapper.find('.upload-job-summary').exists()).toBe(false)
+    expect(wrapper.find('.hls-materialization-summary').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Zustand reparieren')
+  })
+
+  it.each([
+    [{ uploadJob: failedImport }, true],
+    [{ uploadJob: { ...failedImport, errorCode: 'duplicate_content' as const } }, false],
+    [{ hlsMaterializations: [{ ...hlsMaterialization, status: 'failed' as const }] }, true],
+    [{}, false]
+  ])('marks hidden technical errors without exposing their detail %#', (overrides, marked) => {
+    const clinical = renderRow({ ...video, ...overrides }, false)
+    expect(clinical.find('[data-test="technical-issue-marker"]').exists()).toBe(marked)
+    expect(clinical.text()).not.toContain('Server-Log')
+    const technical = renderRow({ ...video, ...overrides }, true)
+    expect(technical.find('[data-test="technical-issue-marker"]').exists()).toBe(false)
+  })
+
+  it.each([
+    [{ anonymizationStatus: 'failed', anonymizationPhase: 'failed' }, 'Verarbeitung fehlgeschlagen'],
+    [{ anonymizationStatus: 'started', anonymizationPhase: 'in_progress' }, 'Wird verarbeitet'],
+    [{ anonymizationStatus: 'validated', anonymizationPhase: 'validated' }, 'Validiert'],
+    [{ anonymizationStatus: 'not_started', anonymizationPhase: 'not_started' }, 'Bereit zum Start'],
+    [{ quarantined: true }, 'Import angehalten'],
+    [{ importOnly: true, uploadJob: failedImport }, 'Import fehlgeschlagen']
+  ] as const)('translates server state into a clinical label %#', (overrides, label) => {
+    const wrapper = renderRow({ ...video, ...overrides }, false)
+    expect(wrapper.get('[data-test="clinical-status"] .badge').text()).toBe(label)
+  })
+
+  it('shows no AI prediction badge for rows without predictions', () => {
+    const wrapper = renderRow({ ...video, mediaType: 'pdf', aiPredictionStatus: null })
+    expect(wrapper.find('[data-test="ai-prediction-status"]').exists()).toBe(false)
+  })
+
   it('allows advertised cancellation during processing and waits for the worker acknowledgment', async () => {
     const file: FileItem = {
       ...video,
@@ -183,9 +236,12 @@ describe('AnonymizationOverviewRow', () => {
     const wrapper = renderRow()
     const cells = wrapper.findAll('td')
     const validation = wrapper.get('td.validation-action-column')
-    expect(cells).toHaveLength(10)
-    expect(cells[6].text()).toBe('Fertig')
-    expect(cells[7].text()).toBe('Nicht gestartet')
+    expect(cells).toHaveLength(11)
+    expect(cells[7].text()).toBe('Fertig')
+    expect(cells[8].get('.badge').text()).toBe('Nicht gestartet')
+    expect(cells[8].get('[data-test="ai-prediction-status"]').text()).toBe(
+      'KI-Vorhersage ausstehend'
+    )
     expect(validation.text()).toContain('Anonymisierung validieren')
     await validation.get('button').trigger('click')
     expect(wrapper.emitted('validate')).toEqual([[video]])
@@ -193,7 +249,7 @@ describe('AnonymizationOverviewRow', () => {
     await wrapper.setProps({ file: { ...video, anonymizationStatus: 'validated' } })
     expect(validation.find('button').exists()).toBe(false)
     expect(validation.text()).toBe('Anonymisierung validiert')
-    expect(cells[7].text()).toBe('Nicht gestartet')
+    expect(cells[8].get('.badge').text()).toBe('Nicht gestartet')
   })
 
   it.each([

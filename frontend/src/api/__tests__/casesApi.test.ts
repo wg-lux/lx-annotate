@@ -167,7 +167,7 @@ describe('casesApi', () => {
     const payload = {
       admissionDate: '2026-07-23T08:00:00Z',
       patientExamination: {
-        patient: 'patient-hash',
+        patient: 42,
         examination: 'colonoscopy',
         dateStart: '2026-07-23',
         knowledgeBaseModule: 'coloreg',
@@ -195,7 +195,7 @@ describe('casesApi', () => {
         createCaseWithExamination({
           admissionDate: '2026-07-23T08:00:00Z',
           patientExamination: {
-            patient: 'patient-hash',
+            patient: 42,
             examination: 'colonoscopy',
             dateStart: '2026-07-23',
             knowledgeBaseModule,

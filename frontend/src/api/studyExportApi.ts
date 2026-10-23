@@ -124,3 +124,53 @@ export async function fetchStudyCohortExportWorkbook(
     rowCount: responseRowCount(response.headers['x-export-row-count'])
   }
 }
+
+export interface StoredStudyOption {
+  uuid: string
+  name: string
+}
+export async function fetchStoredStudyOptions(): Promise<StoredStudyOption[]> {
+  return (
+    await axiosInstance.get<{ studies: StoredStudyOption[] }>(r('media/studies/ledger/options/'))
+  ).data.studies
+}
+export async function fetchStudyLedgerWorkbook(uuid: string): Promise<StudyExportDownload> {
+  const response = await axiosInstance.get<Blob>(
+    r(`media/studies/${encodeURIComponent(uuid)}/ledger.xlsx`),
+    {
+      responseType: 'blob',
+      headers: { Accept: DRF_NEGOTIATED_ACCEPT }
+    }
+  )
+  return {
+    blob: response.data,
+    filename: responseFilename(response.headers['content-disposition']),
+    rowCount: responseRowCount(response.headers['x-export-row-count'])
+  }
+}
+export async function importStudyLedgerWorkbook(file: File): Promise<number> {
+  const form = new FormData()
+  form.append('file', file)
+  return (
+    await axiosInstance.post<{ collections: number }>(r('media/studies/ledger/import/'), form)
+  ).data.collections
+}
+
+export async function sendStudyLedgerToHub(
+  uuid: string,
+  sourceNodeKey: string,
+  targetNodeKey: string
+): Promise<string> {
+  const response = await axiosInstance.post<{ id: string }>(r(`media/studies/${encodeURIComponent(uuid)}/hub-transfer/`), {
+    source_node_key: sourceNodeKey,
+    ...(targetNodeKey ? { target_node_key: targetNodeKey } : {})
+  })
+  return response.data.id
+}
+
+export async function acceptStudyHubTransfer(transferId: string): Promise<void> {
+  await axiosInstance.post(
+    r(`media/studies/hub-transfers/${encodeURIComponent(transferId)}/accept/`),
+    {}
+  )
+}

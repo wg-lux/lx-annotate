@@ -204,10 +204,9 @@ def test_xlsx_uses_or_within_categories_and_and_across_categories(
     metadata = dict(workbook["Export metadata"].iter_rows(values_only=True))
 
     assert cases[0] == (
-        "Patient pseudonym",
+        "Patient ID",
         "Center",
         "Patient examination IDs",
-        "Case pseudonyms",
         "Examination dates",
         "Examinations",
         "Indications",
@@ -223,10 +222,9 @@ def test_xlsx_uses_or_within_categories_and_and_across_categories(
         annotated_cases["follow_up_report"],
     )
     assert cases[1] == (
-        "patient-pseudo-1",
+        str(matching_case.patient_id),
         "center-a",
         f"{matching_case.pk}; {follow_up_case.pk}",
-        "'=case-formula-prefix; case-follow-up",
         "2026-08-01; 2026-09-01",
         "colonoscopy; gastroscopy",
         "screening; surveillance",
@@ -264,8 +262,7 @@ def test_xlsx_can_export_one_row_per_matching_examination(
     metadata = dict(workbook["Export metadata"].iter_rows(values_only=True))
 
     assert cases[0] == (
-        "Case pseudonym",
-        "Patient pseudonym",
+        "Patient ID",
         "Center",
         "Patient examination ID",
         "Examination date",
@@ -277,8 +274,7 @@ def test_xlsx_can_export_one_row_per_matching_examination(
         "Processed video IDs",
     )
     assert cases[1] == (
-        "'=case-formula-prefix",
-        "patient-pseudo-1",
+        str(matching_case.patient_id),
         "center-a",
         str(matching_case.pk),
         "2026-08-01",
@@ -331,7 +327,7 @@ def test_xlsx_exports_the_exact_reviewed_study_cohort_snapshot(
     metadata = dict(workbook["Export metadata"].iter_rows(values_only=True))
     assert len(cases) == 2
     assert cases[1][2] == str(matching_case.pk)
-    assert cases[1][5] == "colonoscopy"
+    assert cases[1][4] == "colonoscopy"
     assert cases[1][8] is None
     assert metadata["Export mode"] == "cohort"
     assert metadata["Study name"] == "Polyp registry 2026"
@@ -533,3 +529,65 @@ def test_export_and_options_enforce_current_center_scope(annotated_cases):
     assert APIClient().get(
         "/endoreg-api/media/studies/case-export/options/"
     ).status_code in (401, 403)
+
+
+def test_ledger_options_only_owned_studies() -> None:
+    from endoreg_db.models.other.study import Study
+
+    client = authorized_client()
+    owner = User.objects.get(username="export-admin")
+    other = User.objects.create_user(username="other-ledger-owner")
+    mine = Study.objects.create(name="Mine", created_by=owner)
+    Study.objects.create(name="Other", created_by=other)
+    response = client.get("/endoreg-api/media/studies/ledger/options/")
+    assert response.status_code == 200
+    assert response.json() == {"studies": [{"uuid": str(mine.uuid), "name": "Mine"}]}
+    assert response["Cache-Control"] == "private, no-store"
+
+
+def test_ledger_download_rejects_other_owner() -> None:
+    from endoreg_db.models.other.study import Study
+
+    other = User.objects.create_user(username="private-ledger-owner")
+    study = Study.objects.create(name="Private", created_by=other)
+    response = authorized_client().get(
+        f"/endoreg-api/media/studies/{study.uuid}/ledger.xlsx"
+    )
+    assert response.status_code == 404
+
+
+def test_ledger_import_rejects_invalid_workbook() -> None:
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    response = authorized_client().post(
+        "/endoreg-api/media/studies/ledger/import/",
+        {"file": SimpleUploadedFile("invalid.xlsx", b"not a workbook")},
+        format="multipart",
+    )
+    assert response.status_code == 400
+    assert "LX exchange format" in response.json()["detail"]
+
+
+def test_stored_study_workbook_download_import_roundtrip() -> None:
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from endoreg_db.models.other.study import Study
+    from lx_dtypes.study_exchange import study_exchange_from_xlsx
+
+    client = authorized_client()
+    owner = User.objects.get(username="export-admin")
+    study = Study.objects.create(
+        name="Empty study", hypothesis="Pending collection", created_by=owner
+    )
+    response = client.get(f"/endoreg-api/media/studies/{study.uuid}/ledger.xlsx")
+    assert response.status_code == 200
+    assert response["X-Export-Row-Count"] == "0"
+    bundle = study_exchange_from_xlsx(response.content)
+    assert bundle.studies[0].study_uuid == study.uuid
+    imported = client.post(
+        "/endoreg-api/media/studies/ledger/import/",
+        {"file": SimpleUploadedFile("study.xlsx", response.content)},
+        format="multipart",
+    )
+    assert imported.status_code == 200
+    assert imported.json() == {"collections": 0}
+    assert Study.objects.filter(uuid=study.uuid).count() == 1

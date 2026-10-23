@@ -222,10 +222,55 @@ that adds the package's `/base_api/` prefix. ReportingShell uses the existing
 Application runtime paths come from `endoreg_db.utils.paths.get_runtime_paths()`.
 Set the absolute `LX_RUNTIME_ROOT` before starting Django; `TERMINOLOGY_ROOT`
 is the model's `terminology` directory. The package's terminology service owns
-registry and bundle resolution. Reads use `load_module_kb(module, version=version)`;
-initialization uses `hydrate_shipped_terminology()`. Do not reconstruct resource
-paths or reset Ninja's API registry to change terminology.
+registry and bundle resolution. Report construction and study terminology
+requirements use
+`lx_dtypes.packages.load_registered_package(module, version=version)`, which
+resolves the exact registry identity and applies shared package validation
+before use. Historical authoring warnings remain advisory for registered reads;
+new package creation and import require the strict authoring gate.
+Invalid dependencies or graph references fail before report drafting or study
+provisioning. Runtime initialization uses `hydrate_shipped_terminology()`.
+Do not reconstruct resource paths or reset Ninja's API registry to change
+terminology.
 
 API tests use the existing application URL configuration and `packaged_registry`
 fixture. Test settings establish an isolated runtime root before importing
 routes, so route callbacks and direct loaders share the same service.
+
+## Custom packages and study definitions
+
+Use `lx_dtypes.packages.create_package` to author concepts or reporting records
+from their core models, then validate with `validate_package`. Include ledger
+examples when checking report requirements. `export_package(manifest, archive)`
+creates a validated ZIP including dependencies. `build_package(destination, files)`
+and `import_package(archive, destination)` build checked authoring folders without
+overwriting existing packages. These authoring paths do not register or activate
+a deployed bundle; use the authorized import API for deployment.
+Report packages reference their concept packages through `depends_on`; validation and runtime loading use the
+same core graph and ledger contracts. Import the validated ZIP or package
+folders through Settings → Terminology, then select the exact module/version
+for reporting and study terminology requirements.
+
+Patient-free study setup YAML is a separate `StudySetupDefinition` contract.
+Its referenced packages pass the same package validation gate during study
+creation and import. Study setup documents remain in `CONFIG_ROOT`; they are
+not knowledge-base records and must not be written into `TERMINOLOGY_ROOT`.
+The existing `import_study_setup` command supports validate, dry-run, and import
+with an explicit authorized actor.
+
+For explicit server-side folder preparation, the shared `endoreg_db` management
+command uses the host's typed atomic filesystem operations:
+
+```console
+python manage.py terminology_packages build /path/to/config.yaml custom_reporting
+python manage.py terminology_packages import /path/to/package.zip custom_reporting
+python manage.py terminology_packages export /path/to/config.yaml custom_reporting.zip
+```
+
+Build and import are alternatives: each refuses an existing destination. They
+publish below the configured runtime terminology root; export publishes below
+the runtime export root. Preparation does not activate a registry identity or
+import clinical database rows. Use the authorized terminology import/selection
+flow to make a package available to report and study consumers. These commands
+require the matching `lx-dtypes` and `endoreg-db` package releases containing
+the shared package workflow.

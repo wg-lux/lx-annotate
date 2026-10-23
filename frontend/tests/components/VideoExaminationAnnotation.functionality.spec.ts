@@ -55,7 +55,7 @@ const testState = vi.hoisted(() => {
       replace: vi.fn(),
       push: vi.fn()
     },
-    axiosGet: vi.fn<(...args: unknown[]) => unknown>(),
+    axiosGet: vi.fn<(url: string, config?: unknown) => Promise<{ data: unknown }>>(),
     axiosPost: vi.fn<(...args: unknown[]) => unknown>(),
     outsideValidatedCount: 1
   }
@@ -114,7 +114,7 @@ vi.mock('pinia', async (importOriginal) => {
 
 vi.mock('@/api/axiosInstance', () => ({
   default: {
-    get: (...args: unknown[]): unknown => testState.axiosGet(...args),
+    get: (url: string, config?: unknown) => testState.axiosGet(url, config),
     post: (...args: unknown[]): unknown => testState.axiosPost(...args),
     delete: vi.fn()
   },

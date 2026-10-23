@@ -2,13 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { effectScope, reactive } from 'vue'
 import { flushPromises } from '@vue/test-utils'
 import { useLlmReportGeneration, type LlmReportContext } from '../useLlmReportGeneration'
-import { checkReportLlmStatus, generateLlmReport } from '@/api/reportLlmApi'
+import { checkReportLlmStatus, fetchReportLlmModels, generateLlmReport } from '@/api/reportLlmApi'
 import { fetchExaminationReportingContext } from '@/api/knowledgeBaseGraphApi'
 import type { ExaminationReportingContext } from '@/types/knowledgeBaseGraph'
 
 vi.mock('@/api/reportLlmApi', () => ({
   checkReportLlmStatus: vi.fn(),
-  generateLlmReport: vi.fn()
+  generateLlmReport: vi.fn(),
+  fetchReportLlmModels: vi.fn()
 }))
 vi.mock('@/api/knowledgeBaseGraphApi', () => ({ fetchExaminationReportingContext: vi.fn() }))
 
@@ -218,5 +219,67 @@ describe('status-gated LLM report generation', () => {
     await generation.generate()
     expect(generation.error.value).toBe('Timeout')
     expect(applyText).not.toHaveBeenCalled()
+  })
+})
+
+describe('LLM model selection', () => {
+  const options = {
+    servers: [
+      {
+        id: 'local',
+        label: 'Lokal',
+        ready: true,
+        models: ['glm4:latest', 'gemma4:e2b'],
+        code: null
+      },
+      { id: 'gc-02', label: 'gc-02', ready: true, models: ['gemma4:e2b'], code: null }
+    ],
+    default: { server: 'local', model: 'gemma4:e2b' }
+  }
+
+  it('preselects the backend default and sends the chosen server and model', async () => {
+    vi.mocked(fetchReportLlmModels).mockResolvedValue(options)
+    const { generation } = setup()
+    await generation.loadModels()
+    expect(generation.selection.value).toEqual(options.default)
+    generation.select('gc-02', 'gemma4:e2b')
+    await generation.generate()
+    const chosen = { server: 'gc-02', model: 'gemma4:e2b' }
+    expect(checkReportLlmStatus).toHaveBeenCalledWith(expect.any(AbortSignal), chosen)
+    expect(generateLlmReport).toHaveBeenCalledWith(
+      expect.objectContaining({ llmServer: 'gc-02', llmModel: 'gemma4:e2b' }),
+      expect.any(AbortSignal)
+    )
+  })
+
+  it('keeps a still-listed choice on reload and resets to the default otherwise', async () => {
+    vi.mocked(fetchReportLlmModels).mockResolvedValue(options)
+    const { generation } = setup()
+    await generation.loadModels()
+    generation.select('local', 'glm4:latest')
+    await generation.loadModels()
+    expect(generation.selection.value).toEqual({ server: 'local', model: 'glm4:latest' })
+    vi.mocked(fetchReportLlmModels).mockResolvedValue({
+      ...options,
+      servers: [{ ...options.servers[0], models: ['gemma4:e2b'] }]
+    })
+    await generation.loadModels()
+    expect(generation.selection.value).toEqual(options.default)
+  })
+
+  it('hides the options and reports an error when loading fails', async () => {
+    vi.mocked(fetchReportLlmModels).mockRejectedValue(new Error('down'))
+    const { generation } = setup()
+    await generation.loadModels()
+    expect(generation.servers.value).toEqual([])
+    expect(generation.modelsError.value).toBeTruthy()
+  })
+
+  it('does not send a selection before models were loaded', async () => {
+    const { generation } = setup()
+    await generation.generate()
+    const [payload] = vi.mocked(generateLlmReport).mock.calls[0]
+    expect(payload).not.toHaveProperty('llmServer')
+    expect(payload).not.toHaveProperty('llmModel')
   })
 })

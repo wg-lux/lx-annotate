@@ -1,0 +1,26 @@
+schema_version: '1.0'
+definition_id: study_50ee443fdfcb43fb9f2287ae05e3f6c7
+definition_version: 1.0.1
+datasets: []
+cohorts:
+- name: Imported table
+  hypothesis: Test membership
+  filters:
+    date_from: null
+    date_to: null
+    center_key: null
+    examination_name: null
+    document_type: null
+    finding: null
+    annotation_label: null
+    has_report: null
+    has_video: null
+    limit: 100
+  study_metadata:
+    participating_centers: []
+    age_groups: []
+    terminology_requirements: []
+    inclusion_criteria: []
+    analysis_definitions: []
+  definition_id: cohort_15
+  dataset_refs: []

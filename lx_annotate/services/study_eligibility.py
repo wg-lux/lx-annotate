@@ -17,15 +17,21 @@ from django.db.models import (
 )
 from django.db.models.functions import ExtractDay, ExtractMonth, ExtractYear
 from endoreg_db.models import PatientExamination, PatientFinding
+from lx_dtypes.models.contracts.dtypes_record_persistence import (
+    DtypesRecordPersistencePayload,
+)
 from lx_dtypes.models.contracts.study_metadata import StudyMetadata
-from lx_dtypes.terminology.terminology_loader import load_module_kb
+from lx_dtypes.models.ledger.p_examination import PExamination
+from lx_dtypes.packages import PackageValidationError, load_registered_package
+from lx_dtypes.stats import evaluate_study_dataset, validate_study_analysis
+from lx_dtypes.stats.study_linkage import assemble_coloreg_analysis_units
 from lx_dtypes.terminology.terminology_service import TerminologyError
 
 
 def validate_study_terminology(metadata: StudyMetadata) -> None:
     try:
         packages = {
-            (requirement.module, requirement.version): load_module_kb(
+            (requirement.module, requirement.version): load_registered_package(
                 requirement.module, version=requirement.version
             )
             for requirement in metadata.terminology_requirements
@@ -40,6 +46,12 @@ def validate_study_terminology(metadata: StudyMetadata) -> None:
                         package.get_finding(concept.name)
                     case unreachable:
                         assert_never(unreachable)
+        for definition in metadata.analysis_definitions:
+            validate_study_analysis(
+                definition, packages[(definition.module, definition.version)]
+            )
+    except PackageValidationError as error:
+        raise ValueError("Study terminology package validation failed") from error
     except (TerminologyError, KeyError) as error:
         raise ValueError(
             f"Unresolved study terminology requirement: {error}"
@@ -122,3 +134,72 @@ def apply_study_eligibility(
             alternatives |= identity & evidence
         cases = cases.filter(alternatives)
     return cases
+
+
+def evaluate_study_records(
+    cases: QuerySet[PatientExamination], metadata: StudyMetadata
+) -> dict[str, object]:
+    """Read canonical persisted ledgers; evaluation never accepts browser records."""
+    if not metadata.analysis_definitions:
+        raise ValueError("No study analysis definitions are configured.")
+    records: list[PExamination] = []
+    missing = 0
+    for case in cases.select_related("examination").order_by("pk").iterator():
+        if not case.dtypes_record:
+            missing += 1
+            continue
+        payload = DtypesRecordPersistencePayload.model_validate(case.dtypes_record)
+        if (
+            case.examination is None
+            or payload.patient != str(case.patient_id)
+            or payload.examination != case.examination.name
+            or payload.knowledge_base_module != case.knowledge_base_module
+            or payload.knowledge_base_version != case.knowledge_base_version
+        ):
+            raise ValueError("Persisted study record does not match its examination.")
+        records.append(PExamination.model_validate(payload.model_dump(mode="python")))
+    analyses: list[dict[str, object]] = []
+    skipped: list[dict[str, object]] = []
+    evaluated_records: set[str] = set()
+    for definition in metadata.analysis_definitions:
+        if definition.status == "draft":
+            skipped.append(
+                {
+                    "analysis_name": definition.name,
+                    "reason": "draft",
+                    "unresolved_requirements": definition.unresolved_requirements,
+                }
+            )
+            continue
+        package_records = [
+            record
+            for record in records
+            if (record.knowledge_base_module, record.knowledge_base_version)
+            == (definition.module, definition.version)
+        ]
+        knowledge_base = load_registered_package(
+            definition.module, version=definition.version
+        )
+        units = (
+            assemble_coloreg_analysis_units(package_records)
+            if definition.module == "coloreg"
+            and definition.unit_finding == "coloreg_polyp_resection"
+            else None
+        )
+        statistics = evaluate_study_dataset(
+            definition, package_records, knowledge_base, units=units
+        )
+        evaluated_records.update(str(record.uuid) for record in package_records)
+        analyses.append(
+            {
+                **statistics.model_dump(mode="json"),
+                "package_mismatch_record_count": len(records) - len(package_records),
+            }
+        )
+    return {
+        "dataset_examination_count": len(records) + missing,
+        "evaluated_examination_count": len(evaluated_records),
+        "missing_record_count": missing,
+        "analyses": analyses,
+        "skipped_analyses": skipped,
+    }

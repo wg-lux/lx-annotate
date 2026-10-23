@@ -2,11 +2,9 @@
   <div class="container-fluid py-4 annotation-dashboard">
     <section class="dashboard-hero mb-4">
       <div>
-        <p class="state-kicker">Ihr Annotationsarbeitsplatz</p>
-        <h2 class="dashboard-title mb-1">Jede sorgfältige Annotation zählt.</h2>
-        <p class="dashboard-subtitle mb-0">
-          Fortschritt verfolgen, Unterschiede verstehen und den nächsten Schritt finden.
-        </p>
+        <p class="state-kicker">Annotationsarbeitsplatz</p>
+        <h2 class="dashboard-title mb-1">Annotationsdashboard</h2>
+        <p class="dashboard-subtitle mb-0">Aktivität, Meilensteine und Annotationsvergleiche.</p>
       </div>
 
       <button
@@ -16,19 +14,18 @@
         data-test="refresh-operational-state"
         @click="refreshOperationalState"
       >
-        {{ loadingOperationalState ? 'Aktualisiere …' : 'Status aktualisieren' }}
+        {{ loadingOperationalState ? 'Aktualisierung …' : 'Status aktualisieren' }}
       </button>
     </section>
 
     <AnnotationComparisons />
     <section
       class="workflow-guide"
-      aria-label="Ihr nächster Schritt"
+      aria-label="Annotationsworkflows"
     >
       <div class="guide-heading">
-        <p class="state-kicker">Orientierung</p>
-        <h3 class="h5">In drei Schritten zur geprüften Annotation</h3>
-        <p>Arbeiten Sie in Ihrem Tempo. Sorgfalt zählt mehr als Geschwindigkeit.</p>
+        <p class="state-kicker">Workflows</p>
+        <h3 class="h5">Annotation & Analyse</h3>
       </div>
       <ol class="guide-steps">
         <li>
@@ -52,7 +49,7 @@
           >
           <div>
             <RouterLink to="/frame-annotation">Frames beurteilen</RouterLink>
-            <p>Einzelbilder sorgfältig bewerten. Unklare Befunde nicht als negativ einstufen.</p>
+            <p>Frame-basierte Labels erfassen und bestehende Annotationen prüfen.</p>
           </div>
         </li>
         <li>
@@ -62,10 +59,9 @@
             >03</span
           >
           <div>
-            <a href="#annotation-comparisons">Unterschiede reflektieren</a>
+            <a href="#annotation-comparisons">Vergleiche analysieren</a>
             <p>
-              Labels und Zeitgrenzen vergleichen. Hohe Überlappung ist kein Beleg für diagnostische
-              Richtigkeit.
+              Label-Übereinstimmung und zeitliche Überlappung mit Annotatoren und KI analysieren.
             </p>
           </div>
         </li>
@@ -466,22 +462,27 @@ onMounted(() => {
   padding: 2rem;
   border: 1px solid var(--dashboard-border);
   border-radius: 14px;
-  background: radial-gradient(
-    circle at top left,
-    rgba(67, 86, 255, 0.16),
-    rgba(67, 86, 255, 0.03) 45%,
-    rgba(255, 255, 255, 0.95) 70%
-  );
+  background: #172d45;
+  box-shadow: 0 8px 24px #172d4514;
 }
 
 .dashboard-title {
-  color: #2d3047;
+  color: #fff;
   font-size: clamp(1.5rem, 3vw, 2.25rem);
   font-weight: 700;
 }
 
+.dashboard-hero .state-kicker,
 .dashboard-subtitle {
-  color: #63748a;
+  color: #c2d2e3;
+}
+
+.dashboard-hero .btn {
+  color: #fff;
+  border-color: #71869e;
+}
+.dashboard-hero .btn:hover {
+  background: #29445f;
 }
 
 .operational-state-grid {
@@ -509,7 +510,7 @@ onMounted(() => {
 
 .state-card-heading-text {
   margin: 0;
-  color: #2d3047;
+  color: var(--lx-ink);
   font-size: 1rem;
 }
 
@@ -540,7 +541,7 @@ onMounted(() => {
 }
 
 .state-metric-value {
-  color: #2d3047;
+  color: var(--lx-ink);
   font-size: 1.8rem;
 }
 
@@ -583,7 +584,7 @@ onMounted(() => {
 }
 
 .cohort-metric-value {
-  color: #2d3047;
+  color: var(--lx-ink);
   font-size: 1.25rem;
 }
 
@@ -638,6 +639,13 @@ onMounted(() => {
   gap: 0.8rem;
 }
 .step-number {
+  display: grid;
+  place-items: center;
+  flex: 0 0 2.5rem;
+  height: 2.5rem;
+  border: 1px solid #d6e2ef;
+  border-radius: 10px;
+  background: #fff;
   color: #315b9b;
   font-size: 0.85rem;
   font-weight: 700;

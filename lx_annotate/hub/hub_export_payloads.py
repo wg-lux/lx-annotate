@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Literal, TypedDict, cast
+from typing import Any, Literal, Required, TypedDict, cast
+from uuid import UUID
 
 from endoreg_db.models import (
     Center,
@@ -17,15 +18,29 @@ from endoreg_db.models import (
     VideoFile,
 )
 from endoreg_db.models.state.anonymization import AnonymizationState
+from endoreg_db.services.hub.hub_pseudonyms import hub_identity_payload
+from endoreg_db.services.hub.payloads import reject_transferred_identity_hashes
 from endoreg_db.utils.hashs import get_file_hash
 from lx_dtypes.models.contracts import (
     JsonValue,
     validate_hub_transfer_report_payload,
     validate_hub_transfer_video_payload,
 )
+from lx_dtypes.models.contracts.hub_transfer import HubTransferSensitiveMetaPayload
+from lx_dtypes.models.contracts.hub_transfer import (
+    HubTransferSensitiveMetaPayloadData as SensitiveMetaPayload,
+)
+from lx_dtypes.models.contracts.video_provenance import (
+    VideoProvenanceBundle,
+    VideoProvenanceRecovery,
+)
+from lx_dtypes.models.contracts.video_segment_timeline import (
+    VideoSegmentTimelineCoordinatesData,
+)
 
 from ..models import OutboundHubTransferJob
 from .hub_export_contracts import (
+    MISSING_PSEUDONYMOUS_IDENTITY_DETAIL,
     HubPayloadRejected,
     HubRecoveryAction,
     HubRecoveryBlocker,
@@ -39,7 +54,7 @@ from .hub_export_state import (
 
 class VideoFilePayload(TypedDict, total=False):
     raw_video_hash: str
-    processed_video_hash: str
+    processed_video_hash: Required[str]
     suffix: str | None
     fps: float | None
     duration: float | None
@@ -75,11 +90,6 @@ class RawPdfStatePayload(TypedDict, total=False):
     processed_file_sha256: str
 
 
-class SensitiveMetaPayload(TypedDict, total=False):
-    patient_hash: str
-    examination_hash: str
-
-
 class FrameAnnotationPayload(TypedDict, total=False):
     annotation_id: int
     raw_video_hash: str
@@ -94,15 +104,16 @@ class FrameAnnotationPayload(TypedDict, total=False):
 
 class VideoSegmentPayload(TypedDict, total=False):
     source_node_key: str
-    source_segment_id: int
+    source_segment_id: Required[int]
     raw_video_hash: str
-    start_frame_number: int
-    end_frame_number_exclusive: int
+    start_frame_number: Required[int]
+    end_frame_number_exclusive: Required[int]
     label_name: str
     source_kind: Literal["manual_annotation", "prediction"]
     validation_state: Literal["unvalidated", "validated"]
     export_segment: bool
     anonymous_provenance: dict[str, str]
+    timeline_coordinates: VideoSegmentTimelineCoordinatesData
     model_name: str
     model_version: str
 
@@ -162,28 +173,42 @@ def _require_eligible_anonymization_status(
         )
 
 
-def build_hub_identity_payload(
+def require_local_identity_records(
     sensitive_meta: SensitiveMeta | None,
-) -> SensitiveMetaPayload:
-    patient_hash = str(getattr(sensitive_meta, "patient_hash", "") or "").strip()
-    examination_hash = str(
-        getattr(sensitive_meta, "examination_hash", "") or ""
-    ).strip()
-    try:
-        _require_sha256(patient_hash, field_name="patient_hash")
-        _require_sha256(examination_hash, field_name="examination_hash")
-    except ValueError as exc:
+) -> tuple[UUID, UUID]:
+    """Return the site-local patient/examination UUIDs; these never leave the site."""
+    patient_uuid = getattr(
+        getattr(sensitive_meta, "pseudo_patient", None), "uuid", None
+    )
+    examination_uuid = getattr(
+        getattr(sensitive_meta, "pseudo_examination", None), "uuid", None
+    )
+    if not isinstance(patient_uuid, UUID) or not isinstance(examination_uuid, UUID):
         raise HubPayloadRejected(
             HubRecoveryBlocker(
                 code="identity_evidence",
-                detail="SensitiveMeta must include patient_hash and examination_hash for hub transfer.",
+                detail=MISSING_PSEUDONYMOUS_IDENTITY_DETAIL,
                 action=HubRecoveryAction.ADMINISTRATOR_RECOVERY,
             )
-        ) from exc
+        )
+    return patient_uuid, examination_uuid
 
+
+def build_hub_identity_payload(
+    sensitive_meta: SensitiveMeta | None,
+    *,
+    hub_node_key: str,
+) -> SensitiveMetaPayload:
+    """Contract 7.0 identity: site-salted pseudonyms scoped to the target hub."""
+    patient_uuid, examination_uuid = require_local_identity_records(sensitive_meta)
+    identity = hub_identity_payload(
+        patient_uuid=patient_uuid,
+        examination_uuid=examination_uuid,
+        hub_node_key=hub_node_key,
+    )
     return {
-        "patient_hash": patient_hash,
-        "examination_hash": examination_hash,
+        "patient_uuid": str(identity.patient_uuid),
+        "examination_uuid": str(identity.examination_uuid),
     }
 
 
@@ -252,7 +277,9 @@ def _video_state_payload(state: Any, *, state_processed_hash: str) -> VideoState
     }
 
 
-def _build_video_rows(video: VideoFile, *, source_node_key: str) -> dict[str, Any]:
+def _build_video_rows(
+    video: VideoFile, *, source_node_key: str, hub_node_key: str
+) -> dict[str, Any]:
     state, processed_video_hash, state_processed_hash = _validated_video_hashes(video)
     return {
         "video_file": _video_file_payload(
@@ -263,7 +290,9 @@ def _build_video_rows(video: VideoFile, *, source_node_key: str) -> dict[str, An
             state,
             state_processed_hash=state_processed_hash,
         ),
-        "sensitive_meta": build_hub_identity_payload(video.sensitive_meta),
+        "sensitive_meta": build_hub_identity_payload(
+            video.sensitive_meta, hub_node_key=hub_node_key
+        ),
         "processing_history": {
             "file_hash": processed_video_hash,
             "success": not bool(getattr(state, "processing_error", False)),
@@ -339,7 +368,7 @@ def _report_state_payload(
     }
 
 
-def _build_report_rows(report: RawPdfFile) -> dict[str, Any]:
+def _build_report_rows(report: RawPdfFile, *, hub_node_key: str) -> dict[str, Any]:
     state, anonymized_text, processed_file_sha256 = _validated_report_fields(report)
     return {
         "raw_pdf_file": _report_file_payload(
@@ -350,7 +379,9 @@ def _build_report_rows(report: RawPdfFile) -> dict[str, Any]:
             state,
             processed_file_sha256=processed_file_sha256,
         ),
-        "sensitive_meta": build_hub_identity_payload(report.sensitive_meta),
+        "sensitive_meta": build_hub_identity_payload(
+            report.sensitive_meta, hub_node_key=hub_node_key
+        ),
         "processing_history": {
             "file_hash": report.pdf_hash,
             "success": not bool(getattr(state, "processing_error", False)),
@@ -545,13 +576,16 @@ def build_transfer_payload(
         resource_rows = _build_video_rows(
             video,
             source_node_key=source_node.node_key,
+            hub_node_key=outbound_job.target_node.node_key,
         )
         resource_hash = video.raw_video_hash
     else:
         report = outbound_job.raw_pdf_file
         if report is None:
             raise ValueError("OutboundHubTransferJob.raw_pdf_file must be set.")
-        resource_rows = _build_report_rows(report)
+        resource_rows = _build_report_rows(
+            report, hub_node_key=outbound_job.target_node.node_key
+        )
         resource_hash = report.pdf_hash
 
     source_center = outbound_job.source_center or source_node.owning_center
@@ -569,7 +603,7 @@ def build_transfer_payload(
         "processing_policy": "preserve_processing_state",
         "processing_intent": "sender_requests_state_preservation",
         "cleanup_policy": "retain_all",
-        "payload_schema_version": "3.0",
+        "payload_schema_version": "7.0",
         "resource_rows": resource_rows,
         "processing_snapshot": _build_processing_snapshot(),
         "provenance": {
@@ -597,8 +631,9 @@ def build_transfer_payload(
                     action=HubRecoveryAction.REPAIR_PROCESSING,
                 )
             ) from exc
-        from lx_dtypes.models.contracts.video_provenance import VideoProvenanceRecovery
-
+        _attach_segment_timeline_coordinates(
+            cast(dict[str, Any], resource_rows), provenance
+        )
         provenance_key = (
             "video_provenance_recovery"
             if isinstance(provenance, VideoProvenanceRecovery)
@@ -609,11 +644,46 @@ def build_transfer_payload(
     return payload
 
 
+def _attach_segment_timeline_coordinates(
+    resource_rows: dict[str, Any],
+    provenance: VideoProvenanceBundle | VideoProvenanceRecovery,
+) -> None:
+    """Bind each segment to the exact ticks of the provenance sent with it."""
+    from endoreg_db.services.video_files.segment_coordinates import (
+        SegmentFrameRange,
+        segment_timeline_coordinates,
+        wire_timeline_coordinates,
+    )
+
+    segments = cast(list[VideoSegmentPayload], resource_rows.get("video_segments", []))
+    if not segments:
+        return
+    coordinates = segment_timeline_coordinates(
+        provenance,
+        processed_content_hash=cast(VideoFilePayload, resource_rows["video_file"])[
+            "processed_video_hash"
+        ],
+        segments=[
+            SegmentFrameRange(
+                segment_id=segment["source_segment_id"],
+                start_frame_number=segment["start_frame_number"],
+                end_frame_number_exclusive=segment["end_frame_number_exclusive"],
+            )
+            for segment in segments
+        ],
+    )
+    for segment, segment_coordinates in zip(segments, coordinates, strict=True):
+        segment["timeline_coordinates"] = cast(
+            VideoSegmentTimelineCoordinatesData,
+            wire_timeline_coordinates(segment_coordinates).model_dump(mode="json"),
+        )
+
+
 def _validate_transfer_contract(
     payload: TransferPayload,
 ) -> tuple[str, dict[str, Any]]:
-    if payload.get("payload_schema_version") != "3.0":
-        raise ValueError("Outbound hub transfer requires payload_schema_version='3.0'.")
+    if payload.get("payload_schema_version") != "7.0":
+        raise ValueError("Outbound hub transfer requires payload_schema_version='7.0'.")
     if payload.get("transfer_mode") != (
         TransferJob.TransferMode.METADATA_AND_PROCESSED_MEDIA.value
     ):
@@ -740,8 +810,9 @@ def validate_transfer_payload(
     *,
     request_user=None,
 ) -> dict[str, Any]:
-    """Validate the schema 3.0 sender boundary before network registration."""
+    """Validate the schema 7.0 sender boundary before network registration."""
     del request_user
+    reject_transferred_identity_hashes(payload)
     resource_kind, canonical_payload = _validate_transfer_contract(payload)
     resource_rows = _validated_resource_rows(
         payload,
@@ -805,21 +876,7 @@ def _validate_sensitive_meta_row(resource_rows: dict[str, Any]) -> None:
     sensitive_meta = resource_rows.get("sensitive_meta")
     if not isinstance(sensitive_meta, dict):
         raise ValueError("resource_rows.sensitive_meta must be a JSON object.")
-    sensitive_meta_payload = cast(dict[str, Any], sensitive_meta)
-    _require_exact_keys(
-        sensitive_meta_payload,
-        allowed={"patient_hash", "examination_hash"},
-        required={"patient_hash", "examination_hash"},
-        field_name="resource_rows.sensitive_meta",
-    )
-    _require_sha256(
-        sensitive_meta_payload["patient_hash"],
-        field_name="resource_rows.sensitive_meta.patient_hash",
-    )
-    _require_sha256(
-        sensitive_meta_payload["examination_hash"],
-        field_name="resource_rows.sensitive_meta.examination_hash",
-    )
+    HubTransferSensitiveMetaPayload.model_validate(sensitive_meta)
 
 
 def _validate_video_resource_rows(resource_rows: dict[str, Any]) -> None:
@@ -1071,6 +1128,7 @@ def _validate_video_segment(
             "validation_state",
             "export_segment",
             "anonymous_provenance",
+            "timeline_coordinates",
             "model_name",
             "model_version",
         },
@@ -1085,6 +1143,7 @@ def _validate_video_segment(
             "validation_state",
             "export_segment",
             "anonymous_provenance",
+            "timeline_coordinates",
         },
         field_name="resource_rows.video_segments",
     )

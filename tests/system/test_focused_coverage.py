@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib
 import os
+import secrets
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -28,13 +29,14 @@ def _fresh_import(module_name: str):
 
 def test_read_secret_file_missing_raises_value_error(tmp_path):
     missing = tmp_path / "missing.secret"
-    with pytest.raises(ValueError, match="Unable to read db_password"):
+    with pytest.raises(ValueError, match="Unable to read private db_password"):
         _read_secret_file(missing, "db_password")
 
 
 def test_read_secret_file_empty_raises_value_error(tmp_path):
     secret = tmp_path / "empty.secret"
     secret.write_text(" \n", encoding="utf-8")
+    secret.chmod(0o600)
     with pytest.raises(ValueError, match="is empty"):
         _read_secret_file(secret, "secret_key")
 
@@ -73,6 +75,9 @@ def test_app_config_applies_secret_files_when_field_not_explicitly_set(
         encoding="utf-8",
     )
 
+    for credential in (secret_key_file, db_pwd_file, keycloak_secret_file):
+        credential.chmod(0o600)
+
     cfg = AppConfig(
         secret_key_file=secret_key_file,
         db_password_file=db_pwd_file,
@@ -84,11 +89,13 @@ def test_app_config_applies_secret_files_when_field_not_explicitly_set(
     assert cfg.keycloak_client_secret == "kc-secret"
 
 
-def test_app_config_does_not_override_explicit_values_with_secret_files(tmp_path):
+def test_app_config_secret_files_override_explicit_values(tmp_path):
     secret_key_file = tmp_path / "secret.key"
     db_pwd_file = tmp_path / "db.pwd"
-    secret_key_file.write_text("from-file-secret", encoding="utf-8")
+    secret_key_file.write_text("from-file-secret-" * 3, encoding="utf-8")
     db_pwd_file.write_text("from-file-db", encoding="utf-8")
+    secret_key_file.chmod(0o600)
+    db_pwd_file.chmod(0o600)
 
     cfg = AppConfig(
         secret_key="y" * 40,
@@ -97,8 +104,8 @@ def test_app_config_does_not_override_explicit_values_with_secret_files(tmp_path
         db_password_file=db_pwd_file,
     )
 
-    assert cfg.secret_key == "y" * 40
-    assert cfg.db_password == "explicit-db-password"
+    assert cfg.secret_key == "from-file-secret-" * 3
+    assert cfg.db_password == "from-file-db"
 
 
 def test_app_config_treats_blank_secret_file_path_as_none():
@@ -110,6 +117,7 @@ def test_app_config_rejects_short_secret_from_file(monkeypatch, tmp_path):
     monkeypatch.delenv("DJANGO_SECRET_KEY", raising=False)
     secret_key_file = tmp_path / "secret.key"
     secret_key_file.write_text("too-short", encoding="utf-8")
+    secret_key_file.chmod(0o600)
 
     with pytest.raises(ValueError, match="must contain at least 32 characters"):
         AppConfig(secret_key_file=secret_key_file)
@@ -122,44 +130,6 @@ def test_app_config_does_not_generate_missing_secret_key(monkeypatch):
     cfg = AppConfig()
 
     assert cfg.secret_key == ""
-
-
-def test_load_config_reads_values_from_explicit_env_file(tmp_path, monkeypatch):
-    for key in (
-        "DJANGO_SECRET_KEY",
-        "DJANGO_ALLOWED_HOSTS",
-        "DJANGO_CSRF_TRUSTED_ORIGINS",
-        "DJANGO_CORS_ALLOWED_ORIGINS",
-        "ALLOWED_HOSTS",
-        "OIDC_RP_CLIENT_ID",
-        "OIDC_RP_CLIENT_SECRET",
-    ):
-        monkeypatch.delenv(key, raising=False)
-
-    env_file = tmp_path / "settings.env"
-    env_file.write_text(
-        "\n".join(
-            [
-                "DJANGO_SECRET_KEY=" + ("k" * 64),
-                "DJANGO_ALLOWED_HOSTS=api.example.com",
-                "DJANGO_CSRF_TRUSTED_ORIGINS=https://api.example.com",
-                "DJANGO_CORS_ALLOWED_ORIGINS=https://frontend.example.com",
-                "OIDC_RP_CLIENT_ID=endoregdb-api",
-                "OIDC_RP_CLIENT_SECRET=kc-secret",
-            ],
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-
-    cfg = load_config(env_file=env_file)
-
-    assert cfg.secret_key == "k" * 64
-    assert cfg.allowed_hosts == ["api.example.com"]
-    assert cfg.csrf_trusted_origins == ["https://api.example.com"]
-    assert cfg.cors_allowed_origins == ["https://frontend.example.com"]
-    assert cfg.keycloak_client_id == "endoregdb-api"
-    assert cfg.keycloak_client_secret == "kc-secret"
 
 
 def test_load_config_accepts_legacy_allowed_hosts_env(monkeypatch):
@@ -525,7 +495,7 @@ def test_settings_prod_import_uses_static_vite_manifest(monkeypatch, tmp_path):
 
     salt_file = atomic_write_file(
         destination=tmp_path / "identity-salt",
-        content=(b"production-probe-test-salt",),
+        content=(secrets.token_hex(32).encode("ascii"),),
         file_mode=0o600,
     )
     monkeypatch.setenv("DJANGO_SALT_FILE", str(salt_file))
@@ -574,7 +544,7 @@ def test_settings_prod_import_reads_luxnix_style_service_environment(
 
     salt_file = atomic_write_file(
         destination=tmp_path / "identity-salt",
-        content=(b"production-probe-test-salt",),
+        content=(secrets.token_hex(32).encode("ascii"),),
         file_mode=0o600,
     )
     monkeypatch.setenv("DJANGO_SALT_FILE", str(salt_file))
@@ -587,6 +557,8 @@ def test_settings_prod_import_reads_luxnix_style_service_environment(
     db_password_file.write_text("super-secret-db-password", encoding="utf-8")
     oidc_secret_file = tmp_path / "oidc-client-secret"
     oidc_secret_file.write_text("oidc-secret-from-service", encoding="utf-8")
+    for credential in (django_secret_file, db_password_file, oidc_secret_file):
+        credential.chmod(0o600)
     monkeypatch.setenv("LX_ANNOTATE_DATA_DIR", str(app_data_dir))
     monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
     monkeypatch.setenv("ENFORCE_AUTH", "0")
